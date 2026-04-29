@@ -27,5 +27,6 @@ This wiki splits the revised core spec into linked reference pages. Start with t
 | [Act I Prototype](act-i-prototype.md) | Goal, components, Ash Belt mix, starting resources. |
 | [Parked Systems](parked-systems.md) | Systems cut, parked, or kept for hard testing. |
 | [Playtest Checklist](playtest-checklist.md) | Metrics and player questions for Act I. |
+| [Solo JS Prototype Plan](solo-js-prototype-plan.md) | Development plan for a minimal manual browser prototype. |
 
 Next: [Introduction](introduction.md)

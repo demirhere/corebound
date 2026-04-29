@@ -1,6 +1,6 @@
 # Playtest Checklist
 
-Previous: [Parked Systems](parked-systems.md) | [Wiki Index](README.md)
+Previous: [Parked Systems](parked-systems.md) | [Wiki Index](README.md) | Next: [Solo JS Prototype Plan](solo-js-prototype-plan.md)
 
 Track these numbers during Act I:
 
@@ -37,4 +37,4 @@ Ask players after each game:
 | [Cycle Loop](cycle-loop.md) | Teach time and average cycle length measure loop clarity. |
 | [MOTHER](mother.md) | MOTHER use count tests whether Intervention is tempting enough. |
 
-Previous: [Parked Systems](parked-systems.md) | [Wiki Index](README.md)
+Previous: [Parked Systems](parked-systems.md) | Next: [Solo JS Prototype Plan](solo-js-prototype-plan.md)
