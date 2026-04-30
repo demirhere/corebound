@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>COREBOUND: Starpath — Solo Prototype</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="data.js" defer></script>
+    <script src="game.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-title">
+        <p class="eyebrow">COREBOUND: Starpath</p>
+        <h1>Solo Voyage Prototype</h1>
+      </div>
+      <p id="phaseSummary" class="help">Setup</p>
+      <nav>
+        <button data-action="openManual" class="link-button" type="button">How to play</button>
+        <button data-action="reset" class="link-button" type="button">Reset</button>
+        <a href="docs/wiki/README.md">Wiki</a>
+      </nav>
+    </header>
+
+    <p id="message" class="message" aria-live="polite"></p>
+
+    <main class="workspace">
+      <aside class="rail" aria-label="Ship, MOTHER, chambers">
+        <section id="shipBoard" class="ship-board"></section>
+        <section id="chamberArea" class="chamber-area"></section>
+      </aside>
+
+      <section id="mainArea" class="main-area" aria-label="Active phase"></section>
+    </main>
+
+    <section class="bottom-rail">
+      <div id="crewRow" class="crew-row"></div>
+    </section>
+
+    <div id="scoutPanel" class="overlay" hidden></div>
+    <div id="endingPanel" class="overlay" hidden></div>
+
+    <div id="manualPanel" class="overlay" hidden>
+      <div class="overlay-card manual-card">
+        <header class="overlay-head">
+          <div>
+            <p class="eyebrow">COREBOUND: Starpath</p>
+            <h2>How to play</h2>
+          </div>
+          <button data-action="closeManual" type="button">Close</button>
+        </header>
+        <div class="manual-content">
+          <section>
+            <h3>Premise</h3>
+            <p>You are guiding a damaged ark across the universe. The crew is small, the ship is tired, and MOTHER offers six wild cards from the start. Every Star asks the same question: do you spend the people, or burn one of the wild cards for the future?</p>
+          </section>
+          <section>
+            <h3>Goal</h3>
+            <p>Cross three sectors and dock at one of three Arrivals drawn at the final approach. You lose if a Gate cannot be covered, Hull reaches 0, or you need a 7th MOTHER card.</p>
+          </section>
+          <section>
+            <h3>Each turn</h3>
+            <ol>
+              <li><strong>Draw the sector.</strong> Click the Sector Deck to reveal the sector card and its Horizon Deck.</li>
+              <li><strong>Draw the Horizon.</strong> Click the Horizon Deck to reveal three Stars into the center slots.</li>
+              <li><strong>Highlight crew.</strong> Click crew tiles in the bottom rail to highlight the icons you want to commit.</li>
+              <li><strong>Draw MOTHER cards (optional).</strong> Click the MOTHER Deck to put a temporary wild card into your crew hand. Click that MOTHER card again to return it before acting.</li>
+              <li><strong>Click an action.</strong> Each Horizon Star shows a <em>Travel here</em> button; each Chamber in the market shows an <em>Install</em> button. The button is enabled when resources, icons, and any threshold rules are met.</li>
+              <li><strong>Resolve.</strong> Highlighted crew become Tired. Highlighted MOTHER cards are spent. Reward is applied; the visited Star's Legacy is recorded internally; click the Horizon Deck when you are ready for the next scan.</li>
+            </ol>
+            <p>Stars have no penalty. If you cannot or do not want to engage one, simply choose another or skip the Horizon (Reroute spends one MOTHER card if no Star is reachable).</p>
+          </section>
+          <section>
+            <h3>MOTHER bands</h3>
+            <p>Spent MOTHER cards slide the band:</p>
+            <ul>
+              <li><strong>Clear Route (0–2 used):</strong> no extra effects. Human Command ending available.</li>
+              <li><strong>Bent Route (3–4 used):</strong> <code>3+ MOTHER</code> lines on Stars wake up.</li>
+              <li><strong>Hostile Route (5–6 used):</strong> <code>5+ MOTHER</code> lines also active. Every Gate needs +1 icon.</li>
+              <li><strong>Need a 7th card:</strong> MOTHER Takes the Wheel — you lose.</li>
+            </ul>
+            <p>MOTHER cannot pay Fuel, Parts, or "+N crew" thresholds. Only humans can.</p>
+          </section>
+          <section>
+            <h3>Each Sector</h3>
+            <p>Each sector is 3 Stars then a Gate. Draw the sector card manually, then use its Horizon Deck. Pass the Gate by covering its Need with remaining crew and MOTHER cards. If you cannot cover the Gate with what remains, the voyage fails. After a passed Gate, all crew refresh; wounded crew stay wounded.</p>
+          </section>
+          <section>
+            <h3>Crew states</h3>
+            <ul>
+              <li><strong>Ready</strong> — full icons.</li>
+              <li><strong>Tired</strong> — already worked this sector. Refreshes after the Gate.</li>
+              <li><strong>Wounded</strong> — flipped. Provides only the first icon. Healed by certain Star or Chamber rewards.</li>
+              <li><strong>Cryo</strong> — asleep. A <code>Wake</code> reward brings one out; they enter Tired this sector.</li>
+            </ul>
+          </section>
+          <section>
+            <h3>Chambers</h3>
+            <p>Install permanent ship upgrades during a sector. Each Chamber costs Parts plus matching crew icons. You can install up to 3. Many Chambers degrade as MOTHER accumulates — read the threshold lines on the card.</p>
+          </section>
+          <section>
+            <h3>Final Approach</h3>
+            <p>After the third Gate, three Arrivals are drawn. Each matching Legacy from visited Stars removes one icon from an Arrival's Need (up to 3). Highlight crew + MOTHER cards, then click the Arrival you can dock at. If none is reachable, the ark drifts.</p>
+          </section>
+          <section>
+            <h3>Endings</h3>
+            <p>Your ending is read off three things: which Arrival you docked at, how many MOTHER cards you used (0–2 Human Command, 3–4 Shared Future, 5–6 MOTHER Ascendant), and which Legacy stamp dominates your visited Stars.</p>
+          </section>
+          <section>
+            <h3>Keys</h3>
+            <p><kbd>M</kbd> opens this manual. <kbd>R</kbd> resets the voyage. <kbd>Esc</kbd> closes overlays.</p>
+          </section>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

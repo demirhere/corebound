@@ -1,38 +1,38 @@
 # Introduction
 
-[Wiki Index](README.md) | Next: [Game Structure](game-structure.md)
+COREBOUND: Starpath is a cooperative journey game about crossing the universe with a damaged ark ship.
 
-COREBOUND is a cooperative survival card game about named humans, partial knowledge, and irreversible shortcuts.
+## Premise
 
-The game should repeatedly create this decision:
+Earth is gone. The ark has a few awake humans, a fleet of cryo sleepers, six MOTHER cards (each a shortcut), and a navigation AI named MOTHER who can solve any problem faster than her crew can. The journey is long. Every star you pass is a place to stop, refuel, salvage, or change who you are becoming. Every shortcut spends a MOTHER card — and the more cards are spent, the more the next card asks for real human hands.
 
-> We can spend people, time, and materials now, or let MOTHER solve it and make the future less ours.
+## The central mechanic
 
-## Win Condition
+> **Highlight crew, optionally draw MOTHER cards, click the action you can pay for. Every spent MOTHER card bends the future.**
 
-Reach Arrival. You win immediately. The epilogue diagnoses what kind of future survived.
+## Teach
 
-For the current Act I prototype, [Quiet Harvest is prototype Arrival](act-i-prototype.md#goal). Reaching it means success immediately.
+Read this aloud at the start of a game.
 
-## Final Design Thesis
+> We are crossing three sectors of space. Draw a sector card to reveal its Gate and Horizon Deck. Before the Gate, we visit three Stars. Click the Horizon Deck to reveal three Stars into the empty Horizon slots. Each Star shows its Fuel cost and skill icons in its Need. We click crew tiles to highlight the icons we want to commit. If we are short, we can draw MOTHER cards into the hand — each one is a wild icon — but every MOTHER card we use increases the spent count, which sets the band: Clear Route, Bent Route, or Hostile Route. The bands wake up extra cost lines on the cards. The Stars we visit record Legacy stamps for the ending. At the very end, three Arrivals are drawn from the Arrival deck; our visited Stars decide which one accepts us.
 
-COREBOUND should be built around three visible fronts every cycle:
+## What the player actually does
 
-| Front | Meaning |
-|---|---|
-| The road | The current Passage and known Ordeals somewhere ahead. |
-| The ship | Resources, chambers, power, wounds, and capacity. |
-| The future | MOTHER Autonomy, Corruption, Vigil, and epilogue flags. |
+A player only has four things to do:
 
-Players win by reaching Arrival, but they have fun because the route constantly asks them to choose what kind of survivors they are becoming.
+1. Click the Sector Deck when a new sector begins, then click the Horizon Deck when the Horizon is empty.
+2. Highlight crew (and optionally MOTHER cards).
+3. Click an action button on a card you can pay for: **Travel here** on a Horizon Star, **Install** on a Chamber, **Attempt Gate** on the Gate, **Arrive at** on an Arrival.
+4. Take the Reward; visited Stars are recorded internally for Arrivals and endings. If the Gate cannot be covered with what remains, the voyage fails.
 
-## Start Reading
+There are no separate tasks, projects, upkeep tables, pressure bands, corruption decks, ration math, leader exceptions, decline buttons, or long-term progress tracks.
 
-| Link | Why read it |
-|---|---|
-| [Game Structure](game-structure.md) | Understand the route, zones, and prototype scope. |
-| [Cycle Loop](cycle-loop.md) | Learn what happens every cycle. |
-| [MOTHER](mother.md) | Understand the central temptation and risk. |
-| [Act I Prototype](act-i-prototype.md) | See the current playable target. |
+## Design thesis
 
-Next: [Game Structure](game-structure.md)
+COREBOUND is not about managing a ship spreadsheet. It is about looking at three Stars ahead and asking:
+
+> Where do we dare go, who do we spend to get there, and how much of the future do we let MOTHER buy for us?
+
+> The more MOTHER performs miracles, the more human presence is required to keep the journey legitimate.
+
+Next: [Crew](crew.md).

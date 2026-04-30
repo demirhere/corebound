@@ -1,40 +1,43 @@
 # Playtest Checklist
 
-Previous: [Parked Systems](parked-systems.md) | [Wiki Index](README.md) | Next: [Solo JS Prototype Plan](solo-js-prototype-plan.md)
+Track these during a first playtest.
 
-Track these numbers during Act I:
+## Numbers to record
 
 | Metric | Target |
 |---|---|
-| Teach time | Under 12 minutes after setup |
-| Average cycle after round 3 | 2-4 minutes |
-| Number of MOTHER uses | 1-3 per successful game |
-| Number of Wake Pod uses | 1-4 per game |
-| Number of chamber openings | 1-2 per game |
-| Number of turns with obvious best action | Fewer than 25% |
-| Number of active fronts at once | Usually 2-3 |
-| Player-reported confusion points | Fewer each playtest |
-| Loss rate first-time groups | 50-70% acceptable for survival prototype |
-| Loss cause | Should vary between Hull, Fuel, Food, Hope, MOTHER, not always one track |
+| Teach time | Under 5 minutes |
+| Average Star visit | 30–60 seconds |
+| Number of MOTHER cards used | 2–5 in a successful run |
+| MOTHER band reached | 1–2 of 3 in a successful run |
+| Stars skipped (no engagement) | 0–2 in a successful run |
+| Number of crew wounded | 0–3 |
+| Number of crew woken from Cryo | 1–3 |
+| Chambers installed | 1–2 typical, 3 in a heavy build run |
+| Reroutes used | 0–2 |
+| Loss rate, first-time players | 50–70% acceptable |
+| Loss cause | Should vary between Hull, MOTHER 7th card, Arrival drift, and Stranded in the Reach |
 
-Ask players after each game:
+## Questions to ask after each game
 
-| Question |
-|---|
-| What decision felt hardest? |
-| Did you ever feel MOTHER was worth the cost? |
-| Which rule did you forget? |
-| Which task felt automatic or boring? |
-| Which crew death or wound do you remember? |
-| Did you feel you could prepare without feeling safe? |
-| Did the table ever become unreadable? |
+1. What decision felt hardest?
+2. Did using MOTHER feel worth it the first time? The last time you crossed into a new band?
+3. Did any `3+ MOTHER` line feel unfair, or did it feel earned?
+4. Which Arrival kind were you secretly aiming for, and did the drawn three reward that?
+5. Was the Gate fear real after Sector 1?
+6. Which Chamber felt most worth installing? Which felt like a trap?
+7. Was anything boring or automatic?
+8. Did the highlight-then-click flow feel obvious, or did anyone hunt for a "resolve" button?
 
-## Related Pages
+## Health checks for the design
 
-| Link | Relationship |
-|---|---|
-| [Act I Prototype](act-i-prototype.md#what-act-i-must-prove) | Playtest metrics should validate these prototype goals. |
-| [Cycle Loop](cycle-loop.md) | Teach time and average cycle length measure loop clarity. |
-| [MOTHER](mother.md) | MOTHER use count tests whether Intervention is tempting enough. |
-
-Previous: [Parked Systems](parked-systems.md) | Next: [Solo JS Prototype Plan](solo-js-prototype-plan.md)
+- Players should understand the loop after one Star visit.
+- Reading a Star's Fuel cost + Need + threshold lines should feel quick, not table-lookup-heavy.
+- Every Horizon should present at least two plausible choices.
+- The "save crew for the Gate" pressure should be felt, not announced.
+- Crossing into the Bent Route band (3 used MOTHER cards) should feel like a *moment*, not a footnote.
+- The dominant Legacy in two playtests should not be the same — runs should diverge.
+- A perfect-human run (Clear Route) should feel achievable but expensive.
+- A MOTHER-leaning run should feel productive but ominous, with the area visibly filling up.
+- Installing a Chamber should compete with the Gate for crew, not feel free.
+- Drawing three Arrivals at the end should feel like a payoff, not a surprise — players should already know which Legacies they leaned into.
