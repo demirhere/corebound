@@ -313,7 +313,7 @@ function App() {
     }
 
     const sourceCenter = getStackCenter(sourceStack, metrics)
-    const dropDistance = Math.max(metrics.cardWidth, metrics.cardHeight) * 0.9
+    const dropDistance = Math.max(metrics.cardWidth, metrics.cardHeight) * 0.55
     let nearestStackId: string | null = null
     let nearestDistance = Number.POSITIVE_INFINITY
 

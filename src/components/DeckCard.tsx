@@ -57,7 +57,6 @@ export function DeckCard({ deck, isActive, onPointerDown, onKeyDown }: DeckCardP
       <span className="deck-icon" aria-hidden="true">
         {deck.icon}
       </span>
-      <span className="deck-title">{deck.title}</span>
     </button>
   )
 }

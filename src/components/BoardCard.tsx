@@ -76,7 +76,6 @@ export function BoardCard({
 
         <article className="card-face card-back" aria-hidden="true">
           <span className="back-mark">✦</span>
-          <strong>Corebound</strong>
         </article>
       </div>
     </div>
