@@ -1,17 +1,17 @@
-# Sectors and Cycle
+# Sectors And Cycle
 
-A full game is three sectors, then the Final Approach. Each sector is **3 Stars then a Gate.**
+A full game is three sectors. Each sector is 3 Stars, then a Gate. The third Gate is the Final Gate.
 
 ```text
-Sector 1   ->  3 Stars  ->  Gate 1
-Sector 2   ->  3 Stars  ->  Gate 2
-Sector 3   ->  3 Stars  ->  Gate 3
-                        ->  Final Approach (draw 3 Arrivals)
+Sector 1 -> 3 Stars -> Gate 1 -> Gate Draft
+Sector 2 -> 3 Stars -> Gate 2 -> Gate Draft
+Sector 3 -> 3 Stars -> Final Gate
+Game ends -> count loyal crew
 ```
 
-Each sector has **one shuffled Star deck**. All travel distances (Near, Far, Deep, Abyssal) are mixed inside that one deck.
+Each sector has one shuffled Star deck. All travel distances are mixed inside that one deck.
 
-## Setup per sector
+## Setup Per Sector
 
 ```text
 [ Sector Deck ]   [ MOTHER Deck ]   [ Cryo Deck ]
@@ -20,13 +20,15 @@ Each sector has **one shuffled Star deck**. All travel distances (Near, Far, Dee
 [ Horizon Slot 1 ]   [ Horizon Slot 2 ]   [ Horizon Slot 3 ]
 ```
 
-The three Horizon slots begin empty. Click the Sector Deck to reveal the next sector card/Gate; that sector's Horizon Deck then becomes available. The Cryo Deck is visible as a deck/count, but `Wake` rewards draw from it automatically.
+The three Horizon slots begin empty. Click the Sector Deck to reveal the next sector card and Gate; that sector's Horizon Deck then becomes available. The Cryo Deck is visible as a deck/count.
 
-## Each turn, in order
+## Each Sector Turn
 
-### 1. Reveal the Horizon
+### 1. Reveal The Horizon
 
 Click the Horizon Deck to draw three Stars from the current sector deck. Each card shows its Fuel cost inside its Need.
+
+Star cards always show printed Fuel. If a reward or Chamber changes payment, put a token or ready/used marker in an Active Effects area beside the board instead of changing the card.
 
 ```text
 HORIZON
@@ -35,39 +37,47 @@ HORIZON
  Fuel 0       Fuel 1       Fuel 2
 ```
 
-### 2. Highlight crew (and MOTHER cards)
+### 2. Make A Proposal
 
-Click crew tiles to highlight the icons you intend to commit. Click the MOTHER Deck to draw a temporary wild card into your crew hand. Click that MOTHER card again to return it before acting.
+On the active player's turn, choose one visible legal card:
 
-If a `3+ MOTHER` line on a Star says *also commit +N crew*, you must highlight at least N **additional** human crew. MOTHER cannot satisfy this.
+```text
+One Horizon Star
+One damaged Chamber
+The active Gate, if three Stars have been completed
+```
 
-### 3. Click an action button
+The active player may propose the card before any crew are committed. Players may then contribute Ready loyal crew or pass. MOTHER may be added only if at least one human crew is committed.
 
-Each Horizon Star carries its own **Travel here** button. Each Chamber in the market carries its own **Install** button. The button is enabled iff:
+### 3. Resolve Or Dissolve
 
-- Resources are sufficient (Fuel for Travel, Parts for Install).
-- Highlighted crew + MOTHER icons cover the Need.
-- At least one human is highlighted (if MOTHER is being used).
-- All threshold rules are satisfied.
+A proposal resolves if:
 
-Click an enabled button. The action resolves immediately. Visited Stars record their Legacy stamp internally; Chambers install permanently. Crew become Tired. Highlighted MOTHER cards are spent. After a Star, the Horizon is empty until the Horizon Deck is clicked again.
+```text
+Resources are sufficient: Fuel for Stars, Parts for Chambers.
+Committed crew plus used MOTHER cover all required icons.
+At least one human crew is committed.
+All active threshold rules are satisfied.
+```
 
-### 4. Reroute (only if stuck)
+If the proposal resolves, committed crew become Tired, used MOTHER cards are spent, and the card effect happens. If the proposal does not resolve, it dissolves and nothing is spent.
 
-If all three Stars cost more Fuel than you have AND nothing else helps, you may **Reroute**: discard all three, use 1 MOTHER card, and reveal three new Stars. With no MOTHER cards left, the run is **Stranded in the Reach**.
+### 4. Reroute Only If Stuck
 
-## The Gate, in order
+If all three Horizon Stars cost more Fuel than the ship has and nothing else helps, the active player may Reroute: discard all three, use 1 MOTHER card, and reveal three new Stars. With no MOTHER card left, the ship is Stranded in the Reach.
 
-After three Stars, the Gate becomes the active card. Only crew still Ready can be highlighted.
+## Gates
 
-If MOTHER is at 5+ used cards (Hostile Route), the Gate's Need grows by `+1 any icon`.
+After three Stars, the Gate becomes the active card. Only Ready crew can be committed.
 
-If highlighted icons cover the Need, click **Attempt Gate**. If the available crew and MOTHER cards cannot cover the Gate at all, the voyage fails immediately.
+If MOTHER is at 5+ used cards, the Gate's Need grows by +1 icon.
 
-After the Gate, all crew refresh; wounded crew stay wounded.
+If the Gate proposal resolves, the ship passes the Gate. If the available crew and MOTHER cards cannot cover the Gate at all, the ship fails.
 
-## Why each crew can only work once per sector
+After Gate 1 and Gate 2, all Tired crew refresh, Wounded crew stay Wounded, and a Gate Draft recruits from Cryo. After the Final Gate, count loyal crew and determine the winner.
 
-This is the only timing pressure in the game. Spend a high-icon crew on a Star and they are not there for the Gate. Pour them into a Chamber and they are not there for either. That is the strategy.
+## Why Each Crew Can Only Work Once Per Sector
 
-Next: [Endings](endings.md).
+This is the main timing pressure. Spend a high-icon crew on a Star and they are not there for the Gate. Pour them into a Chamber and they are not there for either. That is the strategy.
+
+Next: [Prototype Components](prototype.md).

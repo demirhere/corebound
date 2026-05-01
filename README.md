@@ -1,10 +1,10 @@
 # COREBOUND: Starpath
 
-A cooperative journey card game about crossing the universe with a damaged ark ship.
+A semi-cooperative survival race about crossing the universe with a damaged ark ship.
 
-> Click the Sector Deck, then the Horizon Deck to reveal three Stars. Highlight crew tiles. Draw a MOTHER card into your hand if you need a wild icon. The Travel button on each Horizon Star (and the Install button on each Chamber) lights up when you can pay for it. Click it. The Star's Legacy is recorded; spent MOTHER cards bend the future. Three Arrivals are drawn at the very end, and your visited Stars decide which one accepts you.
+> Propose a visible Star, Chamber, or Gate. Commit loyal crew, negotiate help, and use MOTHER only when the ship needs a shortcut. If the ship fails, everyone loses. If the ship passes the Final Gate, the player with the most living loyal crew wins.
 
-## Run the prototype
+## Run The Prototype
 
 Open `index.html` in a browser, or serve locally:
 
@@ -12,7 +12,7 @@ Open `index.html` in a browser, or serve locally:
 python3 -m http.server 8000
 ```
 
-…then visit <http://localhost:8000/>. The prototype enforces the rules: 3 sectors of 3 Stars + a Gate, then a Final Approach with 3 drawn Arrivals. Install Chambers along the way. Stars have no penalty — engage them or skip them.
+Then visit <http://localhost:8000/>. The prototype is still solo-playable: it uses one solo player while enforcing the new proposal loop, Wake choices, Gate Drafts, Final Gate success, and loyal crew winner count.
 
 | Key | Action |
 |---|---|
@@ -25,12 +25,13 @@ python3 -m http.server 8000
 | Link | Purpose |
 |---|---|
 | [Wiki](docs/wiki/README.md) | Linked reference for the design. |
-| [Introduction](docs/wiki/introduction.md) | Premise, central mechanic, design thesis. |
-| [MOTHER](docs/wiki/mother.md) | The three bands and what MOTHER can / cannot do. |
-| [Chambers](docs/wiki/chambers.md) | Buyable permanent ship upgrades. |
+| [Introduction](docs/wiki/introduction.md) | Premise, teach text, design thesis. |
+| [Leadership and Proposals](docs/wiki/leadership.md) | Turn structure, Implementer, winning. |
+| [MOTHER](docs/wiki/mother.md) | Route bands and what MOTHER can or cannot do. |
+| [Chambers](docs/wiki/chambers.md) | Public ship upgrades. |
 | [Prototype Components](docs/wiki/prototype.md) | Card counts, sector difficulty. |
 | [Playtest Checklist](docs/wiki/playtest-checklist.md) | What to track in early tests. |
 
-## The whole game in one sentence
+## The Whole Game In One Sentence
 
-> Highlight crew, click an action — every spent MOTHER card bends the future.
+> Propose, commit crew, negotiate, resolve or dissolve, survive Gates, count loyal crew.

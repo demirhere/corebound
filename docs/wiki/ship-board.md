@@ -1,50 +1,43 @@
 # Ship Board
 
-The board tracks four things with matching token rows: Hull, Fuel, Parts, and spent MOTHER cards.
+The board tracks shared ship survival: Hull, Fuel, Parts, and spent MOTHER cards.
 
-| Track | Start | Lose if... |
+| Track | Start | Shared loss if... |
 |---|---:|---|
 | Hull | 5 | Hull reaches 0 |
-| Fuel | 3 | You may still play at 0, but only Fuel 0 Stars are reachable |
-| Parts | 0 | Never — Parts only go up or down when spent |
-| MOTHER cards | 0 used / 6 available | A 7th MOTHER card is needed |
+| Fuel | 3 | Not direct loss, but only Fuel 0 Stars are reachable at 0 Fuel |
+| Parts | 0 | Never; Parts are only gained and spent |
+| MOTHER cards | 0 used / 6 available | A 7th MOTHER card would be needed |
 
 ## Hull
 
-The physical ark. Hull comes back from Star rewards that grant `Hull +N`, or once per sector from Bulkhead Garden if installed.
+Hull is the physical ark. Hull comes back from Star rewards that grant `Hull +N`, or once per sector from Bulkhead Garden if repaired.
 
 ## Fuel
 
-The route control resource. Every Star shows its Fuel cost (0–3) in the Need section. If Fuel is below that cost, that Star is unreachable. If all three Horizon Stars are unreachable, you may **Reroute**: discard them, use 1 MOTHER card, redraw three. With no MOTHER cards left and no reachable Star, the run is **Stranded in the Reach**.
+Fuel is the route control resource. Every Star shows its Fuel cost in the Need section. If Fuel is below that cost, that Star is unreachable.
+
+If all three Horizon Stars are unreachable and nothing else helps, the active player may Reroute: discard all three, use 1 MOTHER card, and reveal three new Stars. With no MOTHER card left, the ship is Stranded in the Reach and all players lose.
 
 ## Parts
 
-The build resource. Spent only to install Chambers. Earned from some Star rewards. There is no Parts cap.
+Parts are the build resource. Parts are spent only to repair Chambers and earned from some Star rewards. MOTHER cannot pay Parts.
 
-MOTHER cannot pay Parts.
+## MOTHER Cards
 
-## MOTHER cards — the band track
-
-Six MOTHER cards begin in the MOTHER Deck. Click the deck to draw a temporary wild into your crew hand. Whenever you resolve an action with a highlighted MOTHER card, that card is spent and increases the MOTHER used count.
+Six MOTHER cards begin in the MOTHER Deck. Click the deck to draw a temporary wild into the proposal. Whenever a proposal resolves with used MOTHER cards, those cards are spent and increase the MOTHER used count.
 
 ```text
-MOTHER Deck   →   spent cards set the band
+MOTHER Deck -> spent cards are counted directly on the ship board
 ```
 
-| Used | Band | Band effect |
-|---:|---|---|
-| 0–2 | Clear Route | none |
-| 3–4 | Bent Route | `3+ MOTHER` lines on cards activate |
-| 5–6 | Hostile Route | `3+` and `5+ MOTHER` lines active; **Gates need +1 icon** |
-| 7 needed | MOTHER Takes the Wheel | loss |
-
-Spent MOTHER cards are also the ending barometer:
-
-| Used | Ending tone |
+| Used | Effect |
 |---:|---|
-| 0–2 | Human Command |
-| 3–4 | Shared Future |
-| 5–6 | MOTHER Ascendant |
-| 7 | Loss |
+| 0-2 | none |
+| 3-4 | `3+ ✶` lines on cards activate |
+| 5-6 | `3+ ✶` and `5+ ✶` lines active; Gates need +1 icon |
+| 7 needed | MOTHER Takes the Wheel: shared loss |
+
+MOTHER's role is a shared shortcut that can save the ship, steal timing, or push everyone closer to failure.
 
 Next: [Stars](stars.md).

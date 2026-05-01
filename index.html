@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>COREBOUND: Starpath — Solo Prototype</title>
+    <title>COREBOUND: Starpath — Solo Leadership Prototype</title>
     <link rel="stylesheet" href="style.css">
     <script src="data.js" defer></script>
     <script src="game.js" defer></script>
@@ -12,7 +12,7 @@
     <header class="topbar">
       <div class="topbar-title">
         <p class="eyebrow">COREBOUND: Starpath</p>
-        <h1>Solo Voyage Prototype</h1>
+        <h1>Solo Leadership Prototype</h1>
       </div>
       <p id="phaseSummary" class="help">Setup</p>
       <nav>
@@ -38,7 +38,9 @@
     </section>
 
     <div id="scoutPanel" class="overlay" hidden></div>
-    <div id="endingPanel" class="overlay" hidden></div>
+    <div id="wakePanel" class="overlay" hidden></div>
+    <div id="gateDraftPanel" class="overlay" hidden></div>
+    <div id="resultPanel" class="overlay" hidden></div>
 
     <div id="manualPanel" class="overlay" hidden>
       <div class="overlay-card manual-card">
@@ -52,59 +54,56 @@
         <div class="manual-content">
           <section>
             <h3>Premise</h3>
-            <p>You are guiding a damaged ark across the universe. The crew is small, the ship is tired, and MOTHER offers six wild cards from the start. Every Star asks the same question: do you spend the people, or burn one of the wild cards for the future?</p>
+            <p>You are guiding a damaged ark across three sectors. The solo prototype uses one player so you can test the multiplayer leadership loop alone: proposals, loyal crew, MOTHER pressure, Gate Drafts, and the final crew-count win.</p>
           </section>
           <section>
             <h3>Goal</h3>
-            <p>Cross three sectors and dock at one of three Arrivals drawn at the final approach. You lose if a Gate cannot be covered, Hull reaches 0, or you need a 7th MOTHER card.</p>
+            <p>Cross three sectors and pass the Final Gate. The ship fails if Hull reaches 0, a Gate cannot be covered, the ship is stranded, or a 7th MOTHER card would be needed. If the ship survives, the player with the most living loyal crew wins.</p>
           </section>
           <section>
-            <h3>Each turn</h3>
+            <h3>Each proposal</h3>
             <ol>
               <li><strong>Draw the sector.</strong> Click the Sector Deck to reveal the sector card and its Horizon Deck.</li>
               <li><strong>Draw the Horizon.</strong> Click the Horizon Deck to reveal three Stars into the center slots.</li>
-              <li><strong>Highlight crew.</strong> Click crew tiles in the bottom rail to highlight the icons you want to commit.</li>
-              <li><strong>Draw MOTHER cards (optional).</strong> Click the MOTHER Deck to put a temporary wild card into your crew hand. Click that MOTHER card again to return it before acting.</li>
-              <li><strong>Click an action.</strong> Each Horizon Star shows a <em>Travel here</em> button; each Chamber in the market shows an <em>Install</em> button. The button is enabled when resources, icons, and any threshold rules are met.</li>
-              <li><strong>Resolve.</strong> Highlighted crew become Tired. Highlighted MOTHER cards are spent. Reward is applied; the visited Star's Legacy is recorded internally; click the Horizon Deck when you are ready for the next scan.</li>
+              <li><strong>Propose a card.</strong> Click a visible Horizon Star, damaged Chamber, or active Gate. The card is copied into the Proposal Area.</li>
+              <li><strong>Pledge crew.</strong> Click Ready loyal crew in the bottom rail. The proposal can start empty, but it cannot resolve until the Need is covered.</li>
+              <li><strong>Add MOTHER if needed.</strong> Click the MOTHER Deck to add temporary wild cards. Click a temporary MOTHER card again to return it before resolving.</li>
+              <li><strong>Resolve or dissolve.</strong> If icons and resources are covered, resolve the proposal. If not, dissolve it; pledged crew and unspent MOTHER return ready.</li>
             </ol>
-            <p>Stars have no penalty. If you cannot or do not want to engage one, simply choose another or skip the Horizon (Reroute spends one MOTHER card if no Star is reachable).</p>
+            <p>Stars have no penalty. If all three Horizon Stars are unaffordable, Reroute spends one MOTHER card and redraws. With no MOTHER card left, the ship is stranded.</p>
+            <p>Star cards keep their printed Fuel icons. Temporary discounts, Free Star rewards, and armed Chamber bonuses appear in Active Effects beside the board instead of changing the card.</p>
           </section>
           <section>
-            <h3>MOTHER bands</h3>
-            <p>Spent MOTHER cards slide the band:</p>
+            <h3>MOTHER count</h3>
+            <p>Spent MOTHER cards are counted on the ship board:</p>
             <ul>
-              <li><strong>Clear Route (0–2 used):</strong> no extra effects. Human Command ending available.</li>
-              <li><strong>Bent Route (3–4 used):</strong> <code>3+ MOTHER</code> lines on Stars wake up.</li>
-              <li><strong>Hostile Route (5–6 used):</strong> <code>5+ MOTHER</code> lines also active. Every Gate needs +1 icon.</li>
+              <li><strong>0–2 used:</strong> no extra effects.</li>
+              <li><strong>3–4 used:</strong> <code>3+ ✶</code> lines on cards are active.</li>
+              <li><strong>5–6 used:</strong> <code>5+ ✶</code> lines are active. Every Gate needs +1 icon.</li>
               <li><strong>Need a 7th card:</strong> MOTHER Takes the Wheel — you lose.</li>
             </ul>
             <p>MOTHER cannot pay Fuel, Parts, or "+N crew" thresholds. Only humans can.</p>
           </section>
           <section>
             <h3>Each Sector</h3>
-            <p>Each sector is 3 Stars then a Gate. Draw the sector card manually, then use its Horizon Deck. Pass the Gate by covering its Need with remaining crew and MOTHER cards. If you cannot cover the Gate with what remains, the voyage fails. After a passed Gate, all crew refresh; wounded crew stay wounded.</p>
+            <p>Each sector is 3 Stars then a Gate. Sector 3 ends at the Final Gate. Pass a Gate by covering its Need with remaining crew and MOTHER cards. If you cannot cover the Gate with what remains, the ship fails. After Gate 1 and Gate 2, all crew refresh and a Gate Draft recruits from Cryo.</p>
           </section>
           <section>
             <h3>Crew states</h3>
             <ul>
-              <li><strong>Ready</strong> — full icons.</li>
+              <li><strong>Ready</strong> — full icons and available to pledge.</li>
               <li><strong>Tired</strong> — already worked this sector. Refreshes after the Gate.</li>
-              <li><strong>Wounded</strong> — flipped. Provides only the first icon. Healed by certain Star or Chamber rewards.</li>
-              <li><strong>Cryo</strong> — asleep. A <code>Wake</code> reward brings one out; they enter Tired this sector.</li>
+              <li><strong>Wounded</strong> — provides only the first icon. Healed by certain Star or Chamber rewards.</li>
+              <li><strong>Cryo</strong> — unowned sleepers. Wake rewards and Gate Drafts recruit them as loyal crew.</li>
             </ul>
           </section>
           <section>
             <h3>Chambers</h3>
-            <p>Install permanent ship upgrades during a sector. Each Chamber costs Parts plus matching crew icons. You can install up to 3. Many Chambers degrade as MOTHER accumulates — read the threshold lines on the card.</p>
+            <p>Repair damaged ship Chambers during a sector to bring them online permanently. Each Chamber costs Parts plus matching crew icons. You can repair up to 3. Chambers do not score; they help the ship survive.</p>
           </section>
           <section>
-            <h3>Final Approach</h3>
-            <p>After the third Gate, three Arrivals are drawn. Each matching Legacy from visited Stars removes one icon from an Arrival's Need (up to 3). Highlight crew + MOTHER cards, then click the Arrival you can dock at. If none is reachable, the ark drifts.</p>
-          </section>
-          <section>
-            <h3>Endings</h3>
-            <p>Your ending is read off three things: which Arrival you docked at, how many MOTHER cards you used (0–2 Human Command, 3–4 Shared Future, 5–6 MOTHER Ascendant), and which Legacy stamp dominates your visited Stars.</p>
+            <h3>Final Gate</h3>
+            <p>There is no step after Gate 3. If the Final Gate passes, the ship survives and the winner screen counts living loyal crew, healthy loyal crew, Final Gate contribution, and Final Gate implementer.</p>
           </section>
           <section>
             <h3>Keys</h3>

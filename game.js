@@ -1,4 +1,4 @@
-/* COREBOUND: Starpath - rules engine and renderer (v2 click-to-act). */
+/* COREBOUND: Starpath - rules engine and renderer (solo leadership prototype). */
 
 (function () {
   "use strict";
@@ -10,6 +10,7 @@
 
   var state;
   var scoutContinuation = null; // not persisted; cleared on reload
+  var wakeContinuation = null;  // not persisted; cleared on reload
 
   document.addEventListener("DOMContentLoaded", init);
 
@@ -18,16 +19,16 @@
   // ============================================================
 
   function init() {
-    state = loadState() || newGameState();
+    state = normalizeState(loadState()) || newGameState();
     if (state.pendingScout) state.pendingScout = null;
-    if (!state.highlightedCrew) state.highlightedCrew = [];
-    if (!state.highlightedMother) state.highlightedMother = [];
-    if (state.phase === "setup") state.phase = "play";
-    if (state.sectorRevealed == null) state.sectorRevealed = false;
+    if (state.pendingWake) state.pendingWake = null;
+    if (state.phase === "gate" && !state.proposal && currentGateId()) openGateProposal();
 
     document.body.addEventListener("click", onClick);
     document.addEventListener("keydown", onKeydown);
 
+    saveState();
+    exposeState();
     render();
   }
 
@@ -58,9 +59,17 @@
   // STATE MODEL
   // ============================================================
 
+  function defaultPlayers() {
+    return [
+      { id: "p1", name: "Solo Captain", color: "#2c4259" }
+    ];
+  }
+
   function newGameState() {
     var chamberDeck = shuffle(D.chambers.map(function (c) { return c.id; }));
     var market = chamberDeck.splice(0, 3);
+    var players = defaultPlayers();
+    var ownerId = players[0].id;
 
     var motherCards = [];
     for (var i = 0; i < D.starting.motherCards; i += 1) {
@@ -73,6 +82,8 @@
       fuel: D.starting.fuel,
       parts: D.starting.parts,
       motherCards: motherCards,
+      players: players,
+      activePlayerIndex: 0,
       crew: D.crew.map(function (c) {
         return {
           id: c.id,
@@ -80,9 +91,11 @@
           icons: c.icons.slice(),
           awake: c.startsAwake,
           tired: false,
-          wounded: false
+          wounded: false,
+          ownerPlayerId: c.startsAwake ? ownerId : null
         };
       }),
+      cryoDeck: D.crew.filter(function (c) { return !c.startsAwake; }).map(function (c) { return c.id; }),
       decks: {
         sector1: shuffle(D.sector1Stars.map(function (s) { return s.id; })),
         sector2: shuffle(D.sector2Stars.map(function (s) { return s.id; })),
@@ -90,28 +103,143 @@
       },
       discards: { sector1: [], sector2: [], sector3: [] },
       sectorGates: {},
-      arrivalDeck: shuffle(D.arrivals.map(function (a) { return a.id; })),
-      arrivalDraw: null,
-      arrivalChosen: null,
       sectorIndex: 0,
       starsThisSector: 0,
       sectorRevealed: false,
       horizon: null,
       highlightedCrew: [],
       highlightedMother: [],
+      proposal: null,
+      currentImplementer: null,
+      lastGateImplementerPlayerId: null,
+      finalGatePassed: false,
+      winnerPlayerId: null,
+      winnerPlayerIds: [],
+      finalGateContributions: {},
       freeStarNext: false,
       driveCathedralActive: false,
       log: [],
       pendingScout: null,
+      pendingWake: null,
+      gateDraft: null,
       chamberMarket: market,
       chamberDeck: chamberDeck,
       chamberInstalled: [],
       chamberFlags: {},
       message: "",
-      endingTitle: null,
-      endingBody: null,
       lossReason: null
     };
+  }
+
+  function normalizeState(s) {
+    if (!s || typeof s !== "object") return null;
+
+    if (!Array.isArray(s.players) || s.players.length === 0) s.players = defaultPlayers();
+    if (typeof s.activePlayerIndex !== "number") s.activePlayerIndex = 0;
+    if (s.activePlayerIndex < 0 || s.activePlayerIndex >= s.players.length) s.activePlayerIndex = 0;
+
+    if (!Array.isArray(s.highlightedCrew)) s.highlightedCrew = [];
+    if (!Array.isArray(s.highlightedMother)) s.highlightedMother = [];
+    if (!Array.isArray(s.log)) s.log = [];
+    if (!s.chamberFlags) s.chamberFlags = {};
+    if (!Array.isArray(s.chamberInstalled)) s.chamberInstalled = [];
+    if (!Array.isArray(s.chamberMarket)) s.chamberMarket = [];
+    if (!Array.isArray(s.chamberDeck)) s.chamberDeck = [];
+    if (!s.discards) s.discards = { sector1: [], sector2: [], sector3: [] };
+    if (!s.decks) {
+      s.decks = {
+        sector1: shuffle(D.sector1Stars.map(function (st) { return st.id; })),
+        sector2: shuffle(D.sector2Stars.map(function (st) { return st.id; })),
+        sector3: shuffle(D.sector3Stars.map(function (st) { return st.id; }))
+      };
+    }
+    if (!s.sectorGates) s.sectorGates = {};
+    if (typeof s.sectorIndex !== "number") s.sectorIndex = 0;
+    if (typeof s.starsThisSector !== "number") s.starsThisSector = 0;
+    if (s.sectorRevealed == null) s.sectorRevealed = false;
+
+    var ownerId = s.players[0].id;
+    if (!Array.isArray(s.crew) || s.crew.length === 0) {
+      s.crew = D.crew.map(function (c) {
+        return {
+          id: c.id,
+          name: c.name,
+          icons: c.icons.slice(),
+          awake: c.startsAwake,
+          tired: false,
+          wounded: false,
+          ownerPlayerId: c.startsAwake ? ownerId : null
+        };
+      });
+    }
+    s.crew.forEach(function (c) {
+      var base = D.crew.find(function (d) { return d.id === c.id; });
+      if (base) {
+        if (!c.name) c.name = base.name;
+        if (!Array.isArray(c.icons)) c.icons = base.icons.slice();
+      }
+      c.awake = !!c.awake;
+      c.tired = !!c.tired;
+      c.wounded = !!c.wounded;
+      if (!c.awake) c.ownerPlayerId = null;
+      else if (!c.ownerPlayerId) c.ownerPlayerId = ownerId;
+    });
+    if (!Array.isArray(s.cryoDeck)) {
+      s.cryoDeck = D.crew.map(function (c) { return c.id; }).filter(function (id) {
+        var crew = s.crew.find(function (c) { return c.id === id; });
+        return crew && !crew.awake;
+      });
+    }
+    s.cryoDeck = dedupe(s.cryoDeck).filter(function (id) {
+      var crew = s.crew.find(function (c) { return c.id === id; });
+      return crew && !crew.awake;
+    });
+    s.crew.forEach(function (c) {
+      if (!c.awake && s.cryoDeck.indexOf(c.id) < 0) s.cryoDeck.push(c.id);
+    });
+
+    if (!Array.isArray(s.motherCards) || s.motherCards.length === 0) {
+      s.motherCards = [];
+      for (var i = 0; i < D.starting.motherCards; i += 1) s.motherCards.push({ id: "m" + (i + 1), used: false });
+    }
+
+    if (s.phase === "setup") s.phase = "play";
+    if (["play", "gate", "gateDraft", "finished", "loss"].indexOf(s.phase) < 0) s.phase = "play";
+
+    if (s.phase !== "gateDraft") s.gateDraft = null;
+    if (s.phase !== "loss") s.lossReason = s.lossReason || null;
+    if (!s.proposal || typeof s.proposal !== "object") s.proposal = null;
+    if (s.pendingScout) s.pendingScout = null;
+    if (s.pendingWake) s.pendingWake = null;
+
+    [
+      ["arr", "ivalDeck"],
+      ["arr", "ivalDraw"],
+      ["arr", "ivalChosen"],
+      ["selected", "Arr", "ival"],
+      ["drawn", "Arr", "ivals"],
+      ["visited", "Leg", "acyCounts"],
+      ["dominant", "Leg", "acy"],
+      ["mother", "Tone"],
+      ["end", "ingTitle"],
+      ["end", "ingBody"],
+      ["end", "ingText"],
+      ["final", "Approach"]
+    ].forEach(function (parts) { delete s[parts.join("")]; });
+
+    if (!s.finalGateContributions) s.finalGateContributions = {};
+    if (!Array.isArray(s.winnerPlayerIds)) s.winnerPlayerIds = [];
+
+    return s;
+  }
+
+  function dedupe(arr) {
+    var seen = {};
+    return arr.filter(function (id) {
+      if (seen[id]) return false;
+      seen[id] = true;
+      return true;
+    });
   }
 
   function shuffle(arr) {
@@ -138,16 +266,25 @@
     return all.find(function (g) { return g.id === id; });
   }
 
-  function getArrival(id) {
-    return D.arrivals.find(function (a) { return a.id === id; });
-  }
-
   function getChamber(id) {
     return D.chambers.find(function (c) { return c.id === id; });
   }
 
   function getCrew(id) {
     return state.crew.find(function (c) { return c.id === id; });
+  }
+
+  function getPlayer(id) {
+    return state.players.find(function (p) { return p.id === id; });
+  }
+
+  function activePlayer() {
+    return state.players[state.activePlayerIndex] || state.players[0];
+  }
+
+  function activePlayerId() {
+    var p = activePlayer();
+    return p ? p.id : "p1";
   }
 
   function currentSectorKey() {
@@ -166,6 +303,14 @@
     return state.chamberInstalled.indexOf(id) >= 0;
   }
 
+  function isFinalSector() {
+    return state.sectorIndex >= 2;
+  }
+
+  // ============================================================
+  // MOTHER BANDS
+  // ============================================================
+
   function motherUsedCount() {
     return state.motherCards.filter(function (m) { return m.used; }).length;
   }
@@ -180,30 +325,12 @@
     }).length;
   }
 
-  // ============================================================
-  // MOTHER BANDS
-  // ============================================================
-
   function motherBand() {
     var n = motherUsedCount();
     if (n <= 2) return "clear";
     if (n <= 4) return "bent";
     if (n <= 6) return "hostile";
     return "wheel";
-  }
-
-  function motherBandLabel() {
-    var b = motherBand();
-    if (b === "clear") return "Clear Route";
-    if (b === "bent") return "Bent Route";
-    if (b === "hostile") return "Hostile Route";
-    return "MOTHER Takes the Wheel";
-  }
-
-  function motherToneFromUsed(n) {
-    if (n <= 2) return "Human Command";
-    if (n <= 4) return "Shared Future";
-    return "MOTHER Ascendant";
   }
 
   function thresholdActive(card, level) {
@@ -215,7 +342,7 @@
   }
 
   // ============================================================
-  // EFFECTIVE STAR PROPERTIES
+  // EFFECTIVE STAR / GATE PROPERTIES
   // ============================================================
 
   function effectiveStarTravel(starId) {
@@ -289,8 +416,14 @@
     return [];
   }
 
+  function gateNeed() {
+    var g = getGate(currentGateId());
+    if (!g) return [];
+    return g.need.concat(gateExtraIcons(g));
+  }
+
   // ============================================================
-  // ICON COVERAGE (highlighted crew + MOTHER wilds)
+  // ICON COVERAGE
   // ============================================================
 
   function getCrewIconContribution(crew) {
@@ -312,7 +445,6 @@
     return state.highlightedMother.length;
   }
 
-  // Returns { missingIcons: [...], wildsLeft: N } when wildsLeft >= 0 success.
   function coverageReport(need) {
     var provided = highlightedCrewIcons().slice();
     var missing = [];
@@ -325,18 +457,33 @@
     return { need: need, provided: provided, missing: missing, wildsLeft: wilds - missing.length };
   }
 
-  // True iff highlighted crew + MOTHER cards cover the need exactly (no slack required).
-  function isCovered(need) {
-    var r = coverageReport(need);
-    return r.wildsLeft >= 0;
+  function coverageFrom(need, provided, wilds) {
+    var pool = provided.slice();
+    var missing = [];
+    need.forEach(function (icon) {
+      var idx = pool.indexOf(icon);
+      if (idx >= 0) pool.splice(idx, 1);
+      else missing.push(icon);
+    });
+    return { missing: missing, wildsLeft: wilds - missing.length };
   }
 
   function humanCount() {
     return state.highlightedCrew.length;
   }
 
+  function selectedHumanCountByPlayer() {
+    var counts = {};
+    state.highlightedCrew.forEach(function (crewId) {
+      var c = getCrew(crewId);
+      if (!c || !c.ownerPlayerId) return;
+      counts[c.ownerPlayerId] = (counts[c.ownerPlayerId] || 0) + 1;
+    });
+    return counts;
+  }
+
   // ============================================================
-  // ACTIONS (wired through data-action)
+  // ACTIONS
   // ============================================================
 
   var actions = {
@@ -345,13 +492,15 @@
     toggleCrew: function (el) { doToggleCrew(el.dataset.crewId); },
     toggleMother: function (el) { doToggleMother(el.dataset.motherId); },
     drawMother: function () { doDrawMother(); },
-    travel: function (el) { doTravel(el.dataset.starId); },
-    install: function (el) { doInstall(el.dataset.chamberId); },
+    proposeStar: function (el) { doPropose("star", el.dataset.starId); },
+    proposeChamber: function (el) { doPropose("chamber", el.dataset.chamberId); },
+    proposeGate: function () { doPropose("gate", currentGateId()); },
+    resolveProposal: function () { doResolveProposal(); },
+    dissolveProposal: function () { doDissolveProposal(); },
     reroute: function () { doReroute(); },
-    attemptGate: function () { doAttemptGate(); },
-    revealArrivals: function () { doRevealArrivals(); },
-    arrive: function (el) { doArrive(el.dataset.arrivalId); },
     chooseScout: function (el) { doChooseScout(el.dataset.starId); },
+    chooseWake: function (el) { doChooseWake(el.dataset.crewId); },
+    chooseGateDraft: function (el) { doChooseGateDraft(el.dataset.crewId); },
     useDriveCathedral: function () { doUseDriveCathedral(); },
     useArchiveNode: function () { doUseArchiveNode(); },
     closeManual: function () {
@@ -369,15 +518,21 @@
   function hardReset() {
     state = newGameState();
     scoutContinuation = null;
+    wakeContinuation = null;
     saveAndRender();
   }
 
+  function advanceActivePlayer() {
+    if (!state.players.length) return;
+    state.activePlayerIndex = (state.activePlayerIndex + 1) % state.players.length;
+  }
+
   // ============================================================
-  // HORIZON
+  // HORIZON / REROUTE
   // ============================================================
 
   function doDrawSector() {
-    if (state.phase !== "play") return;
+    if (state.phase !== "play" || state.proposal) return;
     if (state.sectorRevealed) return;
     var key = currentSectorKey();
     state.sectorGates[key] = pickRandom(D.gates[key]).id;
@@ -388,14 +543,11 @@
 
   function revealHorizon() {
     var deck = currentDeck();
-    var slots = 3;
-    var domeBonus = hasChamber("ch-observation-dome");
-    if (domeBonus) slots = 4;
-
+    var slots = hasChamber("ch-observation-dome") ? 4 : 3;
     var picks = [];
     while (picks.length < slots && deck.length > 0) picks.push(deck.shift());
 
-    if (domeBonus && picks.length === 4) {
+    if (hasChamber("ch-observation-dome") && picks.length === 4) {
       var dropIdx;
       if (motherUsedCount() >= 3) {
         var lowest = 99;
@@ -411,7 +563,6 @@
       }
       var dropped = picks.splice(dropIdx, 1)[0];
       state.discards[currentSectorKey()].push(dropped);
-      // Observation Dome 5+ MOTHER cost: use 1 MOTHER card per sector to enable.
       if (motherUsedCount() >= 5 && !state.chamberFlags.observationDomeUsedThisSector) {
         if (motherUnusedCount() < 1) {
           state.horizon = picks;
@@ -426,7 +577,7 @@
   }
 
   function doDrawHorizon() {
-    if (state.phase !== "play") return;
+    if (state.phase !== "play" || state.proposal) return;
     if (!state.sectorRevealed) return;
     if (state.horizon) return;
     if (currentDeck().length < 1) {
@@ -440,27 +591,16 @@
   function horizonAffordableExists() {
     if (!state.horizon) return true;
     return state.horizon.some(function (id) {
-      var travel = effectiveStarTravel(id);
-      var cost = state.freeStarNext ? 0 : travel;
-      cost = applyGravitySailsDiscount(id, cost);
+      var cost = travelCostFor(id);
       return state.fuel >= cost;
     });
   }
 
-  function applyGravitySailsDiscount(starId, cost) {
-    if (!hasChamber("ch-gravity-sails")) return cost;
-    if (state.chamberFlags.gravitySailsUsedThisSector) return cost;
-    var s = getStar(starId);
-    if (!s) return cost;
-    if (s.travel < 2) return cost;
-    return Math.max(0, cost - 1);
-  }
-
   function doReroute() {
-    if (state.phase !== "play") return;
+    if (state.phase !== "play" || state.proposal) return;
     if (!state.horizon) return;
     if (horizonAffordableExists()) {
-      showMessage("At least one of these stars is reachable. Choose one or install a chamber first.");
+      showMessage("At least one of these Stars is reachable. Propose one or fix a Chamber first.");
       return;
     }
     if (motherUnusedCount() < 1) {
@@ -470,12 +610,106 @@
     state.horizon.forEach(function (id) { state.discards[currentSectorKey()].push(id); });
     state.horizon = null;
     spendMotherCards(1);
-    if (motherUsedCount() > state.motherCards.length) {
-      enterLoss("MOTHER Takes the Wheel");
+    revealHorizon();
+    advanceActivePlayer();
+    saveAndRender();
+  }
+
+  // ============================================================
+  // PROPOSALS
+  // ============================================================
+
+  function proposalTargetLegal(type, id) {
+    if (type === "star") return state.phase === "play" && state.horizon && state.horizon.indexOf(id) >= 0;
+    if (type === "chamber") return state.phase === "play" && state.sectorRevealed && state.chamberMarket.indexOf(id) >= 0;
+    if (type === "gate") return state.phase === "gate" && id === currentGateId();
+    return false;
+  }
+
+  function doPropose(type, id) {
+    if (state.proposal) {
+      showMessage("Resolve or dissolve the current proposal first.");
       return;
     }
-    revealHorizon();
+    if (!proposalTargetLegal(type, id)) return;
+    state.proposal = {
+      cardId: id,
+      cardType: type,
+      proposerPlayerId: activePlayerId(),
+      implementerPlayerId: null,
+      status: "open"
+    };
     saveAndRender();
+  }
+
+  function doResolveProposal() {
+    if (!state.proposal) return;
+    if (humanCount() < 1) {
+      showMessage("A proposal needs at least one committed human crew.");
+      return;
+    }
+    var elig = proposalEligibility(state.proposal);
+    if (!elig.ok) {
+      showMessage(elig.reason || "The proposal is not ready.");
+      return;
+    }
+    var implementer = activePlayerId();
+    state.currentImplementer = implementer;
+    state.proposal.implementerPlayerId = implementer;
+    state.proposal.status = "resolved";
+
+    if (state.proposal.cardType === "star") return resolveTravelProposal(state.proposal.cardId, elig, implementer);
+    if (state.proposal.cardType === "chamber") return resolveInstallProposal(state.proposal.cardId, elig, implementer);
+    if (state.proposal.cardType === "gate") return resolveGateProposal(elig, implementer);
+  }
+
+  function doDissolveProposal() {
+    if (!state.proposal) return;
+    var wasGate = state.proposal.cardType === "gate" && state.phase === "gate";
+    state.proposal.status = "dissolved";
+    state.proposal = null;
+    state.highlightedCrew = [];
+    state.highlightedMother = [];
+    state.currentImplementer = null;
+    advanceActivePlayer();
+    if (wasGate) openGateProposal();
+    saveAndRender();
+  }
+
+  function openGateProposal() {
+    state.proposal = {
+      cardId: currentGateId(),
+      cardType: "gate",
+      proposerPlayerId: activePlayerId(),
+      implementerPlayerId: null,
+      status: "open"
+    };
+  }
+
+  function proposalEligibility(proposal) {
+    if (!proposal) return { ok: false, reason: "No proposal." };
+    if (proposal.cardType === "star") return travelEligibility(proposal.cardId);
+    if (proposal.cardType === "chamber") return installEligibility(proposal.cardId);
+    if (proposal.cardType === "gate") {
+      var gate = gateEligibility();
+      return {
+        ok: gate.attemptOk,
+        reason: gate.reason || "The Gate must be fully covered to pass.",
+        motherSpent: gate.motherSpent
+      };
+    }
+    return { ok: false, reason: "Unknown proposal." };
+  }
+
+  function proposalNeed(proposal) {
+    if (!proposal) return [];
+    if (proposal.cardType === "star") return effectiveStarNeed(proposal.cardId);
+    if (proposal.cardType === "chamber") {
+      var c = getChamber(proposal.cardId);
+      return c ? c.build.slice() : [];
+    }
+    if (proposal.cardType === "gate") return gateNeed();
+    return [];
   }
 
   // ============================================================
@@ -483,28 +717,56 @@
   // ============================================================
 
   function travelCostFor(starId) {
-    var travel = effectiveStarTravel(starId);
-    var cost = state.freeStarNext ? 0 : travel;
-    if (hasChamber("ch-gravity-sails") && !state.chamberFlags.gravitySailsUsedThisSector) {
-      var s = getStar(starId);
-      if (s && s.travel >= 2) cost = Math.max(0, cost - 1);
+    return travelCostBreakdown(starId).due;
+  }
+
+  function travelCostBreakdown(starId) {
+    var s = getStar(starId);
+    if (!s) return { printed: 0, due: 0, modifiers: [] };
+    var printed = s.travel;
+    var due = printed;
+    var modifiers = [];
+    var t3 = thresholdActive(s, 3);
+    var t5 = thresholdActive(s, 5);
+    if (t3 && t3.travelDelta) {
+      due += t3.travelDelta;
+      modifiers.push("3+ " + D.icons.mother.glyph + ": +" + t3.travelDelta + " Fuel");
     }
-    return cost;
+    if (t5 && t5.travelDelta) {
+      due += t5.travelDelta;
+      modifiers.push("5+ " + D.icons.mother.glyph + ": +" + t5.travelDelta + " Fuel");
+    }
+    if (state.driveCathedralActive) {
+      var driveOk = !(motherUsedCount() >= 3 && due > 1);
+      if (driveOk) {
+        due = Math.max(0, due - 1);
+        modifiers.push("Drive Cathedral: -1 Fuel");
+      } else {
+        modifiers.push("Drive Cathedral armed but not eligible");
+      }
+    }
+    if (state.freeStarNext) {
+      due = 0;
+      modifiers.push("Free Star token: Fuel cost becomes 0");
+    }
+    if (hasChamber("ch-gravity-sails") && !state.chamberFlags.gravitySailsUsedThisSector && s.travel >= 2) {
+      due = Math.max(0, due - 1);
+      modifiers.push("Gravity Sails: -1 Fuel");
+    }
+    return { printed: printed, due: due, modifiers: modifiers };
   }
 
   function travelEligibility(starId) {
     var s = getStar(starId);
-    if (!s) return { ok: false, reason: "unknown star" };
+    if (!s) return { ok: false, reason: "unknown Star" };
     var cost = travelCostFor(starId);
     if (state.fuel < cost) return { ok: false, reason: "Need " + cost + " Fuel (have " + state.fuel + ")." };
 
     var need = effectiveStarNeed(starId);
     var rep = coverageReport(need);
-    if (rep.wildsLeft < 0) {
-      return { ok: false, reason: "Highlighted icons + MOTHER cards do not cover the Need." };
-    }
+    if (rep.wildsLeft < 0) return { ok: false, reason: "Pledged icons + MOTHER cards do not cover the Need." };
     if (highlightedMotherCount() > 0 && humanCount() === 0) {
-      return { ok: false, reason: "MOTHER may only help if at least one human is highlighted." };
+      return { ok: false, reason: "MOTHER may only help if at least one human is pledged." };
     }
     var extraCrew = effectiveStarExtraCrew(starId);
     if (extraCrew > 0) {
@@ -512,22 +774,22 @@
       var baseline = Math.max(2, Math.ceil(iconsRequired / 2));
       var needHumans = baseline + extraCrew;
       if (humanCount() < needHumans) {
-        return { ok: false, reason: "3+ MOTHER: also commit +" + extraCrew + " crew (need ≥" + needHumans + " humans)." };
+        return { ok: false, reason: "3+ " + D.icons.mother.glyph + ": also commit +" + extraCrew + " crew (need >=" + needHumans + " humans)." };
       }
     }
     if (hasChamber("ch-gravity-sails") && !state.chamberFlags.gravitySailsUsedThisSector
         && s.travel >= 2 && motherUsedCount() >= 3 && humanCount() < 2) {
-      return { ok: false, reason: "Gravity Sails (3+ MOTHER) needs ≥2 humans on the discounted Star." };
+      return { ok: false, reason: "Gravity Sails (3+ " + D.icons.mother.glyph + ") needs >=2 humans on the discounted Star." };
     }
-    return { ok: true, cost: cost, motherSpent: rep.missing.length };
+    return { ok: true, cost: cost, motherSpent: Math.max(0, rep.missing.length) };
   }
 
-  function doTravel(starId) {
+  function resolveTravelProposal(starId, elig, implementer) {
     if (state.phase !== "play") return;
     if (!state.horizon || state.horizon.indexOf(starId) < 0) return;
-    var elig = travelEligibility(starId);
-    if (!elig.ok) { showMessage(elig.reason); return; }
 
+    var motherBefore = motherUsedCount();
+    var motherSpent = elig.motherSpent;
     state.fuel -= elig.cost;
     state.freeStarNext = false;
 
@@ -543,26 +805,19 @@
       state.driveCathedralActive = false;
     }
 
-    var motherSpent = elig.motherSpent;
     spendHighlightedCrewAsTired();
-    spendMotherFromHighlight();
-
-    // MOTHER Liaison Core: refund 1 card per sector when first MOTHER use is small.
-    refundLiaisonIfApplicable(motherSpent);
+    spendMotherFromHighlight(motherSpent);
+    refundLiaisonIfApplicable(motherSpent, "star", motherBefore);
 
     var sectorKey = currentSectorKey();
     state.horizon.forEach(function (id) {
       if (id !== starId) state.discards[sectorKey].push(id);
     });
     state.horizon = null;
+    state.proposal = null;
 
     var card = getStar(starId);
-    var legacy = card.legacy;
-    state.log.push({ starId: starId, legacy: legacy, motherCards: motherSpent, name: card.name });
-
-    if (hasChamber("ch-mother-liaison") && motherUsedCount() >= 5 && motherSpent > 0 && legacy !== "machine") {
-      state.log.push({ starId: starId + "-machine-echo", legacy: "machine", motherCards: 0, name: card.name + " (Machine echo)" });
-    }
+    state.log.push({ type: "star", starId: starId, motherCards: motherSpent, name: card.name, implementerPlayerId: implementer });
 
     state.activeStarId = starId;
     var rewards = effectiveStarReward(starId);
@@ -589,12 +844,14 @@
     }
 
     state.starsThisSector += 1;
+    advanceActivePlayer();
     if (state.starsThisSector >= 3) {
       if (!gatePassPossible()) {
         enterLoss("Gate Failed");
         return;
       }
       state.phase = "gate";
+      openGateProposal();
     }
     saveAndRender();
   }
@@ -605,36 +862,38 @@
 
   function installEligibility(chamberId) {
     var c = getChamber(chamberId);
-    if (!c) return { ok: false, reason: "unknown chamber" };
+    if (!c) return { ok: false, reason: "unknown Chamber" };
     if (!state.sectorRevealed) return { ok: false, reason: "Draw the sector card first." };
-    if (state.chamberInstalled.length >= 3) return { ok: false, reason: "Three chambers already installed." };
+    if (state.chamberInstalled.length >= 3) return { ok: false, reason: "Three Chambers already fixed." };
     if (state.parts < c.parts) return { ok: false, reason: "Need " + c.parts + " Parts (have " + state.parts + ")." };
     var rep = coverageReport(c.build);
-    if (rep.wildsLeft < 0) return { ok: false, reason: "Highlighted icons + MOTHER cards do not cover the Build." };
+    if (rep.wildsLeft < 0) return { ok: false, reason: "Pledged icons + MOTHER cards do not cover the Build." };
     if (highlightedMotherCount() > 0 && humanCount() === 0) {
-      return { ok: false, reason: "MOTHER may only help if at least one human is highlighted." };
+      return { ok: false, reason: "MOTHER may only help if at least one human is pledged." };
     }
-    return { ok: true, cost: c.parts, motherSpent: rep.missing.length };
+    return { ok: true, cost: c.parts, motherSpent: Math.max(0, rep.missing.length) };
   }
 
-  function doInstall(chamberId) {
+  function resolveInstallProposal(chamberId, elig, implementer) {
     if (state.phase !== "play") return;
     if (state.chamberMarket.indexOf(chamberId) < 0) return;
-    var elig = installEligibility(chamberId);
-    if (!elig.ok) { showMessage(elig.reason); return; }
 
+    var motherBefore = motherUsedCount();
     var chamber = getChamber(chamberId);
     state.parts -= chamber.parts;
 
     spendHighlightedCrewAsTired();
-    spendMotherFromHighlight();
-    refundLiaisonIfApplicable(elig.motherSpent);
+    spendMotherFromHighlight(elig.motherSpent);
+    refundLiaisonIfApplicable(elig.motherSpent, "chamber", motherBefore);
 
     state.chamberInstalled.push(chamber.id);
     var marketIdx = state.chamberMarket.indexOf(chamber.id);
     if (marketIdx >= 0) state.chamberMarket.splice(marketIdx, 1);
     if (state.chamberDeck.length > 0) state.chamberMarket.push(state.chamberDeck.shift());
+    state.log.push({ type: "chamber", chamberId: chamberId, motherCards: elig.motherSpent, name: chamber.name, implementerPlayerId: implementer });
 
+    state.proposal = null;
+    advanceActivePlayer();
     if (motherUsedCount() > state.motherCards.length) { enterLoss("MOTHER Takes the Wheel"); return; }
     saveAndRender();
   }
@@ -642,23 +901,6 @@
   // ============================================================
   // GATE
   // ============================================================
-
-  function gateNeed() {
-    var g = getGate(currentGateId());
-    if (!g) return [];
-    return g.need.concat(gateExtraIcons(g));
-  }
-
-  function coverageFrom(need, provided, wilds) {
-    var pool = provided.slice();
-    var missing = [];
-    need.forEach(function (icon) {
-      var idx = pool.indexOf(icon);
-      if (idx >= 0) pool.splice(idx, 1);
-      else missing.push(icon);
-    });
-    return { missing: missing, wildsLeft: wilds - missing.length };
-  }
 
   function gatePassPossible() {
     var need = gateNeed();
@@ -676,108 +918,135 @@
     var rep = coverageReport(need);
     var attemptOk = rep.wildsLeft >= 0;
     if (highlightedMotherCount() > 0 && humanCount() === 0) {
-      return { attemptOk: false, willPass: false, reason: "MOTHER may only help if at least one human is highlighted." };
+      return { attemptOk: false, willPass: false, reason: "MOTHER may only help if at least one human is pledged." };
     }
-    return { attemptOk: attemptOk, willPass: attemptOk, missing: rep.missing.length, motherSpent: attemptOk ? rep.missing.length : 0 };
+    return { attemptOk: attemptOk, willPass: attemptOk, missing: rep.missing.length, motherSpent: attemptOk ? Math.max(0, rep.missing.length) : 0 };
   }
 
-  function doAttemptGate() {
+  function resolveGateProposal(elig, implementer) {
     if (state.phase !== "gate") return;
-    var elig = gateEligibility();
-    if (!elig.attemptOk) {
-      if (elig.reason) { showMessage(elig.reason); return; }
-      showMessage("The Gate must be fully covered to pass.");
-      return;
-    }
-
+    var motherBefore = motherUsedCount();
     var motherSpent = elig.motherSpent;
+    var finalContributions = isFinalSector() ? selectedHumanCountByPlayer() : null;
+
     spendHighlightedCrewAsTired();
-    spendMotherFromHighlight();
-    refundLiaisonIfApplicable(motherSpent);
+    spendMotherFromHighlight(motherSpent);
+    refundLiaisonIfApplicable(motherSpent, "gate", motherBefore);
+
+    state.proposal = null;
+    state.lastGateImplementerPlayerId = implementer;
+    state.log.push({ type: isFinalSector() ? "finalGate" : "gate", gateId: currentGateId(), motherCards: motherSpent, implementerPlayerId: implementer });
 
     if (motherUsedCount() > state.motherCards.length) { enterLoss("MOTHER Takes the Wheel"); return; }
-    advancePastGate();
+    if (isFinalSector()) {
+      enterFinalWin(implementer, finalContributions || {});
+      return;
+    }
+    advancePastGate(implementer);
   }
 
-  function advancePastGate() {
-    state.crew.forEach(function (c) { c.tired = false; });
+  function refreshAfterGate() {
+    state.crew.forEach(function (c) { if (c.awake) c.tired = false; });
     state.chamberFlags = {};
     state.driveCathedralActive = false;
     state.starsThisSector = 0;
-    state.sectorIndex += 1;
     state.sectorRevealed = false;
     state.horizon = null;
-    if (state.sectorIndex > 2) {
-      state.phase = "arrival";
-      state.arrivalDraw = state.arrivalDeck.splice(0, 3);
-    } else {
+    state.highlightedCrew = [];
+    state.highlightedMother = [];
+  }
+
+  function advancePastGate(implementer) {
+    refreshAfterGate();
+    state.sectorIndex += 1;
+    advanceActivePlayer();
+    if (startGateDraft(implementer)) return;
+    state.phase = "play";
+    saveAndRender();
+  }
+
+  // ============================================================
+  // GATE DRAFT
+  // ============================================================
+
+  function startGateDraft(implementer) {
+    if (state.sectorIndex > 2) return false;
+    if (state.cryoDeck.length < 1) return false;
+
+    var revealCount = state.players.length;
+    var extraIds = [];
+    if (hasChamber("ch-seed-vault") && motherUsedCount() < 5) revealCount += 1;
+    var ids = drawCryo(revealCount);
+    if (hasChamber("ch-seed-vault") && motherUsedCount() >= 3 && motherUsedCount() < 5 && ids.length > state.players.length) {
+      extraIds = ids.slice(state.players.length);
+    }
+    if (ids.length < 1) return false;
+
+    state.phase = "gateDraft";
+    state.gateDraft = {
+      ids: ids,
+      extraIds: extraIds,
+      gateImplementerPlayerId: implementer,
+      playerOrder: gateDraftOrder(implementer),
+      pickIndex: 0
+    };
+    saveAndRender();
+    return true;
+  }
+
+  function gateDraftOrder(implementer) {
+    var players = state.players.slice();
+    players.sort(function (a, b) {
+      var diff = livingLoyalCrewCount(a.id) - livingLoyalCrewCount(b.id);
+      if (diff !== 0) return diff;
+      return clockwiseDistanceFromImplementerLeft(a.id, implementer) - clockwiseDistanceFromImplementerLeft(b.id, implementer);
+    });
+    return players.map(function (p) { return p.id; });
+  }
+
+  function clockwiseDistanceFromImplementerLeft(playerId, implementer) {
+    if (!implementer) return state.players.findIndex(function (p) { return p.id === playerId; });
+    var start = state.players.findIndex(function (p) { return p.id === implementer; });
+    if (start < 0) start = 0;
+    for (var i = 1; i <= state.players.length; i += 1) {
+      var idx = (start + i) % state.players.length;
+      if (state.players[idx].id === playerId) return i - 1;
+    }
+    return 99;
+  }
+
+  function doChooseGateDraft(crewId) {
+    if (state.phase !== "gateDraft" || !state.gateDraft) return;
+    if (state.gateDraft.ids.indexOf(crewId) < 0) return;
+    var playerId = state.gateDraft.playerOrder[state.gateDraft.pickIndex] || activePlayerId();
+    var wounded = state.gateDraft.extraIds.indexOf(crewId) >= 0;
+    recruitCrew(crewId, playerId, false, wounded);
+
+    state.gateDraft.ids = state.gateDraft.ids.filter(function (id) { return id !== crewId; });
+    state.gateDraft.pickIndex += 1;
+
+    if (state.gateDraft.pickIndex >= state.gateDraft.playerOrder.length || state.gateDraft.ids.length === 0) {
+      state.gateDraft.ids.forEach(returnCryoToBottom);
+      state.gateDraft = null;
       state.phase = "play";
-    }
-    saveAndRender();
-  }
-
-  // ============================================================
-  // ARRIVAL
-  // ============================================================
-
-  function doRevealArrivals() {
-    // Reserved for future re-roll. Currently arrivals are drawn at gate-pass.
-    saveAndRender();
-  }
-
-  function arrivalReductionCount(arrivalId) {
-    var arrival = getArrival(arrivalId);
-    if (!arrival) return 0;
-    var matchingStamps = state.log.filter(function (e) { return e.legacy === arrival.legacy; }).length;
-    var cap = (arrival.legacy === "life" && hasChamber("ch-seed-vault")) ? 4 : 3;
-    return Math.min(cap, matchingStamps);
-  }
-
-  function arrivalNeed(arrivalId) {
-    var arrival = getArrival(arrivalId);
-    var reduction = arrivalReductionCount(arrivalId);
-    var need = arrival.need.slice();
-    need.splice(need.length - reduction, reduction);
-    return need;
-  }
-
-  function arriveEligibility(arrivalId) {
-    var need = arrivalNeed(arrivalId);
-    var rep = coverageReport(need);
-    if (rep.wildsLeft < 0) return { ok: false, reason: "Highlighted icons + MOTHER cards do not cover the Need." };
-    if (highlightedMotherCount() > 0 && humanCount() === 0) {
-      return { ok: false, reason: "MOTHER may only help if at least one human is highlighted." };
-    }
-    return { ok: true, motherSpent: rep.missing.length };
-  }
-
-  function doArrive(arrivalId) {
-    if (state.phase !== "arrival") return;
-    if (!state.arrivalDraw || state.arrivalDraw.indexOf(arrivalId) < 0) return;
-    var elig = arriveEligibility(arrivalId);
-    state.arrivalChosen = arrivalId;
-    if (!elig.ok) {
-      // Without enough icons → Drift Ending.
-      enterEndingDrift();
+      saveAndRender();
       return;
     }
-    spendHighlightedCrewAsTired();
-    spendMotherFromHighlight();
-    if (motherUsedCount() > state.motherCards.length) { enterLoss("MOTHER Takes the Wheel"); return; }
-    enterEndingWin();
+    saveAndRender();
   }
 
   // ============================================================
-  // HIGHLIGHTING
+  // HIGHLIGHTING / MOTHER SPENDING
   // ============================================================
 
   function doToggleCrew(id) {
     var crew = getCrew(id);
     if (!crew || !crew.awake) {
-      showMessage(crew ? crew.name + " is in cryo." : "");
+      showMessage(crew ? crew.name + " is in Cryo." : "");
       return;
     }
-    if (crew.tired && state.phase !== "arrival") {
+    if (state.phase !== "play" && state.phase !== "gate") return;
+    if (crew.tired) {
       showMessage(crew.name + " has already worked this sector.");
       return;
     }
@@ -790,6 +1059,7 @@
   function doToggleMother(id) {
     var card = state.motherCards.find(function (m) { return m.id === id; });
     if (!card) return;
+    if (state.phase !== "play" && state.phase !== "gate") return;
     if (card.used) { showMessage("That MOTHER card has already been spent."); return; }
     var idx = state.highlightedMother.indexOf(id);
     if (idx >= 0) state.highlightedMother.splice(idx, 1);
@@ -798,7 +1068,7 @@
   }
 
   function doDrawMother() {
-    var commitable = state.phase === "play" || state.phase === "gate" || state.phase === "arrival";
+    var commitable = state.phase === "play" || state.phase === "gate";
     if (!commitable) return;
     var card = state.motherCards.find(function (m) {
       return !m.used && state.highlightedMother.indexOf(m.id) < 0;
@@ -812,21 +1082,27 @@
   }
 
   function spendHighlightedCrewAsTired() {
-    var sectorPhase = state.phase === "play" || state.phase === "gate";
     state.highlightedCrew.forEach(function (id) {
       var c = getCrew(id);
       if (!c) return;
-      if (sectorPhase) c.tired = true;
+      c.tired = true;
     });
     state.highlightedCrew = [];
   }
 
-  function spendMotherFromHighlight() {
-    state.highlightedMother.forEach(function (id) {
+  function spendMotherFromHighlight(n) {
+    var spent = 0;
+    var ids = state.highlightedMother.slice();
+    ids.forEach(function (id) {
+      if (spent >= n) return;
       var card = state.motherCards.find(function (m) { return m.id === id; });
-      if (card) card.used = true;
+      if (card && !card.used) {
+        card.used = true;
+        spent += 1;
+      }
     });
     state.highlightedMother = [];
+    return spent;
   }
 
   function spendMotherCards(n) {
@@ -844,7 +1120,6 @@
 
   function refundMotherCards(n) {
     var refunded = 0;
-    // Refund in reverse so the most recently used card returns first.
     for (var i = state.motherCards.length - 1; i >= 0 && refunded < n; i -= 1) {
       if (state.motherCards[i].used) {
         state.motherCards[i].used = false;
@@ -854,20 +1129,20 @@
     return refunded;
   }
 
-  function refundLiaisonIfApplicable(motherSpent) {
+  function refundLiaisonIfApplicable(motherSpent, cardType, motherBefore) {
     if (!hasChamber("ch-mother-liaison")) return;
     if (state.chamberFlags.liaisonUsedThisSector) return;
     if (motherSpent <= 0) return;
-    if (motherUsedCount() >= 3) {
-      if (motherSpent === 2) {
-        refundMotherCards(1);
-        state.chamberFlags.liaisonUsedThisSector = true;
-      }
-    } else {
-      if (motherSpent === 1) {
-        refundMotherCards(1);
-        state.chamberFlags.liaisonUsedThisSector = true;
-      }
+    if (motherBefore >= 5 && cardType === "gate") return;
+
+    if (motherBefore >= 3) {
+      refundMotherCards(1);
+      state.chamberFlags.liaisonUsedThisSector = true;
+      return;
+    }
+    if (motherSpent === 1) {
+      refundMotherCards(1);
+      state.chamberFlags.liaisonUsedThisSector = true;
     }
   }
 
@@ -876,7 +1151,7 @@
   // ============================================================
 
   function doUseDriveCathedral() {
-    if (state.phase !== "play") return;
+    if (state.phase !== "play" || state.proposal) return;
     if (!hasChamber("ch-drive-cathedral")) return;
     if (state.chamberFlags.driveCathedralUsedThisSector) {
       showMessage("Drive Cathedral has already shaved a route this sector.");
@@ -887,7 +1162,7 @@
   }
 
   function doUseArchiveNode() {
-    if (state.phase !== "play") return;
+    if (state.phase !== "play" || state.proposal) return;
     if (!hasChamber("ch-archive-node")) return;
     if (state.chamberFlags.archiveNodeUsedThisSector) {
       showMessage("Archive Node has already been consulted this sector.");
@@ -932,6 +1207,7 @@
         }
       }
       state.hull = Math.max(0, state.hull + delta);
+      if (state.hull <= 0) { enterLoss("Hull reached 0"); return; }
       cb();
       return;
     }
@@ -946,13 +1222,7 @@
       return;
     }
     if (t === "wake") {
-      for (var i = 0; i < n; i += 1) {
-        var sleeper = state.crew.find(function (c) { return !c.awake; });
-        if (!sleeper) break;
-        sleeper.awake = true;
-        sleeper.tired = true;
-      }
-      cb();
+      beginWakeChoice(n, cb);
       return;
     }
     if (t === "heal") {
@@ -968,8 +1238,8 @@
       for (var k = 0; k < n; k += 1) {
         var preventThis = false;
         if (hasChamber("ch-medical-bay") && !state.chamberFlags.medicalBayUsedThisSector) {
-          var allowed = !(motherUsedCount() >= 5);
-          if (allowed) preventThis = true;
+          var preventAllowed = !(motherUsedCount() >= 5);
+          if (preventAllowed) preventThis = true;
         }
         var target = state.crew.find(function (c) { return c.awake && !c.wounded; });
         if (!target) break;
@@ -1003,6 +1273,75 @@
     cb();
   }
 
+  function beginWakeChoice(count, cb) {
+    if (count <= 0 || state.cryoDeck.length < 1) { cb(); return; }
+    state.pendingWake = {
+      remaining: count,
+      choices: [],
+      implementerPlayerId: state.currentImplementer || activePlayerId()
+    };
+    wakeContinuation = cb;
+    prepareNextWakeChoice();
+  }
+
+  function prepareNextWakeChoice() {
+    if (!state.pendingWake) return;
+    if (state.pendingWake.remaining <= 0 || state.cryoDeck.length < 1) return finishWakeChoice();
+    state.pendingWake.choices = drawCryo(Math.min(2, state.cryoDeck.length));
+    if (state.pendingWake.choices.length < 1) return finishWakeChoice();
+    saveAndRender();
+  }
+
+  function doChooseWake(crewId) {
+    if (!state.pendingWake) return;
+    if (state.pendingWake.choices.indexOf(crewId) < 0) return;
+    var playerId = state.pendingWake.implementerPlayerId;
+    recruitCrew(crewId, playerId, true, false);
+    state.pendingWake.choices.forEach(function (id) {
+      if (id !== crewId) returnCryoToBottom(id);
+    });
+    state.pendingWake.remaining -= 1;
+    prepareNextWakeChoice();
+  }
+
+  function finishWakeChoice() {
+    var cb = wakeContinuation;
+    state.pendingWake = null;
+    wakeContinuation = null;
+    saveState();
+    if (cb) cb();
+    else render();
+  }
+
+  function drawCryo(n) {
+    var ids = [];
+    while (ids.length < n && state.cryoDeck.length > 0) {
+      var id = state.cryoDeck.shift();
+      var crew = getCrew(id);
+      if (crew && !crew.awake) ids.push(id);
+    }
+    return ids;
+  }
+
+  function returnCryoToBottom(id) {
+    var crew = getCrew(id);
+    if (!crew || crew.awake) return;
+    crew.ownerPlayerId = null;
+    crew.tired = false;
+    if (state.cryoDeck.indexOf(id) < 0) state.cryoDeck.push(id);
+  }
+
+  function recruitCrew(id, playerId, tired, wounded) {
+    var crew = getCrew(id);
+    if (!crew) return;
+    var idx = state.cryoDeck.indexOf(id);
+    if (idx >= 0) state.cryoDeck.splice(idx, 1);
+    crew.awake = true;
+    crew.ownerPlayerId = playerId;
+    crew.tired = !!tired;
+    crew.wounded = !!wounded;
+  }
+
   function doChooseScout(starId) {
     if (!state.pendingScout) return;
     var deck = currentDeck();
@@ -1032,44 +1371,53 @@
   }
 
   // ============================================================
-  // ENDINGS
+  // FINAL / LOSS
   // ============================================================
 
   function enterLoss(reason) {
     state.phase = "loss";
     state.lossReason = reason;
+    state.proposal = null;
     saveAndRender();
   }
 
-  function enterEndingWin() {
-    var arrId = state.arrivalChosen;
-    var motherTone = motherToneFromUsed(motherUsedCount());
-    var dom = dominantLegacy(state.log) || "memory";
-    var arrival = getArrival(arrId);
-    var legacy = D.legacies[dom] ? D.legacies[dom].label : "Mixed";
-    state.endingTitle = arrival.name + " · " + motherTone + " · " + legacy;
-    state.endingBody = D.endingText(arrId, motherTone, dom);
-    state.phase = "ending";
+  function enterFinalWin(implementer, contributionCounts) {
+    refreshAfterGate();
+    state.finalGatePassed = true;
+    state.finalGateContributions = contributionCounts || {};
+    state.lastGateImplementerPlayerId = implementer;
+    var winners = determineWinners(implementer);
+    state.winnerPlayerIds = winners;
+    state.winnerPlayerId = winners.length === 1 ? winners[0] : null;
+    state.phase = "finished";
     saveAndRender();
   }
 
-  function enterEndingDrift() {
-    var motherTone = motherToneFromUsed(motherUsedCount());
-    state.endingTitle = "Drift Ending · " + motherTone;
-    state.endingBody = "The Arrival was beyond your reach. The ark drifts forever, kept warm by whatever combination of humans and machine remains.";
-    state.phase = "ending";
-    saveAndRender();
+  function livingLoyalCrewCount(playerId) {
+    return state.crew.filter(function (c) { return c.awake && c.ownerPlayerId === playerId; }).length;
   }
 
-  function dominantLegacy(log) {
-    if (!log || log.length === 0) return null;
-    var counts = {};
-    log.forEach(function (e) { counts[e.legacy] = (counts[e.legacy] || 0) + 1; });
-    var best = null, bestN = 0;
-    Object.keys(counts).forEach(function (k) {
-      if (counts[k] > bestN) { best = k; bestN = counts[k]; }
-    });
-    return best;
+  function healthyLoyalCrewCount(playerId) {
+    return state.crew.filter(function (c) { return c.awake && c.ownerPlayerId === playerId && !c.wounded; }).length;
+  }
+
+  function finalGateContributionCount(playerId) {
+    return state.finalGateContributions[playerId] || 0;
+  }
+
+  function determineWinners(implementer) {
+    var candidates = state.players.map(function (p) { return p.id; });
+    candidates = filterBest(candidates, livingLoyalCrewCount);
+    candidates = filterBest(candidates, healthyLoyalCrewCount);
+    candidates = filterBest(candidates, finalGateContributionCount);
+    if (candidates.length > 1 && implementer && candidates.indexOf(implementer) >= 0) candidates = [implementer];
+    return candidates;
+  }
+
+  function filterBest(ids, scoreFn) {
+    var best = -Infinity;
+    ids.forEach(function (id) { best = Math.max(best, scoreFn(id)); });
+    return ids.filter(function (id) { return scoreFn(id) === best; });
   }
 
   // ============================================================
@@ -1089,9 +1437,13 @@
     catch (e) {}
   }
 
+  function exposeState() {
+    if (typeof window !== "undefined") window.STARPATH = { state: state, D: D };
+  }
+
   function saveAndRender() {
     saveState();
-    if (typeof window !== "undefined") window.STARPATH = { state: state, D: D };
+    exposeState();
     render();
   }
 
@@ -1101,12 +1453,20 @@
 
   function render() {
     renderTopbar();
+    renderMessage();
     renderShipBoard();
     renderChamberArea();
     renderCrewRow();
     renderMain();
     renderScout();
-    renderEnding();
+    renderWake();
+    renderGateDraft();
+    renderResult();
+  }
+
+  function renderMessage() {
+    var el = document.getElementById("message");
+    if (el && state.message) el.textContent = state.message;
   }
 
   function renderTopbar() {
@@ -1116,14 +1476,16 @@
   }
 
   function topbarLabel() {
+    var p = activePlayer();
+    var prefix = p ? p.name + " turn - " : "";
     if (state.phase === "play") {
-      if (!state.sectorRevealed) return "Draw the next sector card";
-      return "Star " + (state.starsThisSector + 1) + " of 3";
+      if (!state.sectorRevealed) return prefix + "draw the next sector card";
+      return prefix + "Star " + (state.starsThisSector + 1) + " of 3";
     }
-    if (state.phase === "gate") return "Sector " + (state.sectorIndex + 1) + " · Gate — only Ready crew remain";
-    if (state.phase === "arrival") return "Final Approach — choose your Arrival";
-    if (state.phase === "ending") return "Voyage complete";
-    if (state.phase === "loss") return "Voyage lost";
+    if (state.phase === "gate") return prefix + "Sector " + (state.sectorIndex + 1) + (isFinalSector() ? " Final Gate" : " Gate");
+    if (state.phase === "gateDraft") return "Gate Draft";
+    if (state.phase === "finished") return "Ship survived";
+    if (state.phase === "loss") return "Ship failed";
     return "";
   }
 
@@ -1141,238 +1503,381 @@
 
   function renderTrack(label, value, max, type) {
     var pips = "";
-    for (var i = 0; i < max; i += 1) {
-      pips += '<span class="track-pip ' + type + (i < value ? ' on' : ' off') + '"></span>';
+    for (var i = 0; i < value; i += 1) {
+      if (D.icons[type]) pips += '<span class="track-pip ' + type + ' on">' + D.icons[type].glyph + '</span>';
+      else pips += '<span class="track-pip ' + type + ' on"></span>';
     }
-    return '<div class="track"><span class="track-name">' + label + '</span><div class="track-pips">' + pips + '</div></div>';
+    var glyph = D.icons[type]
+      ? '<span class="track-glyph ' + type + '" aria-hidden="true">' + D.icons[type].glyph + '</span>'
+      : '<span class="track-glyph"></span>';
+    return '<div class="track">' + glyph + '<span class="track-name">' + label + '</span><div class="track-pips">' + pips + '</div></div>';
   }
 
   function renderChamberArea() {
     var el = document.getElementById("chamberArea");
     if (!el) return;
-    var installedHtml = state.chamberInstalled.length === 0
-      ? '<p class="chamber-empty">No chambers installed yet. Install one from the market.</p>'
-      : state.chamberInstalled.map(function (id) { return renderChamberCard(id, "installed"); }).join("");
-
     var marketHtml = state.chamberMarket.length === 0
-      ? '<p class="chamber-empty">Chamber market is empty.</p>'
+      ? '<p class="chamber-empty">All Chambers fixed.</p>'
       : state.chamberMarket.map(function (id) {
-          var c = getChamber(id);
-          var elig = state.phase === "play" && state.sectorRevealed ? installEligibility(id) : { ok: false, reason: "Available during the sector." };
-          var note = elig.ok
-            ? 'Install (Parts ' + c.parts + (elig.motherSpent ? ' + ' + elig.motherSpent + ' MOTHER' : '') + ')'
-            : 'Install (Parts ' + c.parts + ' + crew)';
-          var btn = elig.ok
-            ? '<button class="primary" data-action="install" data-chamber-id="' + escapeAttr(id) + '">' + note + '</button>'
-            : '<button class="secondary" disabled title="' + escapeAttr(elig.reason || "") + '">' + note + '</button>';
-          return '<div class="chamber-pick">' + renderChamberCard(id, "market") + btn + '</div>';
+          var legal = state.phase === "play" && state.sectorRevealed && !state.proposal && state.chamberInstalled.length < 3;
+          var selected = state.proposal && state.proposal.cardType === "chamber" && state.proposal.cardId === id;
+          if (selected) return '<div class="chamber-pick">' + renderCardPlaceholder("chamber") + '</div>';
+          var attrs = legal ? ' data-action="proposeChamber" data-chamber-id="' + escapeAttr(id) + '" role="button" tabindex="0"' : '';
+          return '<div class="chamber-pick card-click-target' + (legal ? ' can-propose' : '') + (selected ? ' selected' : '') + '"' + attrs + '>' +
+            renderChamberCard(id, "market") +
+            (legal ? '<span class="card-click-hint">Click card to propose</span>' : '') +
+          '</div>';
         }).join("");
 
+    el.innerHTML =
+      '<h2 class="rail-title">Damaged Chambers (' + state.chamberInstalled.length + '/3 fixed)</h2>' +
+      '<div class="chamber-market">' + marketHtml + '</div>';
+  }
+
+  function renderInstalledChambersBoard() {
+    if (!state.chamberInstalled || state.chamberInstalled.length === 0) return "";
+    var cards = state.chamberInstalled.map(function (id) {
+      return renderChamberCard(id, "installed");
+    }).join("");
     var actionsHtml = "";
-    if (state.phase === "play" && hasChamber("ch-drive-cathedral") && !state.chamberFlags.driveCathedralUsedThisSector) {
+    if (state.phase === "play" && hasChamber("ch-drive-cathedral") && !state.chamberFlags.driveCathedralUsedThisSector && !state.proposal) {
       var btnLabel = state.driveCathedralActive ? "Drive Cathedral: armed (-1 Travel)" : "Use Drive Cathedral (-1 Travel)";
       actionsHtml += '<button class="secondary" data-action="useDriveCathedral">' + btnLabel + '</button>';
     }
-    if (state.phase === "play" && hasChamber("ch-archive-node") && !state.chamberFlags.archiveNodeUsedThisSector) {
+    if (state.phase === "play" && hasChamber("ch-archive-node") && !state.chamberFlags.archiveNodeUsedThisSector && !state.proposal) {
       actionsHtml += '<button class="secondary" data-action="useArchiveNode">Use Archive Node</button>';
     }
-
-    el.innerHTML =
-      '<h2 class="rail-title">Chambers</h2>' +
-      '<div class="chamber-installed">' + installedHtml + '</div>' +
-      (actionsHtml ? '<div class="chamber-actions">' + actionsHtml + '</div>' : "") +
-      '<h3 class="chamber-market-title">Market (' + state.chamberInstalled.length + '/3 installed)</h3>' +
-      '<div class="chamber-market">' + marketHtml + '</div>';
+    return '<div class="installed-board">' +
+      '<h3 class="installed-board-title">Ship Chambers</h3>' +
+      '<div class="installed-board-row">' + cards + '</div>' +
+      (actionsHtml ? '<div class="installed-board-actions">' + actionsHtml + '</div>' : "") +
+    '</div>';
   }
 
   function renderCrewRow() {
     var el = document.getElementById("crewRow");
     if (!el) return;
-    var commitable = state.phase === "play" || state.phase === "gate" || state.phase === "arrival";
-    var awakeCrew = state.crew.filter(function (c) { return c.awake; });
-    var html = '<div class="crew-row-title">Crew hand (click to highlight / unhighlight)</div><div class="crew-row-body">';
-    awakeCrew.forEach(function (c) {
+    var commitable = state.phase === "play" || state.phase === "gate";
+    var activeCrew = state.crew.filter(function (c) { return c.awake && !c.tired; });
+    var tiredCrew = state.crew.filter(function (c) { return c.awake && c.tired; });
+    var html = '<div class="crew-row-title">Loyal crew and temporary MOTHER cards</div><div class="crew-row-body"><div class="crew-ready-row">';
+    activeCrew.forEach(function (c) {
+      var owner = getPlayer(c.ownerPlayerId);
+      var committed = state.proposal && state.highlightedCrew.indexOf(c.id) >= 0;
+      if (committed) {
+        html += renderCrewPlaceholder(c.name);
+        return;
+      }
       var cls = "crew-tile";
-      if (!c.awake) cls += " state-cryo";
-      else if (c.tired && state.phase !== "arrival") cls += " state-tired";
+      if (c.tired) cls += " state-tired";
       else cls += " state-ready";
       if (c.wounded) cls += " state-wounded";
       if (state.highlightedCrew.indexOf(c.id) >= 0) cls += " state-committed";
-      var canSelect = commitable && c.awake && (state.phase === "arrival" || !c.tired);
-      var iconRow = c.icons.map(function (icon, idx) {
+      var canSelect = commitable && !c.tired;
+      var iconRowHtml = c.icons.map(function (icon, idx) {
         var muted = c.wounded && idx > 0;
         return iconBadge(icon, muted ? "icon-badge muted" : "icon-badge");
       }).join("");
-      var subState =
-        !c.awake ? "Cryo" :
-        c.tired && state.phase !== "arrival" ? "Tired" :
-        c.wounded ? "Wounded" : "Ready";
+      var subState = c.tired ? "Tired" : c.wounded ? "Wounded" : "Ready";
       html += '<button type="button" class="' + cls + '" ' +
         (canSelect ? 'data-action="toggleCrew" data-crew-id="' + escapeAttr(c.id) + '"' : "disabled") +
         '>' +
+        '<span class="crew-card-glyph" aria-hidden="true">' + D.icons.person.glyph + '</span>' +
         '<span class="crew-name">' + escapeHtml(c.name) + '</span>' +
-        '<span class="crew-icons">' + iconRow + '</span>' +
+        '<span class="crew-owner">' + escapeHtml(owner ? owner.name : "Unowned") + '</span>' +
+        '<span class="crew-icons">' + iconRowHtml + '</span>' +
         '<span class="crew-state">' + subState + '</span>' +
-        "</button>";
-    });
-    state.highlightedMother.forEach(function (id) {
-      html += '<button type="button" class="crew-tile mother-hand-card state-committed" data-action="toggleMother" data-mother-id="' + escapeAttr(id) + '">' +
-        '<span class="crew-name">MOTHER</span>' +
-        '<span class="crew-icons"><span class="mother-wild-icon">★</span></span>' +
-        '<span class="crew-state">Wild · click to return</span>' +
         '</button>';
     });
-    html += "</div>";
+    if (!state.proposal) {
+      state.highlightedMother.forEach(function (id) {
+        html += '<button type="button" class="crew-tile mother-hand-card state-committed" data-action="toggleMother" data-mother-id="' + escapeAttr(id) + '">' +
+          '<span class="crew-name">MOTHER</span>' +
+          '<span class="crew-icons"><span class="mother-wild-icon">' + D.icons.mother.glyph + '</span></span>' +
+          '<span class="crew-state">Wild - click to return</span>' +
+          '</button>';
+      });
+    }
+    html += '</div>';
+    if (tiredCrew.length > 0) {
+      html += '<div class="crew-tired-pile" aria-label="Tired crew pile">' +
+        '<span class="crew-pile-label">Tired</span>' +
+        tiredCrew.map(renderTiredCrewPileCard).join("") +
+      '</div>';
+    }
+    html += '</div>';
     el.innerHTML = html;
+  }
+
+  function renderTiredCrewPileCard(c, idx) {
+    var cls = "crew-tile state-tired";
+    if (c.wounded) cls += " state-wounded";
+    var iconRowHtml = c.icons.map(function (icon, iconIdx) {
+      var muted = c.wounded && iconIdx > 0;
+      return iconBadge(icon, muted ? "icon-badge muted" : "icon-badge");
+    }).join("");
+    return '<article class="' + cls + ' pile-card" style="--pile-index:' + idx + '">' +
+      '<span class="crew-card-glyph" aria-hidden="true">' + D.icons.person.glyph + '</span>' +
+      '<span class="crew-name">' + escapeHtml(c.name) + '</span>' +
+      '<span class="crew-icons">' + iconRowHtml + '</span>' +
+      '<span class="crew-state">Tired</span>' +
+    '</article>';
+  }
+
+  function renderCrewPlaceholder(name) {
+    return '<div class="crew-placeholder" aria-label="' + escapeAttr(name) + ' committed to proposal"><span>In Proposal</span></div>';
   }
 
   function renderMain() {
     var el = document.getElementById("mainArea");
     if (!el) return;
-    if (state.phase === "play") return el.innerHTML = renderPlay();
-    if (state.phase === "gate") return el.innerHTML = renderGatePhase();
-    if (state.phase === "arrival") return el.innerHTML = renderArrivalPhase();
-    if (state.phase === "ending" || state.phase === "loss") return el.innerHTML = "";
+    if (state.phase === "play" || state.phase === "gate") return el.innerHTML = renderPlay();
+    if (state.phase === "gateDraft") return el.innerHTML = renderGateDraftMain();
+    if (state.phase === "finished" || state.phase === "loss") return el.innerHTML = "";
   }
 
   function renderPlay() {
     var deckLeft = currentDeck().length;
     var gateId = currentGateId();
     var rerouteHtml = "";
-    if (state.horizon && !horizonAffordableExists()) {
+    if (state.horizon && !horizonAffordableExists() && !state.proposal) {
       var canReroute = motherUnusedCount() > 0;
       rerouteHtml = '<div class="reroute-row"><p class="reroute-text">No Horizon Star is reachable on current Fuel.</p>' +
         '<button class="' + (canReroute ? 'primary' : 'secondary') + '" data-action="reroute" ' + (canReroute ? '' : 'disabled') + '>' +
-        (canReroute ? 'Reroute (use 1 MOTHER card, redraw)' : 'Reroute — no MOTHER cards left') + '</button></div>';
+        (canReroute ? 'Reroute (use 1 MOTHER card, redraw)' : 'Reroute - no MOTHER cards left') + '</button></div>';
     }
 
-    var horizonHtml = "";
-    if (state.horizon) {
-      horizonHtml = state.horizon.map(function (id) {
-        return renderHorizonStarSlot(id);
-      }).join("");
-    } else {
-      horizonHtml = renderEmptyHorizon();
-    }
+    var horizonHtml = state.horizon
+      ? state.horizon.map(function (id) { return renderHorizonStarSlot(id); }).join("")
+      : renderEmptyHorizon();
 
     return [
       '<section class="board-panel">',
       '<div class="sector-table">',
-        '<div class="deck-zone">' + renderSectorDeck() + renderMotherDeck() + renderCryoDeck() + '</div>',
+        '<div class="deck-zone">' + renderSectorDeck() + renderMotherDeck() + renderCryoDeck() + renderChamberDeck() + '</div>',
         (state.sectorRevealed
-          ? '<div class="sector-focus">' + renderHorizonDeck(deckLeft) + '<div class="gate-banner">' + renderGateCard(gateId, "small") + '</div></div>'
+          ? '<div class="sector-focus">' + renderHorizonDeck(deckLeft) + '<div class="gate-banner">' + renderGateSlot(gateId) + '</div></div>'
           : '<div class="sector-empty">Draw a sector card to begin.</div>'),
       '</div>',
+      renderProposalArea(),
+      renderActiveEffects(),
       '<div class="horizon-row">' + horizonHtml + '</div>',
       rerouteHtml,
+      renderInstalledChambersBoard(),
       '</section>'
     ].join("");
   }
 
   function renderSectorDeck() {
-    var remaining = Math.max(0, 3 - state.sectorIndex);
-    if (state.sectorRevealed) {
-      return '<div class="deck-card sector-deck drawn" aria-label="Sector card"><span class="deck-label">Sector Card</span><strong>' + (state.sectorIndex + 1) + '</strong><span class="deck-foot">Drawn</span></div>';
+    var remaining = Math.max(0, 3 - state.sectorIndex - (state.sectorRevealed ? 1 : 0));
+    if (state.sectorRevealed || state.proposal) {
+      return '<div class="deck-card sector-deck drawn" aria-label="Sector card">' +
+        '<span class="deck-count">' + remaining + '</span>' +
+        '<span class="deck-label">SECTOR</span>' +
+      '</div>';
     }
-    return '<button type="button" class="deck-card sector-deck" data-action="drawSector"><span class="deck-label">Sector Deck</span><strong>' + remaining + '</strong><span class="deck-foot">Draw sector</span></button>';
+    return '<button type="button" class="deck-card sector-deck" data-action="drawSector">' +
+      '<span class="deck-count">' + remaining + '</span>' +
+      '<span class="deck-label">SECTOR</span>' +
+    '</button>';
   }
 
   function renderMotherDeck() {
-    var commitable = state.phase === "play" || state.phase === "gate" || state.phase === "arrival";
+    var commitable = state.phase === "play" || state.phase === "gate";
     var count = motherDeckCount();
     var disabled = !commitable || count < 1;
     var attrs = disabled ? ' disabled' : ' data-action="drawMother"';
-    return '<button type="button" class="deck-card mother-deck"' + attrs + '><span class="deck-label">MOTHER Deck</span><strong>' + count + '</strong><span class="deck-foot">Draw wild</span></button>';
+    return '<button type="button" class="deck-card mother-deck"' + attrs + '>' +
+      '<span class="deck-count">' + count + '</span>' +
+      '<span class="deck-glyph mother">' + D.icons.mother.glyph + '</span>' +
+      '<span class="deck-label">MOTHER</span>' +
+    '</button>';
   }
 
   function renderCryoDeck() {
-    var cryoCount = state.crew.filter(function (c) { return !c.awake; }).length;
     return '<div class="deck-card cryo-deck" aria-label="Cryo deck">' +
-      '<span class="deck-label">Cryo Deck</span>' +
-      '<strong>' + cryoCount + '</strong>' +
-      '<span class="deck-foot">Wake rewards draw here</span>' +
-      '</div>';
+      '<span class="deck-count">' + state.cryoDeck.length + '</span>' +
+      '<span class="deck-glyph cryo">' + D.icons.person.glyph + '</span>' +
+      '<span class="deck-label">CRYO</span>' +
+    '</div>';
+  }
+
+  function renderChamberDeck() {
+    var count = state.chamberDeck ? state.chamberDeck.length : 0;
+    return '<div class="deck-card chamber-deck" aria-label="Chamber deck" title="Damaged Chambers waiting to surface">' +
+      '<span class="deck-count">' + count + '</span>' +
+      '<span class="deck-glyph chamber">⌂</span>' +
+      '<span class="deck-label">CHAMBER</span>' +
+    '</div>';
   }
 
   function renderHorizonDeck(deckLeft) {
-    var disabled = !state.sectorRevealed || state.horizon || deckLeft < 1;
+    var disabled = !state.sectorRevealed || state.horizon || deckLeft < 1 || state.proposal;
     var attrs = disabled ? ' disabled' : ' data-action="drawHorizon"';
-    var foot = state.horizon ? 'Horizon drawn' : 'Click to draw 3';
     return '<button type="button" class="deck-card horizon-deck"' + attrs + '>' +
-      '<span class="deck-label">Horizon Deck</span>' +
-      '<strong>' + deckLeft + '</strong>' +
-      '<span class="deck-foot">' + foot + '</span>' +
-      '</button>';
+      '<span class="deck-count">' + deckLeft + '</span>' +
+      '<span class="deck-label">HORIZON</span>' +
+    '</button>';
   }
 
   function renderEmptyHorizon() {
-    return "";
+    if (state.phase === "gate") return "";
+    return '<div class="horizon-empty">Draw the Horizon to reveal three Stars.</div>';
+  }
+
+  function renderGateSlot(gateId) {
+    var proposed = state.proposal && state.proposal.cardType === "gate" && state.proposal.cardId === gateId;
+    if (proposed) return renderCardPlaceholder("gate");
+    return renderGateCard(gateId, "small");
   }
 
   function renderHorizonStarSlot(starId) {
-    var elig = travelEligibility(starId);
-    var btn = elig.ok
-      ? '<button class="primary" data-action="travel" data-star-id="' + escapeAttr(starId) + '">Travel here' +
-        (elig.motherSpent ? ' (use ' + elig.motherSpent + ' MOTHER)' : '') + '</button>'
-      : '<button class="secondary" disabled title="' + escapeAttr(elig.reason || "") + '">Travel here</button>';
-
-    return '<div class="horizon-slot">' +
+    var canPropose = !state.proposal;
+    var selected = state.proposal && state.proposal.cardType === "star" && state.proposal.cardId === starId;
+    if (selected) return '<div class="horizon-slot">' + renderCardPlaceholder("star") + '</div>';
+    var attrs = canPropose ? ' data-action="proposeStar" data-star-id="' + escapeAttr(starId) + '" role="button" tabindex="0"' : '';
+    return '<div class="horizon-slot card-click-target' + (canPropose ? ' can-propose' : '') + (selected ? ' selected' : '') + '"' + attrs + '>' +
       renderStarCard(starId, "horizon") +
-      btn +
-      '</div>';
+      (canPropose ? '<span class="card-click-hint">Click card to propose</span>' : '') +
+    '</div>';
   }
 
   function renderGatePhase() {
     var gateId = currentGateId();
     var g = getGate(gateId);
-    var need = gateNeed();
-    var elig = gateEligibility();
-    var status = renderCoverageStatus(need);
-    var passBtn = elig.attemptOk
-      ? '<button class="primary" data-action="attemptGate">Attempt Gate' + (elig.motherSpent ? ' (use ' + elig.motherSpent + ' MOTHER)' : '') + '</button>'
-      : '<button class="secondary" disabled>Attempt Gate (insufficient)</button>';
+    var canPropose = !state.proposal;
+    var label = isFinalSector() ? "Final Gate" : "Gate";
+    var gateCard = canPropose
+      ? '<div class="card-click-target can-propose" data-action="proposeGate" role="button" tabindex="0">' + renderGateCard(gateId, "active") + '<span class="card-click-hint">Click card to propose</span></div>'
+      : renderGateCard(gateId, "active");
 
     return [
       '<section class="panel">',
-      '<h2 class="panel-title">Gate · ' + escapeHtml(g.name) + '</h2>',
-      '<p class="panel-text">Highlight crew and MOTHER cards to cover the Gate. If the available crew and MOTHER cards cannot cover it, the voyage fails.</p>',
+      '<h2 class="panel-title">' + label + ' - ' + escapeHtml(g.name) + '</h2>',
+      '<p class="panel-text">Click the Gate to propose it, then commit Ready crew and optional MOTHER cards. Resolve only when every icon is covered.</p>',
       '<div class="active-row">',
-        renderGateCard(gateId, "active"),
+        gateCard,
         '<div class="commit-panel">',
           '<div class="gate-decks">' + renderMotherDeck() + '</div>',
-          status,
-          '<div class="actions">' + passBtn + '</div>',
+          renderCoverageStatus(gateNeed()),
         '</div>',
       '</div>',
+      renderProposalArea(),
+      renderActiveEffects(),
+      renderInstalledChambersBoard(),
       '</section>'
     ].join("");
   }
 
-  function renderArrivalPhase() {
-    if (!state.arrivalDraw) state.arrivalDraw = state.arrivalDeck.splice(0, 3);
-    var slots = state.arrivalDraw.map(function (id) {
-      var elig = arriveEligibility(id);
-      var status = renderCoverageStatus(arrivalNeed(id));
-      var arrival = getArrival(id);
-      var btn = elig.ok
-        ? '<button class="primary" data-action="arrive" data-arrival-id="' + escapeAttr(id) + '">Arrive at ' + escapeHtml(arrival.name) +
-          (elig.motherSpent ? ' (use ' + elig.motherSpent + ' MOTHER)' : '') + '</button>'
-        : '<button class="secondary" data-action="arrive" data-arrival-id="' + escapeAttr(id) + '" title="' + escapeAttr(elig.reason || "") + '">Drift toward ' + escapeHtml(arrival.name) + '</button>';
-      return '<div class="arrival-pick">' +
-        renderArrivalCardLarge(id, true) +
-        status +
-        btn +
-        '</div>';
+  function renderGateDraftMain() {
+    return '<section class="panel"><h2 class="panel-title">Gate Draft</h2><p class="panel-text">Choose a Cryo crew from the draft overlay to continue to the next sector.</p></section>';
+  }
+
+  function renderActiveEffects() {
+    var rows = [];
+    if (state.proposal && state.proposal.cardType === "star") {
+      var breakdown = travelCostBreakdown(state.proposal.cardId);
+      if (breakdown.modifiers.length || breakdown.due !== breakdown.printed) {
+        rows.push({
+          label: "Proposal Fuel Due",
+          body: breakdown.due > 0 ? fuelIcons(breakdown.due) : '<span class="zero-cost">0 Fuel</span>',
+          note: breakdown.modifiers.join("; ")
+        });
+      }
+    }
+    if (state.freeStarNext) {
+      rows.push({ label: "Free Star Token", body: "Next Star costs 0 Fuel.", note: "Place this token beside the ship board until spent." });
+    }
+    if (state.driveCathedralActive) {
+      rows.push({ label: "Drive Cathedral Marker", body: "-1 Fuel to the next eligible Star.", note: "The marker is armed outside the Star card." });
+    }
+    if (hasChamber("ch-gravity-sails") && !state.chamberFlags.gravitySailsUsedThisSector) {
+      rows.push({ label: "Gravity Sails Ready", body: "First Deep+ Star this sector costs -1 Fuel.", note: "Use a ready/used marker on the Chamber." });
+    }
+    if (hasChamber("ch-mother-liaison") && !state.chamberFlags.liaisonUsedThisSector) {
+      var disabled = state.phase === "gate" && motherUsedCount() >= 5;
+      rows.push({
+        label: "MOTHER Liaison Ready",
+        body: disabled ? "Disabled during this Gate." : "First MOTHER use this sector reduces spent MOTHER by 1.",
+        note: "Track with a ready/used marker on the Chamber."
+      });
+    }
+    if (rows.length < 1) return "";
+    return '<section class="active-effects"><h2>Active Effects</h2><div class="active-effect-list">' + rows.map(function (row) {
+      return '<div class="active-effect"><strong>' + escapeHtml(row.label) + '</strong><span>' + row.body + '</span><small>' + escapeHtml(row.note) + '</small></div>';
+    }).join("") + '</div></section>';
+  }
+
+  function renderProposalArea() {
+    if (!state.proposal) {
+      return '<section class="proposal-area empty"><h2>Proposal Area</h2><p>Click a visible Star, damaged Chamber, or active Gate to make a proposal. Then commit Ready crew and optional MOTHER cards.</p></section>';
+    }
+    var p = state.proposal;
+    var elig = proposalEligibility(p);
+    var targetHtml = renderProposalTarget(p);
+    var resolveBtn = elig.ok
+      ? '<button class="primary" data-action="resolveProposal">Resolve Proposal' + (elig.motherSpent ? ' (use ' + elig.motherSpent + ' MOTHER)' : '') + '</button>'
+      : '<button class="secondary" disabled>Resolve Proposal</button>';
+
+    return '<section class="proposal-area active">' +
+      '<div class="proposal-head"><h2>Proposal Area</h2></div>' +
+      '<div class="proposal-grid">' +
+        '<div class="proposal-card-copy">' + targetHtml + '</div>' +
+        '<div class="proposal-details">' +
+          renderProposalContributions() +
+          '<div class="proposal-actions actions">' + resolveBtn + '<button class="secondary" data-action="dissolveProposal">Dissolve Proposal</button></div>' +
+        '</div>' +
+      '</div>' +
+    '</section>';
+  }
+
+  function renderProposalTarget(p) {
+    if (p.cardType === "star") return renderStarCard(p.cardId, "proposal");
+    if (p.cardType === "chamber") return renderChamberCard(p.cardId, "proposal");
+    if (p.cardType === "gate") return renderGateCard(p.cardId, "proposal");
+    return "";
+  }
+
+  function renderProposalContributions() {
+    var cards = state.highlightedCrew.map(function (id) {
+      var crew = getCrew(id);
+      return crew ? renderCrewCardCopy(crew) : "";
+    }).join("") + state.highlightedMother.map(renderMotherCardCopy).join("");
+    var html = '<div class="proposal-contrib"><span class="card-section">Committed cards</span>';
+    html += cards
+      ? '<div class="proposal-card-row">' + cards + '</div>'
+      : '<p class="proposal-empty-note">No cards committed yet.</p>';
+    html += '</div>';
+    return html;
+  }
+
+  function renderCrewCardCopy(c) {
+    var cls = "crew-tile proposal-crew-card";
+    if (c.tired) cls += " state-tired";
+    else cls += " state-ready";
+    if (c.wounded) cls += " state-wounded";
+    var iconRowHtml = c.icons.map(function (icon, idx) {
+      var muted = c.wounded && idx > 0;
+      return iconBadge(icon, muted ? "icon-badge muted" : "icon-badge");
     }).join("");
-    return [
-      '<section class="panel">',
-      '<h2 class="panel-title">Final Approach — three Arrivals drawn</h2>',
-      '<p class="panel-text">Each matching Legacy from visited Stars removes one icon from an Arrival\'s Need (up to 3' +
-        (hasChamber("ch-seed-vault") ? ", or 4 for Life arrivals with Seed Vault" : "") + '). Highlight crew + MOTHER cards, then click an Arrival.</p>',
-      '<div class="gate-decks">' + renderMotherDeck() + '</div>',
-      '<div class="arrival-choice-row">' + slots + '</div>',
-      '</section>'
-    ].join("");
+    return '<button type="button" class="' + cls + '" data-action="toggleCrew" data-crew-id="' + escapeAttr(c.id) + '">' +
+      '<span class="crew-card-glyph" aria-hidden="true">' + D.icons.person.glyph + '</span>' +
+      '<span class="crew-name">' + escapeHtml(c.name) + '</span>' +
+      '<span class="crew-icons">' + iconRowHtml + '</span>' +
+      '<span class="crew-state">Click to return</span>' +
+    '</button>';
+  }
+
+  function renderMotherCardCopy(id) {
+    return '<button type="button" class="crew-tile proposal-crew-card mother-hand-card" data-action="toggleMother" data-mother-id="' + escapeAttr(id) + '">' +
+      '<span class="crew-name">MOTHER</span>' +
+      '<span class="crew-icons"><span class="mother-wild-icon">' + D.icons.mother.glyph + '</span></span>' +
+      '<span class="crew-state">Click to return</span>' +
+    '</button>';
+  }
+
+  function renderCardPlaceholder(kind) {
+    return '<div class="card-placeholder ' + escapeAttr(kind) + '-placeholder"><span>In Proposal</span></div>';
   }
 
   function renderCoverageStatus(need) {
@@ -1407,34 +1912,28 @@
   function renderStarCard(id, mode) {
     var s = getStar(id);
     if (!s) return "";
-    var legacy = D.legacies[s.legacy];
     var modeClass = "card star-card mode-" + (mode || "default");
 
-    var need = s.need.slice();
+    var need = effectiveStarNeed(id);
     var t3 = s.mother3;
     var t5 = s.mother5;
     var t3Active = thresholdActive(s, 3);
     var t5Active = thresholdActive(s, 5);
-    if (t3Active && t3Active.addNeed) need = need.concat(t3Active.addNeed);
-    if (t5Active && t5Active.addNeed) need = need.concat(t5Active.addNeed);
-
     var rewardEffects = effectiveStarReward(id);
-
     var thresholdLines = "";
     if (t3) thresholdLines += '<div class="card-mother-line ' + (t3Active ? "active" : "dim") + '">' +
-      '<span class="card-section">3+ MOTHER</span>' + thresholdLineLabel(t3) + '</div>';
+      thresholdHeader(3) + thresholdLineLabel(t3) + '</div>';
     if (t5) thresholdLines += '<div class="card-mother-line ' + (t5Active ? "active" : "dim") + '">' +
-      '<span class="card-section">5+ MOTHER</span>' + thresholdLineLabel(t5) + '</div>';
+      thresholdHeader(5) + thresholdLineLabel(t5) + '</div>';
 
     return [
-      '<article class="' + modeClass + '" style="--legacy:' + legacy.color + '">',
+      '<article class="' + modeClass + '">',
       '<header class="card-head">',
-        '<span class="card-eyebrow"></span>',
-        '<span class="card-legacy" style="background:' + legacy.color + '">' + legacy.label + '</span>',
+        '<span class="card-eyebrow">Star - ' + escapeHtml(D.distanceLabel(s.travel)) + '</span>',
       '</header>',
       '<h3 class="card-title">' + escapeHtml(s.name) + '</h3>',
       '<div class="star-card-main">',
-        '<div class="card-need"><span class="card-section">Need</span><div class="need-row">' + fuelBadge(starFuelNeed(id, mode)) + iconRow(need) + '</div></div>',
+        '<div class="card-need"><span class="card-section">Need</span>' + needRow(starFuelNeed(id, mode), need) + '</div>',
         '<div class="card-reward"><span class="card-section">Reward</span>' + effectsLabel(rewardEffects) + '</div>',
       '</div>',
       '<div class="star-card-effects">' + thresholdLines + '</div>',
@@ -1446,12 +1945,16 @@
     var parts = [];
     if (t.extraCrew) parts.push("Also commit +" + t.extraCrew + " crew (humans only).");
     if (t.travelDelta) parts.push("Travel +" + t.travelDelta + " Fuel.");
-    if (t.scoutDelta) parts.push((t.scoutDelta > 0 ? "Scout +" : "Scout ") + t.scoutDelta + " stars.");
+    if (t.scoutDelta) parts.push((t.scoutDelta > 0 ? "Scout +" : "Scout ") + t.scoutDelta + " Stars.");
     if (t.addNeed && t.addNeed.length) {
       parts.push("Need adds " + t.addNeed.map(function (i) { return D.icons[i] ? D.icons[i].label : i; }).join(" + ") + ".");
     }
     if (t.rewardOverride) parts.push("Reward becomes: " + t.rewardOverride.map(effectInline).join(", ") + ".");
     return '<span class="threshold-text">' + parts.map(escapeHtml).join(" ") + '</span>';
+  }
+
+  function thresholdHeader(n) {
+    return '<span class="card-section threshold-icon-label">' + n + '+ ' + iconBadge("mother") + '</span>';
   }
 
   function effectInline(e) {
@@ -1472,45 +1975,18 @@
     var modeClass = "card gate-card mode-" + (mode || "default");
     var hostile = motherUsedCount() >= 5;
     var hostileNote = hostile && g.need[0]
-      ? '<div class="card-hostile">5+ MOTHER · Need +1 ' + (D.icons[g.need[0]] ? D.icons[g.need[0]].label : "icon") + '</div>'
+      ? '<div class="card-hostile">5+ ' + D.icons.mother.glyph + ' - Need +1 ' + (D.icons[g.need[0]] ? D.icons[g.need[0]].label : "icon") + '</div>'
       : "";
     var fullNeed = g.need.concat(hostile && g.need[0] ? [g.need[0]] : []);
+    var label = isFinalSector() ? "Final Gate" : "Gate";
     return [
       '<article class="' + modeClass + '">',
       '<header class="card-head">',
-        '<span class="card-eyebrow">Gate · Sector ' + (state.sectorIndex + 1) + '</span>',
+        '<span class="card-eyebrow">' + label + ' - Sector ' + (state.sectorIndex + 1) + '</span>',
       '</header>',
       '<h3 class="card-title">' + escapeHtml(g.name) + '</h3>',
       '<div class="card-need"><span class="card-section">Need</span>' + iconRow(fullNeed) + '</div>',
       hostileNote,
-      '</article>'
-    ].join("");
-  }
-
-  function renderArrivalCardLarge(id, active) {
-    var a = getArrival(id);
-    if (!a) return "";
-    var legacy = D.legacies[a.legacy];
-    var stamps = state.log.filter(function (e) { return e.legacy === a.legacy; }).length;
-    var cap = (a.legacy === "life" && hasChamber("ch-seed-vault")) ? 4 : 3;
-    var reduction = Math.min(cap, stamps);
-    var displayedNeed = a.need.slice();
-    if (active) {
-      displayedNeed.splice(displayedNeed.length - reduction, reduction);
-    }
-    var modeClass = "card arrival-card";
-    if (active) modeClass += " mode-active";
-    return [
-      '<article class="' + modeClass + '" style="--legacy:' + legacy.color + '">',
-      '<header class="card-head">',
-        '<span class="card-eyebrow">Arrival</span>',
-        '<span class="card-legacy" style="background:' + legacy.color + '">' + legacy.label + '</span>',
-      '</header>',
-      '<h3 class="card-title">' + escapeHtml(a.name) + '</h3>',
-      '<div class="card-need"><span class="card-section">Need' +
-        (reduction && active ? ' (−' + reduction + ' from Legacy)' : "") +
-        '</span>' + iconRow(displayedNeed) + '</div>',
-      '<p class="card-flavor">' + escapeHtml(a.flavor) + '</p>',
       '</article>'
     ].join("");
   }
@@ -1521,16 +1997,16 @@
     var modeClass = "card chamber-card mode-" + (mode || "default");
     var thresholdLines = "";
     if (c.mother3) thresholdLines += '<div class="card-mother-line ' + (motherUsedCount() >= 3 ? "active" : "dim") + '">' +
-      '<span class="card-section">3+ MOTHER</span><span class="threshold-text">' + escapeHtml(c.mother3) + '</span></div>';
+      thresholdHeader(3) + '<span class="threshold-text">' + escapeHtml(c.mother3) + '</span></div>';
     if (c.mother5) thresholdLines += '<div class="card-mother-line ' + (motherUsedCount() >= 5 ? "active" : "dim") + '">' +
-      '<span class="card-section">5+ MOTHER</span><span class="threshold-text">' + escapeHtml(c.mother5) + '</span></div>';
+      thresholdHeader(5) + '<span class="threshold-text">' + escapeHtml(c.mother5) + '</span></div>';
     return [
       '<article class="' + modeClass + '">',
       '<header class="card-head">',
-        '<span class="card-eyebrow">Chamber · Parts ' + c.parts + '</span>',
+        '<span class="card-eyebrow">Chamber</span>',
       '</header>',
       '<h3 class="card-title">' + escapeHtml(c.name) + '</h3>',
-      '<div class="card-need"><span class="card-section">Build</span>' + iconRow(c.build) + '</div>',
+      '<div class="card-need"><span class="card-section">Build</span>' + chamberBuildRow(c.parts, c.build) + '</div>',
       '<div class="card-reward"><span class="card-section">Effect</span><span class="threshold-text">' + escapeHtml(c.effect) + '</span></div>',
       thresholdLines,
       '</article>'
@@ -1552,42 +2028,59 @@
   }
 
   function starFuelNeed(starId, mode) {
-    if (mode === "horizon" && state.horizon && state.horizon.indexOf(starId) >= 0) return travelCostFor(starId);
-    return effectiveStarTravel(starId);
+    var s = getStar(starId);
+    return s ? s.travel : 0;
   }
 
-  function fuelBadge(cost) {
-    var text = cost === 0 && state.freeStarNext ? "Fuel Free" : "Fuel " + cost;
-    return '<span class="fuel-badge" title="Fuel needed">' + text + '</span>';
+  function fuelIcons(cost) {
+    var html = "";
+    for (var i = 0; i < cost; i += 1) html += iconBadge("fuel");
+    return html;
+  }
+
+  function needRow(fuelCost, needIcons) {
+    var html = '<div class="icon-row">';
+    html += fuelIcons(fuelCost || 0);
+    (needIcons || []).forEach(function (id) { html += iconBadge(id); });
+    html += '</div>';
+    return html;
+  }
+
+  function chamberBuildRow(partsCost, buildIcons) {
+    var html = '<div class="icon-row">';
+    for (var i = 0; i < (partsCost || 0); i += 1) html += iconBadge("parts");
+    (buildIcons || []).forEach(function (id) { html += iconBadge(id); });
+    html += '</div>';
+    return html;
   }
 
   function effectsLabel(effects) {
-    if (!effects || effects.length === 0) return '<span class="effect-none">—</span>';
+    if (!effects || effects.length === 0) return '<span class="effect-none">-</span>';
     return '<div class="effect-row">' + effects.map(effectLabel).join("") + '</div>';
   }
 
+  function effectIconCluster(iconId, amount, label) {
+    var n = Math.abs(amount || 0);
+    var sign = amount < 0 ? '<span class="eff-sign">-</span>' : '';
+    var icons = "";
+    for (var i = 0; i < n; i += 1) icons += iconBadge(iconId);
+    if (n === 0) icons = iconBadge(iconId);
+    return '<span class="eff eff-' + iconId + '" title="' + escapeAttr(label) + '">' + sign + icons + '</span>';
+  }
+
   function effectLabel(e) {
-    if (e.type === "hull")
-      return '<span class="eff eff-hull">Hull ' + signed(e.amount) + '</span>';
-    if (e.type === "fuel")
-      return '<span class="eff eff-fuel">Fuel ' + signed(e.amount) + '</span>';
-    if (e.type === "parts")
-      return '<span class="eff eff-parts">Parts ' + signed(e.amount) + '</span>';
-    if (e.type === "wake")
-      return '<span class="eff eff-wake">Wake ' + e.amount + '</span>';
-    if (e.type === "heal")
-      return '<span class="eff eff-heal">Heal ' + e.amount + '</span>';
-    if (e.type === "wound")
-      return '<span class="eff eff-wound">Wound ' + e.amount + '</span>';
-    if (e.type === "scout")
-      return '<span class="eff eff-scout">Scout ' + (e.amount || 3) + '</span>';
-    if (e.type === "freeStar")
-      return '<span class="eff eff-free">Next Star is Free</span>';
+    if (e.type === "hull")  return effectIconCluster("hull",  e.amount, "Hull " + signed(e.amount));
+    if (e.type === "fuel")  return effectIconCluster("fuel",  e.amount, "Fuel " + signed(e.amount));
+    if (e.type === "parts") return effectIconCluster("parts", e.amount, "Parts " + signed(e.amount));
+    if (e.type === "wake")  return effectIconCluster("person", e.amount, "Wake " + e.amount);
+    if (e.type === "heal")  return effectIconCluster("heal",  e.amount, "Heal " + e.amount);
+    if (e.type === "wound") return effectIconCluster("wound", e.amount, "Wound " + e.amount);
+    if (e.type === "scout") return effectIconCluster("scout", e.amount || 3, "Scout " + (e.amount || 3));
+    if (e.type === "freeStar") return '<span class="eff eff-free" title="Next Star is Free">' + iconBadge("free") + '</span>';
     return '<span class="eff">?</span>';
   }
 
   function signed(n) { return (n > 0 ? "+" : "") + n; }
-  function repeat(s, n) { var out = ""; for (var i = 0; i < n; i += 1) out += s; return out; }
 
   // ----------- Modals ----------
 
@@ -1597,7 +2090,7 @@
     if (!state.pendingScout) { panel.hidden = true; panel.innerHTML = ""; return; }
     panel.hidden = false;
     var source = state.pendingScout.source;
-    var heading = source === "archiveNode" ? "Archive Node — reorder the deck" : "Scout the next stars";
+    var heading = source === "archiveNode" ? "Archive Node - reorder the deck" : "Scout the next Stars";
     var subline = source === "archiveNode"
       ? "Choose which Star sits on top. The others go to the bottom of the deck."
       : "Keep one on top of the deck. The others are discarded.";
@@ -1614,49 +2107,117 @@
       '</div></div>';
   }
 
-  function renderEnding() {
-    var panel = document.getElementById("endingPanel");
+  function renderWake() {
+    var panel = document.getElementById("wakePanel");
     if (!panel) return;
-    if (state.phase !== "ending" && state.phase !== "loss") { panel.hidden = true; panel.innerHTML = ""; return; }
+    if (!state.pendingWake) { panel.hidden = true; panel.innerHTML = ""; return; }
     panel.hidden = false;
-    var title, body;
-    if (state.phase === "loss") {
-      title = "Voyage lost — " + state.lossReason;
-      if (state.lossReason === "MOTHER Takes the Wheel") {
-        body = "MOTHER's seventh card slides into the area, but no card remains to give. The ark continues, but the destination is no longer yours to choose.";
-      } else if (state.lossReason === "Stranded in the Reach") {
-        body = "No reachable Stars, no MOTHER cards left to bend the route. The ark drifts where it stopped.";
-      } else if (state.lossReason === "Gate Failed") {
-        body = "The sector Gate cannot be covered with the crew and MOTHER cards still available. The ark fails at the threshold.";
-      } else {
-        body = "The ark cannot continue. The cards you collected are still on the table. Read them like an unfinished obituary.";
-      }
-    } else {
-      title = state.endingTitle || "Voyage complete";
-      body = state.endingBody || "";
-    }
-    var motherTone = motherToneFromUsed(motherUsedCount());
-    var legacyEntries = Object.keys(D.legacies).map(function (id) {
-      var legacy = D.legacies[id];
-      var n = state.log.filter(function (e) { return e.legacy === id; }).length;
-      return '<div class="ending-legacy"><span class="ending-legacy-name" style="background:' + legacy.color + '">' +
-        legacy.label + '</span><span class="ending-legacy-count">' + n + '</span></div>';
-    }).join("");
+    var player = getPlayer(state.pendingWake.implementerPlayerId);
     panel.innerHTML =
-      '<div class="overlay-card ending-card">' +
+      '<div class="overlay-card choice-card">' +
+      '<header class="overlay-head"><div><p class="eyebrow">Wake reward</p><h2>Recruit loyal crew</h2></div></header>' +
+      '<p class="panel-text">' + escapeHtml(player ? player.name : "The Implementer") + ' chooses 1 revealed Cryo crew. The recruit enters Tired.</p>' +
+      '<div class="choice-row">' + state.pendingWake.choices.map(function (id) {
+        return '<div class="choice-pick">' + renderCrewCardLarge(id, "Cryo") +
+          '<button class="primary" data-action="chooseWake" data-crew-id="' + escapeAttr(id) + '">Recruit</button></div>';
+      }).join("") + '</div>' +
+      '</div>';
+  }
+
+  function renderGateDraft() {
+    var panel = document.getElementById("gateDraftPanel");
+    if (!panel) return;
+    if (state.phase !== "gateDraft" || !state.gateDraft) { panel.hidden = true; panel.innerHTML = ""; return; }
+    panel.hidden = false;
+    var playerId = state.gateDraft.playerOrder[state.gateDraft.pickIndex] || activePlayerId();
+    var player = getPlayer(playerId);
+    panel.innerHTML =
+      '<div class="overlay-card choice-card">' +
+      '<header class="overlay-head"><div><p class="eyebrow">Gate Draft</p><h2>' + escapeHtml(player ? player.name : "Player") + ' drafts from Cryo</h2></div></header>' +
+      '<p class="panel-text">Drafted crew enter Ready for the next sector.' + (state.gateDraft.extraIds.length ? ' Seed Vault extra picks enter Wounded.' : '') + '</p>' +
+      '<div class="choice-row">' + state.gateDraft.ids.map(function (id) {
+        var extra = state.gateDraft.extraIds.indexOf(id) >= 0;
+        return '<div class="choice-pick">' + renderCrewCardLarge(id, extra ? "Seed Vault - Wounded" : "Cryo") +
+          '<button class="primary" data-action="chooseGateDraft" data-crew-id="' + escapeAttr(id) + '">Draft</button></div>';
+      }).join("") + '</div>' +
+      '</div>';
+  }
+
+  function renderCrewCardLarge(id, tag) {
+    var c = getCrew(id);
+    if (!c) return "";
+    return '<article class="crew-large-card">' +
+      '<span class="card-eyebrow">' + escapeHtml(tag || "Crew") + '</span>' +
+      '<h3 class="card-title">' + escapeHtml(c.name) + '</h3>' +
+      '<div class="crew-icons">' + c.icons.map(function (icon) { return iconBadge(icon); }).join("") + '</div>' +
+    '</article>';
+  }
+
+  function renderResult() {
+    var panel = document.getElementById("resultPanel");
+    if (!panel) return;
+    if (state.phase !== "finished" && state.phase !== "loss") { panel.hidden = true; panel.innerHTML = ""; return; }
+    panel.hidden = false;
+
+    var title;
+    var body;
+    if (state.phase === "loss") {
+      title = "The Ship Failed";
+      body = failureText(state.lossReason);
+    } else {
+      title = "Ship Survived";
+      body = winnerText();
+    }
+
+    panel.innerHTML =
+      '<div class="overlay-card result-card">' +
       '<header class="overlay-head"><h2>' + escapeHtml(title) + '</h2></header>' +
-      '<p class="ending-body">' + escapeHtml(body) + '</p>' +
-      '<div class="ending-meta">' +
-        '<div class="ending-meta-row"><span>MOTHER cards used</span><strong>' + motherUsedCount() + ' / ' + state.motherCards.length +
-          ' — ' + motherTone + '</strong></div>' +
-        '<div class="ending-meta-row"><span>Hull at end</span><strong>' + state.hull + '</strong></div>' +
-        '<div class="ending-meta-row"><span>Fuel at end</span><strong>' + state.fuel + '</strong></div>' +
-        '<div class="ending-meta-row"><span>Parts at end</span><strong>' + state.parts + '</strong></div>' +
-        '<div class="ending-meta-row"><span>Chambers installed</span><strong>' + state.chamberInstalled.length + '</strong></div>' +
+      '<p class="result-body">' + escapeHtml(body) + '</p>' +
+      '<div class="result-meta">' +
+        '<div class="result-meta-row"><span>MOTHER cards used</span><strong>' + motherUsedCount() + ' / ' + state.motherCards.length + '</strong></div>' +
+        '<div class="result-meta-row"><span>Hull at end</span><strong>' + state.hull + '</strong></div>' +
+        '<div class="result-meta-row"><span>Fuel at end</span><strong>' + state.fuel + '</strong></div>' +
+        '<div class="result-meta-row"><span>Parts at end</span><strong>' + state.parts + '</strong></div>' +
+        '<div class="result-meta-row"><span>Chambers fixed</span><strong>' + state.chamberInstalled.length + '</strong></div>' +
       '</div>' +
-      '<div class="ending-legacies">' + legacyEntries + '</div>' +
+      renderFinalStandings() +
       '<div class="actions"><button class="primary" data-action="newGame">Begin a new voyage</button></div>' +
       '</div>';
+  }
+
+  function failureText(reason) {
+    if (reason === "MOTHER Takes the Wheel") return "A seventh MOTHER card would be needed. The ship continues, but no human player can claim the voyage.";
+    if (reason === "Stranded in the Reach") return "No reachable Stars and no MOTHER card remains for a reroute.";
+    if (reason === "Gate Failed") return "The active Gate cannot be covered with the crew and MOTHER cards still available.";
+    if (reason === "Hull reached 0") return "Hull reached 0. The ship cannot survive the route.";
+    return reason || "The ship cannot continue.";
+  }
+
+  function winnerText() {
+    if (!state.winnerPlayerIds || state.winnerPlayerIds.length < 1) return "The ship survived. No winner could be determined.";
+    if (state.winnerPlayerIds.length === 1) {
+      var player = getPlayer(state.winnerPlayerIds[0]);
+      return (player ? player.name : "The winner") + " wins with the most living loyal crew.";
+    }
+    return "Shared victory: " + state.winnerPlayerIds.map(function (id) {
+      var p = getPlayer(id);
+      return p ? p.name : id;
+    }).join(", ") + ".";
+  }
+
+  function renderFinalStandings() {
+    if (state.phase !== "finished") return "";
+    return '<div class="standings">' + state.players.map(function (p) {
+      var winner = state.winnerPlayerIds.indexOf(p.id) >= 0;
+      var implemented = state.lastGateImplementerPlayerId === p.id;
+      return '<div class="standing-row' + (winner ? ' winner' : '') + '" style="--player-color:' + escapeAttr(p.color || "#2c4259") + '">' +
+        '<strong>' + escapeHtml(p.name) + (winner ? ' - Winner' : '') + '</strong>' +
+        '<span>Living loyal crew: ' + livingLoyalCrewCount(p.id) + '</span>' +
+        '<span>Healthy loyal crew: ' + healthyLoyalCrewCount(p.id) + '</span>' +
+        '<span>Final Gate crew: ' + finalGateContributionCount(p.id) + '</span>' +
+        '<span>' + (implemented ? 'Implemented Final Gate' : 'Did not implement Final Gate') + '</span>' +
+      '</div>';
+    }).join("") + '</div>';
   }
 
   function toggleManual() {
@@ -1682,6 +2243,7 @@
     el.textContent = text;
     window.clearTimeout(messageTimer);
     messageTimer = window.setTimeout(function () {
+      state.message = "";
       el.textContent = "";
     }, 4500);
   }

@@ -1,58 +1,81 @@
 # Gates
 
-Each sector ends with a Gate. There are 6 Gate cards (2 per sector pool, one drawn when the sector card is manually revealed). The table sees the Gate before they choose any Stars in that sector, so they know what to save crew for.
+Each sector ends with a Gate. There are 6 Gate cards: 2 per sector pool, one drawn when the sector card is revealed. The table sees the Gate before choosing Stars in that sector, so players know what to save crew for.
 
-Gates are hard pass/fail checks. If the crew and MOTHER cards still available after three Stars cannot cover the Gate's Need, the voyage fails immediately.
+Gates are hard pass/fail checks. If the available crew and MOTHER cards cannot cover the Gate's Need after three Stars, all players lose.
 
-## Gate card anatomy
+Sector 3's Gate is the Final Gate. Passing it ends the game and triggers the loyal crew count.
+
+## Gate Card Anatomy
 
 ```text
 NAME
 Gate
-Need: icons (one more than a hard Star)
+Need: icons
 ```
 
-The `5+ MOTHER` Gate modifier is a global rule, not card text — it applies to every Gate when the band is Hostile Route.
+The `5+ ✶` Gate modifier is a global rule, not card text. It applies to every Gate when 5 or more MOTHER cards have been spent.
+
+## Recommended Difficulty
+
+| Gate | Icon need |
+|---|---:|
+| Gate 1 | 4 |
+| Gate 2 | 5 |
+| Final Gate | 7 |
+
+At 5+ spent MOTHER cards, every Gate needs +1 icon.
 
 ## Examples
 
 ```text
 LONG JUMP
-Gate
+Gate 1
 Need: Star + Star + Engine + Signal
 ```
 
 ```text
-RADIATION BELT
-Gate
-Need: Engine + Engine + Life + Signal
+KUIPER STORM
+Gate 2
+Need: Engine + Engine + Star + Star + Signal
 ```
 
 ```text
 GRAVITY WELL
-Gate
-Need: Star + Star + Star + Engine + Engine + Signal
+Final Gate
+Need: Star + Star + Star + Engine + Engine + Signal + Life
 ```
 
-## How a Gate is attempted
+## How A Gate Is Attempted
 
 After three Star visits, the Gate becomes the active card.
 
-1. Highlight only crew still **Ready** (not tapped from this sector).
-2. Highlight MOTHER cards if you need wild icons.
-3. **Hostile Route bonus:** if 5+ MOTHER cards are in the area, the Gate's Need grows by `+1 any icon`.
-4. If highlighted icons cover the Need, click **Attempt Gate** to pass and advance.
-5. If the available crew and MOTHER cards cannot cover the Need at all, the game ends in failure. There is no force-fail path.
-6. After a passed Gate, all crew refresh. Wounded crew stay wounded.
+1. The active player proposes the Gate and commits at least one Ready loyal crew.
+2. Other players may commit Ready loyal crew or pass.
+3. MOTHER cards may fill missing icons only if at least one human crew is committed.
+4. If 5 or more MOTHER cards have been spent, the Gate's Need grows by +1 icon.
+5. If the proposal is ready, resolve it and pass the Gate.
+6. If the Gate cannot be covered at all, the ship fails.
+7. After a passed Gate, all Tired crew refresh. Wounded crew stay Wounded.
 
-## Why Gates are the spine of the design
+## Gate Drafts
+
+After Gate 1 and Gate 2, run a Gate Draft. Do not run a Gate Draft after the Final Gate.
+
+```text
+Reveal one crew per player from Cryo.
+Players draft one crew each.
+Draft order starts with the player who has the fewest loyal crew.
+Ties go clockwise from the Gate Implementer's left.
+Drafted crew enter Ready for the next sector.
+```
+
+Gate Drafts keep trailing players relevant, make Gates important, and prevent Wake rewards from being the only way to gain crew.
+
+## Why Gates Are The Spine
 
 Every sector's strategic question is the same:
 
-> Do we spend our best crew on the attractive Stars now, save them for the Gate, or invest them in a Chamber?
+> Do we spend our best crew on attractive Stars now, save them for the Gate, or invest them in a Chamber?
 
-That triple tension replaces Ordeals, Core Pressure, red lines, and Corruption decks from the older design.
-
-The Hostile Route modifier means that the same Gate becomes harder when MOTHER has been used a lot — without changing the printed card text. This rewards bands that the table can already see.
-
-Next: [Arrivals](arrivals.md).
+Next: [MOTHER](mother.md).

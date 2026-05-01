@@ -1,26 +1,25 @@
 # COREBOUND: Starpath — Wiki
 
-A linked reference for the simplified design. Start with the [Introduction](introduction.md), then follow the page links or jump to a topic.
+A linked reference for the current semi-cooperative survival race design. Start with the [Introduction](introduction.md), then follow the page links or jump to a topic.
 
-## Core rules
+## Core Rules
 
 | Page | Contents |
 |---|---|
-| [Introduction](introduction.md) | Premise, the central mechanic, design thesis. |
-| [Crew](crew.md) | Names, icons, ready / tired / wounded / cryo, specialisation. |
-| [Ship Board](ship-board.md) | Hull, Fuel, Parts, MOTHER cards, MOTHER bands. |
-| [Stars](stars.md) | Fuel cost in Need, threshold lines, anatomy. |
-| [Gates](gates.md) | Sector-end crises and the 5+ MOTHER Gate modifier. |
-| [Arrivals](arrivals.md) | Destinations and Legacy reductions. |
-| [MOTHER](mother.md) | What MOTHER can and cannot do, the three bands, threshold pressure. |
-| [Chambers](chambers.md) | Buyable permanent ship upgrades, build cost, MOTHER degradation. |
+| [Introduction](introduction.md) | Premise, design goal, teach text. |
+| [Leadership and Proposals](leadership.md) | Player turns, temporary proposals, Implementer, winning. |
+| [Crew](crew.md) | Loyal crew ownership, states, setup draft, roster. |
+| [Ship Board](ship-board.md) | Hull, Fuel, Parts, MOTHER cards, shared loss. |
+| [Stars](stars.md) | Fuel cost, icon Need, rewards, threshold lines. |
+| [Gates](gates.md) | Sector-end checks, Final Gate, Gate Drafts. |
+| [MOTHER](mother.md) | What MOTHER can and cannot do, spent-card thresholds. |
+| [Chambers](chambers.md) | Public ship upgrades, build cost, MOTHER degradation. |
 | [Sectors and Cycle](sectors.md) | Horizon reveal, reroute rule, three Stars then a Gate. |
-| [Endings](endings.md) | Destination + MOTHER tone + dominant Legacy. |
 
-## Prototype and development
+## Prototype And Development
 
 | Page | Contents |
 |---|---|
-| [Prototype Components](prototype.md) | Counts, sector difficulty, target play time. |
-| [Playtest Checklist](playtest-checklist.md) | What to watch for in early tests. |
+| [Prototype Components](prototype.md) | Counts, sector difficulty, solo prototype notes. |
+| [Playtest Checklist](playtest-checklist.md) | What to track in early tests. |
 | [Solo JS Prototype App](../../index.html) | Rules-enforced browser prototype. |

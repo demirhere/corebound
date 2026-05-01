@@ -1,43 +1,51 @@
 # Playtest Checklist
 
-Track these during a first playtest.
+Track these during early playtests.
 
-## Numbers to record
+## Numbers To Record
 
-| Metric | Target |
+| Metric | Target / Watch For |
 |---|---|
 | Teach time | Under 5 minutes |
-| Average Star visit | 30–60 seconds |
-| Number of MOTHER cards used | 2–5 in a successful run |
-| MOTHER band reached | 1–2 of 3 in a successful run |
-| Stars skipped (no engagement) | 0–2 in a successful run |
-| Number of crew wounded | 0–3 |
-| Number of crew woken from Cryo | 1–3 |
-| Chambers installed | 1–2 typical, 3 in a heavy build run |
-| Reroutes used | 0–2 |
-| Loss rate, first-time players | 50–70% acceptable |
-| Loss cause | Should vary between Hull, MOTHER 7th card, Arrival drift, and Stranded in the Reach |
+| Average proposal time | 30-90 seconds |
+| Successful proposals per game | Enough to complete 9 Stars and 3 Gates in a strong run |
+| Failed or dissolved proposals per game | Present, but not table-stalling |
+| Number of negotiation moments | Should be frequent once Wake rewards appear |
+| Number of MOTHER cards used | 2-5 in a successful run |
+| MOTHER count reached | 0-2 in conservative wins; 3-4 in tense wins; 5-6 in risky wins |
+| Stars completed | 9 in a successful run |
+| Chambers repaired | 1-2 typical, 3 in a heavy build run |
+| Crew woken by Wake rewards | 1-3 |
+| Crew gained by Gate Drafts | 2 rounds before the Final Gate |
+| Largest crew-count gap | Watch for runaway leaders |
+| Final Gate success rate | Tense, not automatic |
+| Winner's crew count | Should feel earned by recruitment and negotiation |
+| Leader helped at Final Gate? | Track whether the leader still had reason to help |
+| Loss cause | Hull, 7th MOTHER card, Stranded in the Reach, or Gate failure |
 
-## Questions to ask after each game
+## Questions To Ask After Each Game
 
-1. What decision felt hardest?
-2. Did using MOTHER feel worth it the first time? The last time you crossed into a new band?
-3. Did any `3+ MOTHER` line feel unfair, or did it feel earned?
-4. Which Arrival kind were you secretly aiming for, and did the drawn three reward that?
-5. Was the Gate fear real after Sector 1?
-6. Which Chamber felt most worth installing? Which felt like a trap?
-7. Was anything boring or automatic?
-8. Did the highlight-then-click flow feel obvious, or did anyone hunt for a "resolve" button?
+1. Did you feel you had agency on your turn?
+2. Did failed proposals feel acceptable or frustrating?
+3. Did Wake rewards create rivalry?
+4. Did Gate Drafts help trailing players stay relevant?
+5. Did the leader still have reason to help the ship survive?
+6. Was anyone able to stall the table?
+7. Was the Final Gate tense enough without another step afterward?
+8. Which Chamber felt most worth repairing? Which felt like a trap?
+9. Did MOTHER feel worth it the first time? The last time you crossed into a new spent-card threshold?
+10. Did any `3+ ✶` line feel unfair, or did it feel earned?
 
-## Health checks for the design
+## Health Checks For The Design
 
-- Players should understand the loop after one Star visit.
-- Reading a Star's Fuel cost + Need + threshold lines should feel quick, not table-lookup-heavy.
+- Players should understand the proposal loop after one Star.
+- A failed proposal should not lock the table or create rules overhead.
+- Reading a Star's Fuel cost, Need, reward, and threshold lines should feel quick.
 - Every Horizon should present at least two plausible choices.
 - The "save crew for the Gate" pressure should be felt, not announced.
-- Crossing into the Bent Route band (3 used MOTHER cards) should feel like a *moment*, not a footnote.
-- The dominant Legacy in two playtests should not be the same — runs should diverge.
-- A perfect-human run (Clear Route) should feel achievable but expensive.
-- A MOTHER-leaning run should feel productive but ominous, with the area visibly filling up.
-- Installing a Chamber should compete with the Gate for crew, not feel free.
-- Drawing three Arrivals at the end should feel like a payoff, not a surprise — players should already know which Legacies they leaned into.
+- Spending the 3rd MOTHER card should feel like a moment.
+- A low-MOTHER run should feel achievable but expensive.
+- A MOTHER-heavy run should feel productive but dangerous.
+- Repairing a Chamber should compete with Stars and Gates for crew.
+- Wake rewards should make players care who implements the proposal.
+- Gate Drafts should reduce runaway leader problems without erasing good play.
