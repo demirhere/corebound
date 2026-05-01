@@ -1,6 +1,6 @@
 # Ship Board
 
-The board tracks shared ship survival: Hull, Fuel, Parts, and spent MOTHER cards.
+The common board tracks shared ship survival with individual cards for each Hull, Fuel, Parts, and spent MOTHER unit.
 
 | Track | Start | Shared loss if... |
 |---|---:|---|
@@ -15,20 +15,20 @@ Hull is the physical ark. Hull comes back from Star rewards that grant `Hull +N`
 
 ## Fuel
 
-Fuel is the route control resource. Every Star shows its Fuel cost in the Need section. If Fuel is below that cost, that Star is unreachable.
+Fuel is the route control resource. Every Star shows its Fuel cost in the Need section. If Fuel is below that cost, that Star is unreachable. In the digital prototype, stack that many individual Fuel cards on a Star when Fuel must be paid.
 
 If all three Horizon Stars are unreachable and nothing else helps, the active player may Reroute: discard all three, use 1 MOTHER card, and reveal three new Stars. With no MOTHER card left, the ship is Stranded in the Reach and all players lose.
 
 ## Parts
 
-Parts are the build resource. Parts are spent only to repair Chambers and earned from some Star rewards. MOTHER cannot pay Parts.
+Parts are the build resource. Parts are spent only to repair Chambers and earned from some Star rewards. In the digital prototype, stack that many individual Parts cards on a damaged Chamber when Parts must be paid. MOTHER cannot pay Parts.
 
 ## MOTHER Cards
 
-Six MOTHER cards begin in the MOTHER Deck. Click the deck to draw a temporary wild into the proposal. Whenever a proposal resolves with used MOTHER cards, those cards are spent and increase the MOTHER used count.
+Six MOTHER cards begin in the MOTHER Deck. Click the deck to draw a temporary wild onto the common board. Whenever a stack resolves with used MOTHER cards, those cards are spent and increase the MOTHER used count.
 
 ```text
-MOTHER Deck -> spent cards are counted directly on the ship board
+MOTHER Deck -> spent MOTHER cards appear individually on the ship board
 ```
 
 | Used | Effect |

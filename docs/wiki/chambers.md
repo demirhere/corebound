@@ -9,10 +9,10 @@ There is no chamber grid, power-online management, or upkeep. A Chamber is repai
 Three damaged Chambers are visible at all times, drawn from a shuffled Chamber deck.
 
 ```text
-The active player proposes a damaged Chamber.
-Spend the Chamber's Parts cost if the proposal resolves.
-Committed crew cover the Build icons.
-Committed crew become Tired.
+The active player stacks Parts and crew on a damaged Chamber.
+Spend the Chamber's Parts cost if the stack resolves.
+Stacked crew cover the Build icons.
+Stacked crew become Tired.
 Used MOTHER cards are spent.
 The Chamber stays online for the rest of the game.
 A replacement damaged Chamber appears.

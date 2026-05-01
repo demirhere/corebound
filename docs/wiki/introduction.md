@@ -22,7 +22,7 @@ Read this aloud at the start of a game.
 
 > We are crossing three sectors of space. Each sector has three Stars, then a Gate. If the ship fails, everyone loses. If the ship passes the Final Gate, the player with the most loyal crew wins.
 >
-> Each player controls their own loyal crew. On your turn, choose one visible Star, Chamber, or Gate and make a proposal. The proposal can start empty. Players may add crew or refuse. If the proposal has enough icons, resources, and at least one human crew, it resolves. The player who adds the final needed human crew is the Implementer. If the proposal does not resolve, it dissolves and the next player takes a turn.
+> Each player controls their own loyal crew. On your turn, choose one visible Star, Chamber, or Gate by stacking resources and crew onto that card. The stack can start incomplete. Players may add crew or refuse. If the stack has enough icons, resources, and at least one human crew, it resolves. The player who adds the final needed human crew is the Implementer. If the stack does not resolve, move the cards away and the next player takes a turn.
 >
 > MOTHER cards can fill missing icons, but every spent MOTHER card pushes the route closer to danger. At 3 spent cards, `3+ ✶` lines activate. At 5 spent cards, `5+ ✶` lines activate and Gates need +1 icon. If a 7th MOTHER card would be needed, everyone loses.
 >
@@ -31,10 +31,10 @@ Read this aloud at the start of a game.
 ## What The Player Actually Does
 
 1. Reveal the sector and Horizon.
-2. Pledge at least one Ready loyal crew.
-3. Click a visible Star, Chamber, or Gate to propose it.
+2. Add Ready loyal crew and optional MOTHER cards to the common board.
+3. Stack resources and crew onto a visible Star, Chamber, or Gate.
 4. Negotiate for crew contributions and add MOTHER only if needed.
-5. Resolve the proposal if ready, or dissolve it if not.
+5. Resolve the stack if ready, or move cards away if not.
 6. Survive Gates, recruit from Cryo, and count loyal crew after the Final Gate.
 
 There are no victory points, secret objectives, traitor roles, persistent projects, voting rules, personal powers, crew trading, hidden crew ownership, or replacement destination systems.
@@ -45,4 +45,4 @@ COREBOUND is not about managing a ship spreadsheet. It is about looking at three
 
 > Where do we dare go, who do we spend to get there, and how much of the future do we let MOTHER buy for us?
 
-Next: [Leadership and Proposals](leadership.md).
+Next: [Leadership and Stacked Actions](leadership.md).

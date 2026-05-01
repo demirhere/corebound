@@ -109,7 +109,7 @@ button.secondary {
 /* ---------- Workspace grid ---------- */
 .workspace {
   display: grid;
-  grid-template-columns: 18rem minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
 }
@@ -300,6 +300,145 @@ button.secondary {
 .board-panel {
   display: grid;
   gap: 0.85rem;
+}
+.free-board {
+  min-height: 100%;
+}
+.board-play-area {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18rem minmax(1040px, 1fr);
+  gap: 0.75rem;
+  min-width: 1360px;
+  min-height: 980px;
+}
+.board-side-rail {
+  position: relative;
+  min-height: 980px;
+  padding: 0.75rem;
+  border: 3px solid rgba(46, 41, 34, 0.45);
+  background: rgba(255, 250, 240, 0.28);
+}
+.board-rail-decks {
+  display: grid;
+  gap: 0.55rem;
+}
+.board-side-rail .deck-card,
+.board-side-rail button.deck-card {
+  width: 100%;
+  min-height: 4.8rem;
+}
+.board-rail-title {
+  margin: 0.9rem 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.board-surface {
+  position: relative;
+  min-height: 980px;
+  border: 3px solid rgba(46, 41, 34, 0.36);
+  background:
+    radial-gradient(circle at 24px 24px, rgba(255, 250, 240, 0.32) 0 2px, transparent 2px),
+    rgba(255, 250, 240, 0.16);
+  background-size: 48px 48px;
+  overflow: hidden;
+}
+.board-card-shell {
+  position: absolute;
+  display: grid;
+  gap: 0.35rem;
+  width: max-content;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.board-card-shell.is-dragging {
+  cursor: grabbing;
+  filter: saturate(1.08) drop-shadow(0 14px 18px rgba(0, 0, 0, 0.28));
+}
+.board-card-shell.is-stacked .card,
+.board-card-shell.is-stacked .crew-tile {
+  box-shadow: 0 7px 0 rgba(0, 0, 0, 0.26), 0 0 0 3px rgba(244, 207, 134, 0.35);
+}
+.board-card-shell.is-action-target > .card {
+  outline: 2px solid rgba(255, 250, 240, 0.65);
+  outline-offset: 2px;
+}
+.mode-board.star-card {
+  width: 16rem;
+  min-height: 20rem;
+}
+.mode-board.gate-card {
+  width: 18rem;
+}
+.mode-board.chamber-card,
+.board-card-shell .mode-installed.chamber-card {
+  width: 16rem;
+}
+.resource-card {
+  width: 7.2rem;
+  min-height: 8.6rem;
+  align-content: start;
+  justify-items: start;
+  border-left: 8px solid var(--line);
+  background: #fffaf0;
+}
+.resource-fuel { border-left-color: #f0a85e; }
+.resource-hull { border-left-color: #a83c3c; }
+.resource-parts { border-left-color: #6e7d4e; }
+.resource-mother { border-left-color: #1f1c19; }
+.token-card { border-left-color: #b58a25; background: #f8e6b7; }
+.resource-symbol,
+.resource-pips {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 3.8rem;
+}
+.resource-symbol .icon-badge,
+.resource-pips .icon-badge {
+  width: 3.1rem;
+  height: 3.1rem;
+  font-size: 2.9rem;
+}
+.board-action-panel {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.4rem 0.5rem;
+  border: 2px solid rgba(46, 41, 34, 0.5);
+  background: rgba(255, 250, 240, 0.9);
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.25;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.15);
+}
+.board-action-panel.ready {
+  border-color: #2c4259;
+  background: #e8f0f7;
+}
+.board-action-panel.pending {
+  border-style: dashed;
+  color: #742e2a;
+}
+.board-action-panel.installed {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  background: rgba(232, 241, 251, 0.92);
+}
+.board-crew-card {
+  width: 8.5rem;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.28);
+}
+.board-mini-button {
+  justify-self: start;
+  padding: 0.2rem 0.4rem !important;
+  font-size: 0.65rem;
 }
 .panel-title { margin: 0; font-size: 1.2rem; }
 .panel-title .sub {
@@ -744,47 +883,6 @@ button.deck-card { width: 10.5rem; }
   font-weight: 700;
 }
 
-.active-effects {
-  display: grid;
-  gap: 0.45rem;
-  padding: 0.65rem 0.75rem;
-  border: 2px dashed rgba(46, 41, 34, 0.45);
-  background: rgba(255, 250, 240, 0.2);
-}
-.active-effects h2 {
-  margin: 0;
-  font-size: 0.85rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.active-effect-list {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-.active-effect {
-  display: grid;
-  gap: 0.2rem;
-  min-width: 12rem;
-  padding: 0.45rem 0.55rem;
-  border: 2px solid rgba(46, 41, 34, 0.28);
-  background: rgba(255, 250, 240, 0.55);
-}
-.active-effect strong {
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.active-effect span {
-  font-size: 0.85rem;
-  font-weight: 800;
-}
-.active-effect small {
-  color: var(--muted);
-  font-size: 0.72rem;
-  line-height: 1.25;
-}
 .zero-cost {
   font-weight: 900;
   color: #2c4259;
@@ -901,6 +999,15 @@ button.deck-card { width: 10.5rem; }
   gap: 0.4rem;
   align-items: stretch;
   min-width: 0;
+}
+.crew-row-empty {
+  margin: 0;
+  display: grid;
+  place-items: center;
+  min-width: 12rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 .crew-tired-pile {
   position: relative;
@@ -1361,6 +1468,9 @@ button.deck-card { width: 10.5rem; }
   .workspace { grid-template-columns: 1fr; }
   .rail { border-right: 0; border-bottom: 2px solid var(--line); }
   .bottom-rail { grid-template-columns: 1fr; max-height: none; }
+  .board-play-area { grid-template-columns: 16rem minmax(960px, 1fr); min-width: 1230px; min-height: 900px; }
+  .board-side-rail,
+  .board-surface { min-height: 900px; }
   .horizon-row { grid-template-columns: 1fr; }
   .deck-zone { width: 100%; }
   .deck-card, button.deck-card { width: calc(50% - 0.3rem); }

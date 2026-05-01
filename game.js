@@ -11,6 +11,9 @@
   var state;
   var scoutContinuation = null; // not persisted; cleared on reload
   var wakeContinuation = null;  // not persisted; cleared on reload
+  var boardDrag = null;
+  var resolvingMotherIds = null;
+  var BOARD_AREA_X = 320;
 
   document.addEventListener("DOMContentLoaded", init);
 
@@ -22,9 +25,11 @@
     state = normalizeState(loadState()) || newGameState();
     if (state.pendingScout) state.pendingScout = null;
     if (state.pendingWake) state.pendingWake = null;
-    if (state.phase === "gate" && !state.proposal && currentGateId()) openGateProposal();
+    state.proposal = null;
+    ensureBoardState();
 
     document.body.addEventListener("click", onClick);
+    document.body.addEventListener("pointerdown", onBoardPointerDown);
     document.addEventListener("keydown", onKeydown);
 
     saveState();
@@ -126,6 +131,7 @@
       chamberDeck: chamberDeck,
       chamberInstalled: [],
       chamberFlags: {},
+      board: { z: 20, cards: [] },
       message: "",
       lossReason: null
     };
@@ -145,6 +151,9 @@
     if (!Array.isArray(s.chamberInstalled)) s.chamberInstalled = [];
     if (!Array.isArray(s.chamberMarket)) s.chamberMarket = [];
     if (!Array.isArray(s.chamberDeck)) s.chamberDeck = [];
+    if (!s.board || typeof s.board !== "object") s.board = { z: 20, cards: [] };
+    if (!Array.isArray(s.board.cards)) s.board.cards = [];
+    if (typeof s.board.z !== "number") s.board.z = 20;
     if (!s.discards) s.discards = { sector1: [], sector2: [], sector3: [] };
     if (!s.decks) {
       s.decks = {
@@ -208,7 +217,7 @@
 
     if (s.phase !== "gateDraft") s.gateDraft = null;
     if (s.phase !== "loss") s.lossReason = s.lossReason || null;
-    if (!s.proposal || typeof s.proposal !== "object") s.proposal = null;
+    s.proposal = null;
     if (s.pendingScout) s.pendingScout = null;
     if (s.pendingWake) s.pendingWake = null;
 
@@ -489,6 +498,10 @@
   var actions = {
     drawSector: function () { doDrawSector(); },
     drawHorizon: function () { doDrawHorizon(); },
+    addCrewToBoard: function (el) { doAddCrewToBoard(el.dataset.crewId); },
+    returnBoardCard: function (el) { doReturnBoardCard(el.dataset.boardUid); },
+    dismissBoardStack: function (el) { doDismissBoardStack(el.dataset.boardUid); },
+    takeBoardAction: function (el) { doTakeBoardAction(el.dataset.boardUid); },
     toggleCrew: function (el) { doToggleCrew(el.dataset.crewId); },
     toggleMother: function (el) { doToggleMother(el.dataset.motherId); },
     drawMother: function () { doDrawMother(); },
@@ -525,6 +538,556 @@
   function advanceActivePlayer() {
     if (!state.players.length) return;
     state.activePlayerIndex = (state.activePlayerIndex + 1) % state.players.length;
+  }
+
+  // ============================================================
+  // FREE BOARD / STACKING
+  // ============================================================
+
+  function ensureBoardState() {
+    if (!state.board || typeof state.board !== "object") state.board = { z: 20, cards: [] };
+    if (!Array.isArray(state.board.cards)) state.board.cards = [];
+    if (typeof state.board.z !== "number") state.board.z = 20;
+
+    ensureResourceCards("hull", state.hull, BOARD_AREA_X + 20, 24);
+    ensureResourceCards("fuel", state.fuel, BOARD_AREA_X + 145, 24);
+    ensureResourceCards("parts", state.parts, BOARD_AREA_X + 270, 24);
+    ensureResourceCards("mother", motherUsedCount(), BOARD_AREA_X + 395, 24);
+
+    var gateId = currentGateId();
+    var gateVisible = !!(gateId && (state.sectorRevealed || state.phase === "gate"));
+    if (gateVisible) {
+      var gateItem = ensureBoardItem("gate", gateId, BOARD_AREA_X + 780, 40);
+      if (!gateItem.stackOn && gateItem.x < BOARD_AREA_X) gateItem.x = BOARD_AREA_X + 780;
+    }
+    removeBoardCards(function (item) { return item.type === "gate" && (!gateVisible || item.ref !== gateId); });
+
+    var horizonIds = Array.isArray(state.horizon) ? state.horizon.slice() : [];
+    horizonIds.forEach(function (id, i) {
+      var starItem = ensureBoardItem("star", id, BOARD_AREA_X + 20 + (i * 245), 245);
+      if (!starItem.stackOn && starItem.x < BOARD_AREA_X) starItem.x = BOARD_AREA_X + 20 + (i * 245);
+    });
+    removeBoardCards(function (item) { return item.type === "star" && horizonIds.indexOf(item.ref) < 0; });
+
+    state.chamberMarket.forEach(function (id, i) {
+      var chamberItem = ensureBoardItem("chamber", id, 14, 380 + (i * 255));
+      chamberItem.x = 14;
+      chamberItem.y = 380 + (i * 255);
+    });
+    state.chamberInstalled.forEach(function (id, i) {
+      var installedItem = ensureBoardItem("chamber", id, BOARD_AREA_X + 760 + ((i % 2) * 245), 480 + (Math.floor(i / 2) * 230));
+      if (!installedItem.stackOn && installedItem.x < BOARD_AREA_X) {
+        installedItem.x = BOARD_AREA_X + 760 + ((i % 2) * 245);
+        installedItem.y = 480 + (Math.floor(i / 2) * 230);
+      }
+    });
+    var visibleChambers = state.chamberMarket.concat(state.chamberInstalled);
+    removeBoardCards(function (item) { return item.type === "chamber" && visibleChambers.indexOf(item.ref) < 0; });
+
+    if (state.freeStarNext) ensureBoardItem("token", "freeStar", BOARD_AREA_X + 740, 24);
+    else removeBoardCards(function (item) { return item.type === "token" && item.ref === "freeStar"; });
+
+    state.highlightedMother = state.highlightedMother.filter(function (id) {
+      var card = state.motherCards.find(function (m) { return m.id === id; });
+      return card && !card.used;
+    });
+    state.highlightedMother.forEach(function (id, i) { ensureBoardItem("mother", id, BOARD_AREA_X + 20 + (i * 36), 690); });
+    removeBoardCards(function (item) { return item.type === "mother" && state.highlightedMother.indexOf(item.ref) < 0; });
+
+    removeBoardCards(function (item) {
+      if (item.type !== "crew") return false;
+      var crew = getCrew(item.ref);
+      return !crew || !crew.awake || crew.tired;
+    });
+
+    cleanBoardStacks();
+  }
+
+  function ensureResourceCards(resource, count, x, y) {
+    removeBoardCards(function (item) {
+      if (item.type !== "ship") return false;
+      if (item.ref === resource) return true;
+      if (shipResource(item) !== resource) return false;
+      return resourceCardIndex(item) > count;
+    });
+    for (var i = 1; i <= count; i += 1) {
+      var pos = resourceHomePosition(resource, i);
+      var item = ensureBoardItem("ship", resource + "-" + i, x + ((i - 1) * 10), y + ((i - 1) * 12));
+      item.resource = resource;
+      if (!item.stackOn && item.x < BOARD_AREA_X) {
+        item.x = pos.x;
+        item.y = pos.y;
+      }
+    }
+  }
+
+  function shipResource(item) {
+    if (!item || item.type !== "ship") return null;
+    if (item.resource) return item.resource;
+    if (["hull", "fuel", "parts", "mother"].indexOf(item.ref) >= 0) return item.ref;
+    var match = String(item.ref || "").match(/^(hull|fuel|parts|mother)-\d+$/);
+    return match ? match[1] : null;
+  }
+
+  function resourceCardIndex(item) {
+    var match = String(item && item.ref || "").match(/-(\d+)$/);
+    return match ? Number(match[1]) : 0;
+  }
+
+  function boardUid(type, ref) {
+    return type + "-" + ref;
+  }
+
+  function boardItem(uid) {
+    ensureBoardStateShape();
+    return state.board.cards.find(function (item) { return item.uid === uid; });
+  }
+
+  function boardItemFor(type, ref) {
+    return boardItem(boardUid(type, ref));
+  }
+
+  function ensureBoardStateShape() {
+    if (!state.board || typeof state.board !== "object") state.board = { z: 20, cards: [] };
+    if (!Array.isArray(state.board.cards)) state.board.cards = [];
+    if (typeof state.board.z !== "number") state.board.z = 20;
+  }
+
+  function ensureBoardItem(type, ref, x, y) {
+    ensureBoardStateShape();
+    var uid = boardUid(type, ref);
+    var item = boardItem(uid);
+    if (item) return item;
+    item = {
+      uid: uid,
+      type: type,
+      ref: ref,
+      x: x,
+      y: y,
+      z: ++state.board.z,
+      stackOn: null
+    };
+    state.board.cards.push(item);
+    return item;
+  }
+
+  function removeBoardCards(predicate) {
+    ensureBoardStateShape();
+    state.board.cards.slice().forEach(function (item) {
+      if (predicate(item)) removeBoardCard(item.uid);
+    });
+  }
+
+  function removeBoardCard(uid) {
+    ensureBoardStateShape();
+    state.board.cards.forEach(function (item) {
+      if (item.stackOn === uid) item.stackOn = null;
+    });
+    state.board.cards = state.board.cards.filter(function (item) { return item.uid !== uid; });
+  }
+
+  function cleanBoardStacks() {
+    var ids = {};
+    state.board.cards.forEach(function (item) { ids[item.uid] = true; });
+    state.board.cards.forEach(function (item) {
+      if (item.stackOn && !ids[item.stackOn]) item.stackOn = null;
+      if (item.stackOn === item.uid) item.stackOn = null;
+    });
+  }
+
+  function stackedBoardItems(targetUid) {
+    ensureBoardStateShape();
+    return state.board.cards.filter(function (item) { return item.stackOn === targetUid; });
+  }
+
+  function stackedBoardDescendants(targetUid) {
+    var result = [];
+    function visit(uid) {
+      stackedBoardItems(uid).forEach(function (item) {
+        result.push(item);
+        visit(item.uid);
+      });
+    }
+    visit(targetUid);
+    return result;
+  }
+
+  function boardCommitment(targetUid) {
+    var stacked = stackedBoardDescendants(targetUid);
+    return {
+      items: stacked,
+      crewIds: stacked.filter(function (item) { return item.type === "crew"; }).map(function (item) { return item.ref; }),
+      motherIds: stacked.filter(function (item) { return item.type === "mother"; }).map(function (item) { return item.ref; }),
+      shipRefs: stacked.filter(function (item) { return item.type === "ship"; }).map(shipResource).filter(Boolean),
+      shipItems: stacked.filter(function (item) { return item.type === "ship"; }),
+      tokenRefs: stacked.filter(function (item) { return item.type === "token"; }).map(function (item) { return item.ref; })
+    };
+  }
+
+  function resourceStackItems(stack, resource) {
+    return (stack.shipItems || []).filter(function (item) { return shipResource(item) === resource; });
+  }
+
+  function boardCrewIcons(crewIds) {
+    var icons = [];
+    crewIds.forEach(function (id) {
+      icons = icons.concat(getCrewIconContribution(getCrew(id)));
+    });
+    return icons;
+  }
+
+  function boardHumanCount(crewIds) {
+    return crewIds.filter(function (id) {
+      var crew = getCrew(id);
+      return crew && crew.awake && !crew.tired;
+    }).length;
+  }
+
+  function boardActionKind(item) {
+    if (!item) return null;
+    if (item.type === "star" && state.phase === "play" && state.horizon && state.horizon.indexOf(item.ref) >= 0) return "star";
+    if (item.type === "chamber" && state.phase === "play" && state.sectorRevealed && state.chamberMarket.indexOf(item.ref) >= 0) return "chamber";
+    if (item.type === "gate" && state.phase === "gate" && item.ref === currentGateId()) return "gate";
+    return null;
+  }
+
+  function boardActionInfo(item) {
+    var kind = boardActionKind(item);
+    if (!kind) return null;
+    if (kind === "star") return { kind: kind, label: "Travel", eligibility: boardTravelEligibility(item) };
+    if (kind === "chamber") return { kind: kind, label: "Activate", eligibility: boardInstallEligibility(item) };
+    if (kind === "gate") return { kind: kind, label: isFinalSector() ? "Pass Final Gate" : "Pass Gate", eligibility: boardGateEligibility(item) };
+    return null;
+  }
+
+  function boardTravelEligibility(item) {
+    var starId = item.ref;
+    var s = getStar(starId);
+    if (!s) return { ok: false, reason: "unknown Star" };
+    var stack = boardCommitment(item.uid);
+    var cost = travelCostFor(starId);
+    var fuelCards = resourceStackItems(stack, "fuel");
+    if (fuelCards.length < cost) return { ok: false, reason: "Need " + cost + " Fuel card" + (cost === 1 ? "" : "s") + "." };
+    if (state.fuel < cost) return { ok: false, reason: "Need " + cost + " Fuel (have " + state.fuel + ")." };
+    if (boardHumanCount(stack.crewIds) < 1) return { ok: false, reason: "Stack at least one Ready human crew." };
+
+    var need = effectiveStarNeed(starId);
+    var rep = coverageFrom(need, boardCrewIcons(stack.crewIds), stack.motherIds.length);
+    if (rep.wildsLeft < 0) return { ok: false, reason: "Stacked icons + MOTHER do not cover the Need." };
+    if (stack.motherIds.length > 0 && boardHumanCount(stack.crewIds) === 0) {
+      return { ok: false, reason: "MOTHER may only help if at least one human is stacked." };
+    }
+    var extraCrew = effectiveStarExtraCrew(starId);
+    if (extraCrew > 0) {
+      var baseline = Math.max(2, Math.ceil(need.length / 2));
+      var needHumans = baseline + extraCrew;
+      if (boardHumanCount(stack.crewIds) < needHumans) {
+        return { ok: false, reason: "3+ " + D.icons.mother.glyph + ": stack +" + extraCrew + " crew (need >=" + needHumans + " humans)." };
+      }
+    }
+    if (hasChamber("ch-gravity-sails") && !state.chamberFlags.gravitySailsUsedThisSector
+        && s.travel >= 2 && motherUsedCount() >= 3 && boardHumanCount(stack.crewIds) < 2) {
+      return { ok: false, reason: "Gravity Sails needs >=2 humans on this discounted Star." };
+    }
+    return { ok: true, cost: cost, fuelUids: fuelCards.slice(0, cost).map(function (card) { return card.uid; }), motherSpent: Math.max(0, rep.missing.length), crewIds: stack.crewIds, motherIds: stack.motherIds };
+  }
+
+  function boardInstallEligibility(item) {
+    var chamber = getChamber(item.ref);
+    if (!chamber) return { ok: false, reason: "unknown Chamber" };
+    var stack = boardCommitment(item.uid);
+    var partCards = resourceStackItems(stack, "parts");
+    if (state.chamberInstalled.length >= 3) return { ok: false, reason: "Three Chambers already fixed." };
+    if (partCards.length < chamber.parts) return { ok: false, reason: "Need " + chamber.parts + " Parts card" + (chamber.parts === 1 ? "" : "s") + "." };
+    if (state.parts < chamber.parts) return { ok: false, reason: "Need " + chamber.parts + " Parts (have " + state.parts + ")." };
+    if (boardHumanCount(stack.crewIds) < 1) return { ok: false, reason: "Stack at least one Ready human crew." };
+    var rep = coverageFrom(chamber.build, boardCrewIcons(stack.crewIds), stack.motherIds.length);
+    if (rep.wildsLeft < 0) return { ok: false, reason: "Stacked icons + MOTHER do not cover the Build." };
+    return { ok: true, cost: chamber.parts, partsUids: partCards.slice(0, chamber.parts).map(function (card) { return card.uid; }), motherSpent: Math.max(0, rep.missing.length), crewIds: stack.crewIds, motherIds: stack.motherIds };
+  }
+
+  function boardGateEligibility(item) {
+    var stack = boardCommitment(item.uid);
+    if (boardHumanCount(stack.crewIds) < 1) return { ok: false, reason: "Stack at least one Ready human crew." };
+    var rep = coverageFrom(gateNeed(), boardCrewIcons(stack.crewIds), stack.motherIds.length);
+    if (rep.wildsLeft < 0) return { ok: false, reason: "Stacked icons + MOTHER do not cover the Gate." };
+    return { ok: true, motherSpent: Math.max(0, rep.missing.length), crewIds: stack.crewIds, motherIds: stack.motherIds };
+  }
+
+  function canStackBoardItem(item, target) {
+    if (!item || !target || item.uid === target.uid) return false;
+    if (item.type === "ship" && target.type === "ship" && shipResource(item) && shipResource(item) === shipResource(target)) return true;
+    var kind = boardActionKind(target);
+    if (!kind) return false;
+    if (item.type === "crew" || item.type === "mother") return true;
+    if (item.type === "ship" && shipResource(item) === "fuel" && kind === "star") return true;
+    if (item.type === "ship" && shipResource(item) === "parts" && kind === "chamber") return true;
+    if (item.type === "token" && item.ref === "freeStar" && kind === "star") return true;
+    return false;
+  }
+
+  function stackBoardItemOn(item, target) {
+    var idx = stackedBoardItems(target.uid).filter(function (stacked) { return stacked.uid !== item.uid; }).length;
+    item.stackOn = target.uid;
+    item.x = target.x + 22 + (idx * 18);
+    item.y = target.y + 32 + (idx * 20);
+    item.z = Math.max(item.z, target.z + 1 + idx);
+    state.board.z = Math.max(state.board.z, item.z);
+  }
+
+  function rootBoardItem(item) {
+    var cursor = item;
+    var guard = 0;
+    while (cursor && cursor.stackOn && guard < 20) {
+      cursor = boardItem(cursor.stackOn);
+      guard += 1;
+    }
+    return cursor || item;
+  }
+
+  function bringBoardGroupToFront(uid) {
+    var item = boardItem(uid);
+    if (!item) return;
+    var root = rootBoardItem(item);
+    var group = [root].concat(stackedBoardItems(root.uid));
+    group.sort(function (a, b) { return a.z - b.z; });
+    group.forEach(function (groupItem) { groupItem.z = ++state.board.z; });
+  }
+
+  function moveStackChildren(uid, dx, dy) {
+    if (!dx && !dy) return;
+    stackedBoardItems(uid).forEach(function (child) {
+      child.x += dx;
+      child.y += dy;
+      moveStackChildren(child.uid, dx, dy);
+    });
+  }
+
+  function boardDragArea() {
+    return document.getElementById("boardPlayArea") || document.getElementById("boardSurface");
+  }
+
+  function boardCoordinates(event, offsetX, offsetY) {
+    var area = boardDragArea();
+    if (!area) return { x: 0, y: 0 };
+    var rect = area.getBoundingClientRect();
+    var maxX = Math.max(0, area.scrollWidth - 120);
+    var maxY = Math.max(0, area.scrollHeight - 120);
+    var x = event.clientX - rect.left - offsetX;
+    var y = event.clientY - rect.top - offsetY;
+    return { x: Math.max(0, Math.min(maxX, x)), y: Math.max(0, Math.min(maxY, y)) };
+  }
+
+  function boardNodeForUid(uid) {
+    if (!document.querySelector) return null;
+    return document.querySelector('[data-board-uid="' + cssEscape(uid) + '"]');
+  }
+
+  function cssEscape(value) {
+    if (window.CSS && window.CSS.escape) return window.CSS.escape(value);
+    return String(value).replace(/"/g, '\\"');
+  }
+
+  function fixedBoardItem(item) {
+    return item && item.type === "chamber" && state.chamberMarket.indexOf(item.ref) >= 0;
+  }
+
+  function onBoardPointerDown(event) {
+    if (event.button !== 0) return;
+    if (event.target.closest("[data-action]")) return;
+    var node = event.target.closest("[data-board-uid]");
+    if (!node) return;
+    var area = boardDragArea();
+    if (!area || !area.contains(node)) return;
+    var item = boardItem(node.dataset.boardUid);
+    if (!item) return;
+    if (fixedBoardItem(item)) return;
+
+    event.preventDefault();
+    var rect = node.getBoundingClientRect();
+    var children = item.stackOn ? [] : stackedBoardItems(item.uid).map(function (child) {
+      return { uid: child.uid, startX: child.x, startY: child.y, node: boardNodeForUid(child.uid) };
+    });
+    boardDrag = {
+      uid: item.uid,
+      node: node,
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: item.x,
+      startY: item.y,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+      children: children,
+      moved: false
+    };
+    node.setPointerCapture(event.pointerId);
+    document.addEventListener("pointermove", onBoardPointerMove);
+    document.addEventListener("pointerup", onBoardPointerUp);
+  }
+
+  function onBoardPointerMove(event) {
+    if (!boardDrag || event.pointerId !== boardDrag.pointerId) return;
+    var item = boardItem(boardDrag.uid);
+    if (!item) return;
+    var dx = event.clientX - boardDrag.startClientX;
+    var dy = event.clientY - boardDrag.startClientY;
+    if (Math.abs(dx) + Math.abs(dy) > 3) boardDrag.moved = true;
+    var coords = boardCoordinates(event, boardDrag.offsetX, boardDrag.offsetY);
+    var childDx = coords.x - boardDrag.startX;
+    var childDy = coords.y - boardDrag.startY;
+    boardDrag.node.classList.add("is-dragging");
+    boardDrag.node.style.left = coords.x + "px";
+    boardDrag.node.style.top = coords.y + "px";
+    boardDrag.children.forEach(function (child) {
+      if (!child.node) return;
+      child.node.style.left = (child.startX + childDx) + "px";
+      child.node.style.top = (child.startY + childDy) + "px";
+    });
+  }
+
+  function onBoardPointerUp(event) {
+    if (!boardDrag || event.pointerId !== boardDrag.pointerId) return;
+    document.removeEventListener("pointermove", onBoardPointerMove);
+    document.removeEventListener("pointerup", onBoardPointerUp);
+
+    var item = boardItem(boardDrag.uid);
+    if (item) {
+      if (boardDrag.moved) {
+        var coords = boardCoordinates(event, boardDrag.offsetX, boardDrag.offsetY);
+        var oldX = item.x;
+        var oldY = item.y;
+        item.stackOn = null;
+        item.x = coords.x;
+        item.y = coords.y;
+
+        var target = findBoardDropTarget(item.uid, event.clientX, event.clientY);
+        if (target && canStackBoardItem(item, target)) {
+          stackBoardItemOn(item, target);
+        } else {
+          moveStackChildren(item.uid, item.x - oldX, item.y - oldY);
+        }
+      } else {
+        bringBoardGroupToFront(item.uid);
+      }
+      cleanBoardStacks();
+      saveAndRender();
+    }
+    boardDrag = null;
+  }
+
+  function findBoardDropTarget(draggedUid, clientX, clientY) {
+    if (!document.elementsFromPoint) return null;
+    var dragged = boardItem(draggedUid);
+    var elements = document.elementsFromPoint(clientX, clientY);
+    for (var i = 0; i < elements.length; i += 1) {
+      var node = elements[i].closest && elements[i].closest("[data-board-uid]");
+      if (!node) continue;
+      var uid = node.dataset.boardUid;
+      if (!uid || uid === draggedUid) continue;
+      var candidate = boardItem(uid);
+      if (candidate && candidate.stackOn) candidate = boardItem(candidate.stackOn) || candidate;
+      if (candidate && candidate.uid !== draggedUid && canStackBoardItem(dragged, candidate)) return candidate;
+    }
+    return null;
+  }
+
+  function doAddCrewToBoard(id) {
+    var crew = getCrew(id);
+    if (!crew || !crew.awake) return;
+    if (crew.tired) { showMessage(crew.name + " has already worked this sector."); return; }
+    if (state.phase !== "play" && state.phase !== "gate") return;
+    var item = boardItemFor("crew", id);
+    if (!item) item = ensureBoardItem("crew", id, BOARD_AREA_X + 20 + (state.board.cards.length % 8) * 28, 690 + (state.board.cards.length % 4) * 18);
+    bringBoardGroupToFront(item.uid);
+    saveAndRender();
+  }
+
+  function doReturnBoardCard(uid) {
+    var item = boardItem(uid);
+    if (!item) return;
+    if (item.type === "mother") {
+      state.highlightedMother = state.highlightedMother.filter(function (id) { return id !== item.ref; });
+      removeBoardCard(uid);
+      saveAndRender();
+      return;
+    }
+    if (item.type === "crew") {
+      removeBoardCard(uid);
+      saveAndRender();
+    }
+  }
+
+  function doDismissBoardStack(uid) {
+    unstackTargetToBoard(uid);
+    saveAndRender();
+  }
+
+  function unstackTargetToBoard(uid) {
+    stackedBoardItems(uid).forEach(function (item, i) {
+      item.stackOn = null;
+      if (item.type === "ship" || item.type === "token") {
+        returnBoardUtilityCard(item);
+        return;
+      }
+      item.x = BOARD_AREA_X + 25 + ((i % 5) * 125);
+      item.y = 720 + (Math.floor(i / 5) * 110);
+    });
+  }
+
+  function doTakeBoardAction(uid) {
+    var item = boardItem(uid);
+    var info = boardActionInfo(item);
+    if (!info) return;
+    if (!info.eligibility.ok) {
+      showMessage(info.eligibility.reason || "Stack the required cards here first.");
+      return;
+    }
+
+    var implementer = activePlayerId();
+    var kind = info.kind;
+    var elig = info.eligibility;
+    state.highlightedCrew = elig.crewIds.slice();
+    resolvingMotherIds = elig.motherIds.slice();
+    state.currentImplementer = implementer;
+    state.proposal = {
+      cardId: item.ref,
+      cardType: kind,
+      proposerPlayerId: implementer,
+      implementerPlayerId: implementer,
+      status: "resolved"
+    };
+
+    if (kind === "star") return resolveTravelProposal(item.ref, elig, implementer);
+    if (kind === "chamber") return resolveInstallProposal(item.ref, elig, implementer);
+    if (kind === "gate") return resolveGateProposal(elig, implementer);
+  }
+
+  function returnBoardUtilityCard(item) {
+    if (!item) return;
+    var oldX = item.x;
+    var oldY = item.y;
+    if (item.type === "ship") {
+      var pos = resourceHomePosition(shipResource(item), resourceCardIndex(item));
+      item.x = pos.x;
+      item.y = pos.y;
+    }
+    if (item.type === "token") {
+      item.x = BOARD_AREA_X + 740;
+      item.y = 24;
+    }
+    moveStackChildren(item.uid, item.x - oldX, item.y - oldY);
+  }
+
+  function resourceHomePosition(resource, index) {
+    var columns = { hull: 20, fuel: 145, parts: 270, mother: 395 };
+    var baseX = BOARD_AREA_X + (columns[resource] || 20);
+    var i = Math.max(0, (index || 1) - 1);
+    return { x: baseX + (i * 10), y: 24 + (i * 12) };
+  }
+
+  function removeBoardCardsByUid(uids) {
+    (uids || []).forEach(removeBoardCard);
   }
 
   // ============================================================
@@ -665,14 +1228,12 @@
 
   function doDissolveProposal() {
     if (!state.proposal) return;
-    var wasGate = state.proposal.cardType === "gate" && state.phase === "gate";
     state.proposal.status = "dissolved";
     state.proposal = null;
     state.highlightedCrew = [];
     state.highlightedMother = [];
     state.currentImplementer = null;
     advanceActivePlayer();
-    if (wasGate) openGateProposal();
     saveAndRender();
   }
 
@@ -791,6 +1352,7 @@
     var motherBefore = motherUsedCount();
     var motherSpent = elig.motherSpent;
     state.fuel -= elig.cost;
+    removeBoardCardsByUid(elig.fuelUids);
     state.freeStarNext = false;
 
     if (hasChamber("ch-gravity-sails") && !state.chamberFlags.gravitySailsUsedThisSector) {
@@ -851,7 +1413,6 @@
         return;
       }
       state.phase = "gate";
-      openGateProposal();
     }
     saveAndRender();
   }
@@ -881,12 +1442,14 @@
     var motherBefore = motherUsedCount();
     var chamber = getChamber(chamberId);
     state.parts -= chamber.parts;
+    removeBoardCardsByUid(elig.partsUids);
 
     spendHighlightedCrewAsTired();
     spendMotherFromHighlight(elig.motherSpent);
     refundLiaisonIfApplicable(elig.motherSpent, "chamber", motherBefore);
 
     state.chamberInstalled.push(chamber.id);
+    moveBoardItemToBoardArea(boardUid("chamber", chamber.id), 760 + ((state.chamberInstalled.length - 1) % 2) * 245, 480 + (Math.floor((state.chamberInstalled.length - 1) / 2) * 230));
     var marketIdx = state.chamberMarket.indexOf(chamber.id);
     if (marketIdx >= 0) state.chamberMarket.splice(marketIdx, 1);
     if (state.chamberDeck.length > 0) state.chamberMarket.push(state.chamberDeck.shift());
@@ -896,6 +1459,14 @@
     advanceActivePlayer();
     if (motherUsedCount() > state.motherCards.length) { enterLoss("MOTHER Takes the Wheel"); return; }
     saveAndRender();
+  }
+
+  function moveBoardItemToBoardArea(uid, x, y) {
+    var item = boardItem(uid);
+    if (!item) return;
+    item.stackOn = null;
+    item.x = BOARD_AREA_X + x;
+    item.y = y;
   }
 
   // ============================================================
@@ -1082,26 +1653,32 @@
   }
 
   function spendHighlightedCrewAsTired() {
-    state.highlightedCrew.forEach(function (id) {
+    var spentIds = state.highlightedCrew.slice();
+    spentIds.forEach(function (id) {
       var c = getCrew(id);
       if (!c) return;
       c.tired = true;
     });
+    spentIds.forEach(function (id) { removeBoardCard(boardUid("crew", id)); });
     state.highlightedCrew = [];
   }
 
   function spendMotherFromHighlight(n) {
     var spent = 0;
-    var ids = state.highlightedMother.slice();
+    var ids = (resolvingMotherIds || state.highlightedMother).slice();
+    var spentIds = [];
     ids.forEach(function (id) {
       if (spent >= n) return;
       var card = state.motherCards.find(function (m) { return m.id === id; });
       if (card && !card.used) {
         card.used = true;
+        removeBoardCard(boardUid("mother", id));
+        spentIds.push(id);
         spent += 1;
       }
     });
-    state.highlightedMother = [];
+    resolvingMotherIds = null;
+    state.highlightedMother = state.highlightedMother.filter(function (id) { return spentIds.indexOf(id) < 0; });
     return spent;
   }
 
@@ -1112,6 +1689,7 @@
         state.motherCards[i].used = true;
         var hi = state.highlightedMother.indexOf(state.motherCards[i].id);
         if (hi >= 0) state.highlightedMother.splice(hi, 1);
+        removeBoardCard(boardUid("mother", state.motherCards[i].id));
         spent += 1;
       }
     }
@@ -1452,10 +2030,9 @@
   // ============================================================
 
   function render() {
+    ensureBoardState();
     renderTopbar();
     renderMessage();
-    renderShipBoard();
-    renderChamberArea();
     renderCrewRow();
     renderMain();
     renderScout();
@@ -1489,90 +2066,19 @@
     return "";
   }
 
-  function renderShipBoard() {
-    var el = document.getElementById("shipBoard");
-    if (!el) return;
-    var motherUsed = motherUsedCount();
-    el.innerHTML =
-      '<h2 class="rail-title">Ship Board</h2>' +
-      renderTrack("Hull", state.hull, D.starting.hull, "hull") +
-      renderTrack("Fuel", state.fuel, Math.max(6, state.fuel), "fuel") +
-      renderTrack("Parts", state.parts, Math.max(6, state.parts), "parts") +
-      renderTrack("MOTHER", motherUsed, state.motherCards.length, "mother");
-  }
-
-  function renderTrack(label, value, max, type) {
-    var pips = "";
-    for (var i = 0; i < value; i += 1) {
-      if (D.icons[type]) pips += '<span class="track-pip ' + type + ' on">' + D.icons[type].glyph + '</span>';
-      else pips += '<span class="track-pip ' + type + ' on"></span>';
-    }
-    var glyph = D.icons[type]
-      ? '<span class="track-glyph ' + type + '" aria-hidden="true">' + D.icons[type].glyph + '</span>'
-      : '<span class="track-glyph"></span>';
-    return '<div class="track">' + glyph + '<span class="track-name">' + label + '</span><div class="track-pips">' + pips + '</div></div>';
-  }
-
-  function renderChamberArea() {
-    var el = document.getElementById("chamberArea");
-    if (!el) return;
-    var marketHtml = state.chamberMarket.length === 0
-      ? '<p class="chamber-empty">All Chambers fixed.</p>'
-      : state.chamberMarket.map(function (id) {
-          var legal = state.phase === "play" && state.sectorRevealed && !state.proposal && state.chamberInstalled.length < 3;
-          var selected = state.proposal && state.proposal.cardType === "chamber" && state.proposal.cardId === id;
-          if (selected) return '<div class="chamber-pick">' + renderCardPlaceholder("chamber") + '</div>';
-          var attrs = legal ? ' data-action="proposeChamber" data-chamber-id="' + escapeAttr(id) + '" role="button" tabindex="0"' : '';
-          return '<div class="chamber-pick card-click-target' + (legal ? ' can-propose' : '') + (selected ? ' selected' : '') + '"' + attrs + '>' +
-            renderChamberCard(id, "market") +
-            (legal ? '<span class="card-click-hint">Click card to propose</span>' : '') +
-          '</div>';
-        }).join("");
-
-    el.innerHTML =
-      '<h2 class="rail-title">Damaged Chambers (' + state.chamberInstalled.length + '/3 fixed)</h2>' +
-      '<div class="chamber-market">' + marketHtml + '</div>';
-  }
-
-  function renderInstalledChambersBoard() {
-    if (!state.chamberInstalled || state.chamberInstalled.length === 0) return "";
-    var cards = state.chamberInstalled.map(function (id) {
-      return renderChamberCard(id, "installed");
-    }).join("");
-    var actionsHtml = "";
-    if (state.phase === "play" && hasChamber("ch-drive-cathedral") && !state.chamberFlags.driveCathedralUsedThisSector && !state.proposal) {
-      var btnLabel = state.driveCathedralActive ? "Drive Cathedral: armed (-1 Travel)" : "Use Drive Cathedral (-1 Travel)";
-      actionsHtml += '<button class="secondary" data-action="useDriveCathedral">' + btnLabel + '</button>';
-    }
-    if (state.phase === "play" && hasChamber("ch-archive-node") && !state.chamberFlags.archiveNodeUsedThisSector && !state.proposal) {
-      actionsHtml += '<button class="secondary" data-action="useArchiveNode">Use Archive Node</button>';
-    }
-    return '<div class="installed-board">' +
-      '<h3 class="installed-board-title">Ship Chambers</h3>' +
-      '<div class="installed-board-row">' + cards + '</div>' +
-      (actionsHtml ? '<div class="installed-board-actions">' + actionsHtml + '</div>' : "") +
-    '</div>';
-  }
-
   function renderCrewRow() {
     var el = document.getElementById("crewRow");
     if (!el) return;
     var commitable = state.phase === "play" || state.phase === "gate";
-    var activeCrew = state.crew.filter(function (c) { return c.awake && !c.tired; });
+    var activeCrew = state.crew.filter(function (c) { return c.awake && !c.tired && !boardItemFor("crew", c.id); });
     var tiredCrew = state.crew.filter(function (c) { return c.awake && c.tired; });
-    var html = '<div class="crew-row-title">Loyal crew and temporary MOTHER cards</div><div class="crew-row-body"><div class="crew-ready-row">';
+    var html = '<div class="crew-row-title">Ready crew - click to add to the common board</div><div class="crew-row-body"><div class="crew-ready-row">';
     activeCrew.forEach(function (c) {
       var owner = getPlayer(c.ownerPlayerId);
-      var committed = state.proposal && state.highlightedCrew.indexOf(c.id) >= 0;
-      if (committed) {
-        html += renderCrewPlaceholder(c.name);
-        return;
-      }
       var cls = "crew-tile";
       if (c.tired) cls += " state-tired";
       else cls += " state-ready";
       if (c.wounded) cls += " state-wounded";
-      if (state.highlightedCrew.indexOf(c.id) >= 0) cls += " state-committed";
       var canSelect = commitable && !c.tired;
       var iconRowHtml = c.icons.map(function (icon, idx) {
         var muted = c.wounded && idx > 0;
@@ -1580,24 +2086,16 @@
       }).join("");
       var subState = c.tired ? "Tired" : c.wounded ? "Wounded" : "Ready";
       html += '<button type="button" class="' + cls + '" ' +
-        (canSelect ? 'data-action="toggleCrew" data-crew-id="' + escapeAttr(c.id) + '"' : "disabled") +
+        (canSelect ? 'data-action="addCrewToBoard" data-crew-id="' + escapeAttr(c.id) + '"' : "disabled") +
         '>' +
         '<span class="crew-card-glyph" aria-hidden="true">' + D.icons.person.glyph + '</span>' +
         '<span class="crew-name">' + escapeHtml(c.name) + '</span>' +
         '<span class="crew-owner">' + escapeHtml(owner ? owner.name : "Unowned") + '</span>' +
         '<span class="crew-icons">' + iconRowHtml + '</span>' +
-        '<span class="crew-state">' + subState + '</span>' +
+        '<span class="crew-state">' + subState + ' - add to board</span>' +
         '</button>';
     });
-    if (!state.proposal) {
-      state.highlightedMother.forEach(function (id) {
-        html += '<button type="button" class="crew-tile mother-hand-card state-committed" data-action="toggleMother" data-mother-id="' + escapeAttr(id) + '">' +
-          '<span class="crew-name">MOTHER</span>' +
-          '<span class="crew-icons"><span class="mother-wild-icon">' + D.icons.mother.glyph + '</span></span>' +
-          '<span class="crew-state">Wild - click to return</span>' +
-          '</button>';
-      });
-    }
+    if (activeCrew.length === 0) html += '<p class="crew-row-empty">All Ready crew are on the board or already tired.</p>';
     html += '</div>';
     if (tiredCrew.length > 0) {
       html += '<div class="crew-tired-pile" aria-label="Tired crew pile">' +
@@ -1624,10 +2122,6 @@
     '</article>';
   }
 
-  function renderCrewPlaceholder(name) {
-    return '<div class="crew-placeholder" aria-label="' + escapeAttr(name) + ' committed to proposal"><span>In Proposal</span></div>';
-  }
-
   function renderMain() {
     var el = document.getElementById("mainArea");
     if (!el) return;
@@ -1638,7 +2132,6 @@
 
   function renderPlay() {
     var deckLeft = currentDeck().length;
-    var gateId = currentGateId();
     var rerouteHtml = "";
     if (state.horizon && !horizonAffordableExists() && !state.proposal) {
       var canReroute = motherUnusedCount() > 0;
@@ -1647,25 +2140,124 @@
         (canReroute ? 'Reroute (use 1 MOTHER card, redraw)' : 'Reroute - no MOTHER cards left') + '</button></div>';
     }
 
-    var horizonHtml = state.horizon
-      ? state.horizon.map(function (id) { return renderHorizonStarSlot(id); }).join("")
-      : renderEmptyHorizon();
-
     return [
-      '<section class="board-panel">',
-      '<div class="sector-table">',
-        '<div class="deck-zone">' + renderSectorDeck() + renderMotherDeck() + renderCryoDeck() + renderChamberDeck() + '</div>',
-        (state.sectorRevealed
-          ? '<div class="sector-focus">' + renderHorizonDeck(deckLeft) + '<div class="gate-banner">' + renderGateSlot(gateId) + '</div></div>'
-          : '<div class="sector-empty">Draw a sector card to begin.</div>'),
-      '</div>',
-      renderProposalArea(),
-      renderActiveEffects(),
-      '<div class="horizon-row">' + horizonHtml + '</div>',
+      '<section class="board-panel free-board">',
       rerouteHtml,
-      renderInstalledChambersBoard(),
+      '<div id="boardPlayArea" class="board-play-area">',
+        '<aside class="board-side-rail" aria-label="Decks and damaged Chambers">',
+          '<div class="board-rail-decks">' + renderSectorDeck() + renderMotherDeck() + renderCryoDeck() + renderChamberDeck() + (state.sectorRevealed ? renderHorizonDeck(deckLeft) : '<div class="sector-empty">Sector not drawn</div>') + '</div>',
+          '<h2 class="board-rail-title">Damaged Chambers</h2>',
+        '</aside>',
+        '<div id="boardSurface" class="board-surface" aria-label="Common card board"></div>',
+        renderBoardCards(),
+      '</div>',
       '</section>'
     ].join("");
+  }
+
+  function renderBoardCards() {
+    ensureBoardState();
+    return state.board.cards.slice().sort(function (a, b) { return a.z - b.z; }).map(renderBoardItem).join("");
+  }
+
+  function renderBoardItem(item) {
+    var content = renderBoardItemContent(item);
+    if (!content) return "";
+    var cls = "board-card-shell board-type-" + item.type;
+    if (item.stackOn) cls += " is-stacked";
+    if (boardActionKind(item)) cls += " is-action-target";
+    var left = typeof item.x === "number" ? item.x : 0;
+    var top = typeof item.y === "number" ? item.y : 0;
+    return '<div class="' + cls + '" data-board-uid="' + escapeAttr(item.uid) + '" style="left:' + left + 'px;top:' + top + 'px;z-index:' + item.z + '">' +
+      content +
+      renderBoardActionPanel(item) +
+      '</div>';
+  }
+
+  function renderBoardItemContent(item) {
+    if (item.type === "ship") return renderShipResourceCard(item);
+    if (item.type === "star") return renderStarCard(item.ref, "board");
+    if (item.type === "gate") return renderGateCard(item.ref, "board");
+    if (item.type === "chamber") return renderChamberCard(item.ref, state.chamberInstalled.indexOf(item.ref) >= 0 ? "installed" : "board");
+    if (item.type === "crew") return renderBoardCrewCard(item);
+    if (item.type === "mother") return renderBoardMotherCard(item);
+    if (item.type === "token" && item.ref === "freeStar") return renderFreeStarTokenCard();
+    return "";
+  }
+
+  function renderBoardActionPanel(item) {
+    if (item.type === "chamber" && state.chamberInstalled.indexOf(item.ref) >= 0) return renderInstalledChamberControls(item.ref);
+    var info = boardActionInfo(item);
+    if (!info) return "";
+    var stack = boardCommitment(item.uid);
+    var dismiss = info.kind === "chamber" && stack.items.length > 0
+      ? '<button class="secondary" data-action="dismissBoardStack" data-board-uid="' + escapeAttr(item.uid) + '">Dismiss</button>'
+      : "";
+    if (info.eligibility.ok) {
+      return '<div class="board-action-panel ready"><button class="primary" data-action="takeBoardAction" data-board-uid="' + escapeAttr(item.uid) + '">' + escapeHtml(info.label) + '</button>' + dismiss + '</div>';
+    }
+    if (dismiss) return '<div class="board-action-panel pending">' + dismiss + '</div>';
+    return "";
+  }
+
+  function renderInstalledChamberControls(id) {
+    var controls = '<strong>Installed</strong>';
+    if (state.phase === "play" && id === "ch-drive-cathedral" && !state.chamberFlags.driveCathedralUsedThisSector && !state.proposal) {
+      controls += '<button class="secondary" data-action="useDriveCathedral">' + (state.driveCathedralActive ? 'Drive Armed' : 'Arm Drive') + '</button>';
+    }
+    if (state.phase === "play" && id === "ch-archive-node" && !state.chamberFlags.archiveNodeUsedThisSector && !state.proposal) {
+      controls += '<button class="secondary" data-action="useArchiveNode">Use Archive</button>';
+    }
+    return '<div class="board-action-panel installed">' + controls + '</div>';
+  }
+
+  function renderShipResourceCard(item) {
+    var resource = shipResource(item);
+    var label = resource === "mother" ? "MOTHER Used" : resource.charAt(0).toUpperCase() + resource.slice(1);
+    var iconId = resource === "mother" ? "mother" : resource;
+    return '<article class="card resource-card resource-' + escapeAttr(resource) + '">' +
+      '<span class="card-eyebrow">Ship</span>' +
+      '<h3 class="card-title">' + escapeHtml(label) + '</h3>' +
+      '<div class="resource-symbol">' + iconBadge(iconId) + '</div>' +
+      '</article>';
+  }
+
+  function renderBoardCrewCard(item) {
+    var c = getCrew(item.ref);
+    if (!c) return "";
+    var owner = getPlayer(c.ownerPlayerId);
+    var cls = "crew-tile board-crew-card state-ready";
+    if (c.wounded) cls += " state-wounded";
+    var iconRowHtml = c.icons.map(function (icon, idx) {
+      var muted = c.wounded && idx > 0;
+      return iconBadge(icon, muted ? "icon-badge muted" : "icon-badge");
+    }).join("");
+    return '<article class="' + cls + '">' +
+      '<span class="crew-card-glyph" aria-hidden="true">' + D.icons.person.glyph + '</span>' +
+      '<span class="crew-name">' + escapeHtml(c.name) + '</span>' +
+      '<span class="crew-owner">' + escapeHtml(owner ? owner.name : "Unowned") + '</span>' +
+      '<span class="crew-icons">' + iconRowHtml + '</span>' +
+      '<span class="crew-state">' + (c.wounded ? 'Wounded' : 'Ready') + '</span>' +
+      '<button class="board-mini-button" data-action="returnBoardCard" data-board-uid="' + escapeAttr(item.uid) + '">Return</button>' +
+      '</article>';
+  }
+
+  function renderBoardMotherCard(item) {
+    return '<article class="crew-tile board-crew-card mother-hand-card">' +
+      '<span class="crew-name">MOTHER</span>' +
+      '<span class="crew-icons"><span class="mother-wild-icon">' + D.icons.mother.glyph + '</span></span>' +
+      '<span class="crew-state">Wild</span>' +
+      '<button class="board-mini-button" data-action="returnBoardCard" data-board-uid="' + escapeAttr(item.uid) + '">Return</button>' +
+      '</article>';
+  }
+
+  function renderFreeStarTokenCard() {
+    return '<article class="card resource-card token-card">' +
+      '<span class="card-eyebrow">Active Token</span>' +
+      '<h3 class="card-title">Free Star</h3>' +
+      '<div class="resource-pips">' + iconBadge("free") + '</div>' +
+      '<small>Next Star costs 0 Fuel while this card is on the board.</small>' +
+      '</article>';
   }
 
   function renderSectorDeck() {
@@ -1720,191 +2312,8 @@
     '</button>';
   }
 
-  function renderEmptyHorizon() {
-    if (state.phase === "gate") return "";
-    return '<div class="horizon-empty">Draw the Horizon to reveal three Stars.</div>';
-  }
-
-  function renderGateSlot(gateId) {
-    var proposed = state.proposal && state.proposal.cardType === "gate" && state.proposal.cardId === gateId;
-    if (proposed) return renderCardPlaceholder("gate");
-    return renderGateCard(gateId, "small");
-  }
-
-  function renderHorizonStarSlot(starId) {
-    var canPropose = !state.proposal;
-    var selected = state.proposal && state.proposal.cardType === "star" && state.proposal.cardId === starId;
-    if (selected) return '<div class="horizon-slot">' + renderCardPlaceholder("star") + '</div>';
-    var attrs = canPropose ? ' data-action="proposeStar" data-star-id="' + escapeAttr(starId) + '" role="button" tabindex="0"' : '';
-    return '<div class="horizon-slot card-click-target' + (canPropose ? ' can-propose' : '') + (selected ? ' selected' : '') + '"' + attrs + '>' +
-      renderStarCard(starId, "horizon") +
-      (canPropose ? '<span class="card-click-hint">Click card to propose</span>' : '') +
-    '</div>';
-  }
-
-  function renderGatePhase() {
-    var gateId = currentGateId();
-    var g = getGate(gateId);
-    var canPropose = !state.proposal;
-    var label = isFinalSector() ? "Final Gate" : "Gate";
-    var gateCard = canPropose
-      ? '<div class="card-click-target can-propose" data-action="proposeGate" role="button" tabindex="0">' + renderGateCard(gateId, "active") + '<span class="card-click-hint">Click card to propose</span></div>'
-      : renderGateCard(gateId, "active");
-
-    return [
-      '<section class="panel">',
-      '<h2 class="panel-title">' + label + ' - ' + escapeHtml(g.name) + '</h2>',
-      '<p class="panel-text">Click the Gate to propose it, then commit Ready crew and optional MOTHER cards. Resolve only when every icon is covered.</p>',
-      '<div class="active-row">',
-        gateCard,
-        '<div class="commit-panel">',
-          '<div class="gate-decks">' + renderMotherDeck() + '</div>',
-          renderCoverageStatus(gateNeed()),
-        '</div>',
-      '</div>',
-      renderProposalArea(),
-      renderActiveEffects(),
-      renderInstalledChambersBoard(),
-      '</section>'
-    ].join("");
-  }
-
   function renderGateDraftMain() {
     return '<section class="panel"><h2 class="panel-title">Gate Draft</h2><p class="panel-text">Choose a Cryo crew from the draft overlay to continue to the next sector.</p></section>';
-  }
-
-  function renderActiveEffects() {
-    var rows = [];
-    if (state.proposal && state.proposal.cardType === "star") {
-      var breakdown = travelCostBreakdown(state.proposal.cardId);
-      if (breakdown.modifiers.length || breakdown.due !== breakdown.printed) {
-        rows.push({
-          label: "Proposal Fuel Due",
-          body: breakdown.due > 0 ? fuelIcons(breakdown.due) : '<span class="zero-cost">0 Fuel</span>',
-          note: breakdown.modifiers.join("; ")
-        });
-      }
-    }
-    if (state.freeStarNext) {
-      rows.push({ label: "Free Star Token", body: "Next Star costs 0 Fuel.", note: "Place this token beside the ship board until spent." });
-    }
-    if (state.driveCathedralActive) {
-      rows.push({ label: "Drive Cathedral Marker", body: "-1 Fuel to the next eligible Star.", note: "The marker is armed outside the Star card." });
-    }
-    if (hasChamber("ch-gravity-sails") && !state.chamberFlags.gravitySailsUsedThisSector) {
-      rows.push({ label: "Gravity Sails Ready", body: "First Deep+ Star this sector costs -1 Fuel.", note: "Use a ready/used marker on the Chamber." });
-    }
-    if (hasChamber("ch-mother-liaison") && !state.chamberFlags.liaisonUsedThisSector) {
-      var disabled = state.phase === "gate" && motherUsedCount() >= 5;
-      rows.push({
-        label: "MOTHER Liaison Ready",
-        body: disabled ? "Disabled during this Gate." : "First MOTHER use this sector reduces spent MOTHER by 1.",
-        note: "Track with a ready/used marker on the Chamber."
-      });
-    }
-    if (rows.length < 1) return "";
-    return '<section class="active-effects"><h2>Active Effects</h2><div class="active-effect-list">' + rows.map(function (row) {
-      return '<div class="active-effect"><strong>' + escapeHtml(row.label) + '</strong><span>' + row.body + '</span><small>' + escapeHtml(row.note) + '</small></div>';
-    }).join("") + '</div></section>';
-  }
-
-  function renderProposalArea() {
-    if (!state.proposal) {
-      return '<section class="proposal-area empty"><h2>Proposal Area</h2><p>Click a visible Star, damaged Chamber, or active Gate to make a proposal. Then commit Ready crew and optional MOTHER cards.</p></section>';
-    }
-    var p = state.proposal;
-    var elig = proposalEligibility(p);
-    var targetHtml = renderProposalTarget(p);
-    var resolveBtn = elig.ok
-      ? '<button class="primary" data-action="resolveProposal">Resolve Proposal' + (elig.motherSpent ? ' (use ' + elig.motherSpent + ' MOTHER)' : '') + '</button>'
-      : '<button class="secondary" disabled>Resolve Proposal</button>';
-
-    return '<section class="proposal-area active">' +
-      '<div class="proposal-head"><h2>Proposal Area</h2></div>' +
-      '<div class="proposal-grid">' +
-        '<div class="proposal-card-copy">' + targetHtml + '</div>' +
-        '<div class="proposal-details">' +
-          renderProposalContributions() +
-          '<div class="proposal-actions actions">' + resolveBtn + '<button class="secondary" data-action="dissolveProposal">Dissolve Proposal</button></div>' +
-        '</div>' +
-      '</div>' +
-    '</section>';
-  }
-
-  function renderProposalTarget(p) {
-    if (p.cardType === "star") return renderStarCard(p.cardId, "proposal");
-    if (p.cardType === "chamber") return renderChamberCard(p.cardId, "proposal");
-    if (p.cardType === "gate") return renderGateCard(p.cardId, "proposal");
-    return "";
-  }
-
-  function renderProposalContributions() {
-    var cards = state.highlightedCrew.map(function (id) {
-      var crew = getCrew(id);
-      return crew ? renderCrewCardCopy(crew) : "";
-    }).join("") + state.highlightedMother.map(renderMotherCardCopy).join("");
-    var html = '<div class="proposal-contrib"><span class="card-section">Committed cards</span>';
-    html += cards
-      ? '<div class="proposal-card-row">' + cards + '</div>'
-      : '<p class="proposal-empty-note">No cards committed yet.</p>';
-    html += '</div>';
-    return html;
-  }
-
-  function renderCrewCardCopy(c) {
-    var cls = "crew-tile proposal-crew-card";
-    if (c.tired) cls += " state-tired";
-    else cls += " state-ready";
-    if (c.wounded) cls += " state-wounded";
-    var iconRowHtml = c.icons.map(function (icon, idx) {
-      var muted = c.wounded && idx > 0;
-      return iconBadge(icon, muted ? "icon-badge muted" : "icon-badge");
-    }).join("");
-    return '<button type="button" class="' + cls + '" data-action="toggleCrew" data-crew-id="' + escapeAttr(c.id) + '">' +
-      '<span class="crew-card-glyph" aria-hidden="true">' + D.icons.person.glyph + '</span>' +
-      '<span class="crew-name">' + escapeHtml(c.name) + '</span>' +
-      '<span class="crew-icons">' + iconRowHtml + '</span>' +
-      '<span class="crew-state">Click to return</span>' +
-    '</button>';
-  }
-
-  function renderMotherCardCopy(id) {
-    return '<button type="button" class="crew-tile proposal-crew-card mother-hand-card" data-action="toggleMother" data-mother-id="' + escapeAttr(id) + '">' +
-      '<span class="crew-name">MOTHER</span>' +
-      '<span class="crew-icons"><span class="mother-wild-icon">' + D.icons.mother.glyph + '</span></span>' +
-      '<span class="crew-state">Click to return</span>' +
-    '</button>';
-  }
-
-  function renderCardPlaceholder(kind) {
-    return '<div class="card-placeholder ' + escapeAttr(kind) + '-placeholder"><span>In Proposal</span></div>';
-  }
-
-  function renderCoverageStatus(need) {
-    var providedAll = highlightedCrewIcons();
-    var html = '<div class="icon-check"><span class="card-section">Need</span><div class="icon-check-row">';
-    var p = providedAll.slice();
-    var matchedSlots = [];
-    need.forEach(function (icon) {
-      var idx = p.indexOf(icon);
-      if (idx >= 0) { p.splice(idx, 1); matchedSlots.push("ok"); }
-      else matchedSlots.push("miss");
-    });
-    var wildsToFill = highlightedMotherCount();
-    var wildsAssignedDisplay = 0;
-    matchedSlots.forEach(function (slot, i) {
-      var icon = need[i];
-      var cls;
-      if (slot === "ok") cls = "ok";
-      else if (wildsAssignedDisplay < wildsToFill) { cls = "wild"; wildsAssignedDisplay += 1; }
-      else cls = "miss";
-      var marker = cls === "ok" ? '<span class="check">✓</span>'
-        : cls === "wild" ? '<span class="check">★</span>'
-        : '<span class="cross">·</span>';
-      html += '<span class="icon-check-cell ' + cls + '">' + iconBadge(icon) + marker + '</span>';
-    });
-    html += '</div></div>';
-    return html;
   }
 
   // ----------- Card renderers ----------

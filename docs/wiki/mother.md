@@ -1,6 +1,6 @@
 # MOTHER
 
-MOTHER is the ark's navigation AI. She is represented by six MOTHER cards in a deck. Spent cards are counted directly on the ship board.
+MOTHER is the ark's navigation AI. She is represented by six MOTHER cards in a deck. Spent cards appear individually on the ship board.
 
 MOTHER's new role is simple:
 
@@ -8,16 +8,16 @@ MOTHER's new role is simple:
 
 ## What MOTHER Does
 
-When a proposal is short on icons, a contributing player may add MOTHER cards. Each MOTHER card supplies one wild icon.
+When an action stack is short on icons, a contributing player may add MOTHER cards. Each MOTHER card supplies one wild icon.
 
-When the proposal resolves, used MOTHER cards are spent and increase the MOTHER used count. Before resolving, temporary unspent MOTHER cards may be returned to the deck.
+When the stack resolves, used MOTHER cards are spent and increase the MOTHER used count. Before resolving, temporary unspent MOTHER cards may be returned to the deck or moved away from the target.
 
 ## What MOTHER Can And Cannot Do
 
 ```text
 MOTHER can:
 - supply missing skill icons on a Star, Gate, or Chamber Build
-- complete a proposal after at least one human crew has been committed
+- complete a stack after at least one human crew has been stacked
 
 MOTHER cannot:
 - count as a crew card
@@ -29,9 +29,9 @@ MOTHER cannot:
 
 The single rule that gives MOTHER teeth:
 
-> MOTHER may only help if at least one human crew was committed.
+> MOTHER may only help if at least one human crew was stacked.
 
-Humans must begin the work; MOTHER finishes it. MOTHER cannot solve a proposal on her own.
+Humans must begin the work; MOTHER finishes it. MOTHER cannot solve a stack on her own.
 
 ## Spent Card Count
 

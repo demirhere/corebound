@@ -14,21 +14,18 @@ Each sector has one shuffled Star deck. All travel distances are mixed inside th
 ## Setup Per Sector
 
 ```text
-[ Sector Deck ]   [ MOTHER Deck ]   [ Cryo Deck ]
-[ Horizon Deck ]  [ Sector Card / Gate ]  [ Sector Discard ]
-
-[ Horizon Slot 1 ]   [ Horizon Slot 2 ]   [ Horizon Slot 3 ]
+[ Common board space: ship resource cards, decks, Gates, Chambers, Stars, crew, tokens ]
 ```
 
-The three Horizon slots begin empty. Click the Sector Deck to reveal the next sector card and Gate; that sector's Horizon Deck then becomes available. The Cryo Deck is visible as a deck/count.
+The board begins with ship resource cards and decks. Click the Sector Deck to reveal the next sector card and Gate; that sector's Horizon Deck then becomes available. The Cryo Deck is visible as a deck/count.
 
 ## Each Sector Turn
 
 ### 1. Reveal The Horizon
 
-Click the Horizon Deck to draw three Stars from the current sector deck. Each card shows its Fuel cost inside its Need.
+Click the Horizon Deck to draw three Stars from the current sector deck onto the common board. Each card shows its Fuel cost inside its Need.
 
-Star cards always show printed Fuel. If a reward or Chamber changes payment, put a token or ready/used marker in an Active Effects area beside the board instead of changing the card.
+Star cards always show printed Fuel. If a reward or Chamber changes payment, keep the token or ready/used marker as an active card or installed Chamber marker on the board instead of changing the card.
 
 ```text
 HORIZON
@@ -37,7 +34,7 @@ HORIZON
  Fuel 0       Fuel 1       Fuel 2
 ```
 
-### 2. Make A Proposal
+### 2. Stack An Action
 
 On the active player's turn, choose one visible legal card:
 
@@ -47,20 +44,20 @@ One damaged Chamber
 The active Gate, if three Stars have been completed
 ```
 
-The active player may propose the card before any crew are committed. Players may then contribute Ready loyal crew or pass. MOTHER may be added only if at least one human crew is committed.
+Players stack the required cards onto one visible legal target. Fuel is stacked on Stars when Fuel is owed, Parts are stacked on Chambers, and Ready loyal crew plus optional MOTHER cards cover the icon Need. MOTHER may be added only if at least one human crew is stacked.
 
-### 3. Resolve Or Dissolve
+### 3. Resolve Or Unstack
 
-A proposal resolves if:
+The stacked action resolves if:
 
 ```text
 Resources are sufficient: Fuel for Stars, Parts for Chambers.
 Committed crew plus used MOTHER cover all required icons.
-At least one human crew is committed.
+At least one human crew is stacked.
 All active threshold rules are satisfied.
 ```
 
-If the proposal resolves, committed crew become Tired, used MOTHER cards are spent, and the card effect happens. If the proposal does not resolve, it dissolves and nothing is spent.
+If the stack resolves, stacked crew become Tired, used MOTHER cards are spent, and the card effect happens. If the stack is not ready, players may move cards away and nothing is spent.
 
 ### 4. Reroute Only If Stuck
 
@@ -68,11 +65,11 @@ If all three Horizon Stars cost more Fuel than the ship has and nothing else hel
 
 ## Gates
 
-After three Stars, the Gate becomes the active card. Only Ready crew can be committed.
+After three Stars, the Gate becomes the active card. Only Ready crew can be stacked on it.
 
 If MOTHER is at 5+ used cards, the Gate's Need grows by +1 icon.
 
-If the Gate proposal resolves, the ship passes the Gate. If the available crew and MOTHER cards cannot cover the Gate at all, the ship fails.
+If the Gate stack resolves, the ship passes the Gate. If the available crew and MOTHER cards cannot cover the Gate at all, the ship fails.
 
 After Gate 1 and Gate 2, all Tired crew refresh, Wounded crew stay Wounded, and a Gate Draft recruits from Cryo. After the Final Gate, count loyal crew and determine the winner.
 

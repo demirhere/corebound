@@ -25,12 +25,7 @@
     <p id="message" class="message" aria-live="polite"></p>
 
     <main class="workspace">
-      <aside class="rail" aria-label="Ship, MOTHER, chambers">
-        <section id="shipBoard" class="ship-board"></section>
-        <section id="chamberArea" class="chamber-area"></section>
-      </aside>
-
-      <section id="mainArea" class="main-area" aria-label="Active phase"></section>
+      <section id="mainArea" class="main-area" aria-label="Common card board"></section>
     </main>
 
     <section class="bottom-rail">
@@ -54,24 +49,23 @@
         <div class="manual-content">
           <section>
             <h3>Premise</h3>
-            <p>You are guiding a damaged ark across three sectors. The solo prototype uses one player so you can test the multiplayer leadership loop alone: proposals, loyal crew, MOTHER pressure, Gate Drafts, and the final crew-count win.</p>
+            <p>You are guiding a damaged ark across three sectors. The solo prototype uses one player so you can test the multiplayer leadership loop alone: stacked actions, loyal crew, MOTHER pressure, Gate Drafts, and the final crew-count win.</p>
           </section>
           <section>
             <h3>Goal</h3>
             <p>Cross three sectors and pass the Final Gate. The ship fails if Hull reaches 0, a Gate cannot be covered, the ship is stranded, or a 7th MOTHER card would be needed. If the ship survives, the player with the most living loyal crew wins.</p>
           </section>
           <section>
-            <h3>Each proposal</h3>
+            <h3>Each action stack</h3>
             <ol>
               <li><strong>Draw the sector.</strong> Click the Sector Deck to reveal the sector card and its Horizon Deck.</li>
-              <li><strong>Draw the Horizon.</strong> Click the Horizon Deck to reveal three Stars into the center slots.</li>
-              <li><strong>Propose a card.</strong> Click a visible Horizon Star, damaged Chamber, or active Gate. The card is copied into the Proposal Area.</li>
-              <li><strong>Pledge crew.</strong> Click Ready loyal crew in the bottom rail. The proposal can start empty, but it cannot resolve until the Need is covered.</li>
-              <li><strong>Add MOTHER if needed.</strong> Click the MOTHER Deck to add temporary wild cards. Click a temporary MOTHER card again to return it before resolving.</li>
-              <li><strong>Resolve or dissolve.</strong> If icons and resources are covered, resolve the proposal. If not, dissolve it; pledged crew and unspent MOTHER return ready.</li>
+              <li><strong>Draw the Horizon.</strong> Click the Horizon Deck to reveal three Stars onto the common board.</li>
+              <li><strong>Add cards to the board.</strong> Click Ready loyal crew or the MOTHER Deck to put those cards into the common space.</li>
+              <li><strong>Stack resources.</strong> Drag Fuel/Parts, crew, and MOTHER cards onto a visible Star, damaged Chamber, or active Gate.</li>
+              <li><strong>Take the action.</strong> When the stack covers the cost and Need, the action button appears on that card.</li>
             </ol>
             <p>Stars have no penalty. If all three Horizon Stars are unaffordable, Reroute spends one MOTHER card and redraws. With no MOTHER card left, the ship is stranded.</p>
-            <p>Star cards keep their printed Fuel icons. Temporary discounts, Free Star rewards, and armed Chamber bonuses appear in Active Effects beside the board instead of changing the card.</p>
+            <p>Star cards keep their printed Fuel icons. Temporary discounts, Free Star rewards, and armed Chamber bonuses stay represented by cards or installed Chamber cards on the common board.</p>
           </section>
           <section>
             <h3>MOTHER count</h3>
@@ -91,7 +85,7 @@
           <section>
             <h3>Crew states</h3>
             <ul>
-              <li><strong>Ready</strong> — full icons and available to pledge.</li>
+              <li><strong>Ready</strong> — full icons and available to stack onto actions.</li>
               <li><strong>Tired</strong> — already worked this sector. Refreshes after the Gate.</li>
               <li><strong>Wounded</strong> — provides only the first icon. Healed by certain Star or Chamber rewards.</li>
               <li><strong>Cryo</strong> — unowned sleepers. Wake rewards and Gate Drafts recruit them as loyal crew.</li>

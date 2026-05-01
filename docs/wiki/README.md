@@ -7,7 +7,7 @@ A linked reference for the current semi-cooperative survival race design. Start 
 | Page | Contents |
 |---|---|
 | [Introduction](introduction.md) | Premise, design goal, teach text. |
-| [Leadership and Proposals](leadership.md) | Player turns, temporary proposals, Implementer, winning. |
+| [Leadership and Stacked Actions](leadership.md) | Player turns, temporary action stacks, Implementer, winning. |
 | [Crew](crew.md) | Loyal crew ownership, states, setup draft, roster. |
 | [Ship Board](ship-board.md) | Hull, Fuel, Parts, MOTHER cards, shared loss. |
 | [Stars](stars.md) | Fuel cost, icon Need, rewards, threshold lines. |

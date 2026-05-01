@@ -25,17 +25,18 @@
 
 ## Game Loop In Code
 
-- Phases are `play -> (draw Horizon, propose/resolve Star x3) -> gate -> gateDraft after Gates 1-2 -> play -> final Gate -> finished|loss`.
+- Phases are `play -> (draw Horizon, stack/resolve Star x3) -> gate -> gateDraft after Gates 1-2 -> play -> final Gate -> finished|loss`.
 - Crew are loyal to players via `ownerPlayerId`; Cryo crew are unowned. The solo prototype starts with one player owning six awake crew and six crew in Cryo.
 - Crew flags remain `awake`, `tired`, and `wounded` because Wounded crew can also become Tired after committing.
-- MOTHER is six cards (`state.motherCards = [{id, used}, ...]`). Temporary highlighted MOTHER cards add wild icons; resolving a proposal spends only the used cards. A 7th card needed = loss.
-- Each Star prints its own Travel Fuel cost; the Horizon row is three revealed Stars. Active discounts/free-Star bonuses are shown outside the card in Active Effects. Stars have no penalty.
-- A proposal succeeds iff resources are sufficient (Fuel/Parts), committed crew icons plus used MOTHER wilds cover the Need, at least one human crew is committed, and threshold rules are met.
+- MOTHER is six cards (`state.motherCards = [{id, used}, ...]`). Temporary MOTHER board cards add wild icons when stacked on a target; resolving a stack spends only the used cards. A 7th card needed = loss.
+- Each Star prints its own Travel Fuel cost; drawing the Horizon creates three movable Star cards on the common board. Active discounts/free-Star bonuses stay represented by board cards or installed Chamber cards. Stars have no penalty.
+- Hull, Fuel, Parts, and spent MOTHER are shown as individual board cards, not counted track/group cards.
+- A stacked action succeeds iff resources are sufficient (Fuel/Parts), stacked crew icons plus used MOTHER wilds cover the Need, at least one human crew is stacked, and threshold rules are met.
 - MOTHER threshold lines (`mother3`, `mother5`) on Stars activate based on `motherUsedCount()`: `3+ ✶` at 3+ spent cards and `5+ ✶` at 5+ spent cards. At 5+ spent cards, Gates need +1 icon.
 - MOTHER cannot satisfy `extraCrew` requirements, cannot pay Fuel, cannot pay Parts, cannot count as a human crew, and cannot prevent wounds.
 - Gates must be passed. If the available crew and MOTHER cards cannot cover the Gate after three Stars, the run fails.
 - After a Gate, all `tired` flags clear. `wounded` persists.
-- Chambers are repaired by proposal: spend `parts` and commit crew matching `build` icons; up to 3 repaired.
+- Chambers are repaired by stacking Parts plus crew matching `build` icons on a damaged Chamber; up to 3 repaired.
 - Wake rewards open a choice overlay: reveal up to two Cryo crew, the Implementer recruits one loyal crew Tired, and unchosen crew return to the bottom of Cryo.
 - Gate Drafts run after Gate 1 and Gate 2. The solo prototype drafts one crew for the solo player.
 - Passing the Final Gate ends the game. The winner screen counts living loyal crew, healthy loyal crew, Final Gate contribution, and Final Gate Implementer.
@@ -44,12 +45,12 @@
 
 - State persists in `localStorage` under `corebound.starpath.v3`; changing the key discards existing browser saves.
 - Keyboard shortcuts: `M` toggles the manual, `R` resets after confirm, `Esc` closes overlays.
-- Crew tiles are buttons; click highlights / unhighlights. The hand shows awake loyal crew only; the Cryo deck is displayed separately.
-- MOTHER Deck sits with the other decks. Click it to draw a temporary wild card into the crew row; click that temporary card again to return it before resolving.
-- Each sector starts unrevealed. Clicking the Sector Deck reveals the sector card/Gate and its Horizon Deck. Horizon starts empty; clicking the visible Horizon Deck draws three Stars from that sector's shuffled Star deck.
+- Crew tiles in the hand are buttons; click a Ready crew tile to add that crew card to the common board. Drag board cards freely; clicking a board card brings it to the highest z-order.
+- MOTHER Deck sits with the other decks. Click it to draw a temporary wild card onto the common board; use the card's Return button to put it back before resolving.
+- Each sector starts unrevealed. Clicking the Sector Deck reveals the sector card/Gate and its Horizon Deck. Horizon starts empty; clicking the visible Horizon Deck draws three movable Stars from that sector's shuffled Star deck onto the common board.
 - A Reroute action is exposed when no Horizon Star is affordable: discards all three, uses 1 MOTHER card, redraws. With no MOTHER cards left, the run is **Stranded in the Reach** (loss).
 - Scout rewards open a modal overlay; one chosen Star goes to the top of the current sector deck, the other two are discarded.
-- Chamber market shows up to 3 Chambers; each Chamber can be proposed when the player has selected at least one Ready loyal crew.
+- Chamber market shows up to 3 damaged Chambers on the common board; each can be repaired when the required Parts/crew/MOTHER cards are stacked on it.
 
 ## Rules Sources
 

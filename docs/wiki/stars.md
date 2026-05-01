@@ -61,7 +61,7 @@ The label is descriptive; the Fuel cost is what matters.
 
 Because printed Fuel is shown on the card, each Horizon scan asks: of the three, which one is worth the Fuel, crew, negotiation, and MOTHER risk?
 
-Temporary effects do not rewrite the Star card. Put Free Star tokens, discount markers, and armed Chamber bonuses in an Active Effects area beside the board.
+Temporary effects do not rewrite the Star card. Free Star tokens, discount markers, and armed Chamber bonuses stay as active cards or installed Chamber markers on the common board.
 
 ## Reward Types
 
@@ -81,7 +81,7 @@ Wake rewards are personal. When a player implements a Wake reward, reveal 2 crew
 
 ## Skipping
 
-There is no penalty type. If you do not want to engage a Star, do not propose it. Pick another Horizon Star, repair a Chamber, save crew for the Gate, or Reroute if every Horizon Star is unaffordable.
+There is no penalty type. If you do not want to engage a Star, do not stack resources on it. Pick another Horizon Star, repair a Chamber, save crew for the Gate, or Reroute if every Horizon Star is unaffordable.
 
 ## Threshold-Line Vocabulary
 

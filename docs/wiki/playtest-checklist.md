@@ -7,9 +7,9 @@ Track these during early playtests.
 | Metric | Target / Watch For |
 |---|---|
 | Teach time | Under 5 minutes |
-| Average proposal time | 30-90 seconds |
-| Successful proposals per game | Enough to complete 9 Stars and 3 Gates in a strong run |
-| Failed or dissolved proposals per game | Present, but not table-stalling |
+| Average action-stack time | 30-90 seconds |
+| Successful action stacks per game | Enough to complete 9 Stars and 3 Gates in a strong run |
+| Failed or abandoned stacks per game | Present, but not table-stalling |
 | Number of negotiation moments | Should be frequent once Wake rewards appear |
 | Number of MOTHER cards used | 2-5 in a successful run |
 | MOTHER count reached | 0-2 in conservative wins; 3-4 in tense wins; 5-6 in risky wins |
@@ -26,7 +26,7 @@ Track these during early playtests.
 ## Questions To Ask After Each Game
 
 1. Did you feel you had agency on your turn?
-2. Did failed proposals feel acceptable or frustrating?
+2. Did failed or abandoned stacks feel acceptable or frustrating?
 3. Did Wake rewards create rivalry?
 4. Did Gate Drafts help trailing players stay relevant?
 5. Did the leader still have reason to help the ship survive?
@@ -38,8 +38,8 @@ Track these during early playtests.
 
 ## Health Checks For The Design
 
-- Players should understand the proposal loop after one Star.
-- A failed proposal should not lock the table or create rules overhead.
+- Players should understand the stacking loop after one Star.
+- A failed stack should not lock the table or create rules overhead.
 - Reading a Star's Fuel cost, Need, reward, and threshold lines should feel quick.
 - Every Horizon should present at least two plausible choices.
 - The "save crew for the Gate" pressure should be felt, not announced.
@@ -47,5 +47,5 @@ Track these during early playtests.
 - A low-MOTHER run should feel achievable but expensive.
 - A MOTHER-heavy run should feel productive but dangerous.
 - Repairing a Chamber should compete with Stars and Gates for crew.
-- Wake rewards should make players care who implements the proposal.
+- Wake rewards should make players care who implements the stack.
 - Gate Drafts should reduce runaway leader problems without erasing good play.

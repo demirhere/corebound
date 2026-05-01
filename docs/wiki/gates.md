@@ -50,11 +50,11 @@ Need: Star + Star + Star + Engine + Engine + Signal + Life
 
 After three Star visits, the Gate becomes the active card.
 
-1. The active player proposes the Gate and commits at least one Ready loyal crew.
-2. Other players may commit Ready loyal crew or pass.
-3. MOTHER cards may fill missing icons only if at least one human crew is committed.
+1. The active player stacks at least one Ready loyal crew on the Gate.
+2. Other players may stack Ready loyal crew or pass.
+3. MOTHER cards may fill missing icons only if at least one human crew is stacked.
 4. If 5 or more MOTHER cards have been spent, the Gate's Need grows by +1 icon.
-5. If the proposal is ready, resolve it and pass the Gate.
+5. If the stack is ready, resolve it and pass the Gate.
 6. If the Gate cannot be covered at all, the ship fails.
 7. After a passed Gate, all Tired crew refresh. Wounded crew stay Wounded.
 
