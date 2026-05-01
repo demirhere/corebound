@@ -22,4 +22,4 @@ A linked reference for the current semi-cooperative survival race design. Start 
 |---|---|
 | [Prototype Components](prototype.md) | Counts, sector difficulty, solo prototype notes. |
 | [Playtest Checklist](playtest-checklist.md) | What to track in early tests. |
-| [Solo JS Prototype App](../../index.html) | Rules-enforced browser prototype. |
+| [Solo JS Prototype App](../../mvp1/index.html) | Rules-enforced browser prototype. |

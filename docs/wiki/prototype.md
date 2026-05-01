@@ -27,7 +27,7 @@ A first playtest game should run 30-45 minutes, including teach.
 
 ## Solo Digital Prototype
 
-The browser app at [`index.html`](../../index.html) is still a solo prototype. It uses one solo player so the stacked-action loop can be tested before full multiplayer UX is added.
+The browser app at [`index.html`](../../mvp1/index.html) is still a solo prototype. It uses one solo player so the stacked-action loop can be tested before full multiplayer UX is added.
 
 Implemented flow:
 

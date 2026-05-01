@@ -3,23 +3,23 @@
 ## Repo Shape
 
 - This repo is a static vanilla JS solo prototype for **COREBOUND: Starpath**, not a packaged app: there is no `package.json`, build step, lint config, test runner, or CI workflow.
-- Runtime entrypoint is `index.html`, which loads `style.css`, then `data.js`, then `game.js` with `defer`.
-- `data.js` is the content/data source: icons, crew, three sector Star decks, Gates, Chambers, and starting values. Cards do not contain executable rules text.
-- `game.js` is a strict rules engine plus renderer. It owns one mutable `state` and re-renders after each action. State is also exposed as `window.STARPATH` for browser dev tools and ad-hoc test harnesses.
+- Runtime entrypoint is `mvp1/index.html`, which loads `mvp1/style.css`, then `mvp1/data.js`, then `mvp1/game.js` with `defer`.
+- `mvp1/data.js` is the content/data source: icons, crew, three sector Star decks, Gates, Chambers, and starting values. Cards do not contain executable rules text.
+- `mvp1/game.js` is a strict rules engine plus renderer. It owns one mutable `state` and re-renders after each action. State is also exposed as `window.STARPATH` for browser dev tools and ad-hoc test harnesses.
 - `docs/wiki/README.md` is the rules index.
 
 ## Local Verification
 
 - Serve locally with `python3 -m http.server 8000` from the repo root, then open `http://localhost:8000/`.
 - A direct `file://` open also works for the current app because it has no external dependencies, but a local server is safer for browser testing.
-- There are no automated checks configured. For engine smoke tests, `data.js` and `game.js` can be evaluated under a minimal Node-based DOM mock that exposes `window.STARPATH.state` for assertions.
+- There are no automated checks configured. For engine smoke tests, `mvp1/data.js` and `mvp1/game.js` can be evaluated under a minimal Node-based DOM mock that exposes `window.STARPATH.state` for assertions.
 
 ## Prototype Constraints
 
 - Keep the app dependency-free unless the user explicitly asks for tooling.
 - The prototype remains solo-playable, but it models the multiplayer leadership rules with one solo player.
 - The prototype enforces the rules. Illegal states are not reachable through the UI; the engine refuses invalid moves rather than allowing them.
-- Card content is data-only. Rules logic lives in `game.js`.
+- Card content is data-only. Rules logic lives in `mvp1/game.js`.
 - If a prototype change alters game design, rules, setup, components, or playtest goals, update the matching docs in `docs/wiki/` in the same change.
 - Prefer boring, direct DOM/state code over abstractions: data-action delegation, one `state`, render-after-action.
 

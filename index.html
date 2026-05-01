@@ -1,110 +1,13 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>COREBOUND: Starpath — Solo Leadership Prototype</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="data.js" defer></script>
-    <script src="game.js" defer></script>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>corebound</title>
   </head>
   <body>
-    <header class="topbar">
-      <div class="topbar-title">
-        <p class="eyebrow">COREBOUND: Starpath</p>
-        <h1>Solo Leadership Prototype</h1>
-      </div>
-      <p id="phaseSummary" class="help">Setup</p>
-      <nav>
-        <button data-action="openManual" class="link-button" type="button">How to play</button>
-        <button data-action="reset" class="link-button" type="button">Reset</button>
-        <a href="docs/wiki/README.md">Wiki</a>
-      </nav>
-    </header>
-
-    <p id="message" class="message" aria-live="polite"></p>
-
-    <main class="workspace">
-      <section id="mainArea" class="main-area" aria-label="Common card board"></section>
-    </main>
-
-    <section class="bottom-rail">
-      <div id="crewRow" class="crew-row"></div>
-    </section>
-
-    <div id="scoutPanel" class="overlay" hidden></div>
-    <div id="wakePanel" class="overlay" hidden></div>
-    <div id="gateDraftPanel" class="overlay" hidden></div>
-    <div id="resultPanel" class="overlay" hidden></div>
-
-    <div id="manualPanel" class="overlay" hidden>
-      <div class="overlay-card manual-card">
-        <header class="overlay-head">
-          <div>
-            <p class="eyebrow">COREBOUND: Starpath</p>
-            <h2>How to play</h2>
-          </div>
-          <button data-action="closeManual" type="button">Close</button>
-        </header>
-        <div class="manual-content">
-          <section>
-            <h3>Premise</h3>
-            <p>You are guiding a damaged ark across three sectors. The solo prototype uses one player so you can test the multiplayer leadership loop alone: stacked actions, loyal crew, MOTHER pressure, Gate Drafts, and the final crew-count win.</p>
-          </section>
-          <section>
-            <h3>Goal</h3>
-            <p>Cross three sectors and pass the Final Gate. The ship fails if Hull reaches 0, a Gate cannot be covered, the ship is stranded, or a 7th MOTHER card would be needed. If the ship survives, the player with the most living loyal crew wins.</p>
-          </section>
-          <section>
-            <h3>Each action stack</h3>
-            <ol>
-              <li><strong>Draw the sector.</strong> Click the Sector Deck to reveal the sector card and its Horizon Deck.</li>
-              <li><strong>Draw the Horizon.</strong> Click the Horizon Deck to reveal three Stars onto the common board.</li>
-              <li><strong>Add cards to the board.</strong> Click Ready loyal crew or the MOTHER Deck to put those cards into the common space.</li>
-              <li><strong>Stack resources.</strong> Drag Fuel/Parts, crew, and MOTHER cards onto a visible Star, damaged Chamber, or active Gate.</li>
-              <li><strong>Take the action.</strong> When the stack covers the cost and Need, the action button appears on that card.</li>
-            </ol>
-            <p>Stars have no penalty. If all three Horizon Stars are unaffordable, Reroute spends one MOTHER card and redraws. With no MOTHER card left, the ship is stranded.</p>
-            <p>Star cards keep their printed Fuel icons. Temporary discounts, Free Star rewards, and armed Chamber bonuses stay represented by cards or installed Chamber cards on the common board.</p>
-          </section>
-          <section>
-            <h3>MOTHER count</h3>
-            <p>Spent MOTHER cards are counted on the ship board:</p>
-            <ul>
-              <li><strong>0–2 used:</strong> no extra effects.</li>
-              <li><strong>3–4 used:</strong> <code>3+ ✶</code> lines on cards are active.</li>
-              <li><strong>5–6 used:</strong> <code>5+ ✶</code> lines are active. Every Gate needs +1 icon.</li>
-              <li><strong>Need a 7th card:</strong> MOTHER Takes the Wheel — you lose.</li>
-            </ul>
-            <p>MOTHER cannot pay Fuel, Parts, or "+N crew" thresholds. Only humans can.</p>
-          </section>
-          <section>
-            <h3>Each Sector</h3>
-            <p>Each sector is 3 Stars then a Gate. Sector 3 ends at the Final Gate. Pass a Gate by covering its Need with remaining crew and MOTHER cards. If you cannot cover the Gate with what remains, the ship fails. After Gate 1 and Gate 2, all crew refresh and a Gate Draft recruits from Cryo.</p>
-          </section>
-          <section>
-            <h3>Crew states</h3>
-            <ul>
-              <li><strong>Ready</strong> — full icons and available to stack onto actions.</li>
-              <li><strong>Tired</strong> — already worked this sector. Refreshes after the Gate.</li>
-              <li><strong>Wounded</strong> — provides only the first icon. Healed by certain Star or Chamber rewards.</li>
-              <li><strong>Cryo</strong> — unowned sleepers. Wake rewards and Gate Drafts recruit them as loyal crew.</li>
-            </ul>
-          </section>
-          <section>
-            <h3>Chambers</h3>
-            <p>Repair damaged ship Chambers during a sector to bring them online permanently. Each Chamber costs Parts plus matching crew icons. You can repair up to 3. Chambers do not score; they help the ship survive.</p>
-          </section>
-          <section>
-            <h3>Final Gate</h3>
-            <p>There is no step after Gate 3. If the Final Gate passes, the ship survives and the winner screen counts living loyal crew, healthy loyal crew, Final Gate contribution, and Final Gate implementer.</p>
-          </section>
-          <section>
-            <h3>Keys</h3>
-            <p><kbd>M</kbd> opens this manual. <kbd>R</kbd> resets the voyage. <kbd>Esc</kbd> closes overlays.</p>
-          </section>
-        </div>
-      </div>
-    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

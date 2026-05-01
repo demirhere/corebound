@@ -1,37 +1,16 @@
-# COREBOUND: Starpath
+# React + Vite
 
-A semi-cooperative survival race about crossing the universe with a damaged ark ship.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-> Stack resources and loyal crew on a visible Star, Chamber, or Gate. Negotiate help, and use MOTHER only when the ship needs a shortcut. If the ship fails, everyone loses. If the ship passes the Final Gate, the player with the most living loyal crew wins.
+Currently, two official plugins are available:
 
-## Run The Prototype
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-Open `index.html` in a browser, or serve locally:
+## React Compiler
 
-```sh
-python3 -m http.server 8000
-```
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-Then visit <http://localhost:8000/>. The prototype is still solo-playable: it uses one solo player while enforcing the stacked-action loop, Wake choices, Gate Drafts, Final Gate success, and loyal crew winner count.
+## Expanding the ESLint configuration
 
-| Key | Action |
-|---|---|
-| <kbd>M</kbd> | Toggle the manual |
-| <kbd>R</kbd> | Reset the voyage |
-| <kbd>Esc</kbd> | Close overlays |
-
-## Documentation
-
-| Link | Purpose |
-|---|---|
-| [Wiki](docs/wiki/README.md) | Linked reference for the design. |
-| [Introduction](docs/wiki/introduction.md) | Premise, teach text, design thesis. |
-| [Leadership and Stacked Actions](docs/wiki/leadership.md) | Turn structure, Implementer, winning. |
-| [MOTHER](docs/wiki/mother.md) | Route bands and what MOTHER can or cannot do. |
-| [Chambers](docs/wiki/chambers.md) | Public ship upgrades. |
-| [Prototype Components](docs/wiki/prototype.md) | Card counts, sector difficulty. |
-| [Playtest Checklist](docs/wiki/playtest-checklist.md) | What to track in early tests. |
-
-## The Whole Game In One Sentence
-
-> Stack cards, negotiate, resolve or unstack, survive Gates, count loyal crew.
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
