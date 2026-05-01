@@ -3,6 +3,8 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
+import { GameIcon } from './GameIcon'
+import { pickCardIcons, pickCardNote } from './gameIcons'
 
 export type CardView = {
   id: string
@@ -45,6 +47,9 @@ export function BoardCard({
   onPointerDown,
   onKeyDown,
 }: BoardCardProps) {
+  const sampledIcons = pickCardIcons(`${card.id}:${card.title}`)
+  const noteLines = pickCardNote(`${card.id}:${card.title}`)
+
   return (
     <div
       className={`card-shell ${card.faceUp ? 'is-face-up' : 'is-face-down'} ${
@@ -70,7 +75,16 @@ export function BoardCard({
             <span className="card-title">{card.title}</span>
           </header>
           <div className="card-art" aria-hidden="true">
-            <span className="card-glyph">{card.icon}</span>
+            <div className="card-icon-row">
+              {sampledIcons.map((icon) => (
+                <GameIcon key={icon} kind={icon} />
+              ))}
+            </div>
+            <p className="card-note">
+              {noteLines.map((line, index) => (
+                <span key={`${line}-${index}`}>{line}</span>
+              ))}
+            </p>
           </div>
         </article>
 
