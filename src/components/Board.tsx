@@ -82,6 +82,10 @@ export function Board({
         </ol>
       </aside>
 
+      <aside className="discard-zone" data-discard-zone aria-label="Discard area">
+        <span className="discard-label">Discard</span>
+      </aside>
+
       {board.decks
         .filter((deck) => deck.cards.length > 0)
         .map((deck) => (

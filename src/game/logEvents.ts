@@ -105,6 +105,22 @@ export function handCardDroppedEvent(card: Card, stackId: string, x: number, y: 
   }
 }
 
+export function cardsDiscardedEvent(
+  cardIds: readonly string[],
+  cards: Record<string, Card>,
+  source: string,
+): PlaytestLogEvent {
+  return {
+    type: 'cards.discarded',
+    message: `${describeCards(cardIds, cards)} discarded from ${source}.`,
+    details: {
+      source,
+      cardIds,
+      cardTitles: cardTitles(cardIds, cards),
+    },
+  }
+}
+
 export function cardsStackedEvent(
   sourceStack: Stack,
   targetStack: Stack,

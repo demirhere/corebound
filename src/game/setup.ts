@@ -179,14 +179,14 @@ export function createInitialBoard(): BoardState {
       {
         id: 'stack-hull-supply',
         cardIds: initialHullCards.map((card) => card.id),
-        x: 28,
+        x: 19,
         y: 17,
         z: 10,
       },
       {
         id: 'stack-fuel-supply',
         cardIds: initialFuelCards.map((card) => card.id),
-        x: 44,
+        x: 31,
         y: 17,
         z: 11,
       },
