@@ -76,5 +76,13 @@ function renderGameIcon(kind: GameIconKind) {
           <path className="icon-line" d="M16 2.8v3.4M16 25.8v3.4M6.8 8.4l2.4 2.4M25.2 8.4l-2.4 2.4" />
         </>
       )
+    case 'person':
+      return (
+        <>
+          <circle className="icon-fill" cx="16" cy="10.6" r="5" />
+          <path className="icon-fill" d="M7.6 27.2c.8-6.3 3.5-9.4 8.4-9.4s7.6 3.1 8.4 9.4Z" />
+          <path className="icon-line" d="M12.4 10.6c1.8 1.1 5.4 1.1 7.2 0M11.4 22.7c2.7 1 6.5 1 9.2 0" />
+        </>
+      )
   }
 }

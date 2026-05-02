@@ -7,6 +7,7 @@ export const GAME_ICON_KINDS = [
   'life',
   'signal',
   'mother',
+  'person',
 ] as const
 
 export type GameIconKind = (typeof GAME_ICON_KINDS)[number]
@@ -20,6 +21,7 @@ export const GAME_ICON_LABELS: Record<GameIconKind, string> = {
   life: 'Life',
   signal: 'Signal',
   mother: 'MOTHER',
+  person: 'Person',
 }
 
 const CARD_NOTE_LINES = [

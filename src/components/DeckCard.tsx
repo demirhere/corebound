@@ -4,6 +4,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import type { Deck } from '../game/types'
+import { canManuallyDrawDeck } from '../game/decks'
 import { DeckIcon } from './DeckIcon'
 
 export type DeckCardView = Deck
@@ -33,10 +34,17 @@ export function DeckCard({
   onPointerDown,
   onKeyDown,
 }: DeckCardProps) {
+  const canDraw = canManuallyDrawDeck(deck.id)
+  const actionLabel = canDraw
+    ? 'Click to draw or drag to move.'
+    : 'Automatic rewards only; drag to move.'
+
   return (
     <button
       type="button"
-      className={`deck-card ${isActive ? 'is-being-dragged' : ''} ${
+      className={`deck-card ${canDraw ? 'is-manual-draw' : 'is-automatic-reward'} ${
+        isActive ? 'is-being-dragged' : ''
+      } ${
         isDropTarget ? 'is-drop-target' : ''
       }`}
       data-deck-id={deck.id}
@@ -51,12 +59,13 @@ export function DeckCard({
       }
       onPointerDown={(event) => onPointerDown(event, deck.id)}
       onKeyDown={(event) => onKeyDown(event, deck.id)}
-      aria-label={`${deck.title}. ${deck.cards.length} cards left. Click to draw or drag to move.`}
+      aria-label={`${deck.title}. ${deck.cards.length} cards left. ${actionLabel}`}
     >
       <span className="deck-badge" aria-hidden="true">
         {deck.cards.length}
       </span>
       <DeckIcon kind={deck.icon} />
+      <span className="deck-title">{deck.title}</span>
     </button>
   )
 }

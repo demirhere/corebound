@@ -15,6 +15,7 @@ import {
 } from './DeckCard'
 import {
   Hand,
+  type HandInsertPreview,
   type HandKeyDownHandler,
   type HandPointerDownHandler,
 } from './Hand'
@@ -31,6 +32,7 @@ type BoardProps = {
   activeStackIds: readonly string[]
   activeDeckIds: readonly string[]
   activeHandCardIds: readonly string[]
+  handInsertPreview: HandInsertPreview | null
   stackOffsetRatio: number
   onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void
   onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void
@@ -50,6 +52,7 @@ export function Board({
   activeStackIds,
   activeDeckIds,
   activeHandCardIds,
+  handInsertPreview,
   stackOffsetRatio,
   onPointerMove,
   onPointerUp,
@@ -70,6 +73,15 @@ export function Board({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
     >
+      <aside className="board-notes" aria-label="Quick play instructions">
+        <h2>Instructions</h2>
+        <ol>
+          <li>Pick horizon</li>
+          <li>Find matching crew and resource</li>
+          <li>Travel and get rewards</li>
+        </ol>
+      </aside>
+
       {board.decks
         .filter((deck) => deck.cards.length > 0)
         .map((deck) => (
@@ -101,6 +113,7 @@ export function Board({
         cardIds={board.handCardIds}
         cards={board.cards}
         activeCardIds={activeHandCardIds}
+        insertPreview={handInsertPreview}
         onCardPointerDown={onHandCardPointerDown}
         onCardKeyDown={onHandCardKeyDown}
       />

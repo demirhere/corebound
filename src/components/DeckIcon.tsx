@@ -120,12 +120,27 @@ function renderDeckIcon(kind: CardIconKind) {
           <path className="deck-icon-line" d="M24 6.4v14M12.2 18.5h23.6M17.8 29.5h12.4" />
         </>
       )
+    case 'shield':
+      return (
+        <>
+          <path className="deck-icon-fill" d="M24 5.8 37.2 10.8v11c0 8.5-4.8 14.8-13.2 18.6-8.4-3.8-13.2-10.1-13.2-18.6v-11Z" />
+          <path className="deck-icon-line" d="M24 10.5v25.3M16.1 17.7h15.8M16.5 26.3h15" />
+        </>
+      )
     case 'crosshair':
       return (
         <>
           <circle className="deck-icon-fill" cx="24" cy="24" r="13.5" />
           <circle className="deck-icon-cutout" cx="24" cy="24" r="5.2" />
           <path className="deck-icon-line" d="M24 5v9M24 34v9M5 24h9M34 24h9M16.5 16.5l15 15M31.5 16.5l-15 15" />
+        </>
+      )
+    case 'person':
+      return (
+        <>
+          <circle className="deck-icon-fill" cx="24" cy="15" r="7.4" />
+          <path className="deck-icon-fill" d="M11.2 40.1c1.1-9.2 5.3-13.8 12.8-13.8s11.7 4.6 12.8 13.8Z" />
+          <path className="deck-icon-line" d="M18.8 15c2.4 1.5 8 1.5 10.4 0M17.1 32.6c3.8 1.5 10 1.5 13.8 0" />
         </>
       )
   }

@@ -13,13 +13,50 @@ export type CardIconKind =
   | 'crescent'
   | 'flower'
   | 'pentagon'
+  | 'shield'
   | 'crosshair'
+  | 'person'
+
+export type ResourceKind = 'fuel' | 'hull'
+
+export type CrewSpecialization = 'life' | 'star' | 'engine' | 'signal'
+
+export type HorizonKind = 'star' | 'planet' | 'asteroid'
+
+export type RequirementIconKind = CrewSpecialization
+
+export type CardKind = 'resource' | 'crew' | 'horizon'
+
+export type HorizonReward =
+  | {
+      kind: 'resource'
+      resource: ResourceKind
+      count: number
+    }
+  | {
+      kind: 'crew'
+      label: 'Crew' | 'Wake'
+      count: number
+    }
+
+export type HorizonDetails = {
+  kind: HorizonKind
+  need: {
+    fuel: number
+    icons: RequirementIconKind[]
+  }
+  rewards: HorizonReward[]
+}
 
 export type CardBlueprint = {
   title: string
   icon: CardIconKind
   hue: number
   accent: string
+  kind: CardKind
+  resource?: ResourceKind
+  specializations?: CrewSpecialization[]
+  horizon?: HorizonDetails
 }
 
 export type Card = CardBlueprint & {

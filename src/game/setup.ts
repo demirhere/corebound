@@ -1,150 +1,243 @@
-import type { BoardState, Card, CardBlueprint } from './types'
+import type {
+  BoardState,
+  Card,
+  CardBlueprint,
+  CardIconKind,
+  CrewSpecialization,
+  HorizonKind,
+  HorizonReward,
+  RequirementIconKind,
+  ResourceKind,
+} from './types'
 
-const startingCards: Card[] = [
-  {
-    id: 'ark-bridge',
-    title: 'Ark Bridge',
-    icon: 'rocket',
-    hue: 193,
-    accent: '#64f3ff',
-    faceUp: true,
-  },
-  {
-    id: 'cryo-garden',
-    title: 'Cryo Garden',
-    icon: 'sprout',
-    hue: 139,
-    accent: '#6dff9e',
-    faceUp: true,
-  },
-  {
-    id: 'fusion-core',
-    title: 'Fusion Core',
-    icon: 'sun',
-    hue: 35,
-    accent: '#ffb25f',
-    faceUp: true,
-  },
-  {
-    id: 'water-loop',
-    title: 'Water Loop',
+const RESOURCE_DECK_SIZE = 12
+
+type DeckArt = {
+  icon: CardIconKind
+  hue: number
+  accent: string
+}
+
+const resourceArt: Record<ResourceKind, DeckArt> = {
+  fuel: {
     icon: 'drop',
-    hue: 205,
-    accent: '#71c7ff',
-    faceUp: false,
+    hue: 207,
+    accent: '#5bbdff',
   },
-  {
-    id: 'signal-beacon',
-    title: 'Signal Beacon',
-    icon: 'antenna',
-    hue: 274,
-    accent: '#cf8cff',
-    faceUp: true,
-  },
-  {
-    id: 'scout-drone',
-    title: 'Scout Drone',
-    icon: 'satellite',
-    hue: 314,
-    accent: '#ff7bd5',
-    faceUp: true,
-  },
-]
-
-const sectorDeck: CardBlueprint[] = [
-  {
-    title: 'Dust Moon',
-    icon: 'moon',
-    hue: 24,
-    accent: '#ff9f68',
-  },
-  {
-    title: 'Nebula Gate',
-    icon: 'star',
-    hue: 286,
-    accent: '#da8cff',
-  },
-  {
-    title: 'Ice Ring',
-    icon: 'snowflake',
-    hue: 198,
-    accent: '#82d8ff',
-  },
-  {
-    title: 'Ember Field',
-    icon: 'diamond',
-    hue: 8,
-    accent: '#ff7468',
-  },
-  {
-    title: 'Green Echo',
-    icon: 'hex',
-    hue: 151,
-    accent: '#77ffbb',
-  },
-]
-
-const shipDeck: CardBlueprint[] = [
-  {
-    title: 'Sleeper Crew',
-    icon: 'crescent',
-    hue: 229,
-    accent: '#8fa2ff',
-  },
-  {
-    title: 'Seed Vault',
-    icon: 'flower',
-    hue: 95,
-    accent: '#baff7a',
-  },
-  {
-    title: 'Hull Patch',
-    icon: 'pentagon',
+  hull: {
+    icon: 'shield',
     hue: 48,
     accent: '#ffe073',
   },
-  {
-    title: 'Navigator',
-    icon: 'crosshair',
-    hue: 176,
-    accent: '#69ffe8',
+}
+
+const horizonArt: Record<HorizonKind, DeckArt> = {
+  star: {
+    icon: 'star',
+    hue: 282,
+    accent: '#d98cff',
   },
+  planet: {
+    icon: 'moon',
+    hue: 147,
+    accent: '#77ffbb',
+  },
+  asteroid: {
+    icon: 'diamond',
+    hue: 20,
+    accent: '#ff9f68',
+  },
+}
+
+function createResourceDeck(resource: ResourceKind, count: number) {
+  const art = resourceArt[resource]
+  const title = resource === 'fuel' ? 'Fuel Cell' : 'Hull Plate'
+
+  return Array.from({ length: count }, (): CardBlueprint => ({
+    title,
+    icon: art.icon,
+    hue: art.hue,
+    accent: art.accent,
+    kind: 'resource',
+    resource,
+  }))
+}
+
+function createCrewCard(
+  title: string,
+  specializations: [CrewSpecialization, CrewSpecialization],
+  hue: number,
+  accent: string,
+): CardBlueprint {
+  return {
+    title,
+    icon: 'person',
+    hue,
+    accent,
+    kind: 'crew',
+    specializations,
+  }
+}
+
+function createHorizonCard(
+  title: string,
+  horizonKind: HorizonKind,
+  fuel: number,
+  icons: RequirementIconKind[],
+  rewards: HorizonReward[],
+): CardBlueprint {
+  const art = horizonArt[horizonKind]
+
+  return {
+    title,
+    icon: art.icon,
+    hue: art.hue,
+    accent: art.accent,
+    kind: 'horizon',
+    horizon: {
+      kind: horizonKind,
+      need: {
+        fuel,
+        icons,
+      },
+      rewards,
+    },
+  }
+}
+
+function shuffleCards<T>(cards: readonly T[]) {
+  const shuffled = [...cards]
+
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1))
+    const current = shuffled[index]
+    const swap = shuffled[swapIndex]
+
+    if (current !== undefined && swap !== undefined) {
+      shuffled[index] = swap
+      shuffled[swapIndex] = current
+    }
+  }
+
+  return shuffled
+}
+
+function createBoardCards(prefix: string, blueprints: readonly CardBlueprint[]) {
+  return blueprints.map<Card>((blueprint, index) => ({
+    ...blueprint,
+    id: `${prefix}-${index + 1}`,
+    faceUp: true,
+  }))
+}
+
+const startingCrewCards = [
+  createCrewCard('Lei Watanabe', ['life', 'star'], 151, '#77ffbb'),
+  createCrewCard('Mara Voss', ['engine', 'engine'], 8, '#ff7468'),
+]
+
+const cryoCrewDeck = [
+  createCrewCard('Sana Iqbal', ['life', 'life'], 118, '#9cff7a'),
+  createCrewCard('Juno Pike', ['engine', 'star'], 192, '#64f3ff'),
+  createCrewCard('Ilya Rao', ['star', 'signal'], 250, '#b99cff'),
+  createCrewCard('Ada Chen', ['engine', 'signal'], 312, '#ff7bd5'),
+  createCrewCard('Tomas Hale', ['engine', 'life'], 35, '#ffb25f'),
+  createCrewCard('Nia Okonkwo', ['signal', 'star'], 274, '#cf8cff'),
+]
+
+const horizonDeck = [
+  createHorizonCard('Dust Garden', 'planet', 0, ['life', 'star'], [
+    { kind: 'resource', resource: 'fuel', count: 1 },
+  ]),
+  createHorizonCard('Iron Wake', 'asteroid', 1, ['engine', 'engine'], [
+    { kind: 'resource', resource: 'hull', count: 1 },
+  ]),
+  createHorizonCard('Cryo Choir', 'star', 2, ['life', 'signal'], [
+    { kind: 'crew', label: 'Crew', count: 1 },
+  ]),
+  createHorizonCard('Red Salvage', 'asteroid', 1, ['engine', 'signal'], [
+    { kind: 'resource', resource: 'fuel', count: 1 },
+  ]),
+  createHorizonCard('Hull Orchard', 'planet', 1, ['life', 'engine'], [
+    { kind: 'resource', resource: 'hull', count: 1 },
+  ]),
+  createHorizonCard('Sleeper Arklet', 'star', 2, ['life', 'life', 'star'], [
+    { kind: 'crew', label: 'Wake', count: 1 },
+  ]),
 ]
 
 export function createInitialBoard(): BoardState {
+  const fuelDeck = shuffleCards(createResourceDeck('fuel', RESOURCE_DECK_SIZE))
+  const hullDeck = shuffleCards(createResourceDeck('hull', RESOURCE_DECK_SIZE))
+  const initialFuelCards = createBoardCards('fuel-start', fuelDeck.slice(0, 3))
+  const initialHullCards = createBoardCards('hull-start', hullDeck.slice(0, 4))
+  const handCards = createBoardCards('crew-hand', startingCrewCards)
+  const initialCards = [...initialFuelCards, ...initialHullCards, ...handCards]
+
   return {
-    cards: Object.fromEntries(startingCards.map((card) => [card.id, card])),
+    cards: Object.fromEntries(initialCards.map((card) => [card.id, card])),
     stacks: [
-      { id: 'stack-bridge', cardIds: ['ark-bridge'], x: 27, y: 52, z: 10 },
-      { id: 'stack-life', cardIds: ['cryo-garden', 'fusion-core'], x: 43, y: 14, z: 11 },
-      { id: 'stack-water', cardIds: ['water-loop'], x: 57, y: 58, z: 12 },
-      { id: 'stack-comms', cardIds: ['signal-beacon', 'scout-drone'], x: 70, y: 27, z: 13 },
+      {
+        id: 'stack-hull-supply',
+        cardIds: initialHullCards.map((card) => card.id),
+        x: 28,
+        y: 17,
+        z: 10,
+      },
+      {
+        id: 'stack-fuel-supply',
+        cardIds: initialFuelCards.map((card) => card.id),
+        x: 44,
+        y: 17,
+        z: 11,
+      },
     ],
     decks: [
       {
-        id: 'sector-deck',
-        title: 'Sector Deck',
+        id: 'fuel-deck',
+        title: 'Fuel Deck',
+        icon: resourceArt.fuel.icon,
+        hue: resourceArt.fuel.hue,
+        accent: resourceArt.fuel.accent,
+        x: 6,
+        y: 12,
+        z: 12,
+        cards: fuelDeck.slice(3),
+      },
+      {
+        id: 'hull-deck',
+        title: 'Hull Deck',
+        icon: resourceArt.hull.icon,
+        hue: resourceArt.hull.hue,
+        accent: resourceArt.hull.accent,
+        x: 6,
+        y: 40,
+        z: 13,
+        cards: hullDeck.slice(4),
+      },
+      {
+        id: 'horizon-deck',
+        title: 'Horizon Deck',
         icon: 'star',
         hue: 261,
         accent: '#b99cff',
-        x: 7,
-        y: 15,
+        x: 81,
+        y: 12,
         z: 14,
-        cards: sectorDeck,
+        cards: shuffleCards(horizonDeck),
       },
       {
-        id: 'ship-deck',
-        title: 'Ship Deck',
-        icon: 'hex',
-        hue: 164,
-        accent: '#61ffd3',
-        x: 77,
-        y: 63,
+        id: 'cryo-deck',
+        title: 'Cryo Deck',
+        icon: 'person',
+        hue: 198,
+        accent: '#82d8ff',
+        x: 81,
+        y: 40,
         z: 15,
-        cards: shipDeck,
+        cards: shuffleCards(cryoCrewDeck),
       },
     ],
-    handCardIds: [],
+    handCardIds: handCards.map((card) => card.id),
     topZ: 15,
     nextCardId: 1,
     dropTargetStackId: null,

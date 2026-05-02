@@ -3,7 +3,13 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import type { Card } from '../game/types'
+import type {
+  Card,
+  CrewSpecialization,
+  HorizonReward,
+  RequirementIconKind,
+  ResourceKind,
+} from '../game/types'
 import { DeckIcon } from './DeckIcon'
 import { GameIcon } from './GameIcon'
 import { pickCardIcons, pickCardNote } from './gameIcons'
@@ -44,6 +50,78 @@ type CardShellProps = {
   onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void
 }
 
+function titleCase(value: string) {
+  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`
+}
+
+function renderIconPips(
+  icons: readonly (RequirementIconKind | CrewSpecialization | ResourceKind)[],
+  keyPrefix: string,
+) {
+  return icons.map((icon, index) => <GameIcon key={`${keyPrefix}-${icon}-${index}`} kind={icon} />)
+}
+
+function renderReward(reward: HorizonReward, index: number) {
+  const iconKind = reward.kind === 'resource' ? reward.resource : 'person'
+
+  return Array.from({ length: reward.count }, (_, rewardIndex) =>
+    <GameIcon key={`${iconKind}-${index}-${rewardIndex}`} kind={iconKind} />,
+  )
+}
+
+function renderGameplayCardContent(card: CardView) {
+  if (card.kind === 'resource' && card.resource) {
+    return (
+      <>
+        <p className="card-kicker">Ship Resource</p>
+        <div className="card-primary-icons">
+          <GameIcon kind={card.resource} />
+        </div>
+        <p className="card-rule-text">Stack this on a Horizon card when it asks for {titleCase(card.resource)}.</p>
+      </>
+    )
+  }
+
+  if (card.kind === 'crew') {
+    const specializations = card.specializations ?? []
+
+    return (
+      <>
+        <p className="card-kicker">Crew</p>
+        <div className="card-primary-icons">
+          {renderIconPips(specializations, `${card.id}-crew`)}
+        </div>
+        <p className="card-rule-text">Covers both shown specializations when committed.</p>
+      </>
+    )
+  }
+
+  if (card.kind === 'horizon' && card.horizon) {
+    const needFuelIcons = Array.from({ length: card.horizon.need.fuel }, () => 'fuel' as const)
+
+    return (
+      <>
+        <p className="card-kicker">{titleCase(card.horizon.kind)}</p>
+        <div className="card-rule-row">
+          <span>Need</span>
+          <div className="card-rule-icons">
+            {needFuelIcons.length > 0 && renderIconPips(needFuelIcons, `${card.id}-fuel-need`)}
+            {renderIconPips(card.horizon.need.icons, `${card.id}-icon-need`)}
+          </div>
+        </div>
+        <div className="card-rule-row">
+          <span className="card-reward-equals">=</span>
+          <div className="card-rule-icons">
+            {card.horizon.rewards.map(renderReward)}
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  return null
+}
+
 export function CardShell({
   card,
   className = '',
@@ -56,6 +134,7 @@ export function CardShell({
 }: CardShellProps) {
   const sampledIcons = pickCardIcons(`${card.id}:${card.title}`)
   const noteLines = pickCardNote(`${card.id}:${card.title}`)
+  const gameplayContent = renderGameplayCardContent(card)
 
   return (
     <div
@@ -81,17 +160,21 @@ export function CardShell({
           <header className="card-header">
             <span className="card-title">{card.title}</span>
           </header>
-          <div className="card-art" aria-hidden="true">
-            <div className="card-icon-row">
-              {sampledIcons.map((icon) => (
-                <GameIcon key={icon} kind={icon} />
-              ))}
-            </div>
-            <p className="card-note">
-              {noteLines.map((line, index) => (
-                <span key={`${line}-${index}`}>{line}</span>
-              ))}
-            </p>
+          <div className={`card-art ${gameplayContent ? 'card-art-gameplay' : ''}`} aria-hidden="true">
+            {gameplayContent ?? (
+              <>
+                <div className="card-icon-row">
+                  {sampledIcons.map((icon) => (
+                    <GameIcon key={icon} kind={icon} />
+                  ))}
+                </div>
+                <p className="card-note">
+                  {noteLines.map((line, index) => (
+                    <span key={`${line}-${index}`}>{line}</span>
+                  ))}
+                </p>
+              </>
+            )}
           </div>
         </article>
 
@@ -122,7 +205,7 @@ export function BoardCard({
           zIndex: cardIndex + 1,
         } as CSSProperties
       }
-      ariaLabel={`${card.title}. Click to flip or drag to move this part of the stack.`}
+      ariaLabel={`${card.title}. Drag to move this part of the stack.`}
       onPointerDown={(event) => onPointerDown(event, stackId, card.id, cardIndex)}
       onKeyDown={(event) => onKeyDown(event, stackId, card.id)}
     />

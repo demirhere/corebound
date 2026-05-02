@@ -1,4 +1,4 @@
-import type { Card, Deck, Stack } from './types'
+import type { Card, Deck, HorizonReward, Stack } from './types'
 import type { PlaytestLogEvent } from './playtestLog'
 
 function roundPosition(value: number) {
@@ -15,6 +15,18 @@ function describeCards(cardIds: readonly string[], cards: Record<string, Card>) 
 
 function cardTitles(cardIds: readonly string[], cards: Record<string, Card>) {
   return cardIds.map((cardId) => cards[cardId]?.title ?? cardId)
+}
+
+function describeRewards(rewards: readonly HorizonReward[]) {
+  return rewards
+    .map((reward) => {
+      if (reward.kind === 'resource') {
+        return `${reward.resource} +${reward.count}`
+      }
+
+      return `${reward.label} ${reward.count}`
+    })
+    .join(', ')
 }
 
 export function cardFlippedEvent(card: Card, stackId: string): PlaytestLogEvent {
@@ -163,6 +175,27 @@ export function decksMergedEvent(sourceDeck: Deck, targetDeck: Deck): PlaytestLo
       targetDeckId: targetDeck.id,
       targetDeckTitle: targetDeck.title,
       targetCardCount: targetDeck.cards.length,
+    },
+  }
+}
+
+export function horizonCompletedEvent(
+  horizonCard: Card,
+  sourceStack: Stack,
+  rewardCards: readonly Card[],
+  cards: Record<string, Card>,
+): PlaytestLogEvent {
+  return {
+    type: 'horizon.completed',
+    message: `${describeCard(horizonCard, horizonCard.id)} completed from ${sourceStack.id}; rewards: ${describeRewards(horizonCard.horizon?.rewards ?? []) || 'none'}.`,
+    details: {
+      horizonCardId: horizonCard.id,
+      horizonTitle: horizonCard.title,
+      sourceStackId: sourceStack.id,
+      spentCardIds: sourceStack.cardIds,
+      spentCardTitles: cardTitles(sourceStack.cardIds, cards),
+      rewardCardIds: rewardCards.map((card) => card.id),
+      rewardCardTitles: rewardCards.map((card) => card.title),
     },
   }
 }
