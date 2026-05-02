@@ -90,6 +90,7 @@ type DeckDragState = {
   latestY: number
   latestDeltaX: number
   latestDeltaY: number
+  dropTargetDeckId: string | null
   hasMoved: boolean
 }
 
@@ -516,6 +517,11 @@ function App() {
     drag.dropTargetDeckId = null
   }
 
+  function clearDeckDragDropTarget(drag: DeckDragState) {
+    toggleDeckDropTarget(drag.dropTargetDeckId, false)
+    drag.dropTargetDeckId = null
+  }
+
   function getNearestDropTarget(
     stacks: Stack[],
     decks: Deck[],
@@ -575,6 +581,46 @@ function App() {
       stackId: nearestKind === 'stack' ? nearestId : null,
       deckId: nearestKind === 'deck' ? nearestId : null,
     }
+  }
+
+  function getNearestDeckDropTarget(
+    decks: Deck[],
+    sourceDeckId: string,
+    metrics: BoardMetrics,
+  ) {
+    const sourceDeck = decks.find((deck) => deck.id === sourceDeckId)
+
+    if (!sourceDeck) {
+      return null
+    }
+
+    const sourceBounds = getDeckBounds(sourceDeck, metrics)
+    const dropDistance = Math.max(metrics.cardWidth, metrics.cardHeight) * DROP_TARGET_PADDING_RATIO
+    let nearestId: string | null = null
+    let nearestDistance = Number.POSITIVE_INFINITY
+    let nearestCenterDistance = Number.POSITIVE_INFINITY
+
+    for (const targetDeck of decks) {
+      if (targetDeck.id === sourceDeckId || targetDeck.cards.length === 0) {
+        continue
+      }
+
+      const targetBounds = getDeckBounds(targetDeck, metrics)
+      const distance = getBoundsDistance(sourceBounds, targetBounds)
+      const centerDistance = getBoundsCenterDistance(sourceBounds, targetBounds)
+
+      if (
+        distance <= dropDistance &&
+        (distance < nearestDistance ||
+          (distance === nearestDistance && centerDistance < nearestCenterDistance))
+      ) {
+        nearestId = targetDeck.id
+        nearestDistance = distance
+        nearestCenterDistance = centerDistance
+      }
+    }
+
+    return nearestId
   }
 
   function captureBoardPointer(pointerId: number) {
@@ -660,6 +706,7 @@ function App() {
     }
 
     drag.hasMoved = true
+    drag.dropTargetDeckId = null
 
     flushSync(() => {
       setActiveDeckId(drag.deckId)
@@ -719,6 +766,28 @@ function App() {
     drag.dropTargetDeckId = dropTarget.deckId
     toggleStackDropTarget(dropTarget.stackId, true)
     toggleDeckDropTarget(dropTarget.deckId, true)
+  }
+
+  function updateDeckDropTarget(drag: DeckDragState) {
+    const current = boardStateRef.current
+    const hasActiveDeck = current.decks.some((deck) => deck.id === drag.deckId)
+
+    if (!hasActiveDeck) {
+      return
+    }
+
+    const previewDecks = current.decks.map((deck) =>
+      deck.id === drag.deckId ? { ...deck, x: drag.latestX, y: drag.latestY } : deck,
+    )
+    const dropTargetDeckId = getNearestDeckDropTarget(previewDecks, drag.deckId, drag.metrics)
+
+    if (dropTargetDeckId === drag.dropTargetDeckId) {
+      return
+    }
+
+    toggleDeckDropTarget(drag.dropTargetDeckId, false)
+    drag.dropTargetDeckId = dropTargetDeckId
+    toggleDeckDropTarget(dropTargetDeckId, true)
   }
 
   function commitStackDragPosition(drag: StackDragState) {
@@ -921,6 +990,7 @@ function App() {
       latestY: deck.y,
       latestDeltaX: 0,
       latestDeltaY: 0,
+      dropTargetDeckId: board.dropTargetDeckId,
       hasMoved: false,
     }
   }
@@ -970,6 +1040,7 @@ function App() {
     }
 
     applyDeckDragTransform(drag)
+    updateDeckDropTarget(drag)
   }
 
   function moveActiveDrag(event: ReactPointerEvent<HTMLDivElement>) {
@@ -1108,6 +1179,37 @@ function App() {
     })
   }
 
+  function deckOnDropTarget(sourceDeckId: string, targetDeckId: string) {
+    setBoard((current) => {
+      const sourceDeck = current.decks.find((deck) => deck.id === sourceDeckId)
+      const targetDeck = current.decks.find((deck) => deck.id === targetDeckId)
+
+      if (!sourceDeck || !targetDeck || sourceDeck.id === targetDeck.id) {
+        return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
+      }
+
+      const nextZ = current.topZ + 1
+
+      return {
+        ...current,
+        topZ: nextZ,
+        dropTargetStackId: null,
+        dropTargetDeckId: null,
+        decks: current.decks
+          .filter((deck) => deck.id !== sourceDeck.id)
+          .map((deck) =>
+            deck.id === targetDeck.id
+              ? {
+                  ...deck,
+                  cards: [...sourceDeck.cards, ...deck.cards],
+                  z: nextZ,
+                }
+              : deck,
+          ),
+      }
+    })
+  }
+
   function finishActiveDrag(event: ReactPointerEvent<HTMLDivElement>) {
     const drag = dragRef.current
 
@@ -1151,10 +1253,19 @@ function App() {
     }
 
     updateDeckDragPosition(event.clientX, event.clientY, drag)
+    updateDeckDropTarget(drag)
+    const dropTargetDeckId = drag.dropTargetDeckId
+    clearDeckDragDropTarget(drag)
+
     flushSync(() => {
       setActiveDeckId(null)
-      commitDeckDragPosition(drag)
-      clearDropTarget()
+
+      if (dropTargetDeckId) {
+        deckOnDropTarget(drag.deckId, dropTargetDeckId)
+      } else {
+        commitDeckDragPosition(drag)
+        clearDropTarget()
+      }
     })
     clearDragTransform(drag.element)
   }
@@ -1176,6 +1287,7 @@ function App() {
         clearDragTransform(drag.activeElement)
       }
     } else if (drag.hasMoved) {
+      clearDeckDragDropTarget(drag)
       flushSync(() => {
         setActiveDeckId(null)
         commitDeckDragPosition(drag)
