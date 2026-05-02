@@ -306,6 +306,10 @@ function isFaceDownStack(stack: Stack, cards: Record<string, Card>) {
   return stack.cardIds.length > 0 && stack.cardIds.every((cardId) => cards[cardId]?.faceUp === false)
 }
 
+function isSingleFaceDownCard(stack: Stack, cards: Record<string, Card>) {
+  return stack.cardIds.length === 1 && cards[stack.cardIds[0]]?.faceUp === false
+}
+
 function cardsToDeckBlueprints(cardIds: string[], cards: Record<string, Card>) {
   return cardIds.flatMap((cardId) => {
     const card = cards[cardId]
@@ -807,7 +811,7 @@ function App() {
         return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
       }
 
-      if (sourceIsFaceDown && isFaceDownStack(targetStack, current.cards)) {
+      if (isSingleFaceDownCard(sourceStack, current.cards) && isSingleFaceDownCard(targetStack, current.cards)) {
         const sourceDeckCards = cardsToDeckBlueprints(sourceStack.cardIds, current.cards)
         const targetDeckCards = cardsToDeckBlueprints(targetStack.cardIds, current.cards)
         const deckCardIds = [...sourceStack.cardIds, ...targetStack.cardIds]
