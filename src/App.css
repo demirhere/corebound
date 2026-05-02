@@ -17,6 +17,7 @@
   overflow: hidden;
   isolation: isolate;
   user-select: none;
+  touch-action: none;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   background: linear-gradient(135deg, #070917 0%, #11142b 52%, #050713 100%);

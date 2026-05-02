@@ -26,8 +26,8 @@ type BoardView = {
 type BoardProps = {
   board: BoardView
   boardRef: Ref<HTMLDivElement>
-  activeStackId: string | null
-  activeDeckId: string | null
+  activeStackIds: readonly string[]
+  activeDeckIds: readonly string[]
   stackOffsetRatio: number
   onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void
   onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void
@@ -41,8 +41,8 @@ type BoardProps = {
 export function Board({
   board,
   boardRef,
-  activeStackId,
-  activeDeckId,
+  activeStackIds,
+  activeDeckIds,
   stackOffsetRatio,
   onPointerMove,
   onPointerUp,
@@ -67,7 +67,7 @@ export function Board({
           <DeckCard
             key={deck.id}
             deck={deck}
-            isActive={activeDeckId === deck.id}
+            isActive={activeDeckIds.includes(deck.id)}
             isDropTarget={board.dropTargetDeckId === deck.id}
             onPointerDown={onDeckPointerDown}
             onKeyDown={onDeckKeyDown}
@@ -80,7 +80,7 @@ export function Board({
           stack={stack}
           cards={board.cards}
           isDropTarget={board.dropTargetStackId === stack.id}
-          isActive={activeStackId === stack.id}
+          isActive={activeStackIds.includes(stack.id)}
           stackOffsetRatio={stackOffsetRatio}
           onCardPointerDown={onCardPointerDown}
           onCardKeyDown={onCardKeyDown}
