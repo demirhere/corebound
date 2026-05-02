@@ -6,6 +6,7 @@ import { getNextStarFuelDiscount } from '../game/effects'
 import type { BoardState, GameLossReason } from '../game/types'
 import { CardStack } from './CardStack'
 import {
+  CardShell,
   type CardKeyDownHandler,
   type CardPointerDownHandler,
 } from './BoardCard'
@@ -198,14 +199,32 @@ export function Board({
           aria-modal="true"
           aria-labelledby="wake-choice-title"
         >
-          <p className="arrival-kicker">Wake {board.pendingWakeChoice.remaining}</p>
           <h2 id="wake-choice-title">Choose Cryo Crew</h2>
           <p>That crew joins your crew area Tired.</p>
-          {wakeChoiceCards.map((card) => (
-            <button key={card.id} type="button" onClick={() => onWakeCrewChoice(card.id)}>
-              {card.title} ({card.specializations?.join(' + ') ?? 'no icons'})
-            </button>
-          ))}
+          <div className="wake-choice-cards">
+            {wakeChoiceCards.map((card) => (
+              <CardShell
+                key={card.id}
+                card={card}
+                className="wake-choice-card"
+                ariaLabel={`Choose ${card.title}`}
+                onPointerDown={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  onWakeCrewChoice(card.id)
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') {
+                    return
+                  }
+
+                  event.preventDefault()
+                  event.stopPropagation()
+                  onWakeCrewChoice(card.id)
+                }}
+              />
+            ))}
+          </div>
         </section>
       )}
     </section>

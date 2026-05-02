@@ -140,19 +140,19 @@
   transform: translate(-50%, -50%);
   backdrop-filter: blur(18px);
 
-  h2,
-  p {
+  > h2,
+  > p {
     margin: 0;
   }
 
-  h2 {
+  > h2 {
     font-size: clamp(24px, 4vw, 42px);
     font-weight: 950;
     letter-spacing: -0.06em;
     line-height: 0.95;
   }
 
-  p:not(.arrival-kicker) {
+  > p:not(.arrival-kicker) {
     color: rgba(246, 241, 223, 0.78);
     font-size: clamp(13px, 1.3vw, 17px);
     font-weight: 700;
@@ -224,6 +224,28 @@
         0 10px 22px rgba(0, 0, 0, 0.32),
         0 0 0 4px rgba(255, 79, 100, 0.2);
     }
+  }
+}
+
+.wake-choice-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(14px, 2.4vw, 22px);
+  margin-top: 6px;
+}
+
+.card-shell.wake-choice-card {
+  position: relative;
+  width: var(--card-width);
+  height: var(--card-height);
+  text-align: left;
+  transform: none;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    transform: translateY(-6px) rotate(-1deg);
   }
 }
 
