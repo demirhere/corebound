@@ -10,7 +10,7 @@ import {
 import { flushSync } from 'react-dom'
 import { Board } from './components/Board'
 import { PlaytestLog } from './components/PlaytestLog'
-import { canManuallyDrawDeck, manualDeckDraw } from './game/decks'
+import { HORIZON_DECK_ID, canManuallyDrawDeck, manualDeckDraw } from './game/decks'
 import {
   applyPendingEffectsToDrawnCard,
   consumeDeckDrawModifiers,
@@ -34,6 +34,7 @@ import {
   deckCreatedFromStacksEvent,
   decksMergedEvent,
   handCardDroppedEvent,
+  gateCompletedEvent,
   horizonCompletedEvent,
   stackSplitEvent,
 } from './game/logEvents'
@@ -42,6 +43,8 @@ import {
   canCombineAsDeck,
   canStackCards,
   cardsToDeckBlueprints,
+  countMotherCardsInPlay,
+  getGateStackCompletion,
   getHorizonStackCompletion,
   isFaceDownStack,
   withoutCards,
@@ -1327,7 +1330,7 @@ function App() {
     setBoard((current) => {
       const deck = current.decks.find((candidate) => candidate.id === deckId)
 
-      if (!deck || !canManuallyDrawDeck(deck)) {
+      if (current.hasArrived || !deck || !canManuallyDrawDeck(deck)) {
         return current
       }
 
@@ -1344,6 +1347,7 @@ function App() {
       const nextCards = { ...current.cards }
       const drawnStacks: Stack[] = []
       const drawEvents: ReturnType<typeof cardDrawnEvent>[] = []
+      const drawChoiceGroupId = drawnBlueprints.length > 1 ? `${deck.id}-draw-${current.nextCardId}` : undefined
       let nextCardId = current.nextCardId
       let pendingEffects = consumeDeckDrawModifiers(deck.id, current.pendingEffects)
 
@@ -1367,6 +1371,7 @@ function App() {
           x: position.x,
           y: position.y,
           z: firstCardZ + index,
+          drawChoiceGroupId,
         })
         drawEvents.push(cardDrawnEvent(newCard, deck, newStackId, position.x, position.y))
       }
@@ -1473,9 +1478,21 @@ function App() {
       tiredCardIdsWithSpentCrew,
       readyCrewCount,
     )
+    const otherChoiceStacks = sourceStack.drawChoiceGroupId
+      ? current.stacks.filter(
+          (stack) =>
+            stack.id !== sourceStack.id &&
+            stack.drawChoiceGroupId === sourceStack.drawChoiceGroupId,
+        )
+      : []
+    const otherChoiceCardIds = otherChoiceStacks.flatMap((stack) => stack.cardIds)
 
     for (const rewardCard of rewardCards) {
       nextCards[rewardCard.id] = rewardCard
+    }
+
+    for (const cardId of otherChoiceCardIds) {
+      delete nextCards[cardId]
     }
 
     const rewardPosition =
@@ -1488,7 +1505,11 @@ function App() {
           )
         : null
     const rewardStackId = `stack-reward-${horizonCard.id}`
-    const nextStacksWithoutSource = current.stacks.filter((stack) => stack.id !== sourceStack.id)
+    const nextStacksWithoutSource = current.stacks.filter(
+      (stack) =>
+        stack.id !== sourceStack.id &&
+        !otherChoiceStacks.some((choiceStack) => choiceStack.id === stack.id),
+    )
     const resolvedStacks = [
       ...nextStacksWithoutSource,
       ...(spentMotherCardIds.length > 0
@@ -1497,6 +1518,7 @@ function App() {
               ...sourceStack,
               cardIds: spentMotherCardIds,
               z: nextZ,
+              drawChoiceGroupId: undefined,
             },
           ]
         : []),
@@ -1530,7 +1552,58 @@ function App() {
         stacks: resolvedStacks,
         decks: nextDecks,
       },
-      events: [horizonCompletedEvent(horizonCard, sourceStack, rewardCards, current.cards)],
+      events: [
+        horizonCompletedEvent(horizonCard, sourceStack, rewardCards, current.cards),
+        ...otherChoiceStacks.map((stack) => cardsDiscardedEvent(stack.cardIds, current.cards, stack.id)),
+      ],
+    }
+  }
+
+  function isSectorHorizonFinished(current: BoardState) {
+    const horizonDeck = current.decks.find((deck) => deck.id === HORIZON_DECK_ID)
+    const hasHorizonCardsInPlay = current.stacks.some((stack) =>
+      stack.cardIds.some((cardId) => current.cards[cardId]?.kind === 'horizon'),
+    )
+
+    return (horizonDeck?.cards.length ?? 0) === 0 && !hasHorizonCardsInPlay
+  }
+
+  function completeReadyGateStack(current: BoardState, stackId: string) {
+    const sourceStack = current.stacks.find((stack) => stack.id === stackId)
+
+    if (!sourceStack || current.hasArrived || !isSectorHorizonFinished(current)) {
+      return { board: current, events: [] }
+    }
+
+    const motherCardsInPlay = countMotherCardsInPlay(current.stacks, current.cards)
+    const completion = getGateStackCompletion(sourceStack, current.cards, motherCardsInPlay)
+
+    if (!completion?.isReady) {
+      return { board: current, events: [] }
+    }
+
+    const gateCard = current.cards[completion.gateCardId]
+
+    if (!gateCard?.gate) {
+      return { board: current, events: [] }
+    }
+
+    return {
+      board: {
+        ...current,
+        hasArrived: true,
+        dropTargetStackId: null,
+        dropTargetDeckId: null,
+      },
+      events: [
+        gateCompletedEvent(
+          gateCard,
+          sourceStack,
+          current.cards,
+          completion.motherCardsInPlay,
+          completion.extraCrewRequired,
+        ),
+      ],
     }
   }
 
@@ -1591,6 +1664,10 @@ function App() {
 
       if (!stack) {
         return current
+      }
+
+      if (stack.cardIds.some((cardId) => current.cards[cardId]?.kind === 'gate')) {
+        return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
       }
 
       return withPlaytestEvents({
@@ -2158,15 +2235,18 @@ function App() {
                   ...stack,
                   cardIds: [...stack.cardIds, ...sourceStack.cardIds],
                   z: nextZ,
+                  drawChoiceGroupId: stack.drawChoiceGroupId ?? sourceStack.drawChoiceGroupId,
                 }
               : stack,
           ),
       }
       const completedStack = completeReadyHorizonStack(stackedBoard, targetStack.id, metrics)
+      const completedGateStack = completeReadyGateStack(completedStack.board, targetStack.id)
 
-      return withPlaytestEvents(completedStack.board, [
+      return withPlaytestEvents(completedGateStack.board, [
         cardsStackedEvent(sourceStack, targetStack, current.cards),
         ...completedStack.events,
+        ...completedGateStack.events,
       ])
     })
   }
@@ -2443,6 +2523,7 @@ function App() {
         onCardKeyDown={handleCardKeyDown}
         onHandCardPointerDown={beginHandDrag}
         onHandCardKeyDown={handleHandKeyDown}
+        onResetGame={resetGame}
       />
       <PlaytestLog entries={playtestLog} onResetGame={resetGame} />
     </main>

@@ -59,6 +59,18 @@ const motherArt: DeckArt = {
   accent: '#ff4f64',
 }
 
+const gateArt: DeckArt = {
+  icon: 'gate',
+  hue: 184,
+  accent: '#73ffd6',
+}
+
+const crewArt: DeckArt = {
+  icon: 'person',
+  hue: 198,
+  accent: '#82d8ff',
+}
+
 function createResourceDeck(resource: ResourceKind, count: number) {
   const art = resourceArt[resource]
   const title = resource === 'fuel' ? 'Fuel Cell' : 'Hull Plate'
@@ -86,14 +98,12 @@ function createMotherDeck(count: number) {
 function createCrewCard(
   title: string,
   specializations: [CrewSpecialization, CrewSpecialization],
-  hue: number,
-  accent: string,
 ): CardBlueprint {
   return {
     title,
-    icon: 'person',
-    hue,
-    accent,
+    icon: crewArt.icon,
+    hue: crewArt.hue,
+    accent: crewArt.accent,
     kind: 'crew',
     specializations,
   }
@@ -121,6 +131,30 @@ function createHorizonCard(
         icons,
       },
       rewards,
+    },
+  }
+}
+
+function createGateCard(
+  title: string,
+  label: string,
+  icons: RequirementIconKind[],
+  any: number,
+  motherPenalty: { threshold: number; extraCrew: number },
+): CardBlueprint {
+  return {
+    title,
+    icon: gateArt.icon,
+    hue: gateArt.hue,
+    accent: gateArt.accent,
+    kind: 'gate',
+    gate: {
+      label,
+      need: {
+        icons,
+        any,
+      },
+      motherPenalty,
     },
   }
 }
@@ -196,22 +230,38 @@ function setupCrewDealtEvent(card: Card, handIndex: number): PlaytestLogEvent {
   }
 }
 
+function setupGateRevealedEvent(card: Card, stackId: string): PlaytestLogEvent {
+  const rulesText = cardRulesText(card)
+
+  return {
+    type: 'setup.gate.revealed',
+    message: `${card.title} (${card.id})${rulesText ? ` [${rulesText}]` : ''} revealed as this sector's Gate.`,
+    details: {
+      cardId: card.id,
+      cardTitle: card.title,
+      cardSummary: `${card.title} (${card.id})${rulesText ? ` [${rulesText}]` : ''}`,
+      cardContent: cardContent(card),
+      stackId,
+    },
+  }
+}
+
 const startingCrewCards = [
-  createCrewCard('Lei Watanabe', ['life', 'star'], 151, '#77ffbb'),
-  createCrewCard('Mara Voss', ['engine', 'engine'], 8, '#ff7468'),
-  createCrewCard('Ada Chen', ['engine', 'signal'], 312, '#ff7bd5'),
-  createCrewCard('Sana Iqbal', ['life', 'life'], 118, '#9cff7a'),
-  createCrewCard('Juno Pike', ['engine', 'star'], 192, '#64f3ff'),
-  createCrewCard('Nia Okonkwo', ['signal', 'star'], 274, '#cf8cff'),
+  createCrewCard('Lei Watanabe', ['life', 'star']),
+  createCrewCard('Mara Voss', ['engine', 'engine']),
+  createCrewCard('Ada Chen', ['engine', 'signal']),
+  createCrewCard('Sana Iqbal', ['life', 'life']),
+  createCrewCard('Juno Pike', ['engine', 'star']),
+  createCrewCard('Nia Okonkwo', ['signal', 'star']),
 ]
 
 const cryoCrewDeck = [
-  createCrewCard('Ilya Rao', ['star', 'signal'], 250, '#b99cff'),
-  createCrewCard('Tomas Hale', ['engine', 'life'], 35, '#ffb25f'),
-  createCrewCard('Elise Tan', ['life', 'signal'], 55, '#ffe07a'),
-  createCrewCard('Oren Vale', ['signal', 'signal'], 175, '#5ee8d6'),
-  createCrewCard('Malik Ortega', ['star', 'star'], 340, '#ff73a8'),
-  createCrewCard('Priya Shah', ['life', 'engine'], 100, '#a6ff6e'),
+  createCrewCard('Ilya Rao', ['star', 'signal']),
+  createCrewCard('Tomas Hale', ['engine', 'life']),
+  createCrewCard('Elise Tan', ['life', 'signal']),
+  createCrewCard('Oren Vale', ['signal', 'signal']),
+  createCrewCard('Malik Ortega', ['star', 'star']),
+  createCrewCard('Priya Shah', ['life', 'engine']),
 ]
 
 const horizonDeck = [
@@ -244,6 +294,14 @@ const horizonDeck = [
   ]),
 ]
 
+const sectorGate = createGateCard(
+  'Narrow Crossing',
+  'SECTOR GATE',
+  ['engine', 'life', 'star', 'signal'],
+  1,
+  { threshold: 3, extraCrew: 1 },
+)
+
 export function createInitialBoardSetup(): { board: BoardState; events: PlaytestLogEvent[] } {
   const fuelDeck = shuffleCards(createResourceDeck('fuel', RESOURCE_DECK_SIZE))
   const motherDeckCards = createMotherDeck(MOTHER_DECK_SIZE)
@@ -251,7 +309,8 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
   const initialFuelCards = createBoardCards('fuel-start', fuelDeck.slice(0, 3))
   // const initialHullCards = createBoardCards('hull-start', hullDeck.slice(0, 4))
   const handCards = createBoardCards('crew-hand', startingCrewCards)
-  const initialCards = [...initialFuelCards, ...handCards]
+  const [gateCard] = createBoardCards('gate', [sectorGate])
+  const initialCards = [...initialFuelCards, ...handCards, ...(gateCard ? [gateCard] : [])]
   const fuelDeckCards = fuelDeck.slice(3)
   // const hullDeckCards = hullDeck.slice(4)
   const horizonDeckCards = shuffleCards(horizonDeck)
@@ -267,6 +326,17 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
         y: 12,
         z: 11,
       },
+      ...(gateCard
+        ? [
+            {
+              id: 'stack-sector-gate',
+              cardIds: [gateCard.id],
+              x: 43,
+              y: 40,
+              z: 16,
+            },
+          ]
+        : []),
     ],
     decks: [
       {
@@ -312,9 +382,9 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
       {
         id: 'cryo-deck',
         title: 'Cryo Deck',
-        icon: 'person',
-        hue: 198,
-        accent: '#82d8ff',
+        icon: crewArt.icon,
+        hue: crewArt.hue,
+        accent: crewArt.accent,
         x: 81,
         y: 40,
         z: 15,
@@ -325,7 +395,8 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
     handCardIds: handCards.map((card) => card.id),
     tiredCardIds: [],
     pendingEffects: [],
-    topZ: 15,
+    hasArrived: false,
+    topZ: 16,
     nextCardId: 1,
     dropTargetStackId: null,
     dropTargetDeckId: null,
@@ -339,6 +410,7 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
       // setupDeckCreatedEvent('hull-deck', 'Hull Deck', hullDeckCards),
       setupDeckCreatedEvent('horizon-deck', 'Horizon Deck', horizonDeckCards),
       setupDeckCreatedEvent('cryo-deck', 'Cryo Deck', cryoDeckCards),
+      ...(gateCard ? [setupGateRevealedEvent(gateCard, 'stack-sector-gate')] : []),
       ...initialFuelCards.map((card, index) => setupResourceDrawnEvent(card, 'Fuel Deck', index + 1)),
       // ...initialHullCards.map((card, index) => setupResourceDrawnEvent(card, 'Hull Deck', index + 1)),
       ...handCards.map((card, index) => setupCrewDealtEvent(card, index + 1)),

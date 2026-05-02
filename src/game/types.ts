@@ -17,6 +17,7 @@ export type CardIconKind =
   | 'crosshair'
   | 'person'
   | 'mother'
+  | 'gate'
 
 export type ResourceKind = 'fuel' | 'hull'
 
@@ -26,7 +27,7 @@ export type HorizonKind = 'star' | 'planet' | 'asteroid'
 
 export type RequirementIconKind = CrewSpecialization
 
-export type CardKind = 'resource' | 'crew' | 'horizon' | 'mother'
+export type CardKind = 'resource' | 'crew' | 'horizon' | 'mother' | 'gate'
 
 export type HandZone = 'crew' | 'tired'
 
@@ -62,6 +63,18 @@ export type HorizonDetails = {
   rewards: HorizonReward[]
 }
 
+export type GateDetails = {
+  label: string
+  need: {
+    icons: RequirementIconKind[]
+    any: number
+  }
+  motherPenalty: {
+    threshold: number
+    extraCrew: number
+  }
+}
+
 export type BoardEffect =
   | {
       kind: 'horizon_fuel_waiver'
@@ -83,6 +96,7 @@ export type CardBlueprint = {
   resource?: ResourceKind
   specializations?: CrewSpecialization[]
   horizon?: HorizonDetails
+  gate?: GateDetails
 }
 
 export type Card = CardBlueprint & {
@@ -96,6 +110,7 @@ export type Stack = {
   x: number
   y: number
   z: number
+  drawChoiceGroupId?: string
 }
 
 export type Deck = {
@@ -124,6 +139,7 @@ export type BoardState = {
   handCardIds: string[]
   tiredCardIds: string[]
   pendingEffects: BoardEffect[]
+  hasArrived: boolean
   topZ: number
   nextCardId: number
   dropTargetStackId: string | null

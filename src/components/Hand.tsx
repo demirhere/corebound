@@ -57,7 +57,7 @@ export function Hand({
 
   function getFanStyle(slotIndex: number, totalSlots: number, isActive = false) {
     const fanOffset = slotIndex - (totalSlots - 1) / 2
-    const fanSpacing = totalSlots > 6 ? 46 : totalSlots > 4 ? 64 : 85
+    const fanSpacing = totalSlots > 6 ? 60 : totalSlots > 4 ? 80 : 105
     const fanXPercent = fanOffset * fanSpacing
     const fanY = Math.abs(fanOffset) * 2
     const fanRotation = fanOffset * 2.25

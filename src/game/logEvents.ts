@@ -49,6 +49,17 @@ export function cardRulesText(card: Card | CardBlueprint) {
     return 'wild: covers 1 non-Fuel Horizon icon; stays in play after use'
   }
 
+  if (card.kind === 'gate' && card.gate) {
+    const need = [
+      ...card.gate.need.icons,
+      card.gate.need.any > 0 ? `any ${card.gate.need.any}` : null,
+    ]
+      .filter(Boolean)
+      .join(', ')
+
+    return `gate need: ${need}; ${card.gate.motherPenalty.threshold}+ MOTHER cards: need +${card.gate.motherPenalty.extraCrew} crew`
+  }
+
   return ''
 }
 
@@ -293,6 +304,30 @@ export function horizonCompletedEvent(
       rewardCardTitles: rewardCards.map((card) => card.title),
       rewardCardSummaries: rewardCards.map((card) => describeCard(card, card.id)),
       rewardCardContents: rewardCards.map(cardContent),
+    },
+  }
+}
+
+export function gateCompletedEvent(
+  gateCard: Card,
+  sourceStack: Stack,
+  cards: Record<string, Card>,
+  motherCardsInPlay: number,
+  extraCrewRequired: number,
+): PlaytestLogEvent {
+  return {
+    type: 'gate.completed',
+    message: `${describeCard(gateCard, gateCard.id)} completed from ${sourceStack.id}; ship arrived beyond the Gate.`,
+    details: {
+      gateCardId: gateCard.id,
+      gateTitle: gateCard.title,
+      sourceStackId: sourceStack.id,
+      committedCardIds: sourceStack.cardIds,
+      committedCardTitles: cardTitles(sourceStack.cardIds, cards),
+      committedCardSummaries: cardSummaries(sourceStack.cardIds, cards),
+      committedCardContents: cardContents(sourceStack.cardIds, cards),
+      motherCardsInPlay,
+      extraCrewRequired,
     },
   }
 }

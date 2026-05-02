@@ -2,6 +2,8 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
+import { HORIZON_DECK_ID } from '../game/decks'
+import { countMotherCardsInPlay } from '../game/rules'
 import type { BoardState } from '../game/types'
 import { CardStack } from './CardStack'
 import {
@@ -29,6 +31,7 @@ type BoardView = Pick<
   | 'tiredCardIds'
   | 'dropTargetStackId'
   | 'dropTargetDeckId'
+  | 'hasArrived'
 >
 
 type BoardProps = {
@@ -49,6 +52,7 @@ type BoardProps = {
   onCardKeyDown: CardKeyDownHandler
   onHandCardPointerDown: HandPointerDownHandler
   onHandCardKeyDown: HandKeyDownHandler
+  onResetGame: () => void
 }
 
 export function Board({
@@ -69,7 +73,17 @@ export function Board({
   onCardKeyDown,
   onHandCardPointerDown,
   onHandCardKeyDown,
+  onResetGame,
 }: BoardProps) {
+  const motherCardsInPlay = countMotherCardsInPlay(board.stacks, board.cards)
+  const horizonDeck = board.decks.find((deck) => deck.id === HORIZON_DECK_ID)
+  const horizonCardsInPlay = board.stacks.reduce(
+    (count, stack) =>
+      count + stack.cardIds.filter((cardId) => board.cards[cardId]?.kind === 'horizon').length,
+    0,
+  )
+  const unfinishedHorizons = (horizonDeck?.cards.length ?? 0) + horizonCardsInPlay
+
   return (
     <section
       ref={boardRef}
@@ -83,9 +97,14 @@ export function Board({
         <h2>Instructions</h2>
         <ol>
           <li>Draw 3 horizon cards, choose 1</li>
-          <li>Stack matching resources</li>
-          <li>Collect rewards</li>
+          <li>Finish it and discard the others</li>
+          <li>After all Horizons, attempt the Gate</li>
         </ol>
+        <p>Horizons unfinished: {unfinishedHorizons}</p>
+        <p>
+          MOTHER used: {motherCardsInPlay}
+          {motherCardsInPlay >= 3 ? ' / Gate penalty active' : ''}
+        </p>
       </aside>
 
       <aside className="discard-zone" data-discard-zone aria-label="Discard area">
@@ -128,6 +147,17 @@ export function Board({
         onCardPointerDown={onHandCardPointerDown}
         onCardKeyDown={onHandCardKeyDown}
       />
+
+      {board.hasArrived && (
+        <section className="arrival-panel" role="status" aria-live="polite">
+          <p className="arrival-kicker">Gate cleared</p>
+          <h2>You arrived beyond the Narrow Crossing.</h2>
+          <p>Prototype sector complete. Restart to reshuffle the sector and run it again.</p>
+          <button type="button" onClick={onResetGame}>
+            Restart and reshuffle
+          </button>
+        </section>
+      )}
     </section>
   )
 }

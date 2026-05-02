@@ -6,6 +6,14 @@ export type HorizonStackCompletion = {
   isReady: boolean
 }
 
+export type GateStackCompletion = {
+  gateCardId: string
+  gateCardIndex: number
+  isReady: boolean
+  motherCardsInPlay: number
+  extraCrewRequired: number
+}
+
 const requirementIconKinds = ['life', 'star', 'engine', 'signal'] as const
 
 export function isFaceDownStack(stack: Stack, cards: Record<string, Card>) {
@@ -55,6 +63,16 @@ export function cardsToDeckBlueprints(cardIds: string[], cards: Record<string, C
               rewards: card.horizon.rewards.map((reward) => ({ ...reward })),
             }
           : undefined,
+        gate: card.gate
+          ? {
+              label: card.gate.label,
+              need: {
+                icons: [...card.gate.need.icons],
+                any: card.gate.need.any,
+              },
+              motherPenalty: { ...card.gate.motherPenalty },
+            }
+          : undefined,
       },
     ]
   })
@@ -66,6 +84,10 @@ export function getMotherCardIdsInPlay(stacks: readonly Stack[], cards: Record<s
 
 export function countMotherCardsInPlay(stacks: readonly Stack[], cards: Record<string, Card>) {
   return getMotherCardIdsInPlay(stacks, cards).length
+}
+
+function getCrewCardIds(stack: Stack, cards: Record<string, Card>) {
+  return stack.cardIds.filter((cardId) => cards[cardId]?.kind === 'crew')
 }
 
 function countRequirementIcons(icons: readonly RequirementIconKind[]) {
@@ -81,6 +103,77 @@ function countRequirementIcons(icons: readonly RequirementIconKind[]) {
   }
 
   return counts
+}
+
+function satisfiesGateNeed(
+  crewCardIds: readonly string[],
+  cards: Record<string, Card>,
+  icons: readonly RequirementIconKind[],
+  any: number,
+) {
+  const requiredIcons = countRequirementIcons(icons)
+  const availableIcons: Record<RequirementIconKind, number> = {
+    life: 0,
+    star: 0,
+    engine: 0,
+    signal: 0,
+  }
+
+  for (const cardId of crewCardIds) {
+    for (const specialization of cards[cardId]?.specializations ?? []) {
+      availableIcons[specialization] += 1
+    }
+  }
+
+  for (const icon of requirementIconKinds) {
+    if (availableIcons[icon] < requiredIcons[icon]) {
+      return false
+    }
+  }
+
+  const unusedIconCount = requirementIconKinds.reduce(
+    (count, icon) => count + availableIcons[icon] - requiredIcons[icon],
+    0,
+  )
+
+  return unusedIconCount >= any
+}
+
+function getMinimumCrewCountForGateNeed(
+  crewCardIds: readonly string[],
+  cards: Record<string, Card>,
+  icons: readonly RequirementIconKind[],
+  any: number,
+) {
+  const selectedCardIds: string[] = []
+  let minimumCrewCount: number | null = null
+
+  function search(startIndex: number) {
+    if (minimumCrewCount !== null && selectedCardIds.length >= minimumCrewCount) {
+      return
+    }
+
+    if (satisfiesGateNeed(selectedCardIds, cards, icons, any)) {
+      minimumCrewCount = selectedCardIds.length
+      return
+    }
+
+    for (let index = startIndex; index < crewCardIds.length; index += 1) {
+      const cardId = crewCardIds[index]
+
+      if (!cardId) {
+        continue
+      }
+
+      selectedCardIds.push(cardId)
+      search(index + 1)
+      selectedCardIds.pop()
+    }
+  }
+
+  search(0)
+
+  return minimumCrewCount
 }
 
 export function getHorizonStackCompletion(
@@ -155,6 +248,64 @@ export function getHorizonStackCompletion(
     horizonCardId,
     horizonCardIndex,
     isReady: hasRequiredFuel && hasRequiredIcons && !hasBlockingCard,
+  }
+}
+
+export function getGateStackCompletion(
+  stack: Stack,
+  cards: Record<string, Card>,
+  motherCardsInPlay: number,
+): GateStackCompletion | null {
+  const gateCardIndex = stack.cardIds.findIndex((cardId) => {
+    const card = cards[cardId]
+
+    return card?.kind === 'gate' && Boolean(card.gate)
+  })
+
+  if (gateCardIndex === -1) {
+    return null
+  }
+
+  const gateCardId = stack.cardIds[gateCardIndex]
+  const gateCard = gateCardId ? cards[gateCardId] : undefined
+
+  if (!gateCard?.gate || !gateCardId) {
+    return null
+  }
+
+  let hasBlockingCard = false
+
+  for (const cardId of stack.cardIds) {
+    if (cardId === gateCardId) {
+      continue
+    }
+
+    if (cards[cardId]?.kind !== 'crew') {
+      hasBlockingCard = true
+    }
+  }
+
+  const crewCardIds = getCrewCardIds(stack, cards)
+  const minimumCrewCount = getMinimumCrewCountForGateNeed(
+    crewCardIds,
+    cards,
+    gateCard.gate.need.icons,
+    gateCard.gate.need.any,
+  )
+  const extraCrewRequired =
+    motherCardsInPlay >= gateCard.gate.motherPenalty.threshold
+      ? gateCard.gate.motherPenalty.extraCrew
+      : 0
+
+  return {
+    gateCardId,
+    gateCardIndex,
+    motherCardsInPlay,
+    extraCrewRequired,
+    isReady:
+      minimumCrewCount !== null &&
+      crewCardIds.length >= minimumCrewCount + extraCrewRequired &&
+      !hasBlockingCard,
   }
 }
 

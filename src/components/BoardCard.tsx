@@ -6,6 +6,7 @@ import {
 import type {
   Card,
   CrewSpecialization,
+  GateDetails,
   HorizonReward,
   RequirementIconKind,
   ResourceKind,
@@ -98,6 +99,24 @@ function renderReward(reward: HorizonReward, index: number) {
   return []
 }
 
+function renderAnyNeed(count: number, keyPrefix: string) {
+  return Array.from({ length: count }, (_, index) => (
+    <GameIcon key={`${keyPrefix}-any-${index}`} kind="person" />
+  ))
+}
+
+function renderGatePenalty(gate: GateDetails) {
+  if (gate.motherPenalty.extraCrew <= 0) {
+    return null
+  }
+
+  return (
+    <p className="card-rule-text">
+      {gate.motherPenalty.threshold}+ MOTHER cards: need +{gate.motherPenalty.extraCrew} crew.
+    </p>
+  )
+}
+
 function renderGameplayCardContent(card: CardView) {
   if (card.kind === 'resource' && card.resource) {
     return (
@@ -156,6 +175,23 @@ function renderGameplayCardContent(card: CardView) {
             {card.horizon.rewards.map(renderReward)}
           </div>
         </div>
+      </>
+    )
+  }
+
+  if (card.kind === 'gate' && card.gate) {
+    return (
+      <>
+        <p className="card-kicker">{card.gate.label}</p>
+        <div className="card-rule-row">
+          <span>Need</span>
+          <div className="card-rule-icons">
+            {renderIconPips(card.gate.need.icons, `${card.id}-gate-icon-need`)}
+            {renderAnyNeed(card.gate.need.any, `${card.id}-gate`)}
+          </div>
+        </div>
+        {renderGatePenalty(card.gate)}
+        <p className="card-rule-text">Finish after traveling through all Horizons.</p>
       </>
     )
   }
