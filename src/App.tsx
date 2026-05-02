@@ -1,9 +1,11 @@
 import {
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
+import { flushSync } from 'react-dom'
 import { Board } from './components/Board'
 import './App.css'
 
@@ -57,10 +59,20 @@ type StackDragState = {
   cardIndex: number
   movingStackId: string
   activeStackId: string | null
+  metrics: BoardMetrics
+  movingCardCount: number
+  sourceElement: HTMLElement | null
+  activeElement: HTMLElement | null
   startClientX: number
   startClientY: number
   startX: number
   startY: number
+  latestX: number
+  latestY: number
+  latestDeltaX: number
+  latestDeltaY: number
+  dropTargetStackId: string | null
+  dropTargetDeckId: string | null
   hasMoved: boolean
 }
 
@@ -68,10 +80,16 @@ type DeckDragState = {
   kind: 'deck'
   pointerId: number
   deckId: string
+  metrics: BoardMetrics
+  element: HTMLElement | null
   startClientX: number
   startClientY: number
   startX: number
   startY: number
+  latestX: number
+  latestY: number
+  latestDeltaX: number
+  latestDeltaY: number
   hasMoved: boolean
 }
 
@@ -101,7 +119,7 @@ const DRAG_CLICK_TOLERANCE = 5
 const DRAW_RADIUS_PERCENT = 18
 const DRAW_MIN_RADIUS_PERCENT = 8
 const STACK_OFFSET_RATIO = 0.38
-const DROP_TARGET_PADDING_RATIO = 0.28
+const DROP_TARGET_PADDING_RATIO = 0.14
 
 const startingCards: Card[] = [
   {
@@ -343,8 +361,13 @@ function App() {
   const boardRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
   const [board, setBoard] = useState(createInitialBoard)
+  const boardStateRef = useRef(board)
   const [activeStackId, setActiveStackId] = useState<string | null>(null)
   const [activeDeckId, setActiveDeckId] = useState<string | null>(null)
+
+  useLayoutEffect(() => {
+    boardStateRef.current = board
+  }, [board])
 
   function readBoardMetrics(): BoardMetrics {
     const boardElement = boardRef.current
@@ -364,8 +387,12 @@ function App() {
     }
   }
 
-  function clampStackPosition(x: number, y: number, cardCount: number) {
-    const metrics = readBoardMetrics()
+  function clampStackPosition(
+    x: number,
+    y: number,
+    cardCount: number,
+    metrics = readBoardMetrics(),
+  ) {
     const stackHeight = getStackHeight(cardCount, metrics)
     const maxX = 100 - (metrics.cardWidth / metrics.width) * 100 - 1
     const maxY = 100 - (stackHeight / metrics.height) * 100 - 1
@@ -376,14 +403,117 @@ function App() {
     }
   }
 
-  function getCardOrigin(stack: Stack, cardIndex: number) {
-    const metrics = readBoardMetrics()
+  function getCardOrigin(stack: Stack, cardIndex: number, metrics = readBoardMetrics()) {
     const offsetPercent = ((metrics.stackOffset * cardIndex) / metrics.height) * 100
 
     return {
       x: stack.x,
       y: stack.y + offsetPercent,
     }
+  }
+
+  function getStackElement(stackId: string) {
+    return boardRef.current?.querySelector<HTMLElement>(`[data-stack-id="${stackId}"]`) ?? null
+  }
+
+  function getDeckElement(deckId: string) {
+    return boardRef.current?.querySelector<HTMLElement>(`[data-deck-id="${deckId}"]`) ?? null
+  }
+
+  function setDragTransform(element: HTMLElement, deltaX: number, deltaY: number) {
+    element.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`
+  }
+
+  function clearDragTransform(element: HTMLElement | null) {
+    if (!element) {
+      return
+    }
+
+    element.style.transition = 'none'
+    element.style.removeProperty('transform')
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        element.style.removeProperty('transition')
+      })
+    })
+  }
+
+  function updateStackDragPosition(clientX: number, clientY: number, drag: StackDragState) {
+    const deltaX = ((clientX - drag.startClientX) / drag.metrics.width) * 100
+    const deltaY = ((clientY - drag.startClientY) / drag.metrics.height) * 100
+    const position = clampStackPosition(
+      drag.startX + deltaX,
+      drag.startY + deltaY,
+      drag.movingCardCount,
+      drag.metrics,
+    )
+
+    drag.latestX = position.x
+    drag.latestY = position.y
+    drag.latestDeltaX = ((position.x - drag.startX) / 100) * drag.metrics.width
+    drag.latestDeltaY = ((position.y - drag.startY) / 100) * drag.metrics.height
+  }
+
+  function updateDeckDragPosition(clientX: number, clientY: number, drag: DeckDragState) {
+    const deltaX = ((clientX - drag.startClientX) / drag.metrics.width) * 100
+    const deltaY = ((clientY - drag.startClientY) / drag.metrics.height) * 100
+    const position = clampStackPosition(drag.startX + deltaX, drag.startY + deltaY, 1, drag.metrics)
+
+    drag.latestX = position.x
+    drag.latestY = position.y
+    drag.latestDeltaX = ((position.x - drag.startX) / 100) * drag.metrics.width
+    drag.latestDeltaY = ((position.y - drag.startY) / 100) * drag.metrics.height
+  }
+
+  function applyStackDragTransform(drag: StackDragState) {
+    const activeId = drag.activeStackId
+
+    if (!activeId) {
+      return
+    }
+
+    const element = drag.activeElement ?? getStackElement(activeId)
+
+    if (!element) {
+      return
+    }
+
+    drag.activeElement = element
+    setDragTransform(element, drag.latestDeltaX, drag.latestDeltaY)
+  }
+
+  function applyDeckDragTransform(drag: DeckDragState) {
+    const element = drag.element ?? getDeckElement(drag.deckId)
+
+    if (!element) {
+      return
+    }
+
+    drag.element = element
+    setDragTransform(element, drag.latestDeltaX, drag.latestDeltaY)
+  }
+
+  function toggleStackDropTarget(stackId: string | null, enabled: boolean) {
+    if (!stackId) {
+      return
+    }
+
+    getStackElement(stackId)?.classList.toggle('is-drop-target', enabled)
+  }
+
+  function toggleDeckDropTarget(deckId: string | null, enabled: boolean) {
+    if (!deckId) {
+      return
+    }
+
+    getDeckElement(deckId)?.classList.toggle('is-drop-target', enabled)
+  }
+
+  function clearStackDragDropTarget(drag: StackDragState) {
+    toggleStackDropTarget(drag.dropTargetStackId, false)
+    toggleDeckDropTarget(drag.dropTargetDeckId, false)
+    drag.dropTargetStackId = null
+    drag.dropTargetDeckId = null
   }
 
   function getNearestDropTarget(
@@ -465,6 +595,176 @@ function App() {
         ? { ...current, dropTargetStackId: null, dropTargetDeckId: null }
         : current,
     )
+  }
+
+  function activateStackDrag(drag: StackDragState) {
+    if (!boardStateRef.current.stacks.some((stack) => stack.id === drag.stackId)) {
+      return
+    }
+
+    const activeId = drag.cardIndex === 0 ? drag.stackId : drag.movingStackId
+
+    drag.hasMoved = true
+    drag.activeStackId = activeId
+    drag.dropTargetStackId = null
+    drag.dropTargetDeckId = null
+
+    flushSync(() => {
+      setActiveStackId(activeId)
+      setBoard((current) => {
+        const sourceStack = current.stacks.find((stack) => stack.id === drag.stackId)
+
+        if (!sourceStack) {
+          return current
+        }
+
+        const nextZ = current.topZ + 1
+        const nextStacks =
+          drag.cardIndex > 0
+            ? current.stacks.flatMap((stack) => {
+                if (stack.id !== sourceStack.id) {
+                  return [stack]
+                }
+
+                return [
+                  { ...stack, cardIds: sourceStack.cardIds.slice(0, drag.cardIndex) },
+                  {
+                    id: activeId,
+                    cardIds: sourceStack.cardIds.slice(drag.cardIndex),
+                    x: drag.startX,
+                    y: drag.startY,
+                    z: nextZ,
+                  },
+                ]
+              })
+            : current.stacks.map((stack) =>
+                stack.id === activeId ? { ...stack, z: nextZ } : stack,
+              )
+
+        return {
+          ...current,
+          topZ: nextZ,
+          stacks: nextStacks,
+          dropTargetStackId: null,
+          dropTargetDeckId: null,
+        }
+      })
+    })
+
+    drag.activeElement = getStackElement(activeId) ?? (activeId === drag.stackId ? drag.sourceElement : null)
+  }
+
+  function activateDeckDrag(drag: DeckDragState) {
+    if (!boardStateRef.current.decks.some((deck) => deck.id === drag.deckId)) {
+      return
+    }
+
+    drag.hasMoved = true
+
+    flushSync(() => {
+      setActiveDeckId(drag.deckId)
+      setBoard((current) => {
+        const nextZ = current.topZ + 1
+
+        return {
+          ...current,
+          topZ: nextZ,
+          dropTargetStackId: null,
+          dropTargetDeckId: null,
+          decks: current.decks.map((deck) =>
+            deck.id === drag.deckId ? { ...deck, z: nextZ } : deck,
+          ),
+        }
+      })
+    })
+
+    drag.element = getDeckElement(drag.deckId) ?? drag.element
+  }
+
+  function updateStackDropTarget(drag: StackDragState) {
+    const activeId = drag.activeStackId
+
+    if (!activeId) {
+      return
+    }
+
+    const current = boardStateRef.current
+    const hasActiveStack = current.stacks.some((stack) => stack.id === activeId)
+
+    if (!hasActiveStack) {
+      return
+    }
+
+    const previewStacks = current.stacks.map((stack) =>
+      stack.id === activeId ? { ...stack, x: drag.latestX, y: drag.latestY } : stack,
+    )
+    const dropTarget = getNearestDropTarget(
+      previewStacks,
+      current.decks,
+      current.cards,
+      activeId,
+      drag.metrics,
+    )
+
+    if (
+      dropTarget.stackId === drag.dropTargetStackId &&
+      dropTarget.deckId === drag.dropTargetDeckId
+    ) {
+      return
+    }
+
+    toggleStackDropTarget(drag.dropTargetStackId, false)
+    toggleDeckDropTarget(drag.dropTargetDeckId, false)
+    drag.dropTargetStackId = dropTarget.stackId
+    drag.dropTargetDeckId = dropTarget.deckId
+    toggleStackDropTarget(dropTarget.stackId, true)
+    toggleDeckDropTarget(dropTarget.deckId, true)
+  }
+
+  function commitStackDragPosition(drag: StackDragState) {
+    const activeId = drag.activeStackId
+
+    if (!activeId) {
+      return
+    }
+
+    setBoard((current) => {
+      let didMove = false
+      const nextStacks = current.stacks.map((stack) => {
+        if (stack.id !== activeId) {
+          return stack
+        }
+
+        if (stack.x === drag.latestX && stack.y === drag.latestY) {
+          return stack
+        }
+
+        didMove = true
+        return { ...stack, x: drag.latestX, y: drag.latestY }
+      })
+
+      return didMove ? { ...current, stacks: nextStacks } : current
+    })
+  }
+
+  function commitDeckDragPosition(drag: DeckDragState) {
+    setBoard((current) => {
+      let didMove = false
+      const nextDecks = current.decks.map((deck) => {
+        if (deck.id !== drag.deckId) {
+          return deck
+        }
+
+        if (deck.x === drag.latestX && deck.y === drag.latestY) {
+          return deck
+        }
+
+        didMove = true
+        return { ...deck, x: drag.latestX, y: drag.latestY }
+      })
+
+      return didMove ? { ...current, decks: nextDecks } : current
+    })
   }
 
   function flipCard(cardId: string, stackId: string) {
@@ -560,7 +860,9 @@ function App() {
       return
     }
 
-    const origin = getCardOrigin(stack, cardIndex)
+    const metrics = readBoardMetrics()
+    const origin = getCardOrigin(stack, cardIndex, metrics)
+    const movingCardCount = Math.max(1, stack.cardIds.length - cardIndex)
 
     event.preventDefault()
     captureBoardPointer(event.pointerId)
@@ -572,10 +874,20 @@ function App() {
       cardIndex,
       movingStackId: `moving-${cardId}`,
       activeStackId: null,
+      metrics,
+      movingCardCount,
+      sourceElement: event.currentTarget.closest('.card-stack') as HTMLElement | null,
+      activeElement: null,
       startClientX: event.clientX,
       startClientY: event.clientY,
       startX: origin.x,
       startY: origin.y,
+      latestX: origin.x,
+      latestY: origin.y,
+      latestDeltaX: 0,
+      latestDeltaY: 0,
+      dropTargetStackId: board.dropTargetStackId,
+      dropTargetDeckId: board.dropTargetDeckId,
       hasMoved: false,
     }
   }
@@ -591,17 +903,24 @@ function App() {
       return
     }
 
+    const metrics = readBoardMetrics()
+
     event.preventDefault()
     captureBoardPointer(event.pointerId)
-    setActiveDeckId(deckId)
     dragRef.current = {
       kind: 'deck',
       pointerId: event.pointerId,
       deckId,
+      metrics,
+      element: event.currentTarget,
       startClientX: event.clientX,
       startClientY: event.clientY,
       startX: deck.x,
       startY: deck.y,
+      latestX: deck.x,
+      latestY: deck.y,
+      latestDeltaX: 0,
+      latestDeltaY: 0,
       hasMoved: false,
     }
   }
@@ -616,86 +935,18 @@ function App() {
       return
     }
 
-    const metrics = readBoardMetrics()
-    const deltaX = ((event.clientX - drag.startClientX) / metrics.width) * 100
-    const deltaY = ((event.clientY - drag.startClientY) / metrics.height) * 100
-    const isActivating = !drag.hasMoved
+    updateStackDragPosition(event.clientX, event.clientY, drag)
 
-    if (isActivating) {
-      drag.hasMoved = true
-      drag.activeStackId = drag.cardIndex === 0 ? drag.stackId : drag.movingStackId
-      setActiveStackId(drag.activeStackId)
+    if (!drag.hasMoved) {
+      activateStackDrag(drag)
     }
 
-    const activeId = drag.activeStackId
-
-    if (!activeId) {
+    if (!drag.activeStackId) {
       return
     }
 
-    setBoard((current) => {
-      const movingStack = current.stacks.find((stack) => stack.id === activeId)
-      const sourceStack = current.stacks.find((stack) => stack.id === drag.stackId)
-      const movingCardCount =
-        movingStack?.cardIds.length ??
-        Math.max(1, (sourceStack?.cardIds.length ?? drag.cardIndex + 1) - drag.cardIndex)
-      const position = clampStackPosition(
-        drag.startX + deltaX,
-        drag.startY + deltaY,
-        movingCardCount,
-      )
-      const nextZ = isActivating ? current.topZ + 1 : current.topZ
-      let nextStacks: Stack[]
-
-      if (isActivating && drag.cardIndex > 0 && sourceStack) {
-        const remainingCardIds = sourceStack.cardIds.slice(0, drag.cardIndex)
-        const movingCardIds = sourceStack.cardIds.slice(drag.cardIndex)
-
-        nextStacks = current.stacks.flatMap((stack) => {
-          if (stack.id !== sourceStack.id) {
-            return [stack]
-          }
-
-          return [
-            { ...stack, cardIds: remainingCardIds },
-            {
-              id: activeId,
-              cardIds: movingCardIds,
-              x: position.x,
-              y: position.y,
-              z: nextZ,
-            },
-          ]
-        })
-      } else {
-        nextStacks = current.stacks.map((stack) =>
-          stack.id === activeId
-            ? {
-                ...stack,
-                x: position.x,
-                y: position.y,
-                z: isActivating ? nextZ : stack.z,
-              }
-            : stack,
-        )
-      }
-
-      const dropTarget = getNearestDropTarget(
-        nextStacks,
-        current.decks,
-        current.cards,
-        activeId,
-        metrics,
-      )
-
-      return {
-        ...current,
-        topZ: nextZ,
-        stacks: nextStacks,
-        dropTargetStackId: dropTarget.stackId,
-        dropTargetDeckId: dropTarget.deckId,
-      }
-    })
+    applyStackDragTransform(drag)
+    updateStackDropTarget(drag)
   }
 
   function moveDeckDrag(event: ReactPointerEvent<HTMLDivElement>, drag: DeckDragState) {
@@ -708,36 +959,17 @@ function App() {
       return
     }
 
-    const metrics = readBoardMetrics()
-    const deltaX = ((event.clientX - drag.startClientX) / metrics.width) * 100
-    const deltaY = ((event.clientY - drag.startClientY) / metrics.height) * 100
-    const isActivating = !drag.hasMoved
-    const position = clampStackPosition(drag.startX + deltaX, drag.startY + deltaY, 1)
+    updateDeckDragPosition(event.clientX, event.clientY, drag)
 
-    if (isActivating) {
-      drag.hasMoved = true
+    if (!drag.hasMoved) {
+      activateDeckDrag(drag)
     }
 
-    setBoard((current) => {
-      const nextZ = isActivating ? current.topZ + 1 : current.topZ
+    if (!drag.hasMoved) {
+      return
+    }
 
-      return {
-        ...current,
-        topZ: nextZ,
-        dropTargetStackId: null,
-        dropTargetDeckId: null,
-        decks: current.decks.map((deck) =>
-          deck.id === drag.deckId
-            ? {
-                ...deck,
-                x: position.x,
-                y: position.y,
-                z: isActivating ? nextZ : deck.z,
-              }
-            : deck,
-        ),
-      }
-    })
+    applyDeckDragTransform(drag)
   }
 
   function moveActiveDrag(event: ReactPointerEvent<HTMLDivElement>) {
@@ -755,11 +987,11 @@ function App() {
     moveDeckDrag(event, drag)
   }
 
-  function stackOnDropTarget(sourceStackId: string) {
+  function stackOnDropTarget(sourceStackId: string, dropTarget: DropTarget) {
     setBoard((current) => {
       const sourceStack = current.stacks.find((stack) => stack.id === sourceStackId)
-      const targetStackId = current.dropTargetStackId
-      const targetDeckId = current.dropTargetDeckId
+      const targetStackId = dropTarget.stackId
+      const targetDeckId = dropTarget.deckId
 
       if (!sourceStack) {
         return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
@@ -895,7 +1127,17 @@ function App() {
       }
 
       if (drag.activeStackId) {
-        stackOnDropTarget(drag.activeStackId)
+        updateStackDragPosition(event.clientX, event.clientY, drag)
+        updateStackDropTarget(drag)
+        const dropTarget = {
+          stackId: drag.dropTargetStackId,
+          deckId: drag.dropTargetDeckId,
+        }
+
+        clearStackDragDropTarget(drag)
+        commitStackDragPosition(drag)
+        clearDragTransform(drag.activeElement)
+        stackOnDropTarget(drag.activeStackId, dropTarget)
         return
       }
 
@@ -903,14 +1145,18 @@ function App() {
       return
     }
 
-    setActiveDeckId(null)
-
     if (!drag.hasMoved) {
       drawFromDeck(drag.deckId)
       return
     }
 
-    clearDropTarget()
+    updateDeckDragPosition(event.clientX, event.clientY, drag)
+    flushSync(() => {
+      setActiveDeckId(null)
+      commitDeckDragPosition(drag)
+      clearDropTarget()
+    })
+    clearDragTransform(drag.element)
   }
 
   function cancelActiveDrag(event: ReactPointerEvent<HTMLDivElement>) {
@@ -922,8 +1168,23 @@ function App() {
 
     releaseBoardPointer(event.pointerId)
     dragRef.current = null
+
+    if (drag.kind === 'stack') {
+      if (drag.hasMoved && drag.activeStackId) {
+        clearStackDragDropTarget(drag)
+        commitStackDragPosition(drag)
+        clearDragTransform(drag.activeElement)
+      }
+    } else if (drag.hasMoved) {
+      flushSync(() => {
+        setActiveDeckId(null)
+        commitDeckDragPosition(drag)
+        clearDropTarget()
+      })
+      clearDragTransform(drag.element)
+    }
+
     setActiveStackId(null)
-    setActiveDeckId(null)
     clearDropTarget()
   }
 

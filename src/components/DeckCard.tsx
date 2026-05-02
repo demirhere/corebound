@@ -47,6 +47,7 @@ export function DeckCard({
       className={`deck-card ${isActive ? 'is-being-dragged' : ''} ${
         isDropTarget ? 'is-drop-target' : ''
       }`}
+      data-deck-id={deck.id}
       style={
         {
           '--card-hue': String(deck.hue),

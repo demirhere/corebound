@@ -5,6 +5,7 @@
   width: 100vw;
   height: 100svh;
   overflow: hidden;
+  overscroll-behavior: none;
   color: #f6f1df;
   background: #050713;
 }
@@ -15,6 +16,9 @@
   height: 100%;
   overflow: hidden;
   isolation: isolate;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
   background: linear-gradient(135deg, #070917 0%, #11142b 52%, #050713 100%);
 
   &::before {
@@ -59,6 +63,10 @@
   isolation: isolate;
   width: var(--card-width);
   height: var(--card-height);
+}
+
+.card-stack.is-active-stack {
+  will-change: transform;
 }
 
 .card-stack.is-drop-target::before {
@@ -119,6 +127,7 @@
   &.is-being-dragged {
     cursor: grabbing;
     transform: translateY(-2px) scale(1.03);
+    will-change: transform;
     filter:
       drop-shadow(0 26px 24px rgba(0, 0, 0, 0.55))
       drop-shadow(0 0 16px color-mix(in srgb, var(--card-accent) 65%, transparent));
@@ -515,7 +524,11 @@
 
   &.is-being-dragged {
     cursor: grabbing;
+    transition:
+      box-shadow 160ms ease,
+      filter 160ms ease;
     transform: translateY(-2px) scale(1.03);
+    will-change: transform;
     box-shadow:
       8px -8px 0 rgba(255, 255, 255, 0.11),
       16px -16px 0 rgba(255, 255, 255, 0.05),

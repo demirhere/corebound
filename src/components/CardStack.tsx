@@ -40,6 +40,7 @@ export function CardStack({
       className={`card-stack ${isDropTarget ? 'is-drop-target' : ''} ${
         isActive ? 'is-active-stack' : ''
       }`}
+      data-stack-id={stack.id}
       style={
         {
           left: `${stack.x}%`,
