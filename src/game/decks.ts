@@ -1,6 +1,7 @@
 import type { Deck, DeckDrawRules } from './types'
 
 export const HORIZON_DECK_ID = 'horizon-deck'
+export const MOTHER_DECK_ID = 'mother-deck'
 
 export const manualDeckDraw = {
   canManuallyDraw: true,

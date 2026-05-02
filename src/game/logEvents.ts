@@ -1,4 +1,4 @@
-import type { Card, CardBlueprint, Deck, HorizonReward, Stack } from './types'
+import type { Card, CardBlueprint, Deck, GameLossReason, HorizonReward, Stack } from './types'
 import type { PlaytestLogEvent } from './playtestLog'
 
 function roundPosition(value: number) {
@@ -46,7 +46,7 @@ export function cardRulesText(card: Card | CardBlueprint) {
   }
 
   if (card.kind === 'mother') {
-    return 'wild: covers 1 non-Fuel Horizon icon; stays in play after use'
+    return 'wild: covers 1 non-Fuel icon; spent after use'
   }
 
   if (card.kind === 'gate' && card.gate) {
@@ -329,5 +329,18 @@ export function gateCompletedEvent(
       motherCardsInPlay,
       extraCrewRequired,
     },
+  }
+}
+
+export function gameLostEvent(reason: GameLossReason): PlaytestLogEvent {
+  const message =
+    reason === 'horizon-stranded'
+      ? 'No drawn Horizon can be completed with available Fuel, Ready crew, and unused MOTHER cards.'
+      : 'The sector Gate cannot be completed with remaining Ready crew and unused MOTHER cards.'
+
+  return {
+    type: 'game.lost',
+    message,
+    details: { reason },
   }
 }

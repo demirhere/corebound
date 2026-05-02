@@ -200,6 +200,33 @@
   text-transform: uppercase;
 }
 
+.loss-panel {
+  border-color: rgba(255, 79, 100, 0.5);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255, 79, 100, 0.28), transparent 38%),
+    radial-gradient(circle at 82% 26%, rgba(255, 207, 138, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(28, 9, 17, 0.97), rgba(6, 5, 14, 0.98));
+
+  .arrival-kicker {
+    border-color: rgba(255, 79, 100, 0.5);
+    color: #ff9baa;
+    background: rgba(255, 79, 100, 0.12);
+  }
+
+  button {
+    border-color: rgba(255, 155, 170, 0.6);
+    color: #24060d;
+    background: #ff9baa;
+
+    &:hover,
+    &:focus-visible {
+      box-shadow:
+        0 10px 22px rgba(0, 0, 0, 0.32),
+        0 0 0 4px rgba(255, 79, 100, 0.2);
+    }
+  }
+}
+
 .discard-zone {
   position: absolute;
   right: clamp(14px, 2vw, 28px);
@@ -763,6 +790,19 @@
     radial-gradient(circle at 38% 31%, rgba(255, 255, 255, 0.18), transparent 38%),
     color-mix(in srgb, var(--icon-color) 26%, #18070f);
   box-shadow: 0 0 14px rgba(255, 79, 100, 0.32);
+}
+
+.card-shell.card-kind-mother.is-spent-mother {
+  filter: drop-shadow(0 12px 10px rgba(0, 0, 0, 0.42)) saturate(0.72);
+
+  .card-face.card-front {
+    color: rgba(255, 240, 232, 0.76);
+    background:
+      linear-gradient(90deg, rgba(255, 79, 100, 0.58) 0 7px, transparent 7px),
+      radial-gradient(circle at 68% 34%, rgba(255, 79, 100, 0.18), transparent 34%),
+      repeating-linear-gradient(0deg, rgba(255, 240, 232, 0.07) 0 1px, transparent 1px 7px),
+      linear-gradient(150deg, #13070c, #1a0b12 62%, #070913);
+  }
 }
 
 .card-shell.card-kind-gate .card-face.card-front {

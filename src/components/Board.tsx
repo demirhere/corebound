@@ -2,7 +2,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
-import type { BoardState } from '../game/types'
+import type { BoardState, GameLossReason } from '../game/types'
 import { CardStack } from './CardStack'
 import {
   type CardKeyDownHandler,
@@ -30,6 +30,7 @@ type BoardView = Pick<
   | 'dropTargetStackId'
   | 'dropTargetDeckId'
   | 'hasArrived'
+  | 'lossReason'
 >
 
 type BoardProps = {
@@ -53,6 +54,20 @@ type BoardProps = {
   onResetGame: () => void
 }
 
+function lossContent(reason: GameLossReason) {
+  if (reason === 'horizon-stranded') {
+    return {
+      title: 'Stranded in the Reach.',
+      body: 'No drawn Horizon can be completed with your available Fuel, Ready crew, and unused MOTHER cards.',
+    }
+  }
+
+  return {
+    title: 'The Gate cannot be passed.',
+    body: 'The sector Gate cannot be completed with the remaining Ready crew and unused MOTHER cards.',
+  }
+}
+
 export function Board({
   board,
   boardRef,
@@ -73,6 +88,8 @@ export function Board({
   onHandCardKeyDown,
   onResetGame,
 }: BoardProps) {
+  const loss = board.lossReason ? lossContent(board.lossReason) : null
+
   return (
     <section
       ref={boardRef}
@@ -140,6 +157,22 @@ export function Board({
           <p className="arrival-kicker">Gate cleared</p>
           <h2>You arrived beyond the Narrow Crossing.</h2>
           <p>Prototype sector complete. Restart to reshuffle the sector and run it again.</p>
+          <button type="button" onClick={onResetGame}>
+            Restart and reshuffle
+          </button>
+        </section>
+      )}
+
+      {loss && (
+        <section
+          className="arrival-panel loss-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="loss-title"
+        >
+          <p className="arrival-kicker">Ship failed</p>
+          <h2 id="loss-title">{loss.title}</h2>
+          <p>{loss.body}</p>
           <button type="button" onClick={onResetGame}>
             Restart and reshuffle
           </button>

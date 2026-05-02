@@ -29,6 +29,8 @@ export type RequirementIconKind = CrewSpecialization
 
 export type CardKind = 'resource' | 'crew' | 'horizon' | 'mother' | 'gate'
 
+export type GameLossReason = 'horizon-stranded' | 'gate-failed'
+
 export type HandZone = 'crew' | 'tired'
 
 export type HorizonReward =
@@ -102,6 +104,7 @@ export type CardBlueprint = {
 export type Card = CardBlueprint & {
   id: string
   faceUp: boolean
+  spentMother?: boolean
 }
 
 export type Stack = {
@@ -140,6 +143,7 @@ export type BoardState = {
   tiredCardIds: string[]
   pendingEffects: BoardEffect[]
   hasArrived: boolean
+  lossReason: GameLossReason | null
   topZ: number
   nextCardId: number
   dropTargetStackId: string | null

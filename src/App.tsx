@@ -10,7 +10,7 @@ import {
 import { flushSync } from 'react-dom'
 import { Board } from './components/Board'
 import { PlaytestLog } from './components/PlaytestLog'
-import { HORIZON_DECK_ID, canManuallyDrawDeck, manualDeckDraw } from './game/decks'
+import { HORIZON_DECK_ID, MOTHER_DECK_ID, canManuallyDrawDeck, manualDeckDraw } from './game/decks'
 import {
   applyPendingEffectsToDrawnCard,
   consumeDeckDrawModifiers,
@@ -33,6 +33,7 @@ import {
   cardsStackedEvent,
   deckCreatedFromStacksEvent,
   decksMergedEvent,
+  gameLostEvent,
   handCardDroppedEvent,
   gateCompletedEvent,
   horizonCompletedEvent,
@@ -41,11 +42,14 @@ import {
 import { formatConsoleLogEntry } from './game/playtestLog'
 import {
   canCombineAsDeck,
+  canCompleteNeedWithCrewAndMother,
   canStackCards,
   cardsToDeckBlueprints,
   countMotherCardsInPlay,
+  countUsableMotherCardsInPlay,
   getGateStackCompletion,
   getHorizonStackCompletion,
+  isUsableMotherCard,
   isFaceDownStack,
   withoutCards,
 } from './game/rules'
@@ -62,6 +66,7 @@ import type {
   Card,
   Deck,
   DropTarget,
+  GameLossReason,
   HandZone,
   Stack,
 } from './game/types'
@@ -396,7 +401,162 @@ function App() {
   }
 
   function getSpentMotherCardIds(stack: Stack, cards: Record<string, Card>) {
-    return stack.cardIds.filter((cardId) => cards[cardId]?.kind === 'mother')
+    return stack.cardIds.filter((cardId) => isUsableMotherCard(cards[cardId]))
+  }
+
+  function markMotherCardsSpent(cards: Record<string, Card>, cardIds: readonly string[]) {
+    const nextCards = { ...cards }
+
+    for (const cardId of cardIds) {
+      const card = nextCards[cardId]
+
+      if (card?.kind === 'mother') {
+        nextCards[cardId] = { ...card, spentMother: true }
+      }
+    }
+
+    return nextCards
+  }
+
+  function getDeckCardCount(current: BoardState, deckId: string) {
+    return current.decks.find((deck) => deck.id === deckId)?.cards.length ?? 0
+  }
+
+  function getReadyCrewCardIds(current: BoardState) {
+    const tiredCardIdSet = new Set(current.tiredCardIds)
+
+    return Object.values(current.cards).flatMap((card) =>
+      card.kind === 'crew' && !tiredCardIdSet.has(card.id) ? [card.id] : [],
+    )
+  }
+
+  function countFuelCardsInPlay(current: BoardState) {
+    const fuelCardIds = new Set<string>()
+
+    for (const stack of current.stacks) {
+      for (const cardId of stack.cardIds) {
+        const card = current.cards[cardId]
+
+        if (card?.kind === 'resource' && card.resource === 'fuel') {
+          fuelCardIds.add(cardId)
+        }
+      }
+    }
+
+    return fuelCardIds.size
+  }
+
+  function getAvailableMotherCardCount(current: BoardState) {
+    return (
+      countUsableMotherCardsInPlay(current.stacks, current.cards) +
+      getDeckCardCount(current, MOTHER_DECK_ID)
+    )
+  }
+
+  function canTravelToHorizon(current: BoardState, horizonCard: Card) {
+    if (!horizonCard.horizon) {
+      return false
+    }
+
+    return (
+      countFuelCardsInPlay(current) >= horizonCard.horizon.need.fuel &&
+      canCompleteNeedWithCrewAndMother(
+        getReadyCrewCardIds(current),
+        current.cards,
+        horizonCard.horizon.need.icons,
+        0,
+        getAvailableMotherCardCount(current),
+      )
+    )
+  }
+
+  function canTravelToAnyHorizon(current: BoardState, horizonCardIds: readonly string[]) {
+    return horizonCardIds.some((cardId) => {
+      const card = current.cards[cardId]
+
+      return card?.kind === 'horizon' && canTravelToHorizon(current, card)
+    })
+  }
+
+  function getSectorGateCard(current: BoardState) {
+    for (const stack of current.stacks) {
+      for (const cardId of stack.cardIds) {
+        const card = current.cards[cardId]
+
+        if (card?.kind === 'gate' && card.gate) {
+          return card
+        }
+      }
+    }
+
+    return null
+  }
+
+  function canCompleteSectorGate(current: BoardState) {
+    const gateCard = getSectorGateCard(current)
+
+    if (!gateCard?.gate) {
+      return false
+    }
+
+    const readyCrewCardIds = getReadyCrewCardIds(current)
+    const motherCardsInPlay = countMotherCardsInPlay(current.stacks, current.cards)
+    const usableMotherCardsInPlay = countUsableMotherCardsInPlay(current.stacks, current.cards)
+    const availableMotherCardCount = usableMotherCardsInPlay + getDeckCardCount(current, MOTHER_DECK_ID)
+
+    for (let motherCardsUsed = 0; motherCardsUsed <= availableMotherCardCount; motherCardsUsed += 1) {
+      const drawnMotherCardsUsed = Math.max(0, motherCardsUsed - usableMotherCardsInPlay)
+      const motherCardsInPlayAfterUse = motherCardsInPlay + drawnMotherCardsUsed
+      const extraCrewRequired =
+        motherCardsInPlayAfterUse >= gateCard.gate.motherPenalty.threshold
+          ? gateCard.gate.motherPenalty.extraCrew
+          : 0
+
+      if (
+        canCompleteNeedWithCrewAndMother(
+          readyCrewCardIds,
+          current.cards,
+          gateCard.gate.need.icons,
+          gateCard.gate.need.any,
+          motherCardsUsed,
+          extraCrewRequired,
+        )
+      ) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  function resolveLoss(current: BoardState, reason: GameLossReason) {
+    if (current.hasArrived || current.lossReason) {
+      return { board: current, events: [] }
+    }
+
+    return {
+      board: {
+        ...current,
+        lossReason: reason,
+        dropTargetStackId: null,
+        dropTargetDeckId: null,
+      },
+      events: [gameLostEvent(reason)],
+    }
+  }
+
+  function resolveGateLossIfNeeded(current: BoardState) {
+    if (
+      current.hasArrived ||
+      current.lossReason ||
+      !isSectorHorizonFinished(current) ||
+      !getSectorGateCard(current) ||
+      canCompleteSectorGate(current)
+    ) {
+      return { board: current, events: [] }
+    }
+
+    return resolveLoss(current, 'gate-failed')
   }
 
   function readyTiredCrew(
@@ -1337,7 +1497,7 @@ function App() {
     setBoard((current) => {
       const deck = current.decks.find((candidate) => candidate.id === deckId)
 
-      if (current.hasArrived || !deck || !canManuallyDrawDeck(deck)) {
+      if (current.hasArrived || current.lossReason || !deck || !canManuallyDrawDeck(deck)) {
         return current
       }
 
@@ -1383,7 +1543,13 @@ function App() {
         drawEvents.push(cardDrawnEvent(newCard, deck, newStackId, position.x, position.y))
       }
 
-      return withPlaytestEvents({
+      const drawnHorizonCardIds = drawnStacks.flatMap((stack) => {
+        const cardId = stack.cardIds[0]
+        const card = cardId ? nextCards[cardId] : undefined
+
+        return card?.kind === 'horizon' ? [card.id] : []
+      })
+      const nextBoard = {
         ...current,
         topZ: firstCardZ + drawnStacks.length - 1,
         nextCardId,
@@ -1400,7 +1566,15 @@ function App() {
             ? { ...candidate, cards: candidate.cards.slice(drawnBlueprints.length), z: deckZ }
             : candidate,
         ),
-      }, drawEvents)
+      }
+      const loss =
+        deck.id === HORIZON_DECK_ID &&
+        drawnHorizonCardIds.length > 0 &&
+        !canTravelToAnyHorizon(nextBoard, drawnHorizonCardIds)
+          ? resolveLoss(nextBoard, 'horizon-stranded')
+          : { board: nextBoard, events: [] }
+
+      return withPlaytestEvents(loss.board, [...drawEvents, ...loss.events])
     })
   }
 
@@ -1502,6 +1676,8 @@ function App() {
       delete nextCards[cardId]
     }
 
+    const resolvedCards = markMotherCardsSpent(nextCards, spentMotherCardIds)
+
     const rewardPosition =
       rewardCards.length > 0
         ? clampStackPosition(
@@ -1542,26 +1718,30 @@ function App() {
         : []),
     ]
 
+    const nextBoard = {
+      ...current,
+      topZ: nextZ,
+      nextCardId,
+      dropTargetStackId: null,
+      dropTargetDeckId: null,
+      handCardIds: readyCrewResult.handCardIds,
+      tiredCardIds: readyCrewResult.tiredCardIds,
+      pendingEffects: [
+        ...current.pendingEffects,
+        ...createBoardEffectsForHorizonRewards(rewards),
+      ],
+      cards: resolvedCards,
+      stacks: resolvedStacks,
+      decks: nextDecks,
+    }
+    const gateLoss = resolveGateLossIfNeeded(nextBoard)
+
     return {
-      board: {
-        ...current,
-        topZ: nextZ,
-        nextCardId,
-        dropTargetStackId: null,
-        dropTargetDeckId: null,
-        handCardIds: readyCrewResult.handCardIds,
-        tiredCardIds: readyCrewResult.tiredCardIds,
-        pendingEffects: [
-          ...current.pendingEffects,
-          ...createBoardEffectsForHorizonRewards(rewards),
-        ],
-        cards: nextCards,
-        stacks: resolvedStacks,
-        decks: nextDecks,
-      },
+      board: gateLoss.board,
       events: [
         horizonCompletedEvent(horizonCard, sourceStack, rewardCards, current.cards),
         ...otherChoiceStacks.map((stack) => cardsDiscardedEvent(stack.cardIds, current.cards, stack.id)),
+        ...gateLoss.events,
       ],
     }
   }
@@ -1578,7 +1758,7 @@ function App() {
   function completeReadyGateStack(current: BoardState, stackId: string) {
     const sourceStack = current.stacks.find((stack) => stack.id === stackId)
 
-    if (!sourceStack || current.hasArrived || !isSectorHorizonFinished(current)) {
+    if (!sourceStack || current.hasArrived || current.lossReason || !isSectorHorizonFinished(current)) {
       return { board: current, events: [] }
     }
 
@@ -1597,6 +1777,8 @@ function App() {
 
     const spentCrewCardIds = getSpentCrewCardIds(sourceStack, current.cards)
     const spentCrewCardIdSet = new Set(spentCrewCardIds)
+    const spentMotherCardIds = getSpentMotherCardIds(sourceStack, current.cards)
+    const nextCards = markMotherCardsSpent(current.cards, spentMotherCardIds)
     const handCardIdsWithoutSpentCrew = current.handCardIds.filter(
       (cardId) => !spentCrewCardIdSet.has(cardId),
     )
@@ -1618,6 +1800,7 @@ function App() {
         dropTargetDeckId: null,
         handCardIds: readyCrewResult.handCardIds,
         tiredCardIds: readyCrewResult.tiredCardIds,
+        cards: nextCards,
         stacks: current.stacks.map((stack) =>
           stack.id === sourceStack.id
             ? {
@@ -1661,7 +1844,13 @@ function App() {
       const card = current.cards[cardId]
       const sourceHandZone = getCardHandZone(current, cardId)
 
-      if (!card || !sourceHandZone || !canUseManualHandZone(sourceHandZone)) {
+      if (
+        current.hasArrived ||
+        current.lossReason ||
+        !card ||
+        !sourceHandZone ||
+        !canUseManualHandZone(sourceHandZone)
+      ) {
         return current
       }
 
@@ -1694,7 +1883,7 @@ function App() {
     setBoard((current) => {
       const stack = current.stacks.find((candidate) => candidate.id === stackId)
 
-      if (!stack) {
+      if (current.hasArrived || current.lossReason || !stack) {
         return current
       }
 
@@ -1702,13 +1891,19 @@ function App() {
         return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
       }
 
-      return withPlaytestEvents({
+      const nextBoard = {
         ...current,
         dropTargetStackId: null,
         dropTargetDeckId: null,
         cards: withoutCards(current.cards, stack.cardIds),
         stacks: current.stacks.filter((candidate) => candidate.id !== stack.id),
-      }, cardsDiscardedEvent(stack.cardIds, current.cards, stack.id))
+      }
+      const gateLoss = resolveGateLossIfNeeded(nextBoard)
+
+      return withPlaytestEvents(gateLoss.board, [
+        cardsDiscardedEvent(stack.cardIds, current.cards, stack.id),
+        ...gateLoss.events,
+      ])
     })
   }
 
@@ -1717,19 +1912,31 @@ function App() {
       const card = current.cards[cardId]
       const sourceHandZone = getCardHandZone(current, cardId)
 
-      if (!card || !sourceHandZone || !canUseManualHandZone(sourceHandZone)) {
+      if (
+        current.hasArrived ||
+        current.lossReason ||
+        !card ||
+        !sourceHandZone ||
+        !canUseManualHandZone(sourceHandZone)
+      ) {
         return current
       }
 
       const nextHands = removeCardFromHandZones(current, cardId)
 
-      return withPlaytestEvents({
+      const nextBoard = {
         ...current,
         dropTargetStackId: null,
         dropTargetDeckId: null,
         cards: withoutCards(current.cards, [cardId]),
         ...nextHands,
-      }, cardsDiscardedEvent([cardId], current.cards, sourceHandZone))
+      }
+      const gateLoss = resolveGateLossIfNeeded(nextBoard)
+
+      return withPlaytestEvents(gateLoss.board, [
+        cardsDiscardedEvent([cardId], current.cards, sourceHandZone),
+        ...gateLoss.events,
+      ])
     })
   }
 
@@ -1739,7 +1946,13 @@ function App() {
 
     const sourceHandZone = getCardHandZone(current, drag.cardId)
 
-    if (!card || !sourceHandZone || !canUseManualHandZone(sourceHandZone)) {
+    if (
+      current.hasArrived ||
+      current.lossReason ||
+      !card ||
+      !sourceHandZone ||
+      !canUseManualHandZone(sourceHandZone)
+    ) {
       return null
     }
 
@@ -1758,7 +1971,12 @@ function App() {
       setBoard((latest) => {
         const latestSourceHandZone = getCardHandZone(latest, drag.cardId)
 
-        if (!latestSourceHandZone || !canUseManualHandZone(latestSourceHandZone)) {
+        if (
+          latest.hasArrived ||
+          latest.lossReason ||
+          !latestSourceHandZone ||
+          !canUseManualHandZone(latestSourceHandZone)
+        ) {
           return latest
         }
 
@@ -1895,7 +2113,12 @@ function App() {
     cardId: string,
     cardIndex: number,
   ) {
-    if (event.button !== 0 || dragsRef.current.has(event.pointerId)) {
+    if (
+      board.hasArrived ||
+      board.lossReason ||
+      event.button !== 0 ||
+      dragsRef.current.has(event.pointerId)
+    ) {
       return
     }
 
@@ -1954,7 +2177,12 @@ function App() {
   }
 
   function beginDeckDrag(event: ReactPointerEvent<HTMLButtonElement>, deckId: string) {
-    if (event.button !== 0 || dragsRef.current.has(event.pointerId)) {
+    if (
+      board.hasArrived ||
+      board.lossReason ||
+      event.button !== 0 ||
+      dragsRef.current.has(event.pointerId)
+    ) {
       return
     }
 
@@ -1996,7 +2224,12 @@ function App() {
   }
 
   function beginHandDrag(event: ReactPointerEvent<HTMLDivElement>, cardId: string, zone: HandZone) {
-    if (event.button !== 0 || dragsRef.current.has(event.pointerId)) {
+    if (
+      board.hasArrived ||
+      board.lossReason ||
+      event.button !== 0 ||
+      dragsRef.current.has(event.pointerId)
+    ) {
       return
     }
 
@@ -2166,7 +2399,7 @@ function App() {
       const targetStackId = dropTarget.stackId
       const targetDeckId = dropTarget.deckId
 
-      if (!sourceStack) {
+      if (current.hasArrived || current.lossReason || !sourceStack) {
         return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
       }
 
@@ -2301,7 +2534,13 @@ function App() {
       const sourceDeck = current.decks.find((deck) => deck.id === sourceDeckId)
       const targetDeck = current.decks.find((deck) => deck.id === targetDeckId)
 
-      if (!sourceDeck || !targetDeck || sourceDeck.id === targetDeck.id) {
+      if (
+        current.hasArrived ||
+        current.lossReason ||
+        !sourceDeck ||
+        !targetDeck ||
+        sourceDeck.id === targetDeck.id
+      ) {
         return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
       }
 

@@ -147,11 +147,15 @@ function renderGameplayCardContent(card: CardView) {
   if (card.kind === 'mother') {
     return (
       <>
-        <p className="card-kicker">Ship AI</p>
+        <p className="card-kicker">{card.spentMother ? 'Spent Ship AI' : 'Ship AI'}</p>
         <div className="card-primary-icons">
           <GameIcon kind="mother" />
         </div>
-        <p className="card-rule-text">Covers 1 non-Fuel Horizon need. Stays in play after use.</p>
+        <p className="card-rule-text">
+          {card.spentMother
+            ? 'Spent. Counts against MOTHER pressure and cannot be reused.'
+            : 'Covers 1 non-Fuel icon on a Horizon or Gate. Spent after use.'}
+        </p>
       </>
     )
   }
@@ -217,7 +221,7 @@ export function CardShell({
     <div
       className={`card-shell ${card.faceUp ? 'is-face-up' : 'is-face-down'} ${
         isActive ? 'is-being-dragged' : ''
-      } card-kind-${card.kind} ${className}`}
+      } card-kind-${card.kind} ${card.spentMother ? 'is-spent-mother' : ''} ${className}`}
       data-hand-card-id={dataHandCardId}
       style={
         {

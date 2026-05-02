@@ -9,7 +9,7 @@ import type {
   RequirementIconKind,
   ResourceKind,
 } from './types'
-import { HORIZON_DECK_ID, automaticRewardDeckDraw, manualDeckDraw } from './decks'
+import { HORIZON_DECK_ID, MOTHER_DECK_ID, automaticRewardDeckDraw, manualDeckDraw } from './decks'
 import { cardContent, cardRulesText } from './logEvents'
 import type { PlaytestLogEvent } from './playtestLog'
 
@@ -368,7 +368,7 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
         cards: horizonDeckCards,
       },
       {
-        id: 'mother-deck',
+        id: MOTHER_DECK_ID,
         title: 'MOTHER Deck',
         icon: motherArt.icon,
         hue: motherArt.hue,
@@ -396,6 +396,7 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
     tiredCardIds: [],
     pendingEffects: [],
     hasArrived: false,
+    lossReason: null,
     topZ: 16,
     nextCardId: 1,
     dropTargetStackId: null,
@@ -406,7 +407,7 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
     board,
     events: [
       setupDeckCreatedEvent('fuel-deck', 'Fuel Deck', fuelDeckCards),
-      setupDeckCreatedEvent('mother-deck', 'MOTHER Deck', motherDeckCards),
+      setupDeckCreatedEvent(MOTHER_DECK_ID, 'MOTHER Deck', motherDeckCards),
       // setupDeckCreatedEvent('hull-deck', 'Hull Deck', hullDeckCards),
       setupDeckCreatedEvent('horizon-deck', 'Horizon Deck', horizonDeckCards),
       setupDeckCreatedEvent('cryo-deck', 'Cryo Deck', cryoDeckCards),
