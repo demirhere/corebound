@@ -3,17 +3,12 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
+import type { Card } from '../game/types'
+import { DeckIcon } from './DeckIcon'
 import { GameIcon } from './GameIcon'
 import { pickCardIcons, pickCardNote } from './gameIcons'
 
-export type CardView = {
-  id: string
-  title: string
-  icon: string
-  hue: number
-  accent: string
-  faceUp: boolean
-}
+export type CardView = Card
 
 export type CardPointerDownHandler = (
   event: ReactPointerEvent<HTMLDivElement>,
@@ -101,7 +96,7 @@ export function CardShell({
         </article>
 
         <article className="card-face card-back" aria-hidden="true">
-          <span className="back-mark">✦</span>
+          <DeckIcon kind={card.icon} className="back-mark" />
         </article>
       </div>
     </div>

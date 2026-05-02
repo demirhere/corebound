@@ -2,15 +2,14 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
-import { CardStack, type StackView } from './CardStack'
+import type { BoardState } from '../game/types'
+import { CardStack } from './CardStack'
 import {
   type CardKeyDownHandler,
   type CardPointerDownHandler,
-  type CardView,
 } from './BoardCard'
 import {
   DeckCard,
-  type DeckCardView,
   type DeckKeyDownHandler,
   type DeckPointerDownHandler,
 } from './DeckCard'
@@ -20,14 +19,10 @@ import {
   type HandPointerDownHandler,
 } from './Hand'
 
-type BoardView = {
-  cards: Record<string, CardView>
-  stacks: StackView[]
-  decks: DeckCardView[]
-  handCardIds: string[]
-  dropTargetStackId: string | null
-  dropTargetDeckId: string | null
-}
+type BoardView = Pick<
+  BoardState,
+  'cards' | 'stacks' | 'decks' | 'handCardIds' | 'dropTargetStackId' | 'dropTargetDeckId'
+>
 
 type BoardProps = {
   board: BoardView

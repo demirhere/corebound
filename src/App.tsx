@@ -1,5 +1,7 @@
 import {
+  useEffect,
   useLayoutEffect,
+  useReducer,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -7,50 +9,50 @@ import {
 } from 'react'
 import { flushSync } from 'react-dom'
 import { Board } from './components/Board'
+import { PlaytestLog } from './components/PlaytestLog'
+import {
+  getBoundsCenterDistance,
+  getBoundsOverlapRatio,
+  getDeckBounds,
+  getStackBounds,
+  getStackHeight,
+  clamp,
+} from './game/geometry'
+import {
+  cardDrawnEvent,
+  cardFlippedEvent,
+  cardsMovedToHandEvent,
+  cardsReturnedToDeckEvent,
+  cardsStackedEvent,
+  deckCreatedFromStacksEvent,
+  decksMergedEvent,
+  handCardDroppedEvent,
+  stackSplitEvent,
+} from './game/logEvents'
+import { formatConsoleLogEntry } from './game/playtestLog'
+import {
+  canCombineAsDeck,
+  canStackCards,
+  cardsToDeckBlueprints,
+  isFaceDownStack,
+  withoutCards,
+} from './game/rules'
+import {
+  createInitialGameState,
+  gameReducer,
+  withPlaytestEvents,
+  type BoardUpdater,
+} from './game/state'
+import type {
+  BoardMetrics,
+  BoardState,
+  Bounds,
+  Card,
+  Deck,
+  DropTarget,
+  Stack,
+} from './game/types'
 import './App.css'
-
-type CardBlueprint = {
-  title: string
-  icon: string
-  hue: number
-  accent: string
-}
-
-type Card = CardBlueprint & {
-  id: string
-  faceUp: boolean
-}
-
-type Stack = {
-  id: string
-  cardIds: string[]
-  x: number
-  y: number
-  z: number
-}
-
-type Deck = {
-  id: string
-  title: string
-  icon: string
-  hue: number
-  accent: string
-  x: number
-  y: number
-  z: number
-  cards: CardBlueprint[]
-}
-
-type BoardState = {
-  cards: Record<string, Card>
-  stacks: Stack[]
-  decks: Deck[]
-  handCardIds: string[]
-  topZ: number
-  nextCardId: number
-  dropTargetStackId: string | null
-  dropTargetDeckId: string | null
-}
 
 type StackDragState = {
   kind: 'stack'
@@ -118,283 +120,11 @@ type DragState = StackDragState | DeckDragState | HandDragState
 
 type DragPreparation = 'idle' | 'active' | 'stale'
 
-type BoardMetrics = {
-  width: number
-  height: number
-  cardWidth: number
-  cardHeight: number
-  stackOffset: number
-}
-
-type Bounds = {
-  left: number
-  top: number
-  right: number
-  bottom: number
-}
-
-type DropTarget = {
-  stackId: string | null
-  deckId: string | null
-}
-
 const DRAG_CLICK_TOLERANCE = 5
 const DRAW_RADIUS_PERCENT = 18
 const DRAW_MIN_RADIUS_PERCENT = 8
 const STACK_OFFSET_RATIO = 0.38
 const DROP_TARGET_OVERLAP_RATIO = 0.28
-
-const startingCards: Card[] = [
-  {
-    id: 'ark-bridge',
-    title: 'Ark Bridge',
-    icon: '🚀',
-    hue: 193,
-    accent: '#64f3ff',
-    faceUp: true,
-  },
-  {
-    id: 'cryo-garden',
-    title: 'Cryo Garden',
-    icon: '🌱',
-    hue: 139,
-    accent: '#6dff9e',
-    faceUp: true,
-  },
-  {
-    id: 'fusion-core',
-    title: 'Fusion Core',
-    icon: '☀️',
-    hue: 35,
-    accent: '#ffb25f',
-    faceUp: true,
-  },
-  {
-    id: 'water-loop',
-    title: 'Water Loop',
-    icon: '💧',
-    hue: 205,
-    accent: '#71c7ff',
-    faceUp: false,
-  },
-  {
-    id: 'signal-beacon',
-    title: 'Signal Beacon',
-    icon: '📡',
-    hue: 274,
-    accent: '#cf8cff',
-    faceUp: true,
-  },
-  {
-    id: 'scout-drone',
-    title: 'Scout Drone',
-    icon: '🛰️',
-    hue: 314,
-    accent: '#ff7bd5',
-    faceUp: true,
-  },
-]
-
-const sectorDeck: CardBlueprint[] = [
-  {
-    title: 'Dust Moon',
-    icon: '◐',
-    hue: 24,
-    accent: '#ff9f68',
-  },
-  {
-    title: 'Nebula Gate',
-    icon: '✦',
-    hue: 286,
-    accent: '#da8cff',
-  },
-  {
-    title: 'Ice Ring',
-    icon: '❄',
-    hue: 198,
-    accent: '#82d8ff',
-  },
-  {
-    title: 'Ember Field',
-    icon: '◆',
-    hue: 8,
-    accent: '#ff7468',
-  },
-  {
-    title: 'Green Echo',
-    icon: '⬢',
-    hue: 151,
-    accent: '#77ffbb',
-  },
-]
-
-const shipDeck: CardBlueprint[] = [
-  {
-    title: 'Sleeper Crew',
-    icon: '☾',
-    hue: 229,
-    accent: '#8fa2ff',
-  },
-  {
-    title: 'Seed Vault',
-    icon: '✿',
-    hue: 95,
-    accent: '#baff7a',
-  },
-  {
-    title: 'Hull Patch',
-    icon: '⬟',
-    hue: 48,
-    accent: '#ffe073',
-  },
-  {
-    title: 'Navigator',
-    icon: '⌖',
-    hue: 176,
-    accent: '#69ffe8',
-  },
-]
-
-function createInitialBoard(): BoardState {
-  return {
-    cards: Object.fromEntries(startingCards.map((card) => [card.id, card])),
-    stacks: [
-      { id: 'stack-bridge', cardIds: ['ark-bridge'], x: 27, y: 52, z: 10 },
-      { id: 'stack-life', cardIds: ['cryo-garden', 'fusion-core'], x: 43, y: 14, z: 11 },
-      { id: 'stack-water', cardIds: ['water-loop'], x: 57, y: 58, z: 12 },
-      { id: 'stack-comms', cardIds: ['signal-beacon', 'scout-drone'], x: 70, y: 27, z: 13 },
-    ],
-    decks: [
-      {
-        id: 'sector-deck',
-        title: 'Sector Deck',
-        icon: '✦',
-        hue: 261,
-        accent: '#b99cff',
-        x: 7,
-        y: 15,
-        z: 14,
-        cards: sectorDeck,
-      },
-      {
-        id: 'ship-deck',
-        title: 'Ship Deck',
-        icon: '⬢',
-        hue: 164,
-        accent: '#61ffd3',
-        x: 77,
-        y: 63,
-        z: 15,
-        cards: shipDeck,
-      },
-    ],
-    handCardIds: [],
-    topZ: 15,
-    nextCardId: 1,
-    dropTargetStackId: null,
-    dropTargetDeckId: null,
-  }
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max)
-}
-
-function getStackHeight(cardCount: number, metrics: BoardMetrics) {
-  return metrics.cardHeight + Math.max(0, cardCount - 1) * metrics.stackOffset
-}
-
-function getStackBounds(stack: Stack, metrics: BoardMetrics): Bounds {
-  const left = (stack.x / 100) * metrics.width
-  const top = (stack.y / 100) * metrics.height
-
-  return {
-    left,
-    top,
-    right: left + metrics.cardWidth,
-    bottom: top + getStackHeight(stack.cardIds.length, metrics),
-  }
-}
-
-function getDeckBounds(deck: Deck, metrics: BoardMetrics): Bounds {
-  const left = (deck.x / 100) * metrics.width
-  const top = (deck.y / 100) * metrics.height
-
-  return {
-    left,
-    top,
-    right: left + metrics.cardWidth,
-    bottom: top + metrics.cardHeight,
-  }
-}
-
-function getBoundsCenterDistance(source: Bounds, target: Bounds) {
-  const sourceCenterX = (source.left + source.right) / 2
-  const sourceCenterY = (source.top + source.bottom) / 2
-  const targetCenterX = (target.left + target.right) / 2
-  const targetCenterY = (target.top + target.bottom) / 2
-
-  return Math.hypot(sourceCenterX - targetCenterX, sourceCenterY - targetCenterY)
-}
-
-function getBoundsOverlapRatio(source: Bounds, target: Bounds) {
-  const overlapWidth = Math.max(0, Math.min(source.right, target.right) - Math.max(source.left, target.left))
-  const overlapHeight = Math.max(0, Math.min(source.bottom, target.bottom) - Math.max(source.top, target.top))
-  const sourceArea = Math.max(0, source.right - source.left) * Math.max(0, source.bottom - source.top)
-  const targetArea = Math.max(0, target.right - target.left) * Math.max(0, target.bottom - target.top)
-  const smallerArea = Math.min(sourceArea, targetArea)
-
-  return smallerArea === 0 ? 0 : (overlapWidth * overlapHeight) / smallerArea
-}
-
-function isFaceDownStack(stack: Stack, cards: Record<string, Card>) {
-  return stack.cardIds.length > 0 && stack.cardIds.every((cardId) => cards[cardId]?.faceUp === false)
-}
-
-function isFaceUpStack(stack: Stack, cards: Record<string, Card>) {
-  return stack.cardIds.length > 0 && stack.cardIds.every((cardId) => cards[cardId]?.faceUp === true)
-}
-
-function isSingleFaceDownCard(stack: Stack, cards: Record<string, Card>) {
-  return stack.cardIds.length === 1 && cards[stack.cardIds[0]]?.faceUp === false
-}
-
-function canStackCards(sourceStack: Stack, targetStack: Stack, cards: Record<string, Card>) {
-  return isFaceUpStack(sourceStack, cards) && isFaceUpStack(targetStack, cards)
-}
-
-function canCombineAsDeck(sourceStack: Stack, targetStack: Stack, cards: Record<string, Card>) {
-  return isSingleFaceDownCard(sourceStack, cards) && isSingleFaceDownCard(targetStack, cards)
-}
-
-function cardsToDeckBlueprints(cardIds: string[], cards: Record<string, Card>) {
-  return cardIds.flatMap((cardId) => {
-    const card = cards[cardId]
-
-    if (!card) {
-      return []
-    }
-
-    return [
-      {
-        title: card.title,
-        icon: card.icon,
-        hue: card.hue,
-        accent: card.accent,
-      },
-    ]
-  })
-}
-
-function withoutCards(cards: Record<string, Card>, cardIds: string[]) {
-  const nextCards = { ...cards }
-
-  for (const cardId of cardIds) {
-    delete nextCards[cardId]
-  }
-
-  return nextCards
-}
 
 function App() {
   const boardRef = useRef<HTMLDivElement>(null)
@@ -405,15 +135,75 @@ function App() {
   const stackDropTargetCountsRef = useRef<Map<string, number>>(new Map())
   const deckDropTargetCountsRef = useRef<Map<string, number>>(new Map())
   const handDropTargetCountRef = useRef(0)
-  const [board, setBoard] = useState(createInitialBoard)
-  const boardStateRef = useRef(board)
+  const lastConsoleLogIdRef = useRef(0)
+  const [game, dispatchGame] = useReducer(gameReducer, undefined, createInitialGameState)
+  const { board, playtestLog } = game
+  const boardStateRef = useRef<BoardState>(board)
   const [activeStackIds, setActiveStackIds] = useState<string[]>([])
   const [activeDeckIds, setActiveDeckIds] = useState<string[]>([])
   const [activeHandCardIds, setActiveHandCardIds] = useState<string[]>([])
 
+  function setBoard(update: BoardUpdater) {
+    dispatchGame({
+      type: 'apply-board-update',
+      update,
+      occurredAt: new Date().toISOString(),
+    })
+  }
+
+  function resetGame() {
+    if (dragFrameRef.current !== null) {
+      cancelAnimationFrame(dragFrameRef.current)
+      dragFrameRef.current = null
+    }
+
+    for (const drag of dragsRef.current.values()) {
+      releaseBoardPointer(drag.pointerId)
+
+      if (drag.kind === 'stack') {
+        clearStackDragDropTarget(drag)
+        clearDragTransform(drag.activeElement)
+      } else if (drag.kind === 'deck') {
+        clearDeckDragDropTarget(drag)
+        clearDragTransform(drag.element)
+      } else {
+        clearDragTransform(drag.element)
+      }
+    }
+
+    dragsRef.current.clear()
+    pendingDragIdsRef.current.clear()
+    stackDropTargetCountsRef.current.clear()
+    deckDropTargetCountsRef.current.clear()
+    handDropTargetCountRef.current = 0
+    boardRef.current
+      ?.querySelectorAll<HTMLElement>('.is-drop-target')
+      .forEach((element) => element.classList.remove('is-drop-target'))
+    getHandElement()?.classList.remove('is-drop-target')
+    setActiveStackIds([])
+    setActiveDeckIds([])
+    setActiveHandCardIds([])
+    lastConsoleLogIdRef.current = 0
+    dispatchGame({ type: 'reset-game' })
+  }
+
   useLayoutEffect(() => {
     boardStateRef.current = board
   }, [board])
+
+  useEffect(() => {
+    const newEntries = playtestLog.filter((entry) => entry.id > lastConsoleLogIdRef.current)
+
+    for (const entry of newEntries) {
+      console.info(formatConsoleLogEntry(entry), entry)
+    }
+
+    const lastEntry = newEntries.at(-1)
+
+    if (lastEntry) {
+      lastConsoleLogIdRef.current = lastEntry.id
+    }
+  }, [playtestLog])
 
   useLayoutEffect(() => {
     return () => {
@@ -932,6 +722,7 @@ function App() {
         }
 
         const nextZ = current.topZ + 1
+        const movingCardIds = sourceStack.cardIds.slice(drag.cardIndex)
         const nextStacks =
           drag.cardIndex > 0
             ? current.stacks.flatMap((stack) => {
@@ -943,7 +734,7 @@ function App() {
                   { ...stack, cardIds: sourceStack.cardIds.slice(0, drag.cardIndex) },
                   {
                     id: activeId,
-                    cardIds: sourceStack.cardIds.slice(drag.cardIndex),
+                    cardIds: movingCardIds,
                     x: drag.startX,
                     y: drag.startY,
                     z: nextZ,
@@ -954,13 +745,20 @@ function App() {
                 stack.id === activeId ? { ...stack, z: nextZ } : stack,
               )
 
-        return {
+        const nextBoard = {
           ...current,
           topZ: nextZ,
           stacks: nextStacks,
           dropTargetStackId: null,
           dropTargetDeckId: null,
         }
+
+        return drag.cardIndex > 0
+          ? withPlaytestEvents(
+              nextBoard,
+              stackSplitEvent(sourceStack.id, activeId, movingCardIds, current.cards),
+            )
+          : nextBoard
       })
     })
 
@@ -1093,41 +891,43 @@ function App() {
     }
 
     setBoard((current) => {
-      let didMove = false
-      const nextStacks = current.stacks.map((stack) => {
-        if (stack.id !== activeId) {
-          return stack
-        }
+      const movingStack = current.stacks.find((stack) => stack.id === activeId)
 
-        if (stack.x === drag.latestX && stack.y === drag.latestY) {
-          return stack
-        }
+      if (!movingStack || (movingStack.x === drag.latestX && movingStack.y === drag.latestY)) {
+        return current
+      }
 
-        didMove = true
-        return { ...stack, x: drag.latestX, y: drag.latestY }
-      })
+      return {
+        ...current,
+        stacks: current.stacks.map((stack) => {
+          if (stack.id !== activeId) {
+            return stack
+          }
 
-      return didMove ? { ...current, stacks: nextStacks } : current
+          return { ...stack, x: drag.latestX, y: drag.latestY }
+        }),
+      }
     })
   }
 
   function commitDeckDragPosition(drag: DeckDragState) {
     setBoard((current) => {
-      let didMove = false
-      const nextDecks = current.decks.map((deck) => {
-        if (deck.id !== drag.deckId) {
-          return deck
-        }
+      const movingDeck = current.decks.find((deck) => deck.id === drag.deckId)
 
-        if (deck.x === drag.latestX && deck.y === drag.latestY) {
-          return deck
-        }
+      if (!movingDeck || (movingDeck.x === drag.latestX && movingDeck.y === drag.latestY)) {
+        return current
+      }
 
-        didMove = true
-        return { ...deck, x: drag.latestX, y: drag.latestY }
-      })
+      return {
+        ...current,
+        decks: current.decks.map((deck) => {
+          if (deck.id !== drag.deckId) {
+            return deck
+          }
 
-      return didMove ? { ...current, decks: nextDecks } : current
+          return { ...deck, x: drag.latestX, y: drag.latestY }
+        }),
+      }
     })
   }
 
@@ -1141,24 +941,30 @@ function App() {
       }
 
       const nextZ = current.topZ + 1
+      const nextCard = { ...card, faceUp: !card.faceUp }
 
-      return {
+      return withPlaytestEvents({
         ...current,
         topZ: nextZ,
         dropTargetStackId: null,
         dropTargetDeckId: null,
         cards: {
           ...current.cards,
-          [cardId]: { ...card, faceUp: !card.faceUp },
+          [cardId]: nextCard,
         },
         stacks: current.stacks.map((stack) =>
           stack.id === stackId ? { ...stack, z: nextZ } : stack,
         ),
-      }
+      }, cardFlippedEvent(nextCard, stackId))
     })
   }
 
   function drawFromDeck(deckId: string) {
+    const metrics = readBoardMetrics()
+    const distance =
+      DRAW_MIN_RADIUS_PERCENT + Math.random() * (DRAW_RADIUS_PERCENT - DRAW_MIN_RADIUS_PERCENT)
+    const angle = Math.random() * Math.PI * 2
+
     setBoard((current) => {
       const deck = current.decks.find((candidate) => candidate.id === deckId)
       const drawnCard = deck?.cards[0]
@@ -1167,20 +973,19 @@ function App() {
         return current
       }
 
-      const distance =
-        DRAW_MIN_RADIUS_PERCENT +
-        Math.random() * (DRAW_RADIUS_PERCENT - DRAW_MIN_RADIUS_PERCENT)
-      const angle = Math.random() * Math.PI * 2
       const position = clampStackPosition(
         deck.x + Math.cos(angle) * distance,
         deck.y + Math.sin(angle) * distance,
         1,
+        metrics,
       )
       const newCardId = `drawn-${current.nextCardId}`
+      const newStackId = `stack-${newCardId}`
+      const newCard = { ...drawnCard, id: newCardId, faceUp: true }
       const deckZ = current.topZ + 1
       const cardZ = current.topZ + 2
 
-      return {
+      return withPlaytestEvents({
         ...current,
         topZ: cardZ,
         nextCardId: current.nextCardId + 1,
@@ -1188,12 +993,12 @@ function App() {
         dropTargetDeckId: null,
         cards: {
           ...current.cards,
-          [newCardId]: { ...drawnCard, id: newCardId, faceUp: true },
+          [newCardId]: newCard,
         },
         stacks: [
           ...current.stacks,
           {
-            id: `stack-${newCardId}`,
+            id: newStackId,
             cardIds: [newCardId],
             x: position.x,
             y: position.y,
@@ -1205,7 +1010,7 @@ function App() {
             ? { ...candidate, cards: candidate.cards.slice(1), z: deckZ }
             : candidate,
         ),
-      }
+      }, cardDrawnEvent(newCard, deck, newStackId, position.x, position.y))
     })
   }
 
@@ -1237,8 +1042,9 @@ function App() {
       }
 
       const nextZ = current.topZ + 1
+      const newStackId = `stack-hand-${cardId}-${current.nextCardId}`
 
-      return {
+      return withPlaytestEvents({
         ...current,
         topZ: nextZ,
         nextCardId: current.nextCardId + 1,
@@ -1248,14 +1054,14 @@ function App() {
         stacks: [
           ...current.stacks,
           {
-            id: `stack-hand-${cardId}-${current.nextCardId}`,
+            id: newStackId,
             cardIds: [cardId],
             x: position.x,
             y: position.y,
             z: nextZ,
           },
         ],
-      }
+      }, handCardDroppedEvent(card, newStackId, position.x, position.y))
     })
   }
 
@@ -1267,13 +1073,13 @@ function App() {
         return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
       }
 
-      return {
+      return withPlaytestEvents({
         ...current,
         dropTargetStackId: null,
         dropTargetDeckId: null,
         handCardIds: [...current.handCardIds, ...sourceStack.cardIds],
         stacks: current.stacks.filter((stack) => stack.id !== sourceStack.id),
-      }
+      }, cardsMovedToHandEvent(sourceStack, current.cards))
     })
   }
 
@@ -1402,7 +1208,9 @@ function App() {
       kind: 'hand',
       pointerId: event.pointerId,
       cardId,
-      element: event.currentTarget,
+      element:
+        (event.currentTarget.closest('[data-hand-card-id]') as HTMLElement | null) ??
+        event.currentTarget,
       startClientX: event.clientX,
       startClientY: event.clientY,
       currentClientX: event.clientX,
@@ -1543,7 +1351,7 @@ function App() {
 
         const nextZ = current.topZ + 1
 
-        return {
+        return withPlaytestEvents({
           ...current,
           topZ: nextZ,
           dropTargetStackId: null,
@@ -1559,7 +1367,7 @@ function App() {
                 }
               : deck,
           ),
-        }
+        }, cardsReturnedToDeckEvent(sourceStack, targetDeck, current.cards))
       }
 
       if (!targetStackId || targetStackId === sourceStackId) {
@@ -1587,8 +1395,19 @@ function App() {
         }
 
         const nextZ = current.topZ + 1
+        const newDeck = {
+          id: `deck-${current.nextCardId}`,
+          title: `${deckTopCard.title} Deck`,
+          icon: deckTopCard.icon,
+          hue: deckTopCard.hue,
+          accent: deckTopCard.accent,
+          x: targetStack.x,
+          y: targetStack.y,
+          z: nextZ,
+          cards: [...sourceDeckCards, ...targetDeckCards],
+        }
 
-        return {
+        return withPlaytestEvents({
           ...current,
           topZ: nextZ,
           nextCardId: current.nextCardId + 1,
@@ -1600,19 +1419,9 @@ function App() {
           ),
           decks: [
             ...current.decks,
-            {
-              id: `deck-${current.nextCardId}`,
-              title: `${deckTopCard.title} Deck`,
-              icon: deckTopCard.icon,
-              hue: deckTopCard.hue,
-              accent: deckTopCard.accent,
-              x: targetStack.x,
-              y: targetStack.y,
-              z: nextZ,
-              cards: [...sourceDeckCards, ...targetDeckCards],
-            },
+            newDeck,
           ],
-        }
+        }, deckCreatedFromStacksEvent(newDeck, sourceStack, targetStack, current.cards))
       }
 
       if (!canStackCards(sourceStack, targetStack, current.cards)) {
@@ -1621,7 +1430,7 @@ function App() {
 
       const nextZ = current.topZ + 1
 
-      return {
+      return withPlaytestEvents({
         ...current,
         topZ: nextZ,
         dropTargetStackId: null,
@@ -1637,7 +1446,7 @@ function App() {
                 }
               : stack,
           ),
-      }
+      }, cardsStackedEvent(sourceStack, targetStack, current.cards))
     })
   }
 
@@ -1652,7 +1461,7 @@ function App() {
 
       const nextZ = current.topZ + 1
 
-      return {
+      return withPlaytestEvents({
         ...current,
         topZ: nextZ,
         dropTargetStackId: null,
@@ -1668,7 +1477,7 @@ function App() {
                 }
               : deck,
           ),
-      }
+      }, decksMergedEvent(sourceDeck, targetDeck))
     })
   }
 
@@ -1877,6 +1686,7 @@ function App() {
         onHandCardPointerDown={beginHandDrag}
         onHandCardKeyDown={handleHandKeyDown}
       />
+      <PlaytestLog entries={playtestLog} onResetGame={resetGame} />
     </main>
   )
 }

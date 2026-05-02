@@ -1,4 +1,5 @@
 import { type CSSProperties } from 'react'
+import type { Stack } from '../game/types'
 import {
   BoardCard,
   type CardKeyDownHandler,
@@ -6,13 +7,7 @@ import {
   type CardView,
 } from './BoardCard'
 
-export type StackView = {
-  id: string
-  cardIds: string[]
-  x: number
-  y: number
-  z: number
-}
+export type StackView = Stack
 
 type CardStackProps = {
   stack: StackView

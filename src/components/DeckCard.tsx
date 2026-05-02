@@ -3,18 +3,10 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
+import type { Deck } from '../game/types'
+import { DeckIcon } from './DeckIcon'
 
-export type DeckCardView = {
-  id: string
-  title: string
-  icon: string
-  hue: number
-  accent: string
-  x: number
-  y: number
-  z: number
-  cards: unknown[]
-}
+export type DeckCardView = Deck
 
 type DeckCardProps = {
   deck: DeckCardView
@@ -64,9 +56,7 @@ export function DeckCard({
       <span className="deck-badge" aria-hidden="true">
         {deck.cards.length}
       </span>
-      <span className="deck-icon" aria-hidden="true">
-        {deck.icon}
-      </span>
+      <DeckIcon kind={deck.icon} />
     </button>
   )
 }

@@ -58,100 +58,280 @@
   }
 }
 
+.playtest-log {
+  position: fixed;
+  top: clamp(10px, 1.6vw, 18px);
+  right: clamp(10px, 1.6vw, 18px);
+  z-index: 1400;
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.playtest-log-toggle,
+.playtest-log-reset,
+.playtest-log-copy {
+  pointer-events: auto;
+  border: 1px solid rgba(246, 241, 223, 0.28);
+  border-radius: 999px;
+  color: #fff8e8;
+  background:
+    linear-gradient(180deg, rgba(28, 35, 70, 0.92), rgba(8, 10, 22, 0.94)),
+    radial-gradient(circle at 30% 0%, rgba(100, 243, 255, 0.24), transparent 52%);
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+}
+
+.playtest-log-controls {
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.playtest-log-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+
+  &:hover,
+  &:focus-visible {
+    border-color: rgba(100, 243, 255, 0.78);
+    outline: none;
+    box-shadow:
+      0 12px 24px rgba(0, 0, 0, 0.36),
+      0 0 0 3px rgba(100, 243, 255, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+}
+
+.playtest-log-panel {
+  pointer-events: auto;
+  width: min(420px, calc(100vw - 20px));
+  max-height: min(68vh, 560px);
+  overflow: hidden;
+  border: 1px solid rgba(246, 241, 223, 0.18);
+  border-radius: 22px;
+  color: #f6f1df;
+  background:
+    linear-gradient(180deg, rgba(15, 20, 42, 0.94), rgba(5, 7, 19, 0.96)),
+    radial-gradient(circle at 12% 0%, rgba(100, 243, 255, 0.18), transparent 34%),
+    radial-gradient(circle at 88% 14%, rgba(207, 140, 255, 0.14), transparent 34%);
+  box-shadow:
+    0 26px 52px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.playtest-log-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 10px 10px 0;
+  border-bottom: 1px solid rgba(246, 241, 223, 0.12);
+}
+
+.playtest-log-reset {
+  display: grid;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  padding: 0;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  &:hover,
+  &:focus-visible {
+    border-color: rgba(255, 178, 95, 0.78);
+    outline: none;
+  }
+}
+
+.playtest-log-copy {
+  display: grid;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+
+  svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  &:hover,
+  &:focus-visible {
+    border-color: rgba(115, 255, 214, 0.72);
+    outline: none;
+  }
+}
+
+.playtest-log-status,
+.playtest-log-empty {
+  margin: 0;
+  padding: 14px 16px 16px;
+  color: rgba(246, 241, 223, 0.66);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.playtest-log-status {
+  color: #ffb7a8;
+}
+
+.playtest-log-list {
+  display: grid;
+  max-height: min(52vh, 430px);
+  gap: 8px;
+  overflow: auto;
+  margin: 0;
+  padding: 10px;
+  list-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(246, 241, 223, 0.42) transparent;
+}
+
+.playtest-log-entry {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 5px 8px;
+  padding: 10px;
+  border: 1px solid rgba(246, 241, 223, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+
+  p {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: rgba(246, 241, 223, 0.86);
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.3;
+  }
+}
+
+.playtest-log-entry-time,
+.playtest-log-entry-type {
+  min-width: 0;
+  color: rgba(246, 241, 223, 0.54);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.playtest-log-entry-type {
+  overflow: hidden;
+  color: #64f3ff;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .hand {
-  --card-width: clamp(76px, 8.2vw, 116px);
-  --card-height: calc(var(--card-width) * 1.42);
+  --hand-card-scale: 0.74;
+  --hand-card-width: calc(var(--card-width) * var(--hand-card-scale));
+  --hand-card-height: calc(var(--card-height) * var(--hand-card-scale));
 
   position: absolute;
-  right: clamp(12px, 2.2vw, 28px);
-  bottom: 0;
-  left: clamp(12px, 2.2vw, 28px);
+  right: clamp(18px, 6vw, 90px);
+  bottom: clamp(10px, 2vh, 22px);
+  left: clamp(18px, 6vw, 90px);
   z-index: 1000;
-  min-height: calc(var(--card-height) + 34px);
-  padding: 19px clamp(12px, 2vw, 22px) 13px;
-  border: 1px solid rgba(246, 241, 223, 0.18);
-  border-bottom: 0;
-  border-radius: 24px 24px 0 0;
+  min-height: calc(var(--hand-card-height) + 40px);
+  padding: 20px clamp(14px, 2vw, 24px);
+  border: 2px dashed rgba(186, 229, 255, 0.68);
+  border-radius: 14px;
   background:
-    linear-gradient(180deg, rgba(18, 24, 48, 0.78), rgba(5, 7, 19, 0.94)),
-    radial-gradient(circle at 18% 0%, rgba(100, 243, 255, 0.22), transparent 32%),
-    radial-gradient(circle at 82% 12%, rgba(207, 140, 255, 0.16), transparent 34%);
+    linear-gradient(90deg, rgba(214, 242, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(rgba(214, 242, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(135deg, #244b68 0%, #183b59 48%, #12324e 100%);
+  background-size:
+    24px 24px,
+    24px 24px,
+    auto;
   box-shadow:
-    0 -14px 34px rgba(0, 0, 0, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(14px);
+    0 10px 24px rgba(0, 0, 0, 0.22),
+    inset 0 0 0 1px rgba(235, 249, 255, 0.12),
+    inset 0 0 26px rgba(6, 24, 38, 0.2);
   transition:
     border-color 160ms ease,
     box-shadow 160ms ease,
     transform 160ms ease;
 
   &.is-drop-target {
-    border-color: rgba(115, 255, 214, 0.92);
+    border-color: rgba(152, 246, 255, 0.98);
     box-shadow:
-      0 -16px 38px rgba(0, 0, 0, 0.5),
-      0 0 0 3px rgba(115, 255, 214, 0.18),
-      0 0 28px rgba(115, 255, 214, 0.36),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12);
-    transform: translateY(-3px);
+      0 10px 24px rgba(0, 0, 0, 0.22),
+      0 0 0 3px rgba(152, 246, 255, 0.14),
+      0 0 24px rgba(152, 246, 255, 0.28),
+      inset 0 0 0 1px rgba(235, 249, 255, 0.16),
+      inset 0 0 26px rgba(6, 24, 38, 0.2);
   }
-}
-
-.hand-label {
-  position: absolute;
-  top: -12px;
-  left: 22px;
-  padding: 4px 10px 5px;
-  border: 1px solid rgba(246, 241, 223, 0.24);
-  border-radius: 999px;
-  color: rgba(246, 241, 223, 0.86);
-  background: rgba(5, 7, 19, 0.88);
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  text-transform: uppercase;
 }
 
 .hand-strip {
-  display: flex;
-  align-items: flex-start;
-  min-height: var(--card-height);
-  gap: clamp(8px, 1vw, 14px);
-  overflow-x: auto;
-  overflow-y: visible;
-  padding: 0 2px 7px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(246, 241, 223, 0.42) transparent;
-}
-
-.hand-strip:has(.hand-card-shell.is-being-dragged) {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: var(--hand-card-height);
   overflow: visible;
 }
 
-.hand-empty {
-  display: grid;
-  min-width: 210px;
-  min-height: calc(var(--card-height) - 10px);
-  place-items: center;
-  margin: 0;
-  border: 1px dashed rgba(246, 241, 223, 0.26);
-  border-radius: 16px;
-  color: rgba(246, 241, 223, 0.58);
-  font-size: clamp(13px, 1.2vw, 16px);
-  font-weight: 800;
-  letter-spacing: -0.02em;
+.hand-card-slot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--hand-card-width);
+  height: var(--hand-card-height);
+  transform-origin: center bottom;
+  transition: transform 160ms ease;
+
+  &.is-being-dragged {
+    will-change: transform;
+  }
+}
+
+.hand-card-drag {
+  position: absolute;
+  inset: 0;
+  transform-origin: center bottom;
 }
 
 .card-shell.hand-card-shell {
-  position: relative;
-  left: auto;
-  top: auto;
-  flex: 0 0 auto;
-  transform-origin: center bottom;
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: scale(var(--hand-card-scale));
+  transform-origin: left top;
+}
 
-  &.is-being-dragged {
-    z-index: 2;
-  }
+.hand .card-shell.hand-card-shell:hover,
+.hand .card-shell.hand-card-shell.is-being-dragged {
+  transform: scale(var(--hand-card-scale));
 }
 
 .card-stack {
@@ -681,18 +861,62 @@
 }
 
 .deck-icon {
+  --deck-icon-color: color-mix(in srgb, var(--card-accent) 82%, #fff8e8);
+  --deck-icon-paper: #fff8e8;
+  --deck-icon-ink: #11131a;
+
   position: relative;
   z-index: 1;
   display: grid;
-  width: auto;
-  aspect-ratio: auto;
+  width: clamp(50px, 5.2vw, 72px);
+  aspect-ratio: 1;
   place-items: center;
-  color: color-mix(in srgb, var(--card-accent) 76%, #fff8e8);
-  font-size: clamp(38px, 4.4vw, 58px);
-  line-height: 1;
-  text-shadow:
-    0 2px 0 rgba(17, 19, 26, 0.34),
-    0 0 14px color-mix(in srgb, var(--card-accent) 34%, transparent);
+  border: 2.4px solid var(--deck-icon-ink);
+  border-radius: 38% 62% 47% 53% / 54% 42% 58% 46%;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.52), transparent 39%),
+    color-mix(in srgb, var(--card-accent) 35%, var(--deck-icon-paper));
+  box-shadow:
+    0 3px 0 rgba(17, 19, 26, 0.36),
+    0 0 16px color-mix(in srgb, var(--card-accent) 32%, transparent);
+  transform: rotate(-2deg);
+
+  svg {
+    display: block;
+    width: 76%;
+    height: 76%;
+    overflow: visible;
+  }
+
+  .deck-icon-fill,
+  .deck-icon-cutout,
+  .deck-icon-line {
+    stroke: var(--deck-icon-ink);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .deck-icon-fill {
+    fill: var(--deck-icon-color);
+  }
+
+  .deck-icon-cutout {
+    fill: rgba(255, 248, 232, 0.94);
+  }
+
+  .deck-icon-line {
+    fill: none;
+  }
+
+  .deck-icon-dot {
+    fill: var(--deck-icon-ink);
+  }
+}
+
+.deck-icon.back-mark {
+  width: clamp(44px, 4.9vw, 66px);
 }
 
 @media (max-width: 760px) {
@@ -701,13 +925,27 @@
   }
 
   .hand {
-    --card-width: clamp(68px, 19vw, 92px);
+    --hand-card-scale: 0.68;
 
     right: 8px;
+    bottom: 8px;
     left: 8px;
-    min-height: calc(var(--card-height) + 28px);
-    padding: 16px 10px 10px;
-    border-radius: 18px 18px 0 0;
+    min-height: calc(var(--hand-card-height) + 32px);
+    padding: 16px 10px;
+    border-radius: 14px;
+  }
+
+  .playtest-log {
+    top: 8px;
+    right: 8px;
+  }
+
+  .playtest-log-panel {
+    max-height: 58vh;
+  }
+
+  .playtest-log-list {
+    max-height: 40vh;
   }
 
   .card-header {
