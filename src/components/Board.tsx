@@ -2,8 +2,6 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
-import { HORIZON_DECK_ID } from '../game/decks'
-import { countMotherCardsInPlay } from '../game/rules'
 import type { BoardState } from '../game/types'
 import { CardStack } from './CardStack'
 import {
@@ -75,15 +73,6 @@ export function Board({
   onHandCardKeyDown,
   onResetGame,
 }: BoardProps) {
-  const motherCardsInPlay = countMotherCardsInPlay(board.stacks, board.cards)
-  const horizonDeck = board.decks.find((deck) => deck.id === HORIZON_DECK_ID)
-  const horizonCardsInPlay = board.stacks.reduce(
-    (count, stack) =>
-      count + stack.cardIds.filter((cardId) => board.cards[cardId]?.kind === 'horizon').length,
-    0,
-  )
-  const unfinishedHorizons = (horizonDeck?.cards.length ?? 0) + horizonCardsInPlay
-
   return (
     <section
       ref={boardRef}
@@ -98,13 +87,11 @@ export function Board({
         <ol>
           <li>Draw 3 horizon cards, choose 1</li>
           <li>Finish it and discard the others</li>
+          <li>Don't run out of fuel</li>
+          <li>Use MOTHER wisely</li>
+          <li>Plan for the Gate</li>
           <li>After all Horizons, attempt the Gate</li>
         </ol>
-        <p>Horizons unfinished: {unfinishedHorizons}</p>
-        <p>
-          MOTHER used: {motherCardsInPlay}
-          {motherCardsInPlay >= 3 ? ' / Gate penalty active' : ''}
-        </p>
       </aside>
 
       <aside className="discard-zone" data-discard-zone aria-label="Discard area">

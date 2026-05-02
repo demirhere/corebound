@@ -148,7 +148,11 @@ export function Hand({
                     card={card}
                     className="hand-card-shell"
                     isActive={isActive}
-                    ariaLabel={`${card.title}. Click to drop to the board or drag between Crew, Tired, and the board.`}
+                    ariaLabel={
+                      zone === 'crew'
+                        ? `${card.title}. Click to drop to the board or drag within Crew and to the board.`
+                        : `${card.title}. Tired crew readies after a Gate or a Horizon ready reward.`
+                    }
                     onPointerDown={(event) => onCardPointerDown(event, card.id, zone)}
                     onKeyDown={(event) => onCardKeyDown(event, card.id, zone)}
                   />
