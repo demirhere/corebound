@@ -67,6 +67,12 @@ export type BoardEffect =
       kind: 'horizon_fuel_waiver'
       remainingCards: number
     }
+  | {
+      kind: 'deck_draw_modifier'
+      deckId: string
+      drawCount: number
+      discardCount: number
+    }
 
 export type CardBlueprint = {
   title: string
@@ -101,7 +107,14 @@ export type Deck = {
   x: number
   y: number
   z: number
+  draw: DeckDrawRules
   cards: CardBlueprint[]
+}
+
+export type DeckDrawRules = {
+  canManuallyDraw: boolean
+  count: number
+  placement: 'nearby' | 'left-row'
 }
 
 export type BoardState = {

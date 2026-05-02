@@ -34,7 +34,7 @@ export function DeckCard({
   onPointerDown,
   onKeyDown,
 }: DeckCardProps) {
-  const canDraw = canManuallyDrawDeck(deck.id)
+  const canDraw = canManuallyDrawDeck(deck)
   const actionLabel = canDraw
     ? 'Click to draw or drag to move.'
     : 'Automatic rewards only; drag to move.'

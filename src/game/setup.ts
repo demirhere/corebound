@@ -9,6 +9,7 @@ import type {
   RequirementIconKind,
   ResourceKind,
 } from './types'
+import { HORIZON_DECK_ID, automaticRewardDeckDraw, manualDeckDraw } from './decks'
 import { cardContent, cardRulesText } from './logEvents'
 import type { PlaytestLogEvent } from './playtestLog'
 
@@ -277,10 +278,11 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
         x: 6,
         y: 12,
         z: 12,
+        draw: automaticRewardDeckDraw,
         cards: fuelDeckCards,
       },
       {
-        id: 'horizon-deck',
+        id: HORIZON_DECK_ID,
         title: 'Horizon Deck',
         icon: 'star',
         hue: 261,
@@ -288,6 +290,11 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
         x: 81,
         y: 12,
         z: 14,
+        draw: {
+          ...manualDeckDraw,
+          count: 3,
+          placement: 'left-row',
+        },
         cards: horizonDeckCards,
       },
       {
@@ -299,6 +306,7 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
         x: 6,
         y: 40,
         z: 13,
+        draw: manualDeckDraw,
         cards: motherDeckCards,
       },
       {
@@ -310,6 +318,7 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
         x: 81,
         y: 40,
         z: 15,
+        draw: automaticRewardDeckDraw,
         cards: cryoDeckCards,
       },
     ],

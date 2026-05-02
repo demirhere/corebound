@@ -1,5 +1,19 @@
-const automaticRewardDeckIds = new Set(['fuel-deck', 'cryo-deck'])
+import type { Deck, DeckDrawRules } from './types'
 
-export function canManuallyDrawDeck(deckId: string) {
-  return !automaticRewardDeckIds.has(deckId)
+export const HORIZON_DECK_ID = 'horizon-deck'
+
+export const manualDeckDraw = {
+  canManuallyDraw: true,
+  count: 1,
+  placement: 'nearby',
+} satisfies DeckDrawRules
+
+export const automaticRewardDeckDraw = {
+  canManuallyDraw: false,
+  count: 1,
+  placement: 'nearby',
+} satisfies DeckDrawRules
+
+export function canManuallyDrawDeck(deck: Pick<Deck, 'draw'>) {
+  return deck.draw.canManuallyDraw
 }

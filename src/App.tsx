@@ -10,10 +10,12 @@ import {
 import { flushSync } from 'react-dom'
 import { Board } from './components/Board'
 import { PlaytestLog } from './components/PlaytestLog'
-import { canManuallyDrawDeck } from './game/decks'
+import { canManuallyDrawDeck, manualDeckDraw } from './game/decks'
 import {
   applyPendingEffectsToDrawnCard,
+  consumeDeckDrawModifiers,
   createBoardEffectsForHorizonRewards,
+  getPendingDrawCount,
 } from './game/effects'
 import {
   getBoundsCenterDistance,
@@ -144,6 +146,7 @@ type HandInsertPreview = {
 const DRAG_CLICK_TOLERANCE = 5
 const DRAW_RADIUS_PERCENT = 18
 const DRAW_MIN_RADIUS_PERCENT = 8
+const DRAW_ROW_GAP_PX = 12
 const STACK_OFFSET_RATIO = 0.26
 const DROP_TARGET_OVERLAP_RATIO = 0.28
 
@@ -297,6 +300,44 @@ function App() {
       x: clamp(x, 1, Math.max(1, maxX)),
       y: clamp(y, 1, Math.max(1, maxY)),
     }
+  }
+
+  function getNearbyDrawPosition(deck: Deck, metrics: BoardMetrics) {
+    const distance =
+      DRAW_MIN_RADIUS_PERCENT + Math.random() * (DRAW_RADIUS_PERCENT - DRAW_MIN_RADIUS_PERCENT)
+    const angle = Math.random() * Math.PI * 2
+
+    return clampStackPosition(
+      deck.x + Math.cos(angle) * distance,
+      deck.y + Math.sin(angle) * distance,
+      1,
+      metrics,
+    )
+  }
+
+  function getDeckDrawPositions(deck: Deck, drawCount: number, metrics: BoardMetrics) {
+    if (deck.draw.placement === 'left-row') {
+      const cardWidthPercent = (metrics.cardWidth / metrics.width) * 100
+      const gapPercent = (DRAW_ROW_GAP_PX / metrics.width) * 100
+      const rowWidthPercent =
+        drawCount * cardWidthPercent + Math.max(0, drawCount - 1) * gapPercent
+      const rowX = clamp(
+        deck.x - rowWidthPercent - gapPercent,
+        1,
+        Math.max(1, 100 - rowWidthPercent - 1),
+      )
+
+      return Array.from({ length: drawCount }, (_, index) =>
+        clampStackPosition(
+          rowX + index * (cardWidthPercent + gapPercent),
+          deck.y,
+          1,
+          metrics,
+        ),
+      )
+    }
+
+    return Array.from({ length: drawCount }, () => getNearbyDrawPosition(deck, metrics))
   }
 
   function getCardOrigin(stack: Stack, cardIndex: number, metrics = readBoardMetrics()) {
@@ -1281,67 +1322,73 @@ function App() {
   }
 
   function drawFromDeck(deckId: string) {
-    if (!canManuallyDrawDeck(deckId)) {
-      return
-    }
-
     const metrics = readBoardMetrics()
-    const distance =
-      DRAW_MIN_RADIUS_PERCENT + Math.random() * (DRAW_RADIUS_PERCENT - DRAW_MIN_RADIUS_PERCENT)
-    const angle = Math.random() * Math.PI * 2
 
     setBoard((current) => {
       const deck = current.decks.find((candidate) => candidate.id === deckId)
-      const drawnCard = deck?.cards[0]
 
-      if (!deck || !drawnCard) {
+      if (!deck || !canManuallyDrawDeck(deck)) {
         return current
       }
 
-      const position = clampStackPosition(
-        deck.x + Math.cos(angle) * distance,
-        deck.y + Math.sin(angle) * distance,
-        1,
-        metrics,
-      )
-      const newCardId = `drawn-${current.nextCardId}`
-      const newStackId = `stack-${newCardId}`
-      const drawEffectResult = applyPendingEffectsToDrawnCard(
-        deck.id,
-        { ...drawnCard, id: newCardId, faceUp: true },
-        current.pendingEffects,
-      )
-      const newCard = drawEffectResult.card
+      const drawCount = getPendingDrawCount(deck, current.pendingEffects)
+      const drawnBlueprints = deck.cards.slice(0, drawCount)
+
+      if (drawnBlueprints.length === 0) {
+        return current
+      }
+
       const deckZ = current.topZ + 1
-      const cardZ = current.topZ + 2
+      const firstCardZ = current.topZ + 2
+      const positions = getDeckDrawPositions(deck, drawnBlueprints.length, metrics)
+      const nextCards = { ...current.cards }
+      const drawnStacks: Stack[] = []
+      const drawEvents: ReturnType<typeof cardDrawnEvent>[] = []
+      let nextCardId = current.nextCardId
+      let pendingEffects = consumeDeckDrawModifiers(deck.id, current.pendingEffects)
+
+      for (const [index, blueprint] of drawnBlueprints.entries()) {
+        const newCardId = `drawn-${nextCardId}`
+        const newStackId = `stack-${newCardId}`
+        const drawEffectResult = applyPendingEffectsToDrawnCard(
+          deck.id,
+          { ...blueprint, id: newCardId, faceUp: true },
+          pendingEffects,
+        )
+        const newCard = drawEffectResult.card
+        const position = positions[index] ?? getNearbyDrawPosition(deck, metrics)
+
+        nextCardId += 1
+        pendingEffects = drawEffectResult.pendingEffects
+        nextCards[newCardId] = newCard
+        drawnStacks.push({
+          id: newStackId,
+          cardIds: [newCardId],
+          x: position.x,
+          y: position.y,
+          z: firstCardZ + index,
+        })
+        drawEvents.push(cardDrawnEvent(newCard, deck, newStackId, position.x, position.y))
+      }
 
       return withPlaytestEvents({
         ...current,
-        topZ: cardZ,
-        nextCardId: current.nextCardId + 1,
+        topZ: firstCardZ + drawnStacks.length - 1,
+        nextCardId,
         dropTargetStackId: null,
         dropTargetDeckId: null,
-        pendingEffects: drawEffectResult.pendingEffects,
-        cards: {
-          ...current.cards,
-          [newCardId]: newCard,
-        },
+        pendingEffects,
+        cards: nextCards,
         stacks: [
           ...current.stacks,
-          {
-            id: newStackId,
-            cardIds: [newCardId],
-            x: position.x,
-            y: position.y,
-            z: cardZ,
-          },
+          ...drawnStacks,
         ],
         decks: current.decks.map((candidate) =>
           candidate.id === deckId
-            ? { ...candidate, cards: candidate.cards.slice(1), z: deckZ }
+            ? { ...candidate, cards: candidate.cards.slice(drawnBlueprints.length), z: deckZ }
             : candidate,
         ),
-      }, cardDrawnEvent(newCard, deck, newStackId, position.x, position.y))
+      }, drawEvents)
     })
   }
 
@@ -2071,6 +2118,7 @@ function App() {
           x: targetStack.x,
           y: targetStack.y,
           z: nextZ,
+          draw: manualDeckDraw,
           cards: [...sourceDeckCards, ...targetDeckCards],
         }
 
