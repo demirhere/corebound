@@ -48,6 +48,12 @@ Reward: Scout the next 3 Stars; keep 1
 Scout 2 instead of 3.
 ```
 
+```text
+GRAVITY SLING
+Need: Fuel 2 + Star + Engine
+Reward: The next Star you complete this sector costs -1 Fuel.
+```
+
 ## Distance Bands
 
 The label is descriptive; the Fuel cost is what matters.
@@ -59,9 +65,9 @@ The label is descriptive; the Fuel cost is what matters.
 | Deep | 2 Fuel |
 | Abyssal | 3 Fuel |
 
-Because printed Fuel is shown on the card, each Horizon scan asks: of the three, which one is worth the Fuel, crew, negotiation, and MOTHER risk?
+Because base Fuel is shown on the card, each Horizon scan asks: of the three, which one is worth the Fuel, crew, negotiation, and MOTHER risk?
 
-Temporary effects do not rewrite the Star card. Free Star tokens, discount markers, and armed Chamber bonuses stay as active cards or installed Chamber markers on the common board.
+Temporary effects do not rewrite the Star deck. Fuel discount markers and armed Chamber bonuses stay as active cards or installed Chamber markers on the common board.
 
 ## Reward Types
 
@@ -73,11 +79,18 @@ Temporary effects do not rewrite the Star card. Free Star tokens, discount marke
 | Wake N crew | The Implementer recruits loyal crew from Cryo. |
 | Heal N crew | Flip Wounded loyal crew back to healthy. |
 | Scout | Look at the next 3 Stars in the current deck; keep 1 on top, discard 2. |
-| Free Star | The next Star this sector costs 0 Fuel regardless of its Fuel cost. |
+| Next Star Fuel -N | The next Star completed this sector costs N less Fuel. |
 
 ## Wake Rewards
 
-Wake rewards are personal. When a player implements a Wake reward, reveal 2 crew from Cryo. The Implementer chooses 1 as loyal crew, and the unchosen crew returns to the bottom of Cryo. The recruited crew enters Tired.
+Wake rewards are personal.
+
+```text
+Crew icon: Choose 1 of 2.
+That crew joins your crew area Tired.
+```
+
+Return unchosen Cryo crew to the bottom of Cryo. If only 1 crew remains in Cryo, reveal and recruit that crew. If Cryo is empty, Wake does nothing.
 
 ## Skipping
 

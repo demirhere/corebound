@@ -130,7 +130,7 @@ Fuel +N
 Parts +N
 Hull +N
 Scout
-Free Star
+Next Star Fuel discounts
 Chamber effects
 ```
 
@@ -143,14 +143,11 @@ Wake N crew
 When a player implements a Wake reward:
 
 ```text
-Reveal 2 crew from Cryo.
-The Implementer chooses 1.
-The chosen crew becomes loyal to the Implementer.
-The unchosen crew returns to the bottom of Cryo.
-The recruited crew enters Tired.
+Crew icon: Choose 1 of 2.
+That crew joins your crew area Tired.
 ```
 
-If only 1 crew remains in Cryo, reveal and recruit that crew. If Cryo is empty, Wake does nothing.
+Return unchosen Cryo crew to the bottom of Cryo. If only 1 crew remains in Cryo, reveal and recruit that crew. If Cryo is empty, Wake does nothing.
 
 ## Solo Prototype Note
 

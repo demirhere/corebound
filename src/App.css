@@ -805,6 +805,13 @@
   }
 }
 
+.card-stack.is-drop-target .card-shell.card-kind-mother.is-spent-mother {
+  filter:
+    drop-shadow(0 18px 14px rgba(0, 0, 0, 0.44))
+    drop-shadow(0 0 18px rgba(115, 255, 214, 0.78))
+    saturate(0.72);
+}
+
 .card-shell.card-kind-gate .card-face.card-front {
   color: #08212b;
   background:
@@ -1060,6 +1067,68 @@
   gap: 4px;
 }
 
+.removed-need-icon {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  isolation: isolate;
+
+  > .game-icon {
+    opacity: 0.56;
+    filter: saturate(0.52) contrast(0.92);
+  }
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    left: 4%;
+    right: 4%;
+    z-index: 2;
+    height: 3px;
+    border-radius: 999px;
+    pointer-events: none;
+    background: rgba(17, 19, 26, 0.86);
+    box-shadow:
+      0 1px 0 rgba(255, 248, 232, 0.3),
+      0 0 0 1px rgba(255, 248, 232, 0.18);
+  }
+
+  &::before {
+    top: 45%;
+    transform: rotate(-24deg);
+  }
+
+  &::after {
+    top: 50%;
+    background: color-mix(in srgb, var(--card-accent) 48%, #11131a);
+    transform: rotate(21deg);
+  }
+}
+
+.removed-need-person {
+  position: absolute;
+  right: -18%;
+  bottom: -20%;
+  z-index: 3;
+  display: grid;
+  width: 55%;
+  aspect-ratio: 1;
+  pointer-events: none;
+  transform: rotate(8deg);
+
+  .game-icon {
+    --icon-color: #11131a;
+
+    width: 100%;
+    border-width: 1.2px;
+    opacity: 0.95;
+    background: rgba(255, 248, 232, 0.86);
+    transform: none;
+  }
+}
+
 .card-rule-row > .card-reward-equals {
   width: fit-content;
   color: rgba(17, 19, 26, 0.76);
@@ -1085,6 +1154,20 @@
   font-size: clamp(9px, 0.82vw, 12px);
   font-weight: 950;
   line-height: 1;
+}
+
+.card-wake-reward {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: rgba(17, 19, 26, 0.78);
+  font-size: clamp(10px, 0.9vw, 13px);
+  font-style: italic;
+  font-weight: 850;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
 }
 
 .card-text-chip {

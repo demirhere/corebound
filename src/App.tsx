@@ -14,7 +14,9 @@ import { HORIZON_DECK_ID, MOTHER_DECK_ID, canManuallyDrawDeck, manualDeckDraw } 
 import {
   applyPendingEffectsToDrawnCard,
   consumeDeckDrawModifiers,
+  consumeNextStarFuelDiscount,
   createBoardEffectsForHorizonRewards,
+  getNextStarFuelDiscount,
   getPendingDrawCount,
 } from './game/effects'
 import {
@@ -37,6 +39,7 @@ import {
   handCardDroppedEvent,
   gateCompletedEvent,
   horizonCompletedEvent,
+  wakeCrewRecruitedEvent,
   stackSplitEvent,
 } from './game/logEvents'
 import { formatConsoleLogEntry } from './game/playtestLog'
@@ -157,6 +160,7 @@ const DRAW_MIN_RADIUS_PERCENT = 8
 const DRAW_ROW_GAP_PX = 12
 const STACK_OFFSET_RATIO = 0.26
 const DROP_TARGET_OVERLAP_RATIO = 0.28
+const CRYO_DECK_ID = 'cryo-deck'
 
 function App() {
   const boardRef = useRef<HTMLDivElement>(null)
@@ -422,11 +426,66 @@ function App() {
     return current.decks.find((deck) => deck.id === deckId)?.cards.length ?? 0
   }
 
+  function drawWakeChoiceCards(
+    decks: Deck[],
+    cards: Record<string, Card>,
+    nextCardId: number,
+    remaining: number,
+    deckZ: number,
+  ) {
+    const cryoDeck = decks.find((deck) => deck.id === CRYO_DECK_ID)
+    const choiceBlueprints = cryoDeck?.cards.slice(0, Math.min(2, cryoDeck.cards.length)) ?? []
+
+    if (remaining <= 0 || choiceBlueprints.length === 0) {
+      return {
+        cards,
+        decks,
+        nextCardId,
+        pendingWakeChoice: null,
+      }
+    }
+
+    const nextCards = { ...cards }
+    const choiceCardIds: string[] = []
+    let updatedNextCardId = nextCardId
+
+    for (const blueprint of choiceBlueprints) {
+      const card = {
+        ...blueprint,
+        id: `wake-${updatedNextCardId}`,
+        faceUp: true,
+      }
+
+      updatedNextCardId += 1
+      nextCards[card.id] = card
+      choiceCardIds.push(card.id)
+    }
+
+    return {
+      cards: nextCards,
+      decks: decks.map((deck) =>
+        deck.id === CRYO_DECK_ID
+          ? { ...deck, cards: deck.cards.slice(choiceBlueprints.length), z: deckZ }
+          : deck,
+      ),
+      nextCardId: updatedNextCardId,
+      pendingWakeChoice: {
+        remaining,
+        choiceCardIds,
+      },
+    }
+  }
+
   function getReadyCrewCardIds(current: BoardState) {
     const tiredCardIdSet = new Set(current.tiredCardIds)
+    const pendingWakeChoiceCardIds = new Set(current.pendingWakeChoice?.choiceCardIds ?? [])
 
     return Object.values(current.cards).flatMap((card) =>
-      card.kind === 'crew' && !tiredCardIdSet.has(card.id) ? [card.id] : [],
+      card.kind === 'crew' &&
+        !tiredCardIdSet.has(card.id) &&
+        !pendingWakeChoiceCardIds.has(card.id)
+        ? [card.id]
+        : [],
     )
   }
 
@@ -458,8 +517,13 @@ function App() {
       return false
     }
 
+    const requiredFuel = Math.max(
+      0,
+      horizonCard.horizon.need.fuel - getNextStarFuelDiscount(current.pendingEffects),
+    )
+
     return (
-      countFuelCardsInPlay(current) >= horizonCard.horizon.need.fuel &&
+      countFuelCardsInPlay(current) >= requiredFuel &&
       canCompleteNeedWithCrewAndMother(
         getReadyCrewCardIds(current),
         current.cards,
@@ -1497,7 +1561,13 @@ function App() {
     setBoard((current) => {
       const deck = current.decks.find((candidate) => candidate.id === deckId)
 
-      if (current.hasArrived || current.lossReason || !deck || !canManuallyDrawDeck(deck)) {
+      if (
+        current.hasArrived ||
+        current.lossReason ||
+        current.pendingWakeChoice ||
+        !deck ||
+        !canManuallyDrawDeck(deck)
+      ) {
         return current
       }
 
@@ -1581,11 +1651,15 @@ function App() {
   function completeReadyHorizonStack(current: BoardState, stackId: string, metrics: BoardMetrics) {
     const sourceStack = current.stacks.find((stack) => stack.id === stackId)
 
-    if (!sourceStack) {
+    if (!sourceStack || current.pendingWakeChoice) {
       return { board: current, events: [] }
     }
 
-    const completion = getHorizonStackCompletion(sourceStack, current.cards)
+    const completion = getHorizonStackCompletion(
+      sourceStack,
+      current.cards,
+      getNextStarFuelDiscount(current.pendingEffects),
+    )
 
     if (!completion?.isReady) {
       return { board: current, events: [] }
@@ -1607,15 +1681,19 @@ function App() {
       (count, reward) => reward.kind === 'ready' ? count + reward.count : count,
       0,
     )
+    const wakeCount = rewards.reduce(
+      (count, reward) => reward.kind === 'crew' && reward.label === 'Wake' ? count + reward.count : count,
+      0,
+    )
     const rewardCards: Card[] = []
     let nextCardId = current.nextCardId
-    const nextDecks = current.decks.map((deck) => {
+    let nextDecks = current.decks.map((deck) => {
       const drawCount = rewards.reduce((count, reward) => {
         if (reward.kind === 'resource') {
           return deck.id === `${reward.resource}-deck` ? count + reward.count : count
         }
-        if (reward.kind === 'crew') {
-          return deck.id === 'cryo-deck' ? count + reward.count : count
+        if (reward.kind === 'crew' && reward.label !== 'Wake') {
+          return deck.id === CRYO_DECK_ID ? count + reward.count : count
         }
         return count
       }, 0)
@@ -1641,7 +1719,7 @@ function App() {
         ? { ...deck, cards: deck.cards.slice(drawnBlueprints.length), z: nextZ }
         : deck
     })
-    const nextCards = withoutCards(
+    let nextCards = withoutCards(
       current.cards,
       sourceStack.cardIds.filter(
         (cardId) => !spentCrewCardIdSet.has(cardId) && !spentMotherCardIdSet.has(cardId),
@@ -1674,6 +1752,17 @@ function App() {
 
     for (const cardId of otherChoiceCardIds) {
       delete nextCards[cardId]
+    }
+
+    let pendingWakeChoice: BoardState['pendingWakeChoice'] = current.pendingWakeChoice
+
+    if (wakeCount > 0) {
+      const wakeDraw = drawWakeChoiceCards(nextDecks, nextCards, nextCardId, wakeCount, nextZ)
+
+      nextCards = wakeDraw.cards
+      nextDecks = wakeDraw.decks
+      nextCardId = wakeDraw.nextCardId
+      pendingWakeChoice = wakeDraw.pendingWakeChoice
     }
 
     const resolvedCards = markMotherCardsSpent(nextCards, spentMotherCardIds)
@@ -1726,8 +1815,9 @@ function App() {
       dropTargetDeckId: null,
       handCardIds: readyCrewResult.handCardIds,
       tiredCardIds: readyCrewResult.tiredCardIds,
+      pendingWakeChoice,
       pendingEffects: [
-        ...current.pendingEffects,
+        ...consumeNextStarFuelDiscount(current.pendingEffects),
         ...createBoardEffectsForHorizonRewards(rewards),
       ],
       cards: resolvedCards,
@@ -1746,6 +1836,69 @@ function App() {
     }
   }
 
+  function chooseWakeCrew(cardId: string) {
+    setBoard((current) => {
+      const pendingWakeChoice = current.pendingWakeChoice
+
+      if (!pendingWakeChoice || !pendingWakeChoice.choiceCardIds.includes(cardId)) {
+        return current
+      }
+
+      const chosenCard = current.cards[cardId]
+
+      if (!chosenCard || chosenCard.kind !== 'crew') {
+        return current
+      }
+
+      const unchosenCardIds = pendingWakeChoice.choiceCardIds.filter((choiceCardId) => choiceCardId !== cardId)
+      const returnedCryoCards = cardsToDeckBlueprints(unchosenCardIds, current.cards)
+      let nextCards = { ...current.cards }
+      let nextDecks = current.decks.map((deck) =>
+        deck.id === CRYO_DECK_ID
+          ? { ...deck, cards: [...deck.cards, ...returnedCryoCards] }
+          : deck,
+      )
+      let nextCardId = current.nextCardId
+      let nextPendingWakeChoice: BoardState['pendingWakeChoice'] = null
+      let nextTopZ = current.topZ
+
+      for (const unchosenCardId of unchosenCardIds) {
+        delete nextCards[unchosenCardId]
+      }
+
+      if (pendingWakeChoice.remaining > 1) {
+        const wakeDraw = drawWakeChoiceCards(
+          nextDecks,
+          nextCards,
+          nextCardId,
+          pendingWakeChoice.remaining - 1,
+          current.topZ + 1,
+        )
+
+        nextCards = wakeDraw.cards
+        nextDecks = wakeDraw.decks
+        nextCardId = wakeDraw.nextCardId
+        nextPendingWakeChoice = wakeDraw.pendingWakeChoice
+        nextTopZ = wakeDraw.pendingWakeChoice ? current.topZ + 1 : current.topZ
+      }
+
+      return withPlaytestEvents({
+        ...current,
+        topZ: nextTopZ,
+        nextCardId,
+        dropTargetStackId: null,
+        dropTargetDeckId: null,
+        handCardIds: current.handCardIds.filter((candidateId) => candidateId !== cardId),
+        tiredCardIds: current.tiredCardIds.includes(cardId)
+          ? current.tiredCardIds
+          : [...current.tiredCardIds, cardId],
+        pendingWakeChoice: nextPendingWakeChoice,
+        cards: nextCards,
+        decks: nextDecks,
+      }, wakeCrewRecruitedEvent(chosenCard, unchosenCardIds, current.cards))
+    })
+  }
+
   function isSectorHorizonFinished(current: BoardState) {
     const horizonDeck = current.decks.find((deck) => deck.id === HORIZON_DECK_ID)
     const hasHorizonCardsInPlay = current.stacks.some((stack) =>
@@ -1758,7 +1911,13 @@ function App() {
   function completeReadyGateStack(current: BoardState, stackId: string) {
     const sourceStack = current.stacks.find((stack) => stack.id === stackId)
 
-    if (!sourceStack || current.hasArrived || current.lossReason || !isSectorHorizonFinished(current)) {
+    if (
+      !sourceStack ||
+      current.hasArrived ||
+      current.lossReason ||
+      current.pendingWakeChoice ||
+      !isSectorHorizonFinished(current)
+    ) {
       return { board: current, events: [] }
     }
 
@@ -2116,6 +2275,7 @@ function App() {
     if (
       board.hasArrived ||
       board.lossReason ||
+      board.pendingWakeChoice ||
       event.button !== 0 ||
       dragsRef.current.has(event.pointerId)
     ) {
@@ -2180,6 +2340,7 @@ function App() {
     if (
       board.hasArrived ||
       board.lossReason ||
+      board.pendingWakeChoice ||
       event.button !== 0 ||
       dragsRef.current.has(event.pointerId)
     ) {
@@ -2227,6 +2388,7 @@ function App() {
     if (
       board.hasArrived ||
       board.lossReason ||
+      board.pendingWakeChoice ||
       event.button !== 0 ||
       dragsRef.current.has(event.pointerId)
     ) {
@@ -2766,6 +2928,11 @@ function App() {
     }
 
     event.preventDefault()
+
+    if (boardStateRef.current.pendingWakeChoice) {
+      return
+    }
+
     drawFromDeck(deckId)
   }
 
@@ -2775,6 +2942,10 @@ function App() {
     }
 
     event.preventDefault()
+
+    if (boardStateRef.current.pendingWakeChoice) {
+      return
+    }
 
     const sourceHandZone = getCardHandZone(boardStateRef.current, cardId)
 
@@ -2814,6 +2985,7 @@ function App() {
         onCardKeyDown={handleCardKeyDown}
         onHandCardPointerDown={beginHandDrag}
         onHandCardKeyDown={handleHandKeyDown}
+        onWakeCrewChoice={chooseWakeCrew}
         onResetGame={resetGame}
       />
       <PlaytestLog entries={playtestLog} onResetGame={resetGame} />

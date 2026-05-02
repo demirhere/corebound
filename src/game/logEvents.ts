@@ -12,13 +12,17 @@ function describeRewards(rewards: readonly HorizonReward[]) {
         return `${reward.resource} +${reward.count}`
       }
       if (reward.kind === 'crew') {
+        if (reward.label === 'Wake') {
+          return 'Choose 1 of 2 Cryo crew'
+        }
+
         return `${reward.label} ${reward.count}`
       }
       if (reward.kind === 'scout') {
         return `Scout ${reward.count}`
       }
-      if (reward.kind === 'next_star_free') {
-        return 'Next round costs 0 Fuel'
+      if (reward.kind === 'next_star_fuel_discount') {
+        return `Next Star costs -${reward.amount} Fuel`
       }
       if (reward.kind === 'ready') {
         return `Ready ${reward.count} Tired crew`
@@ -304,6 +308,27 @@ export function horizonCompletedEvent(
       rewardCardTitles: rewardCards.map((card) => card.title),
       rewardCardSummaries: rewardCards.map((card) => describeCard(card, card.id)),
       rewardCardContents: rewardCards.map(cardContent),
+    },
+  }
+}
+
+export function wakeCrewRecruitedEvent(
+  chosenCard: Card,
+  unchosenCardIds: readonly string[],
+  cards: Record<string, Card>,
+): PlaytestLogEvent {
+  return {
+    type: 'wake.recruited',
+    message: `${describeCard(chosenCard, chosenCard.id)} recruited from Wake and enters Tired.`,
+    details: {
+      chosenCardId: chosenCard.id,
+      chosenCardTitle: chosenCard.title,
+      chosenCardSummary: describeCard(chosenCard, chosenCard.id),
+      chosenCardContent: cardContent(chosenCard),
+      unchosenCardIds,
+      unchosenCardTitles: cardTitles(unchosenCardIds, cards),
+      unchosenCardSummaries: cardSummaries(unchosenCardIds, cards),
+      unchosenCardContents: cardContents(unchosenCardIds, cards),
     },
   }
 }

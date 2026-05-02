@@ -36,6 +36,7 @@ type BoardCardProps = {
   cardIndex: number
   isStackActive: boolean
   stackOffsetRatio: number
+  fuelDiscount: number
   onPointerDown: CardPointerDownHandler
   onKeyDown: CardKeyDownHandler
 }
@@ -45,6 +46,7 @@ type CardShellProps = {
   className?: string
   style?: CSSProperties
   isActive?: boolean
+  fuelDiscount?: number
   ariaLabel: string
   dataHandCardId?: string
   onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void
@@ -62,6 +64,24 @@ function renderIconPips(
   return icons.map((icon, index) => <GameIcon key={`${keyPrefix}-${icon}-${index}`} kind={icon} />)
 }
 
+function renderFuelNeed(printedFuel: number, currentFuelCost: number, keyPrefix: string) {
+  const removedFuelCount = printedFuel - currentFuelCost
+
+  return [
+    ...Array.from({ length: currentFuelCost }, (_, index) => (
+      <GameIcon key={`${keyPrefix}-fuel-${index}`} kind="fuel" />
+    )),
+    ...Array.from({ length: removedFuelCount }, (_, index) => (
+      <span key={`${keyPrefix}-removed-fuel-${index}`} className="removed-need-icon" title="Fuel removed by Star effect">
+        <GameIcon kind="fuel" />
+        <span className="removed-need-person" aria-hidden="true">
+          <GameIcon kind="person" />
+        </span>
+      </span>
+    )),
+  ]
+}
+
 function renderReward(reward: HorizonReward, index: number) {
   if (reward.kind === 'resource') {
     const iconKind = reward.resource
@@ -70,6 +90,15 @@ function renderReward(reward: HorizonReward, index: number) {
     )
   }
   if (reward.kind === 'crew') {
+    if (reward.label === 'Wake') {
+      return [
+        <span key={`wake-${index}`} className="card-wake-reward">
+          <GameIcon kind="person" />
+          <span>Choose 1 of 2. Will join tired.</span>
+        </span>,
+      ]
+    }
+
     const iconKind = 'person'
     return Array.from({ length: reward.count }, (_, rewardIndex) =>
       <GameIcon key={`${iconKind}-${index}-${rewardIndex}`} kind={iconKind} />,
@@ -82,17 +111,20 @@ function renderReward(reward: HorizonReward, index: number) {
       </span>,
     ]
   }
-  if (reward.kind === 'next_star_free') {
+  if (reward.kind === 'next_star_fuel_discount') {
     return [
-      <span key={`next-star-free-${index}`} className="card-rule-text">
-        Next round costs 0 Fuel.
+      <span key={`next-star-discount-${index}`} className="card-rule-text">
+        The next Star you complete this sector costs -{reward.amount} Fuel.
       </span>,
     ]
   }
   if (reward.kind === 'ready') {
     return [
-      <span key={`ready-${index}`} className="card-rule-text">
-        Ready {reward.count} Tired crew.
+      <span key={`ready-${index}`} className="card-wake-reward">
+        {Array.from({ length: reward.count }, (_, rewardIndex) =>
+          <GameIcon key={`ready-${index}-${rewardIndex}`} kind="person" />,
+        )}
+        <span>Will join tired.</span>
       </span>,
     ]
   }
@@ -117,7 +149,7 @@ function renderGatePenalty(gate: GateDetails) {
   )
 }
 
-function renderGameplayCardContent(card: CardView) {
+function renderGameplayCardContent(card: CardView, fuelDiscount: number) {
   if (card.kind === 'resource' && card.resource) {
     return (
       <>
@@ -161,7 +193,9 @@ function renderGameplayCardContent(card: CardView) {
   }
 
   if (card.kind === 'horizon' && card.horizon) {
-    const needFuelIcons = Array.from({ length: card.horizon.need.fuel }, () => 'fuel' as const)
+    const currentFuelCost = Math.max(0, card.horizon.need.fuel - fuelDiscount)
+    const hasFuelDiscount = currentFuelCost < card.horizon.need.fuel
+    const removedFuelCount = card.horizon.need.fuel - currentFuelCost
 
     return (
       <>
@@ -169,10 +203,15 @@ function renderGameplayCardContent(card: CardView) {
         <div className="card-rule-row">
           <span>Need</span>
           <div className="card-rule-icons">
-            {needFuelIcons.length > 0 && renderIconPips(needFuelIcons, `${card.id}-fuel-need`)}
+            {renderFuelNeed(card.horizon.need.fuel, currentFuelCost, `${card.id}-fuel-need`)}
             {renderIconPips(card.horizon.need.icons, `${card.id}-icon-need`)}
           </div>
         </div>
+        {hasFuelDiscount && (
+          <p className="card-rule-text">
+            Next Star discount: {removedFuelCount} Fuel scribbled out.
+          </p>
+        )}
         <div className="card-rule-row">
           <span className="card-reward-equals">=</span>
           <div className="card-rule-icons">
@@ -208,6 +247,7 @@ export function CardShell({
   className = '',
   style,
   isActive = false,
+  fuelDiscount = 0,
   ariaLabel,
   dataHandCardId,
   onPointerDown,
@@ -215,7 +255,7 @@ export function CardShell({
 }: CardShellProps) {
   const sampledIcons = pickCardIcons(`${card.id}:${card.title}`)
   const noteLines = pickCardNote(`${card.id}:${card.title}`)
-  const gameplayContent = renderGameplayCardContent(card)
+  const gameplayContent = renderGameplayCardContent(card, fuelDiscount)
 
   return (
     <div
@@ -273,6 +313,7 @@ export function BoardCard({
   cardIndex,
   isStackActive,
   stackOffsetRatio,
+  fuelDiscount,
   onPointerDown,
   onKeyDown,
 }: BoardCardProps) {
@@ -280,6 +321,7 @@ export function BoardCard({
     <CardShell
       card={card}
       isActive={isStackActive}
+      fuelDiscount={fuelDiscount}
       style={
         {
           top: `${cardIndex * stackOffsetRatio * 100}%`,

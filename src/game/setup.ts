@@ -287,7 +287,7 @@ const horizonDeck = [
     { kind: 'scout', count: 2 },
   ]),
   createHorizonCard('Gravity Sling', 'star', 2, ['star', 'engine'], [
-    { kind: 'next_star_free' },
+    { kind: 'next_star_fuel_discount', amount: 1 },
   ]),
   createHorizonCard('Quiet Relay', 'planet', 1, ['signal', 'star'], [
     { kind: 'scout', count: 3 },
@@ -394,6 +394,7 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
     ],
     handCardIds: handCards.map((card) => card.id),
     tiredCardIds: [],
+    pendingWakeChoice: null,
     pendingEffects: [],
     hasArrived: false,
     lossReason: null,

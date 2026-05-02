@@ -49,7 +49,8 @@ export type HorizonReward =
       count: number
     }
   | {
-      kind: 'next_star_free'
+      kind: 'next_star_fuel_discount'
+      amount: number
     }
   | {
       kind: 'ready'
@@ -79,8 +80,8 @@ export type GateDetails = {
 
 export type BoardEffect =
   | {
-      kind: 'horizon_fuel_waiver'
-      remainingCards: number
+      kind: 'next_star_fuel_discount'
+      amount: number
     }
   | {
       kind: 'deck_draw_modifier'
@@ -141,6 +142,10 @@ export type BoardState = {
   decks: Deck[]
   handCardIds: string[]
   tiredCardIds: string[]
+  pendingWakeChoice: {
+    remaining: number
+    choiceCardIds: string[]
+  } | null
   pendingEffects: BoardEffect[]
   hasArrived: boolean
   lossReason: GameLossReason | null

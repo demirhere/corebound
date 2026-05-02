@@ -45,9 +45,9 @@ Prototype behavior:
 - Click Ready crew or the MOTHER Deck to add those cards to the board. Drag any board card to move it; clicking a board card brings it to the top of the stack order.
 - Take an action by stacking the required cards onto a visible Star, damaged Chamber, or active Gate. When the stack is legal, the action button appears on that target card.
 - Stars require stacked Fuel if their current Fuel cost is above 0. Chambers require stacked Parts. Stars, Chambers, and Gates all require at least one stacked human crew and enough stacked crew/MOTHER icons to cover Need or Build.
-- Star cards always show their printed Fuel icons. Temporary discounts, Free Star rewards, and armed Chamber bonuses stay represented by board cards or installed Chamber cards instead of an Active Effects section.
+- Star cards show active temporary Fuel discounts when they apply. Discount rewards and armed Chamber bonuses stay represented by board cards or installed Chamber cards instead of rewriting the deck.
 - Resolving a stack spends required Fuel or Parts, makes stacked crew Tired, spends only the MOTHER cards needed for missing icons, and applies the reward.
-- Wake rewards reveal up to 2 Cryo crew; the Implementer recruits 1 loyal crew, and the recruit enters Tired.
+- Wake rewards reveal up to 2 Cryo crew; choose 1; that crew joins your crew area Tired.
 - After Gate 1 and Gate 2, a Gate Draft reveals Cryo crew and recruits for the next sector. In the solo prototype this is a one-player draft.
 - If all three Horizon Stars are unaffordable, Reroute discards them, uses 1 MOTHER card, and redraws. With no MOTHER card left, the ship is Stranded in the Reach.
 - MOTHER threshold lines on Stars activate by spent-card count: `3+ ✶` at 3+ spent cards, `5+ ✶` at 5+ spent cards.

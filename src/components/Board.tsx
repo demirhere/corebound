@@ -2,6 +2,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
+import { getNextStarFuelDiscount } from '../game/effects'
 import type { BoardState, GameLossReason } from '../game/types'
 import { CardStack } from './CardStack'
 import {
@@ -27,6 +28,8 @@ type BoardView = Pick<
   | 'decks'
   | 'handCardIds'
   | 'tiredCardIds'
+  | 'pendingWakeChoice'
+  | 'pendingEffects'
   | 'dropTargetStackId'
   | 'dropTargetDeckId'
   | 'hasArrived'
@@ -51,6 +54,7 @@ type BoardProps = {
   onCardKeyDown: CardKeyDownHandler
   onHandCardPointerDown: HandPointerDownHandler
   onHandCardKeyDown: HandKeyDownHandler
+  onWakeCrewChoice: (cardId: string) => void
   onResetGame: () => void
 }
 
@@ -86,9 +90,16 @@ export function Board({
   onCardKeyDown,
   onHandCardPointerDown,
   onHandCardKeyDown,
+  onWakeCrewChoice,
   onResetGame,
 }: BoardProps) {
   const loss = board.lossReason ? lossContent(board.lossReason) : null
+  const fuelDiscount = getNextStarFuelDiscount(board.pendingEffects)
+  const wakeChoiceCards = board.pendingWakeChoice?.choiceCardIds.flatMap((cardId) => {
+    const card = board.cards[cardId]
+
+    return card?.kind === 'crew' ? [card] : []
+  }) ?? []
 
   return (
     <section
@@ -136,6 +147,7 @@ export function Board({
           isDropTarget={board.dropTargetStackId === stack.id}
           isActive={activeStackIds.includes(stack.id)}
           stackOffsetRatio={stackOffsetRatio}
+          fuelDiscount={fuelDiscount}
           onCardPointerDown={onCardPointerDown}
           onCardKeyDown={onCardKeyDown}
         />
@@ -176,6 +188,24 @@ export function Board({
           <button type="button" onClick={onResetGame}>
             Restart and reshuffle
           </button>
+        </section>
+      )}
+
+      {board.pendingWakeChoice && wakeChoiceCards.length > 0 && (
+        <section
+          className="arrival-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="wake-choice-title"
+        >
+          <p className="arrival-kicker">Wake {board.pendingWakeChoice.remaining}</p>
+          <h2 id="wake-choice-title">Choose Cryo Crew</h2>
+          <p>That crew joins your crew area Tired.</p>
+          {wakeChoiceCards.map((card) => (
+            <button key={card.id} type="button" onClick={() => onWakeCrewChoice(card.id)}>
+              {card.title} ({card.specializations?.join(' + ') ?? 'no icons'})
+            </button>
+          ))}
         </section>
       )}
     </section>

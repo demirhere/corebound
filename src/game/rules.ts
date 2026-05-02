@@ -214,6 +214,7 @@ export function canCompleteNeedWithCrewAndMother(
 export function getHorizonStackCompletion(
   stack: Stack,
   cards: Record<string, Card>,
+  fuelDiscount = 0,
 ): HorizonStackCompletion | null {
   const horizonCardIndex = stack.cardIds.findIndex((cardId) => {
     const card = cards[cardId]
@@ -265,7 +266,8 @@ export function getHorizonStackCompletion(
   }
 
   const missingIconCount = countMissingNeedIcons(crewCardIds, cards, horizonCard.horizon.need.icons, 0)
-  const hasRequiredFuel = fuelCount === horizonCard.horizon.need.fuel
+  const requiredFuel = Math.max(0, horizonCard.horizon.need.fuel - fuelDiscount)
+  const hasRequiredFuel = fuelCount === requiredFuel
   const hasRequiredIcons = missingIconCount <= motherCount
 
   return {
