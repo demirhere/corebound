@@ -19,6 +19,7 @@ export type DeckCardView = {
 type DeckCardProps = {
   deck: DeckCardView
   isActive: boolean
+  isDropTarget: boolean
   onPointerDown: DeckPointerDownHandler
   onKeyDown: DeckKeyDownHandler
 }
@@ -33,11 +34,19 @@ export type DeckKeyDownHandler = (
   deckId: string,
 ) => void
 
-export function DeckCard({ deck, isActive, onPointerDown, onKeyDown }: DeckCardProps) {
+export function DeckCard({
+  deck,
+  isActive,
+  isDropTarget,
+  onPointerDown,
+  onKeyDown,
+}: DeckCardProps) {
   return (
     <button
       type="button"
-      className={`deck-card ${isActive ? 'is-being-dragged' : ''}`}
+      className={`deck-card ${isActive ? 'is-being-dragged' : ''} ${
+        isDropTarget ? 'is-drop-target' : ''
+      }`}
       style={
         {
           '--card-hue': String(deck.hue),

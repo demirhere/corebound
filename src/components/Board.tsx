@@ -20,6 +20,7 @@ type BoardView = {
   stacks: StackView[]
   decks: DeckCardView[]
   dropTargetStackId: string | null
+  dropTargetDeckId: string | null
 }
 
 type BoardProps = {
@@ -67,6 +68,7 @@ export function Board({
             key={deck.id}
             deck={deck}
             isActive={activeDeckId === deck.id}
+            isDropTarget={board.dropTargetDeckId === deck.id}
             onPointerDown={onDeckPointerDown}
             onKeyDown={onDeckKeyDown}
           />

@@ -33,6 +33,8 @@ export function CardStack({
   onCardPointerDown,
   onCardKeyDown,
 }: CardStackProps) {
+  const firstCard = cards[stack.cardIds[0]]
+
   return (
     <div
       className={`card-stack ${isDropTarget ? 'is-drop-target' : ''} ${
@@ -43,6 +45,10 @@ export function CardStack({
           left: `${stack.x}%`,
           top: `${stack.y}%`,
           zIndex: stack.z,
+          '--stack-accent': firstCard?.accent ?? '#73ffd6',
+          '--stack-height': `${
+            100 + Math.max(0, stack.cardIds.length - 1) * stackOffsetRatio * 100
+          }%`,
         } as CSSProperties
       }
     >

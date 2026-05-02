@@ -46,6 +46,7 @@ type BoardState = {
   topZ: number
   nextCardId: number
   dropTargetStackId: string | null
+  dropTargetDeckId: string | null
 }
 
 type StackDragState = {
@@ -84,10 +85,23 @@ type BoardMetrics = {
   stackOffset: number
 }
 
+type Bounds = {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
+type DropTarget = {
+  stackId: string | null
+  deckId: string | null
+}
+
 const DRAG_CLICK_TOLERANCE = 5
 const DRAW_RADIUS_PERCENT = 18
 const DRAW_MIN_RADIUS_PERCENT = 8
 const STACK_OFFSET_RATIO = 0.38
+const DROP_TARGET_PADDING_RATIO = 0.28
 
 const startingCards: Card[] = [
   {
@@ -236,11 +250,89 @@ function createInitialBoard(): BoardState {
     topZ: 15,
     nextCardId: 1,
     dropTargetStackId: null,
+    dropTargetDeckId: null,
   }
 }
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
+}
+
+function getStackHeight(cardCount: number, metrics: BoardMetrics) {
+  return metrics.cardHeight + Math.max(0, cardCount - 1) * metrics.stackOffset
+}
+
+function getStackBounds(stack: Stack, metrics: BoardMetrics): Bounds {
+  const left = (stack.x / 100) * metrics.width
+  const top = (stack.y / 100) * metrics.height
+
+  return {
+    left,
+    top,
+    right: left + metrics.cardWidth,
+    bottom: top + getStackHeight(stack.cardIds.length, metrics),
+  }
+}
+
+function getDeckBounds(deck: Deck, metrics: BoardMetrics): Bounds {
+  const left = (deck.x / 100) * metrics.width
+  const top = (deck.y / 100) * metrics.height
+
+  return {
+    left,
+    top,
+    right: left + metrics.cardWidth,
+    bottom: top + metrics.cardHeight,
+  }
+}
+
+function getBoundsDistance(source: Bounds, target: Bounds) {
+  const horizontalGap = Math.max(0, target.left - source.right, source.left - target.right)
+  const verticalGap = Math.max(0, target.top - source.bottom, source.top - target.bottom)
+
+  return Math.hypot(horizontalGap, verticalGap)
+}
+
+function getBoundsCenterDistance(source: Bounds, target: Bounds) {
+  const sourceCenterX = (source.left + source.right) / 2
+  const sourceCenterY = (source.top + source.bottom) / 2
+  const targetCenterX = (target.left + target.right) / 2
+  const targetCenterY = (target.top + target.bottom) / 2
+
+  return Math.hypot(sourceCenterX - targetCenterX, sourceCenterY - targetCenterY)
+}
+
+function isFaceDownStack(stack: Stack, cards: Record<string, Card>) {
+  return stack.cardIds.length > 0 && stack.cardIds.every((cardId) => cards[cardId]?.faceUp === false)
+}
+
+function cardsToDeckBlueprints(cardIds: string[], cards: Record<string, Card>) {
+  return cardIds.flatMap((cardId) => {
+    const card = cards[cardId]
+
+    if (!card) {
+      return []
+    }
+
+    return [
+      {
+        title: card.title,
+        icon: card.icon,
+        hue: card.hue,
+        accent: card.accent,
+      },
+    ]
+  })
+}
+
+function withoutCards(cards: Record<string, Card>, cardIds: string[]) {
+  const nextCards = { ...cards }
+
+  for (const cardId of cardIds) {
+    delete nextCards[cardId]
+  }
+
+  return nextCards
 }
 
 function App() {
@@ -270,24 +362,13 @@ function App() {
 
   function clampStackPosition(x: number, y: number, cardCount: number) {
     const metrics = readBoardMetrics()
-    const stackHeight =
-      metrics.cardHeight + Math.max(0, cardCount - 1) * metrics.stackOffset
+    const stackHeight = getStackHeight(cardCount, metrics)
     const maxX = 100 - (metrics.cardWidth / metrics.width) * 100 - 1
     const maxY = 100 - (stackHeight / metrics.height) * 100 - 1
 
     return {
       x: clamp(x, 1, Math.max(1, maxX)),
       y: clamp(y, 1, Math.max(1, maxY)),
-    }
-  }
-
-  function getStackCenter(stack: Stack, metrics: BoardMetrics) {
-    const stackHeight =
-      metrics.cardHeight + Math.max(0, stack.cardIds.length - 1) * metrics.stackOffset
-
-    return {
-      x: (stack.x / 100) * metrics.width + metrics.cardWidth / 2,
-      y: (stack.y / 100) * metrics.height + stackHeight / 2,
     }
   }
 
@@ -301,40 +382,65 @@ function App() {
     }
   }
 
-  function getNearestStackId(
+  function getNearestDropTarget(
     stacks: Stack[],
+    decks: Deck[],
+    cards: Record<string, Card>,
     sourceStackId: string,
     metrics: BoardMetrics,
-  ) {
+  ): DropTarget {
     const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
 
     if (!sourceStack) {
-      return null
+      return { stackId: null, deckId: null }
     }
 
-    const sourceCenter = getStackCenter(sourceStack, metrics)
-    const dropDistance = Math.max(metrics.cardWidth, metrics.cardHeight) * 0.55
-    let nearestStackId: string | null = null
+    const sourceBounds = getStackBounds(sourceStack, metrics)
+    const dropDistance = Math.max(metrics.cardWidth, metrics.cardHeight) * DROP_TARGET_PADDING_RATIO
+    const sourceIsFaceDown = isFaceDownStack(sourceStack, cards)
+    let nearestKind: 'stack' | 'deck' | null = null
+    let nearestId: string | null = null
     let nearestDistance = Number.POSITIVE_INFINITY
+    let nearestCenterDistance = Number.POSITIVE_INFINITY
+
+    function considerTarget(kind: 'stack' | 'deck', id: string, targetBounds: Bounds) {
+      const distance = getBoundsDistance(sourceBounds, targetBounds)
+      const centerDistance = getBoundsCenterDistance(sourceBounds, targetBounds)
+
+      if (
+        distance <= dropDistance &&
+        (distance < nearestDistance ||
+          (distance === nearestDistance && centerDistance < nearestCenterDistance))
+      ) {
+        nearestKind = kind
+        nearestId = id
+        nearestDistance = distance
+        nearestCenterDistance = centerDistance
+      }
+    }
 
     for (const targetStack of stacks) {
       if (targetStack.id === sourceStackId) {
         continue
       }
 
-      const targetCenter = getStackCenter(targetStack, metrics)
-      const distance = Math.hypot(
-        sourceCenter.x - targetCenter.x,
-        sourceCenter.y - targetCenter.y,
-      )
+      considerTarget('stack', targetStack.id, getStackBounds(targetStack, metrics))
+    }
 
-      if (distance < dropDistance && distance < nearestDistance) {
-        nearestStackId = targetStack.id
-        nearestDistance = distance
+    if (sourceIsFaceDown) {
+      for (const targetDeck of decks) {
+        if (targetDeck.cards.length === 0) {
+          continue
+        }
+
+        considerTarget('deck', targetDeck.id, getDeckBounds(targetDeck, metrics))
       }
     }
 
-    return nearestStackId
+    return {
+      stackId: nearestKind === 'stack' ? nearestId : null,
+      deckId: nearestKind === 'deck' ? nearestId : null,
+    }
   }
 
   function captureBoardPointer(pointerId: number) {
@@ -351,7 +457,9 @@ function App() {
 
   function clearDropTarget() {
     setBoard((current) =>
-      current.dropTargetStackId ? { ...current, dropTargetStackId: null } : current,
+      current.dropTargetStackId || current.dropTargetDeckId
+        ? { ...current, dropTargetStackId: null, dropTargetDeckId: null }
+        : current,
     )
   }
 
@@ -369,6 +477,7 @@ function App() {
         ...current,
         topZ: nextZ,
         dropTargetStackId: null,
+        dropTargetDeckId: null,
         cards: {
           ...current.cards,
           [cardId]: { ...card, faceUp: !card.faceUp },
@@ -407,6 +516,7 @@ function App() {
         topZ: cardZ,
         nextCardId: current.nextCardId + 1,
         dropTargetStackId: null,
+        dropTargetDeckId: null,
         cards: {
           ...current.cards,
           [newCardId]: { ...drawnCard, id: newCardId, faceUp: true },
@@ -566,11 +676,20 @@ function App() {
         )
       }
 
+      const dropTarget = getNearestDropTarget(
+        nextStacks,
+        current.decks,
+        current.cards,
+        activeId,
+        metrics,
+      )
+
       return {
         ...current,
         topZ: nextZ,
         stacks: nextStacks,
-        dropTargetStackId: getNearestStackId(nextStacks, activeId, metrics),
+        dropTargetStackId: dropTarget.stackId,
+        dropTargetDeckId: dropTarget.deckId,
       }
     })
   }
@@ -602,6 +721,7 @@ function App() {
         ...current,
         topZ: nextZ,
         dropTargetStackId: null,
+        dropTargetDeckId: null,
         decks: current.decks.map((deck) =>
           deck.id === drag.deckId
             ? {
@@ -635,15 +755,99 @@ function App() {
     setBoard((current) => {
       const sourceStack = current.stacks.find((stack) => stack.id === sourceStackId)
       const targetStackId = current.dropTargetStackId
+      const targetDeckId = current.dropTargetDeckId
 
-      if (!sourceStack || !targetStackId || targetStackId === sourceStackId) {
-        return { ...current, dropTargetStackId: null }
+      if (!sourceStack) {
+        return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
+      }
+
+      const sourceIsFaceDown = isFaceDownStack(sourceStack, current.cards)
+
+      if (targetDeckId) {
+        const targetDeck = current.decks.find((deck) => deck.id === targetDeckId)
+
+        if (!targetDeck || !sourceIsFaceDown) {
+          return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
+        }
+
+        const sourceDeckCards = cardsToDeckBlueprints(sourceStack.cardIds, current.cards)
+
+        if (sourceDeckCards.length !== sourceStack.cardIds.length) {
+          return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
+        }
+
+        const nextZ = current.topZ + 1
+
+        return {
+          ...current,
+          topZ: nextZ,
+          dropTargetStackId: null,
+          dropTargetDeckId: null,
+          cards: withoutCards(current.cards, sourceStack.cardIds),
+          stacks: current.stacks.filter((stack) => stack.id !== sourceStackId),
+          decks: current.decks.map((deck) =>
+            deck.id === targetDeck.id
+              ? {
+                  ...deck,
+                  cards: [...sourceDeckCards, ...deck.cards],
+                  z: nextZ,
+                }
+              : deck,
+          ),
+        }
+      }
+
+      if (!targetStackId || targetStackId === sourceStackId) {
+        return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
       }
 
       const targetStack = current.stacks.find((stack) => stack.id === targetStackId)
 
       if (!targetStack) {
-        return { ...current, dropTargetStackId: null }
+        return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
+      }
+
+      if (sourceIsFaceDown && isFaceDownStack(targetStack, current.cards)) {
+        const sourceDeckCards = cardsToDeckBlueprints(sourceStack.cardIds, current.cards)
+        const targetDeckCards = cardsToDeckBlueprints(targetStack.cardIds, current.cards)
+        const deckCardIds = [...sourceStack.cardIds, ...targetStack.cardIds]
+        const deckTopCard = current.cards[sourceStack.cardIds[0]] ?? current.cards[targetStack.cardIds[0]]
+
+        if (
+          !deckTopCard ||
+          sourceDeckCards.length !== sourceStack.cardIds.length ||
+          targetDeckCards.length !== targetStack.cardIds.length
+        ) {
+          return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
+        }
+
+        const nextZ = current.topZ + 1
+
+        return {
+          ...current,
+          topZ: nextZ,
+          nextCardId: current.nextCardId + 1,
+          dropTargetStackId: null,
+          dropTargetDeckId: null,
+          cards: withoutCards(current.cards, deckCardIds),
+          stacks: current.stacks.filter(
+            (stack) => stack.id !== sourceStackId && stack.id !== targetStack.id,
+          ),
+          decks: [
+            ...current.decks,
+            {
+              id: `deck-${current.nextCardId}`,
+              title: `${deckTopCard.title} Deck`,
+              icon: deckTopCard.icon,
+              hue: deckTopCard.hue,
+              accent: deckTopCard.accent,
+              x: targetStack.x,
+              y: targetStack.y,
+              z: nextZ,
+              cards: [...sourceDeckCards, ...targetDeckCards],
+            },
+          ],
+        }
       }
 
       const nextZ = current.topZ + 1
@@ -652,6 +856,7 @@ function App() {
         ...current,
         topZ: nextZ,
         dropTargetStackId: null,
+        dropTargetDeckId: null,
         stacks: current.stacks
           .filter((stack) => stack.id !== sourceStackId)
           .map((stack) =>
