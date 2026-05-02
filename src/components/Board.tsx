@@ -76,9 +76,9 @@ export function Board({
       <aside className="board-notes" aria-label="Quick play instructions">
         <h2>Instructions</h2>
         <ol>
-          <li>Pick horizon</li>
-          <li>Find matching crew and resource</li>
-          <li>Travel and get rewards</li>
+          <li>Draw 3 horizon cards, choose 1</li>
+          <li>Stack matching resources</li>
+          <li>Collect rewards</li>
         </ol>
       </aside>
 
