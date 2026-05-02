@@ -62,11 +62,40 @@ function renderIconPips(
 }
 
 function renderReward(reward: HorizonReward, index: number) {
-  const iconKind = reward.kind === 'resource' ? reward.resource : 'person'
-
-  return Array.from({ length: reward.count }, (_, rewardIndex) =>
-    <GameIcon key={`${iconKind}-${index}-${rewardIndex}`} kind={iconKind} />,
-  )
+  if (reward.kind === 'resource') {
+    const iconKind = reward.resource
+    return Array.from({ length: reward.count }, (_, rewardIndex) =>
+      <GameIcon key={`${iconKind}-${index}-${rewardIndex}`} kind={iconKind} />,
+    )
+  }
+  if (reward.kind === 'crew') {
+    const iconKind = 'person'
+    return Array.from({ length: reward.count }, (_, rewardIndex) =>
+      <GameIcon key={`${iconKind}-${index}-${rewardIndex}`} kind={iconKind} />,
+    )
+  }
+  if (reward.kind === 'scout') {
+    return [
+      <span key={`scout-${index}`} className="card-rule-text">
+        Next round peek at {reward.count} Horizon cards and discard 1.
+      </span>,
+    ]
+  }
+  if (reward.kind === 'next_star_free') {
+    return [
+      <span key={`next-star-free-${index}`} className="card-rule-text">
+        Next round costs 0 Fuel.
+      </span>,
+    ]
+  }
+  if (reward.kind === 'ready') {
+    return [
+      <span key={`ready-${index}`} className="card-rule-text">
+        Ready {reward.count} Tired crew.
+      </span>,
+    ]
+  }
+  return []
 }
 
 function renderGameplayCardContent(card: CardView) {

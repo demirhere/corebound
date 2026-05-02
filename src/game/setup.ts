@@ -181,60 +181,66 @@ function setupCrewDealtEvent(card: Card, handIndex: number): PlaytestLogEvent {
 const startingCrewCards = [
   createCrewCard('Lei Watanabe', ['life', 'star'], 151, '#77ffbb'),
   createCrewCard('Mara Voss', ['engine', 'engine'], 8, '#ff7468'),
+  createCrewCard('Ada Chen', ['engine', 'signal'], 312, '#ff7bd5'),
+  createCrewCard('Sana Iqbal', ['life', 'life'], 118, '#9cff7a'),
+  createCrewCard('Juno Pike', ['engine', 'star'], 192, '#64f3ff'),
+  createCrewCard('Nia Okonkwo', ['signal', 'star'], 274, '#cf8cff'),
 ]
 
 const cryoCrewDeck = [
-  createCrewCard('Sana Iqbal', ['life', 'life'], 118, '#9cff7a'),
-  createCrewCard('Juno Pike', ['engine', 'star'], 192, '#64f3ff'),
   createCrewCard('Ilya Rao', ['star', 'signal'], 250, '#b99cff'),
-  createCrewCard('Ada Chen', ['engine', 'signal'], 312, '#ff7bd5'),
   createCrewCard('Tomas Hale', ['engine', 'life'], 35, '#ffb25f'),
-  createCrewCard('Nia Okonkwo', ['signal', 'star'], 274, '#cf8cff'),
+  createCrewCard('Elise Tan', ['life', 'signal'], 55, '#ffe07a'),
+  createCrewCard('Oren Vale', ['signal', 'signal'], 175, '#5ee8d6'),
+  createCrewCard('Malik Ortega', ['star', 'star'], 340, '#ff73a8'),
+  createCrewCard('Priya Shah', ['life', 'engine'], 100, '#a6ff6e'),
 ]
 
 const horizonDeck = [
   createHorizonCard('Dust Garden', 'planet', 0, ['life', 'star'], [
     { kind: 'resource', resource: 'fuel', count: 1 },
   ]),
-  createHorizonCard('Iron Wake', 'asteroid', 1, ['engine', 'engine'], [
-    { kind: 'resource', resource: 'hull', count: 1 },
+  createHorizonCard('Life Orchard', 'planet', 1, ['life', 'engine'], [
+    { kind: 'ready', count: 1 },
   ]),
   createHorizonCard('Cryo Choir', 'star', 2, ['life', 'signal'], [
-    { kind: 'crew', label: 'Crew', count: 1 },
+    { kind: 'crew', label: 'Wake', count: 1 },
+  ]),
+  createHorizonCard('Sleeper Arklet', 'star', 2, ['life', 'life', 'star'], [
+    { kind: 'crew', label: 'Wake', count: 1 },
+  ]),
+  createHorizonCard('Iron Wake', 'asteroid', 1, ['engine', 'engine'], [
+    { kind: 'resource', resource: 'fuel', count: 1 },
   ]),
   createHorizonCard('Red Salvage', 'asteroid', 1, ['engine', 'signal'], [
     { kind: 'resource', resource: 'fuel', count: 1 },
   ]),
-  createHorizonCard('Hull Orchard', 'planet', 1, ['life', 'engine'], [
-    { kind: 'resource', resource: 'hull', count: 1 },
+  createHorizonCard('Broken Atlas', 'asteroid', 0, ['signal', 'signal'], [
+    { kind: 'scout', count: 2 },
   ]),
-  createHorizonCard('Sleeper Arklet', 'star', 2, ['life', 'life', 'star'], [
-    { kind: 'crew', label: 'Wake', count: 1 },
+  createHorizonCard('Gravity Sling', 'star', 2, ['star', 'engine'], [
+    { kind: 'next_star_free' },
+  ]),
+  createHorizonCard('Quiet Relay', 'planet', 1, ['signal', 'star'], [
+    { kind: 'scout', count: 3 },
   ]),
 ]
 
 export function createInitialBoardSetup(): { board: BoardState; events: PlaytestLogEvent[] } {
   const fuelDeck = shuffleCards(createResourceDeck('fuel', RESOURCE_DECK_SIZE))
-  const hullDeck = shuffleCards(createResourceDeck('hull', RESOURCE_DECK_SIZE))
+  // const hullDeck = shuffleCards(createResourceDeck('hull', RESOURCE_DECK_SIZE))
   const initialFuelCards = createBoardCards('fuel-start', fuelDeck.slice(0, 3))
-  const initialHullCards = createBoardCards('hull-start', hullDeck.slice(0, 4))
+  // const initialHullCards = createBoardCards('hull-start', hullDeck.slice(0, 4))
   const handCards = createBoardCards('crew-hand', startingCrewCards)
-  const initialCards = [...initialFuelCards, ...initialHullCards, ...handCards]
+  const initialCards = [...initialFuelCards, ...handCards]
   const fuelDeckCards = fuelDeck.slice(3)
-  const hullDeckCards = hullDeck.slice(4)
+  // const hullDeckCards = hullDeck.slice(4)
   const horizonDeckCards = shuffleCards(horizonDeck)
   const cryoDeckCards = shuffleCards(cryoCrewDeck)
 
   const board: BoardState = {
     cards: Object.fromEntries(initialCards.map((card) => [card.id, card])),
     stacks: [
-      {
-        id: 'stack-hull-supply',
-        cardIds: initialHullCards.map((card) => card.id),
-        x: 19,
-        y: 17,
-        z: 10,
-      },
       {
         id: 'stack-fuel-supply',
         cardIds: initialFuelCards.map((card) => card.id),
@@ -254,17 +260,6 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
         y: 12,
         z: 12,
         cards: fuelDeckCards,
-      },
-      {
-        id: 'hull-deck',
-        title: 'Hull Deck',
-        icon: resourceArt.hull.icon,
-        hue: resourceArt.hull.hue,
-        accent: resourceArt.hull.accent,
-        x: 6,
-        y: 40,
-        z: 13,
-        cards: hullDeckCards,
       },
       {
         id: 'horizon-deck',
@@ -291,6 +286,7 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
     ],
     handCardIds: handCards.map((card) => card.id),
     tiredCardIds: [],
+    pendingEffects: [],
     topZ: 15,
     nextCardId: 1,
     dropTargetStackId: null,
@@ -301,11 +297,11 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
     board,
     events: [
       setupDeckCreatedEvent('fuel-deck', 'Fuel Deck', fuelDeckCards),
-      setupDeckCreatedEvent('hull-deck', 'Hull Deck', hullDeckCards),
+      // setupDeckCreatedEvent('hull-deck', 'Hull Deck', hullDeckCards),
       setupDeckCreatedEvent('horizon-deck', 'Horizon Deck', horizonDeckCards),
       setupDeckCreatedEvent('cryo-deck', 'Cryo Deck', cryoDeckCards),
       ...initialFuelCards.map((card, index) => setupResourceDrawnEvent(card, 'Fuel Deck', index + 1)),
-      ...initialHullCards.map((card, index) => setupResourceDrawnEvent(card, 'Hull Deck', index + 1)),
+      // ...initialHullCards.map((card, index) => setupResourceDrawnEvent(card, 'Hull Deck', index + 1)),
       ...handCards.map((card, index) => setupCrewDealtEvent(card, index + 1)),
     ],
   }

@@ -40,6 +40,17 @@ export type HorizonReward =
       label: 'Crew' | 'Wake'
       count: number
     }
+  | {
+      kind: 'scout'
+      count: number
+    }
+  | {
+      kind: 'next_star_free'
+    }
+  | {
+      kind: 'ready'
+      count: number
+    }
 
 export type HorizonDetails = {
   kind: HorizonKind
@@ -49,6 +60,12 @@ export type HorizonDetails = {
   }
   rewards: HorizonReward[]
 }
+
+export type BoardEffect =
+  | {
+      kind: 'horizon_fuel_waiver'
+      remainingCards: number
+    }
 
 export type CardBlueprint = {
   title: string
@@ -92,6 +109,7 @@ export type BoardState = {
   decks: Deck[]
   handCardIds: string[]
   tiredCardIds: string[]
+  pendingEffects: BoardEffect[]
   topZ: number
   nextCardId: number
   dropTargetStackId: string | null

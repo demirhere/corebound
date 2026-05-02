@@ -11,8 +11,19 @@ function describeRewards(rewards: readonly HorizonReward[]) {
       if (reward.kind === 'resource') {
         return `${reward.resource} +${reward.count}`
       }
-
-      return `${reward.label} ${reward.count}`
+      if (reward.kind === 'crew') {
+        return `${reward.label} ${reward.count}`
+      }
+      if (reward.kind === 'scout') {
+        return `Scout ${reward.count}`
+      }
+      if (reward.kind === 'next_star_free') {
+        return 'Next round costs 0 Fuel'
+      }
+      if (reward.kind === 'ready') {
+        return `Ready ${reward.count} Tired crew`
+      }
+      return ''
     })
     .join(', ')
 }

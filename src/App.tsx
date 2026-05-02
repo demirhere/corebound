@@ -12,6 +12,10 @@ import { Board } from './components/Board'
 import { PlaytestLog } from './components/PlaytestLog'
 import { canManuallyDrawDeck } from './game/decks'
 import {
+  applyPendingEffectsToDrawnCard,
+  createBoardEffectsForHorizonRewards,
+} from './game/effects'
+import {
   getBoundsCenterDistance,
   getBoundsOverlapRatio,
   getDeckBounds,
@@ -345,6 +349,24 @@ function App() {
 
   function canPutCardIdsInHand(cardIds: readonly string[], cards: Record<string, Card>) {
     return cardIds.length > 0 && cardIds.every((cardId) => cards[cardId]?.kind === 'crew')
+  }
+
+  function getSpentCrewCardIds(stack: Stack, cards: Record<string, Card>) {
+    return stack.cardIds.filter((cardId) => cards[cardId]?.kind === 'crew')
+  }
+
+  function readyTiredCrew(
+    handCardIds: readonly string[],
+    tiredCardIds: readonly string[],
+    count: number,
+  ) {
+    const readiedCrewCardIds = tiredCardIds.slice(0, count)
+
+    return {
+      handCardIds: [...handCardIds, ...readiedCrewCardIds],
+      tiredCardIds: tiredCardIds.slice(readiedCrewCardIds.length),
+      readiedCrewCardIds,
+    }
   }
 
   function getDiscardElement() {
@@ -1280,7 +1302,12 @@ function App() {
       )
       const newCardId = `drawn-${current.nextCardId}`
       const newStackId = `stack-${newCardId}`
-      const newCard = { ...drawnCard, id: newCardId, faceUp: true }
+      const drawEffectResult = applyPendingEffectsToDrawnCard(
+        deck.id,
+        { ...drawnCard, id: newCardId, faceUp: true },
+        current.pendingEffects,
+      )
+      const newCard = drawEffectResult.card
       const deckZ = current.topZ + 1
       const cardZ = current.topZ + 2
 
@@ -1290,6 +1317,7 @@ function App() {
         nextCardId: current.nextCardId + 1,
         dropTargetStackId: null,
         dropTargetDeckId: null,
+        pendingEffects: drawEffectResult.pendingEffects,
         cards: {
           ...current.cards,
           [newCardId]: newCard,
@@ -1334,6 +1362,12 @@ function App() {
 
     const nextZ = current.topZ + 1
     const rewards = horizonCard.horizon.rewards
+    const spentCrewCardIds = getSpentCrewCardIds(sourceStack, current.cards)
+    const spentCrewCardIdSet = new Set(spentCrewCardIds)
+    const readyCrewCount = rewards.reduce(
+      (count, reward) => reward.kind === 'ready' ? count + reward.count : count,
+      0,
+    )
     const rewardCards: Card[] = []
     let nextCardId = current.nextCardId
     const nextDecks = current.decks.map((deck) => {
@@ -1341,8 +1375,10 @@ function App() {
         if (reward.kind === 'resource') {
           return deck.id === `${reward.resource}-deck` ? count + reward.count : count
         }
-
-        return deck.id === 'cryo-deck' ? count + reward.count : count
+        if (reward.kind === 'crew') {
+          return deck.id === 'cryo-deck' ? count + reward.count : count
+        }
+        return count
       }, 0)
 
       if (drawCount === 0) {
@@ -1366,7 +1402,22 @@ function App() {
         ? { ...deck, cards: deck.cards.slice(drawnBlueprints.length), z: nextZ }
         : deck
     })
-    const nextCards = withoutCards(current.cards, sourceStack.cardIds)
+    const nextCards = withoutCards(
+      current.cards,
+      sourceStack.cardIds.filter((cardId) => !spentCrewCardIdSet.has(cardId)),
+    )
+    const handCardIdsWithoutSpentCrew = current.handCardIds.filter(
+      (cardId) => !spentCrewCardIdSet.has(cardId),
+    )
+    const tiredCardIdsWithSpentCrew = [
+      ...current.tiredCardIds.filter((cardId) => !spentCrewCardIdSet.has(cardId)),
+      ...spentCrewCardIds,
+    ]
+    const readyCrewResult = readyTiredCrew(
+      handCardIdsWithoutSpentCrew,
+      tiredCardIdsWithSpentCrew,
+      readyCrewCount,
+    )
 
     for (const rewardCard of rewardCards) {
       nextCards[rewardCard.id] = rewardCard
@@ -1389,6 +1440,12 @@ function App() {
         nextCardId,
         dropTargetStackId: null,
         dropTargetDeckId: null,
+        handCardIds: readyCrewResult.handCardIds,
+        tiredCardIds: readyCrewResult.tiredCardIds,
+        pendingEffects: [
+          ...current.pendingEffects,
+          ...createBoardEffectsForHorizonRewards(rewards),
+        ],
         cards: nextCards,
         stacks:
           rewardCards.length > 0
