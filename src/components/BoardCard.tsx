@@ -119,12 +119,16 @@ function renderReward(reward: HorizonReward, index: number) {
     ]
   }
   if (reward.kind === 'ready') {
+    const readyText = reward.count === 1
+      ? 'Ready 1 crew that was already Tired before this proposal.'
+      : `Ready ${reward.count} crew that were already Tired before this proposal.`
+
     return [
       <span key={`ready-${index}`} className="card-wake-reward">
         {Array.from({ length: reward.count }, (_, rewardIndex) =>
           <GameIcon key={`ready-${index}-${rewardIndex}`} kind="person" />,
         )}
-        <span>Will join tired.</span>
+        <span>{readyText}</span>
       </span>,
     ]
   }

@@ -35,20 +35,22 @@ import {
   cardsStackedEvent,
   deckCreatedFromStacksEvent,
   decksMergedEvent,
+  gateCrewStateBeforeEvent,
   gameLostEvent,
   handCardDroppedEvent,
   gateCompletedEvent,
   horizonCompletedEvent,
+  readyRewardAppliedEvent,
   wakeCrewRecruitedEvent,
   stackSplitEvent,
 } from './game/logEvents'
-import { formatConsoleLogEntry } from './game/playtestLog'
+import { formatConsoleLogEntry, type PlaytestLogEvent } from './game/playtestLog'
 import {
   canCombineAsDeck,
   canCompleteNeedWithCrewAndMother,
   canStackCards,
   cardsToDeckBlueprints,
-  countMotherCardsInPlay,
+  countSpentMotherCardsInPlay,
   countUsableMotherCardsInPlay,
   getGateStackCompletion,
   getHorizonStackCompletion,
@@ -404,8 +406,61 @@ function App() {
     return stack.cardIds.filter((cardId) => cards[cardId]?.kind === 'crew')
   }
 
-  function getSpentMotherCardIds(stack: Stack, cards: Record<string, Card>) {
+  function getUsableMotherCardIds(stack: Stack, cards: Record<string, Card>) {
     return stack.cardIds.filter((cardId) => isUsableMotherCard(cards[cardId]))
+  }
+
+  function getSpentMotherCardIds(stack: Stack, cards: Record<string, Card>, count: number) {
+    return getUsableMotherCardIds(stack, cards).slice(0, count)
+  }
+
+  function returnMotherCardsToDeck(
+    current: BoardState,
+    cardIds: readonly string[],
+    sourceStackId: string,
+  ): { board: BoardState; events: PlaytestLogEvent[] } {
+    const motherDeck = current.decks.find((deck) => deck.id === MOTHER_DECK_ID)
+    const returnCardIds = Array.from(new Set(cardIds)).filter((cardId) =>
+      isUsableMotherCard(current.cards[cardId]),
+    )
+
+    if (!motherDeck || returnCardIds.length === 0) {
+      return { board: current, events: [] }
+    }
+
+    const returnedCards = cardsToDeckBlueprints(returnCardIds, current.cards)
+
+    if (returnedCards.length !== returnCardIds.length) {
+      return { board: current, events: [] }
+    }
+
+    const returnCardIdSet = new Set(returnCardIds)
+    const sourceStack = current.stacks.find((stack) => stack.id === sourceStackId)
+    const eventStack = {
+      id: sourceStack?.id ?? sourceStackId,
+      cardIds: returnCardIds,
+      x: sourceStack?.x ?? motherDeck.x,
+      y: sourceStack?.y ?? motherDeck.y,
+      z: sourceStack?.z ?? motherDeck.z,
+    }
+
+    return {
+      board: {
+        ...current,
+        cards: withoutCards(current.cards, returnCardIds),
+        stacks: current.stacks.flatMap((stack) => {
+          const nextCardIds = stack.cardIds.filter((cardId) => !returnCardIdSet.has(cardId))
+
+          return nextCardIds.length > 0 ? [{ ...stack, cardIds: nextCardIds }] : []
+        }),
+        decks: current.decks.map((deck) =>
+          deck.id === MOTHER_DECK_ID
+            ? { ...deck, cards: [...returnedCards, ...deck.cards] }
+            : deck,
+        ),
+      },
+      events: [cardsReturnedToDeckEvent(eventStack, motherDeck, current.cards)],
+    }
   }
 
   function markMotherCardsSpent(cards: Record<string, Card>, cardIds: readonly string[]) {
@@ -564,13 +619,12 @@ function App() {
     }
 
     const readyCrewCardIds = getReadyCrewCardIds(current)
-    const motherCardsInPlay = countMotherCardsInPlay(current.stacks, current.cards)
+    const spentMotherCardCount = countSpentMotherCardsInPlay(current.stacks, current.cards)
     const usableMotherCardsInPlay = countUsableMotherCardsInPlay(current.stacks, current.cards)
     const availableMotherCardCount = usableMotherCardsInPlay + getDeckCardCount(current, MOTHER_DECK_ID)
 
     for (let motherCardsUsed = 0; motherCardsUsed <= availableMotherCardCount; motherCardsUsed += 1) {
-      const drawnMotherCardsUsed = Math.max(0, motherCardsUsed - usableMotherCardsInPlay)
-      const motherCardsInPlayAfterUse = motherCardsInPlay + drawnMotherCardsUsed
+      const motherCardsInPlayAfterUse = spentMotherCardCount + motherCardsUsed
       const extraCrewRequired =
         motherCardsInPlayAfterUse >= gateCard.gate.motherPenalty.threshold
           ? gateCard.gate.motherPenalty.extraCrew
@@ -620,7 +674,15 @@ function App() {
       return { board: current, events: [] }
     }
 
-    return resolveLoss(current, 'gate-failed')
+    const loss = resolveLoss(current, 'gate-failed')
+
+    return {
+      board: loss.board,
+      events: [
+        gateCrewStateBeforeEvent(current.cards, getReadyCrewCardIds(current), current.tiredCardIds),
+        ...loss.events,
+      ],
+    }
   }
 
   function readyTiredCrew(
@@ -1290,12 +1352,20 @@ function App() {
           dropTargetDeckId: null,
         }
 
-        return drag.cardIndex > 0
-          ? withPlaytestEvents(
-              nextBoard,
-              stackSplitEvent(sourceStack.id, activeId, movingCardIds, current.cards),
-            )
-          : nextBoard
+        if (drag.cardIndex === 0) {
+          return nextBoard
+        }
+
+        const returnedMother = returnMotherCardsToDeck(
+          nextBoard,
+          getUsableMotherCardIds(sourceStack, current.cards),
+          sourceStack.id,
+        )
+
+        return withPlaytestEvents(returnedMother.board, [
+          stackSplitEvent(sourceStack.id, activeId, movingCardIds, current.cards),
+          ...returnedMother.events,
+        ])
       })
     })
 
@@ -1675,8 +1745,17 @@ function App() {
     const rewards = horizonCard.horizon.rewards
     const spentCrewCardIds = getSpentCrewCardIds(sourceStack, current.cards)
     const spentCrewCardIdSet = new Set(spentCrewCardIds)
-    const spentMotherCardIds = getSpentMotherCardIds(sourceStack, current.cards)
+    const usableMotherCardIds = getUsableMotherCardIds(sourceStack, current.cards)
+    const spentMotherCardIds = getSpentMotherCardIds(
+      sourceStack,
+      current.cards,
+      completion.requiredMotherCount,
+    )
     const spentMotherCardIdSet = new Set(spentMotherCardIds)
+    const returnedMotherCardIds = usableMotherCardIds.filter(
+      (cardId) => !spentMotherCardIdSet.has(cardId),
+    )
+    const returnedMotherCardIdSet = new Set(returnedMotherCardIds)
     const readyCrewCount = rewards.reduce(
       (count, reward) => reward.kind === 'ready' ? count + reward.count : count,
       0,
@@ -1722,21 +1801,24 @@ function App() {
     let nextCards = withoutCards(
       current.cards,
       sourceStack.cardIds.filter(
-        (cardId) => !spentCrewCardIdSet.has(cardId) && !spentMotherCardIdSet.has(cardId),
+        (cardId) =>
+          !spentCrewCardIdSet.has(cardId) &&
+          !spentMotherCardIdSet.has(cardId) &&
+          !returnedMotherCardIdSet.has(cardId),
       ),
     )
     const handCardIdsWithoutSpentCrew = current.handCardIds.filter(
       (cardId) => !spentCrewCardIdSet.has(cardId),
     )
-    const tiredCardIdsWithSpentCrew = [
-      ...current.tiredCardIds.filter((cardId) => !spentCrewCardIdSet.has(cardId)),
-      ...spentCrewCardIds,
-    ]
     const readyCrewResult = readyTiredCrew(
       handCardIdsWithoutSpentCrew,
-      tiredCardIdsWithSpentCrew,
+      current.tiredCardIds,
       readyCrewCount,
     )
+    const tiredCardIdsWithSpentCrew = [
+      ...readyCrewResult.tiredCardIds,
+      ...spentCrewCardIds,
+    ]
     const otherChoiceStacks = sourceStack.drawChoiceGroupId
       ? current.stacks.filter(
           (stack) =>
@@ -1814,7 +1896,7 @@ function App() {
       dropTargetStackId: null,
       dropTargetDeckId: null,
       handCardIds: readyCrewResult.handCardIds,
-      tiredCardIds: readyCrewResult.tiredCardIds,
+      tiredCardIds: tiredCardIdsWithSpentCrew,
       pendingWakeChoice,
       pendingEffects: [
         ...consumeNextStarFuelDiscount(current.pendingEffects),
@@ -1824,12 +1906,18 @@ function App() {
       stacks: resolvedStacks,
       decks: nextDecks,
     }
-    const gateLoss = resolveGateLossIfNeeded(nextBoard)
+    const returnedMother = returnMotherCardsToDeck(nextBoard, returnedMotherCardIds, sourceStack.id)
+    const gateLoss = resolveGateLossIfNeeded(returnedMother.board)
+    const readyRewardEvents = readyCrewResult.readiedCrewCardIds.length > 0
+      ? [readyRewardAppliedEvent(horizonCard, readyCrewResult.readiedCrewCardIds, current.cards)]
+      : []
 
     return {
       board: gateLoss.board,
       events: [
         horizonCompletedEvent(horizonCard, sourceStack, rewardCards, current.cards),
+        ...readyRewardEvents,
+        ...returnedMother.events,
         ...otherChoiceStacks.map((stack) => cardsDiscardedEvent(stack.cardIds, current.cards, stack.id)),
         ...gateLoss.events,
       ],
@@ -1921,8 +2009,8 @@ function App() {
       return { board: current, events: [] }
     }
 
-    const motherCardsInPlay = countMotherCardsInPlay(current.stacks, current.cards)
-    const completion = getGateStackCompletion(sourceStack, current.cards, motherCardsInPlay)
+    const spentMotherCardCount = countSpentMotherCardsInPlay(current.stacks, current.cards)
+    const completion = getGateStackCompletion(sourceStack, current.cards, spentMotherCardCount)
 
     if (!completion?.isReady) {
       return { board: current, events: [] }
@@ -1936,7 +2024,17 @@ function App() {
 
     const spentCrewCardIds = getSpentCrewCardIds(sourceStack, current.cards)
     const spentCrewCardIdSet = new Set(spentCrewCardIds)
-    const spentMotherCardIds = getSpentMotherCardIds(sourceStack, current.cards)
+    const usableMotherCardIds = getUsableMotherCardIds(sourceStack, current.cards)
+    const spentMotherCardIds = getSpentMotherCardIds(
+      sourceStack,
+      current.cards,
+      completion.requiredMotherCount,
+    )
+    const spentMotherCardIdSet = new Set(spentMotherCardIds)
+    const returnedMotherCardIds = usableMotherCardIds.filter(
+      (cardId) => !spentMotherCardIdSet.has(cardId),
+    )
+    const returnedMotherCardIdSet = new Set(returnedMotherCardIds)
     const nextCards = markMotherCardsSpent(current.cards, spentMotherCardIds)
     const handCardIdsWithoutSpentCrew = current.handCardIds.filter(
       (cardId) => !spentCrewCardIdSet.has(cardId),
@@ -1951,25 +2049,31 @@ function App() {
       tiredCardIdsWithSpentCrew.length,
     )
 
-    return {
-      board: {
-        ...current,
-        hasArrived: true,
-        dropTargetStackId: null,
-        dropTargetDeckId: null,
-        handCardIds: readyCrewResult.handCardIds,
-        tiredCardIds: readyCrewResult.tiredCardIds,
-        cards: nextCards,
-        stacks: current.stacks.map((stack) =>
-          stack.id === sourceStack.id
-            ? {
-                ...stack,
-                cardIds: stack.cardIds.filter((cardId) => !spentCrewCardIdSet.has(cardId)),
-              }
-            : stack,
+    const nextBoard = {
+      ...current,
+      hasArrived: true,
+      dropTargetStackId: null,
+      dropTargetDeckId: null,
+      handCardIds: readyCrewResult.handCardIds,
+      tiredCardIds: readyCrewResult.tiredCardIds,
+      cards: nextCards,
+      stacks: current.stacks.map((stack) =>
+        stack.id === sourceStack.id
+          ? {
+              ...stack,
+              cardIds: stack.cardIds.filter(
+                (cardId) => !spentCrewCardIdSet.has(cardId) && !returnedMotherCardIdSet.has(cardId),
+              ),
+            }
+          : stack,
         ),
-      },
+    }
+    const returnedMother = returnMotherCardsToDeck(nextBoard, returnedMotherCardIds, sourceStack.id)
+
+    return {
+      board: returnedMother.board,
       events: [
+        gateCrewStateBeforeEvent(current.cards, getReadyCrewCardIds(current), current.tiredCardIds),
         gateCompletedEvent(
           gateCard,
           sourceStack,
@@ -1977,6 +2081,7 @@ function App() {
           completion.motherCardsInPlay,
           completion.extraCrewRequired,
         ),
+        ...returnedMother.events,
       ],
     }
   }
@@ -2050,17 +2155,24 @@ function App() {
         return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
       }
 
+      const returnedMotherCardIds = getUsableMotherCardIds(stack, current.cards)
+      const returnedMotherCardIdSet = new Set(returnedMotherCardIds)
+      const discardedCardIds = stack.cardIds.filter((cardId) => !returnedMotherCardIdSet.has(cardId))
       const nextBoard = {
         ...current,
         dropTargetStackId: null,
         dropTargetDeckId: null,
-        cards: withoutCards(current.cards, stack.cardIds),
+        cards: withoutCards(current.cards, discardedCardIds),
         stacks: current.stacks.filter((candidate) => candidate.id !== stack.id),
       }
-      const gateLoss = resolveGateLossIfNeeded(nextBoard)
+      const returnedMother = returnMotherCardsToDeck(nextBoard, returnedMotherCardIds, stack.id)
+      const gateLoss = resolveGateLossIfNeeded(returnedMother.board)
 
       return withPlaytestEvents(gateLoss.board, [
-        cardsDiscardedEvent(stack.cardIds, current.cards, stack.id),
+        ...(discardedCardIds.length > 0
+          ? [cardsDiscardedEvent(discardedCardIds, current.cards, stack.id)]
+          : []),
+        ...returnedMother.events,
         ...gateLoss.events,
       ])
     })
@@ -2096,6 +2208,26 @@ function App() {
         cardsDiscardedEvent([cardId], current.cards, sourceHandZone),
         ...gateLoss.events,
       ])
+    })
+  }
+
+  function returnUnusedMotherFromStack(stackId: string) {
+    setBoard((current) => {
+      const stack = current.stacks.find((candidate) => candidate.id === stackId)
+
+      if (!stack) {
+        return current
+      }
+
+      const returnedMother = returnMotherCardsToDeck(
+        { ...current, dropTargetStackId: null, dropTargetDeckId: null },
+        getUsableMotherCardIds(stack, current.cards),
+        stack.id,
+      )
+
+      return returnedMother.events.length > 0
+        ? withPlaytestEvents(returnedMother.board, returnedMother.events)
+        : returnedMother.board
     })
   }
 
@@ -2602,13 +2734,31 @@ function App() {
       }
 
       if (!targetStackId || targetStackId === sourceStackId) {
-        return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
+        const clearedBoard = { ...current, dropTargetStackId: null, dropTargetDeckId: null }
+        const returnedMother = returnMotherCardsToDeck(
+          clearedBoard,
+          getUsableMotherCardIds(sourceStack, current.cards),
+          sourceStack.id,
+        )
+
+        return returnedMother.events.length > 0
+          ? withPlaytestEvents(returnedMother.board, returnedMother.events)
+          : returnedMother.board
       }
 
       const targetStack = current.stacks.find((stack) => stack.id === targetStackId)
 
       if (!targetStack) {
-        return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
+        const clearedBoard = { ...current, dropTargetStackId: null, dropTargetDeckId: null }
+        const returnedMother = returnMotherCardsToDeck(
+          clearedBoard,
+          getUsableMotherCardIds(sourceStack, current.cards),
+          sourceStack.id,
+        )
+
+        return returnedMother.events.length > 0
+          ? withPlaytestEvents(returnedMother.board, returnedMother.events)
+          : returnedMother.board
       }
 
       if (canCombineAsDeck(sourceStack, targetStack, current.cards)) {
@@ -2657,7 +2807,16 @@ function App() {
       }
 
       if (!canStackCards(sourceStack, targetStack, current.cards)) {
-        return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
+        const clearedBoard = { ...current, dropTargetStackId: null, dropTargetDeckId: null }
+        const returnedMother = returnMotherCardsToDeck(
+          clearedBoard,
+          getUsableMotherCardIds(sourceStack, current.cards),
+          sourceStack.id,
+        )
+
+        return returnedMother.events.length > 0
+          ? withPlaytestEvents(returnedMother.board, returnedMother.events)
+          : returnedMother.board
       }
 
       const nextZ = current.topZ + 1
@@ -2682,11 +2841,20 @@ function App() {
       }
       const completedStack = completeReadyHorizonStack(stackedBoard, targetStack.id, metrics)
       const completedGateStack = completeReadyGateStack(completedStack.board, targetStack.id)
+      const completedEvents = [...completedStack.events, ...completedGateStack.events]
+      const unresolvedTargetStack = completedGateStack.board.stacks.find((stack) => stack.id === targetStack.id)
+      const returnedMother = completedEvents.length === 0 && unresolvedTargetStack
+        ? returnMotherCardsToDeck(
+            completedGateStack.board,
+            getUsableMotherCardIds(unresolvedTargetStack, completedGateStack.board.cards),
+            unresolvedTargetStack.id,
+          )
+        : { board: completedGateStack.board, events: [] }
 
-      return withPlaytestEvents(completedGateStack.board, [
+      return withPlaytestEvents(returnedMother.board, [
         cardsStackedEvent(sourceStack, targetStack, current.cards),
-        ...completedStack.events,
-        ...completedGateStack.events,
+        ...completedEvents,
+        ...returnedMother.events,
       ])
     })
   }
@@ -2895,6 +3063,7 @@ function App() {
         clearStackDragDropTarget(drag)
         removeActiveStackId(drag.activeStackId)
         commitStackDragPosition(drag)
+        returnUnusedMotherFromStack(drag.activeStackId)
         clearDragTransform(drag.activeElement)
       }
     } else if (drag.kind === 'hand') {

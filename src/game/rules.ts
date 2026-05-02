@@ -3,6 +3,7 @@ import type { Card, CardBlueprint, RequirementIconKind, Stack } from './types'
 export type HorizonStackCompletion = {
   horizonCardId: string
   horizonCardIndex: number
+  requiredMotherCount: number
   isReady: boolean
 }
 
@@ -12,6 +13,7 @@ export type GateStackCompletion = {
   isReady: boolean
   motherCardsInPlay: number
   extraCrewRequired: number
+  requiredMotherCount: number
 }
 
 const requirementIconKinds = ['life', 'star', 'engine', 'signal'] as const
@@ -84,6 +86,20 @@ export function getMotherCardIdsInPlay(stacks: readonly Stack[], cards: Record<s
 
 export function countMotherCardsInPlay(stacks: readonly Stack[], cards: Record<string, Card>) {
   return getMotherCardIdsInPlay(stacks, cards).length
+}
+
+export function getSpentMotherCardIdsInPlay(stacks: readonly Stack[], cards: Record<string, Card>) {
+  return stacks.flatMap((stack) =>
+    stack.cardIds.filter((cardId) => {
+      const card = cards[cardId]
+
+      return card?.kind === 'mother' && card.spentMother === true
+    }),
+  )
+}
+
+export function countSpentMotherCardsInPlay(stacks: readonly Stack[], cards: Record<string, Card>) {
+  return getSpentMotherCardIdsInPlay(stacks, cards).length
 }
 
 export function isUsableMotherCard(card: Card | undefined) {
@@ -273,6 +289,7 @@ export function getHorizonStackCompletion(
   return {
     horizonCardId,
     horizonCardIndex,
+    requiredMotherCount: missingIconCount,
     isReady: hasRequiredFuel && crewCardIds.length > 0 && hasRequiredIcons && !hasBlockingCard,
   }
 }
@@ -280,7 +297,7 @@ export function getHorizonStackCompletion(
 export function getGateStackCompletion(
   stack: Stack,
   cards: Record<string, Card>,
-  motherCardsInPlay: number,
+  spentMotherCardCount: number,
 ): GateStackCompletion | null {
   const gateCardIndex = stack.cardIds.findIndex((cardId) => {
     const card = cards[cardId]
@@ -321,6 +338,13 @@ export function getGateStackCompletion(
   }
 
   const crewCardIds = getCrewCardIds(stack, cards)
+  const requiredMotherCount = countMissingNeedIcons(
+    crewCardIds,
+    cards,
+    gateCard.gate.need.icons,
+    gateCard.gate.need.any,
+  )
+  const projectedMotherCardsInPlay = spentMotherCardCount + Math.min(requiredMotherCount, usableMotherCount)
   const minimumCrewCount = getMinimumCrewCountForNeedWithMother(
     crewCardIds,
     cards,
@@ -329,17 +353,19 @@ export function getGateStackCompletion(
     usableMotherCount,
   )
   const extraCrewRequired =
-    motherCardsInPlay >= gateCard.gate.motherPenalty.threshold
+    projectedMotherCardsInPlay >= gateCard.gate.motherPenalty.threshold
       ? gateCard.gate.motherPenalty.extraCrew
       : 0
 
   return {
     gateCardId,
     gateCardIndex,
-    motherCardsInPlay,
+    motherCardsInPlay: projectedMotherCardsInPlay,
     extraCrewRequired,
+    requiredMotherCount,
     isReady:
       minimumCrewCount !== null &&
+      requiredMotherCount <= usableMotherCount &&
       crewCardIds.length > 0 &&
       crewCardIds.length >= minimumCrewCount + extraCrewRequired &&
       !hasBlockingCard,

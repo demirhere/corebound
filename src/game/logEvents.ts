@@ -25,7 +25,9 @@ function describeRewards(rewards: readonly HorizonReward[]) {
         return `Next Star costs -${reward.amount} Fuel`
       }
       if (reward.kind === 'ready') {
-        return `Ready ${reward.count} Tired crew`
+        return reward.count === 1
+          ? 'Ready 1 crew that was already Tired before this proposal'
+          : `Ready ${reward.count} crew that were already Tired before this proposal`
       }
       return ''
     })
@@ -329,6 +331,48 @@ export function wakeCrewRecruitedEvent(
       unchosenCardTitles: cardTitles(unchosenCardIds, cards),
       unchosenCardSummaries: cardSummaries(unchosenCardIds, cards),
       unchosenCardContents: cardContents(unchosenCardIds, cards),
+    },
+  }
+}
+
+export function readyRewardAppliedEvent(
+  horizonCard: Card,
+  readiedCrewCardIds: readonly string[],
+  cards: Record<string, Card>,
+): PlaytestLogEvent {
+  const readiedCrewTitles = cardTitles(readiedCrewCardIds, cards)
+  const readiedCrewText = readiedCrewTitles.length > 0 ? readiedCrewTitles.join(', ') : 'no crew'
+
+  return {
+    type: 'ready.reward.applied',
+    message: `${horizonCard.title} readied ${readiedCrewText}.`,
+    details: {
+      horizonCardId: horizonCard.id,
+      horizonTitle: horizonCard.title,
+      readiedCrewCardIds,
+      readiedCrewTitles,
+      readiedCrewSummaries: cardSummaries(readiedCrewCardIds, cards),
+      readiedCrewContents: cardContents(readiedCrewCardIds, cards),
+    },
+  }
+}
+
+export function gateCrewStateBeforeEvent(
+  cards: Record<string, Card>,
+  readyCrewCardIds: readonly string[],
+  tiredCrewCardIds: readonly string[],
+): PlaytestLogEvent {
+  const readyCrewTitles = cardTitles(readyCrewCardIds, cards)
+  const tiredCrewTitles = cardTitles(tiredCrewCardIds, cards)
+
+  return {
+    type: 'gate.crew_state.before',
+    message: `Before the Gate: Ready crew: ${readyCrewTitles.join(', ') || 'none'}; Tired crew: ${tiredCrewTitles.join(', ') || 'none'}.`,
+    details: {
+      readyCrewCardIds,
+      readyCrewTitles,
+      tiredCrewCardIds,
+      tiredCrewTitles,
     },
   }
 }

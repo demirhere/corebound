@@ -10,7 +10,7 @@ MOTHER's new role is simple:
 
 When an action stack is short on icons, a contributing player may add MOTHER cards. Each MOTHER card supplies one wild icon.
 
-When the stack resolves, used MOTHER cards are spent and increase the MOTHER used count. Before resolving, temporary unspent MOTHER cards may be returned to the deck or moved away from the target.
+MOTHER cards drawn into a proposal are temporary. When the proposal resolves, only the needed MOTHER cards are spent and increase the MOTHER used count. If the proposal dissolves, changes, or is abandoned, all unspent MOTHER cards return to the MOTHER Deck immediately.
 
 ## What MOTHER Can And Cannot Do
 

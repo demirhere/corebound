@@ -99,7 +99,8 @@ If the stack is ready:
 The player who added the final required human crew becomes the Implementer.
 Spend required Fuel or Parts.
 Stacked crew become Tired.
-Used MOTHER cards are spent.
+Needed MOTHER cards are spent.
+Unspent MOTHER cards return to the MOTHER Deck.
 Resolve the card's effect.
 ```
 
@@ -110,7 +111,7 @@ If the stack is not ready:
 ```text
 Move cards away from the target.
 Return pledged crew Ready to their owners if they leave the board.
-Return temporary unspent MOTHER cards to the MOTHER Deck.
+Return all temporary unspent MOTHER cards to the MOTHER Deck immediately.
 Spend nothing.
 The active player's turn ends.
 ```
