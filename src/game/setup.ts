@@ -9,6 +9,8 @@ import type {
   RequirementIconKind,
   ResourceKind,
 } from './types'
+import { cardContent, cardRulesText } from './logEvents'
+import type { PlaytestLogEvent } from './playtestLog'
 
 const RESOURCE_DECK_SIZE = 12
 
@@ -130,6 +132,52 @@ function createBoardCards(prefix: string, blueprints: readonly CardBlueprint[]) 
   }))
 }
 
+function setupDeckCreatedEvent(deckId: string, deckTitle: string, cards: readonly CardBlueprint[]): PlaytestLogEvent {
+  const cardSummaries = cards.map((card) => `${card.title}${cardRulesText(card) ? ` [${cardRulesText(card)}]` : ''}`)
+
+  return {
+    type: 'setup.deck.created',
+    message: `${deckTitle} setup with ${cards.length} cards: ${cardSummaries.join('; ')}.`,
+    details: {
+      deckId,
+      deckTitle,
+      cardCount: cards.length,
+      cardSummaries,
+      cardContents: cards.map(cardContent),
+    },
+  }
+}
+
+function setupResourceDrawnEvent(card: Card, deckTitle: string, drawIndex: number): PlaytestLogEvent {
+  return {
+    type: 'setup.resource.drawn_first_pass',
+    message: `${card.title} (${card.id}) drawn from ${deckTitle} during setup first pass.`,
+    details: {
+      cardId: card.id,
+      cardTitle: card.title,
+      cardContent: cardContent(card),
+      deckTitle,
+      drawIndex,
+    },
+  }
+}
+
+function setupCrewDealtEvent(card: Card, handIndex: number): PlaytestLogEvent {
+  const rulesText = cardRulesText(card)
+
+  return {
+    type: 'setup.crew.dealt',
+    message: `${card.title} (${card.id})${rulesText ? ` [${rulesText}]` : ''} dealt to starting crew.`,
+    details: {
+      cardId: card.id,
+      cardTitle: card.title,
+      cardSummary: `${card.title} (${card.id})${rulesText ? ` [${rulesText}]` : ''}`,
+      cardContent: cardContent(card),
+      handIndex,
+    },
+  }
+}
+
 const startingCrewCards = [
   createCrewCard('Lei Watanabe', ['life', 'star'], 151, '#77ffbb'),
   createCrewCard('Mara Voss', ['engine', 'engine'], 8, '#ff7468'),
@@ -165,15 +213,19 @@ const horizonDeck = [
   ]),
 ]
 
-export function createInitialBoard(): BoardState {
+export function createInitialBoardSetup(): { board: BoardState; events: PlaytestLogEvent[] } {
   const fuelDeck = shuffleCards(createResourceDeck('fuel', RESOURCE_DECK_SIZE))
   const hullDeck = shuffleCards(createResourceDeck('hull', RESOURCE_DECK_SIZE))
   const initialFuelCards = createBoardCards('fuel-start', fuelDeck.slice(0, 3))
   const initialHullCards = createBoardCards('hull-start', hullDeck.slice(0, 4))
   const handCards = createBoardCards('crew-hand', startingCrewCards)
   const initialCards = [...initialFuelCards, ...initialHullCards, ...handCards]
+  const fuelDeckCards = fuelDeck.slice(3)
+  const hullDeckCards = hullDeck.slice(4)
+  const horizonDeckCards = shuffleCards(horizonDeck)
+  const cryoDeckCards = shuffleCards(cryoCrewDeck)
 
-  return {
+  const board: BoardState = {
     cards: Object.fromEntries(initialCards.map((card) => [card.id, card])),
     stacks: [
       {
@@ -201,7 +253,7 @@ export function createInitialBoard(): BoardState {
         x: 6,
         y: 12,
         z: 12,
-        cards: fuelDeck.slice(3),
+        cards: fuelDeckCards,
       },
       {
         id: 'hull-deck',
@@ -212,7 +264,7 @@ export function createInitialBoard(): BoardState {
         x: 6,
         y: 40,
         z: 13,
-        cards: hullDeck.slice(4),
+        cards: hullDeckCards,
       },
       {
         id: 'horizon-deck',
@@ -223,7 +275,7 @@ export function createInitialBoard(): BoardState {
         x: 81,
         y: 12,
         z: 14,
-        cards: shuffleCards(horizonDeck),
+        cards: horizonDeckCards,
       },
       {
         id: 'cryo-deck',
@@ -234,13 +286,31 @@ export function createInitialBoard(): BoardState {
         x: 81,
         y: 40,
         z: 15,
-        cards: shuffleCards(cryoCrewDeck),
+        cards: cryoDeckCards,
       },
     ],
     handCardIds: handCards.map((card) => card.id),
+    tiredCardIds: [],
     topZ: 15,
     nextCardId: 1,
     dropTargetStackId: null,
     dropTargetDeckId: null,
   }
+
+  return {
+    board,
+    events: [
+      setupDeckCreatedEvent('fuel-deck', 'Fuel Deck', fuelDeckCards),
+      setupDeckCreatedEvent('hull-deck', 'Hull Deck', hullDeckCards),
+      setupDeckCreatedEvent('horizon-deck', 'Horizon Deck', horizonDeckCards),
+      setupDeckCreatedEvent('cryo-deck', 'Cryo Deck', cryoDeckCards),
+      ...initialFuelCards.map((card, index) => setupResourceDrawnEvent(card, 'Fuel Deck', index + 1)),
+      ...initialHullCards.map((card, index) => setupResourceDrawnEvent(card, 'Hull Deck', index + 1)),
+      ...handCards.map((card, index) => setupCrewDealtEvent(card, index + 1)),
+    ],
+  }
+}
+
+export function createInitialBoard(): BoardState {
+  return createInitialBoardSetup().board
 }

@@ -1,20 +1,8 @@
-import type { Card, Deck, HorizonReward, Stack } from './types'
+import type { Card, CardBlueprint, Deck, HorizonReward, Stack } from './types'
 import type { PlaytestLogEvent } from './playtestLog'
 
 function roundPosition(value: number) {
   return Math.round(value * 10) / 10
-}
-
-function describeCard(card: Card | undefined, fallbackId: string) {
-  return card ? `${card.title} (${card.id})` : fallbackId
-}
-
-function describeCards(cardIds: readonly string[], cards: Record<string, Card>) {
-  return cardIds.map((cardId) => describeCard(cards[cardId], cardId)).join(', ')
-}
-
-function cardTitles(cardIds: readonly string[], cards: Record<string, Card>) {
-  return cardIds.map((cardId) => cards[cardId]?.title ?? cardId)
 }
 
 function describeRewards(rewards: readonly HorizonReward[]) {
@@ -29,6 +17,56 @@ function describeRewards(rewards: readonly HorizonReward[]) {
     .join(', ')
 }
 
+export function cardRulesText(card: Card | CardBlueprint) {
+  if (card.kind === 'crew') {
+    return `specialties: ${card.specializations?.join(', ') ?? 'none'}`
+  }
+
+  if (card.kind === 'horizon' && card.horizon) {
+    const need = [
+      `fuel ${card.horizon.need.fuel}`,
+      card.horizon.need.icons.length > 0 ? card.horizon.need.icons.join(', ') : null,
+    ]
+      .filter(Boolean)
+      .join('; ')
+    const rewards = describeRewards(card.horizon.rewards) || 'none'
+
+    return `needs: ${need}; rewards: ${rewards}`
+  }
+
+  return ''
+}
+
+function describeCard(card: Card | undefined, fallbackId: string) {
+  if (!card) {
+    return fallbackId
+  }
+
+  const rulesText = cardRulesText(card)
+
+  return `${card.title} (${card.id})${rulesText ? ` [${rulesText}]` : ''}`
+}
+
+function describeCards(cardIds: readonly string[], cards: Record<string, Card>) {
+  return cardIds.map((cardId) => describeCard(cards[cardId], cardId)).join(', ')
+}
+
+function cardTitles(cardIds: readonly string[], cards: Record<string, Card>) {
+  return cardIds.map((cardId) => cards[cardId]?.title ?? cardId)
+}
+
+function cardSummaries(cardIds: readonly string[], cards: Record<string, Card>) {
+  return cardIds.map((cardId) => describeCard(cards[cardId], cardId))
+}
+
+export function cardContent(card: Card | CardBlueprint) {
+  return JSON.stringify(card)
+}
+
+function cardContents(cardIds: readonly string[], cards: Record<string, Card>) {
+  return cardIds.map((cardId) => (cards[cardId] ? cardContent(cards[cardId]) : cardId))
+}
+
 export function cardFlippedEvent(card: Card, stackId: string): PlaytestLogEvent {
   return {
     type: 'card.flipped',
@@ -36,6 +74,8 @@ export function cardFlippedEvent(card: Card, stackId: string): PlaytestLogEvent 
     details: {
       cardId: card.id,
       cardTitle: card.title,
+      cardSummary: describeCard(card, card.id),
+      cardContent: cardContent(card),
       stackId,
       faceUp: card.faceUp,
     },
@@ -49,6 +89,8 @@ export function cardDrawnEvent(card: Card, deck: Deck, stackId: string, x: numbe
     details: {
       cardId: card.id,
       cardTitle: card.title,
+      cardSummary: describeCard(card, card.id),
+      cardContent: cardContent(card),
       deckId: deck.id,
       deckTitle: deck.title,
       stackId,
@@ -72,6 +114,8 @@ export function stackSplitEvent(
       movingStackId,
       cardIds,
       cardTitles: cardTitles(cardIds, cards),
+      cardSummaries: cardSummaries(cardIds, cards),
+      cardContents: cardContents(cardIds, cards),
     },
   }
 }
@@ -87,6 +131,8 @@ export function cardsMovedToHandEvent(
       sourceStackId: stack.id,
       cardIds: stack.cardIds,
       cardTitles: cardTitles(stack.cardIds, cards),
+      cardSummaries: cardSummaries(stack.cardIds, cards),
+      cardContents: cardContents(stack.cardIds, cards),
     },
   }
 }
@@ -98,6 +144,8 @@ export function handCardDroppedEvent(card: Card, stackId: string, x: number, y: 
     details: {
       cardId: card.id,
       cardTitle: card.title,
+      cardSummary: describeCard(card, card.id),
+      cardContent: cardContent(card),
       stackId,
       x: roundPosition(x),
       y: roundPosition(y),
@@ -117,6 +165,8 @@ export function cardsDiscardedEvent(
       source,
       cardIds,
       cardTitles: cardTitles(cardIds, cards),
+      cardSummaries: cardSummaries(cardIds, cards),
+      cardContents: cardContents(cardIds, cards),
     },
   }
 }
@@ -134,8 +184,12 @@ export function cardsStackedEvent(
       targetStackId: targetStack.id,
       sourceCardIds: sourceStack.cardIds,
       sourceCardTitles: cardTitles(sourceStack.cardIds, cards),
+      sourceCardSummaries: cardSummaries(sourceStack.cardIds, cards),
+      sourceCardContents: cardContents(sourceStack.cardIds, cards),
       targetCardIds: targetStack.cardIds,
       targetCardTitles: cardTitles(targetStack.cardIds, cards),
+      targetCardSummaries: cardSummaries(targetStack.cardIds, cards),
+      targetCardContents: cardContents(targetStack.cardIds, cards),
     },
   }
 }
@@ -154,6 +208,8 @@ export function cardsReturnedToDeckEvent(
       targetDeckTitle: targetDeck.title,
       cardIds: sourceStack.cardIds,
       cardTitles: cardTitles(sourceStack.cardIds, cards),
+      cardSummaries: cardSummaries(sourceStack.cardIds, cards),
+      cardContents: cardContents(sourceStack.cardIds, cards),
     },
   }
 }
@@ -176,6 +232,8 @@ export function deckCreatedFromStacksEvent(
       targetStackId: targetStack.id,
       cardIds,
       cardTitles: cardTitles(cardIds, cards),
+      cardSummaries: cardSummaries(cardIds, cards),
+      cardContents: cardContents(cardIds, cards),
     },
   }
 }
@@ -188,9 +246,13 @@ export function decksMergedEvent(sourceDeck: Deck, targetDeck: Deck): PlaytestLo
       sourceDeckId: sourceDeck.id,
       sourceDeckTitle: sourceDeck.title,
       sourceCardCount: sourceDeck.cards.length,
+      sourceCardSummaries: sourceDeck.cards.map((card) => `${card.title}${cardRulesText(card) ? ` [${cardRulesText(card)}]` : ''}`),
+      sourceCardContents: sourceDeck.cards.map(cardContent),
       targetDeckId: targetDeck.id,
       targetDeckTitle: targetDeck.title,
       targetCardCount: targetDeck.cards.length,
+      targetCardSummaries: targetDeck.cards.map((card) => `${card.title}${cardRulesText(card) ? ` [${cardRulesText(card)}]` : ''}`),
+      targetCardContents: targetDeck.cards.map(cardContent),
     },
   }
 }
@@ -210,8 +272,12 @@ export function horizonCompletedEvent(
       sourceStackId: sourceStack.id,
       spentCardIds: sourceStack.cardIds,
       spentCardTitles: cardTitles(sourceStack.cardIds, cards),
+      spentCardSummaries: cardSummaries(sourceStack.cardIds, cards),
+      spentCardContents: cardContents(sourceStack.cardIds, cards),
       rewardCardIds: rewardCards.map((card) => card.id),
       rewardCardTitles: rewardCards.map((card) => card.title),
+      rewardCardSummaries: rewardCards.map((card) => describeCard(card, card.id)),
+      rewardCardContents: rewardCards.map(cardContent),
     },
   }
 }

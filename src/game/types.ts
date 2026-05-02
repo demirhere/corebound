@@ -27,6 +27,8 @@ export type RequirementIconKind = CrewSpecialization
 
 export type CardKind = 'resource' | 'crew' | 'horizon'
 
+export type HandZone = 'crew' | 'tired'
+
 export type HorizonReward =
   | {
       kind: 'resource'
@@ -89,6 +91,7 @@ export type BoardState = {
   stacks: Stack[]
   decks: Deck[]
   handCardIds: string[]
+  tiredCardIds: string[]
   topZ: number
   nextCardId: number
   dropTargetStackId: string | null

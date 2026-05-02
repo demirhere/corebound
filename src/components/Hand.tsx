@@ -4,26 +4,31 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
+import type { HandZone } from '../game/types'
 import { CardShell, type CardView } from './BoardCard'
 
 export type HandPointerDownHandler = (
   event: ReactPointerEvent<HTMLDivElement>,
   cardId: string,
+  zone: HandZone,
 ) => void
 
 export type HandKeyDownHandler = (
   event: ReactKeyboardEvent<HTMLDivElement>,
   cardId: string,
+  zone: HandZone,
 ) => void
 
 export type HandInsertPreview = {
+  zone: HandZone
   index: number
   cardCount: number
   activeCardId: string | null
 }
 
 type HandProps = {
-  cardIds: string[]
+  crewCardIds: string[]
+  tiredCardIds: string[]
   cards: Record<string, CardView>
   activeCardIds: readonly string[]
   insertPreview: HandInsertPreview | null
@@ -33,7 +38,8 @@ type HandProps = {
 }
 
 export function Hand({
-  cardIds,
+  crewCardIds,
+  tiredCardIds,
   cards,
   activeCardIds,
   insertPreview,
@@ -41,28 +47,18 @@ export function Hand({
   onCardPointerDown,
   onCardKeyDown,
 }: HandProps) {
-  const handCards = cardIds.flatMap((cardId) => {
-    const card = cards[cardId]
+  function getHandCards(cardIds: readonly string[]) {
+    return cardIds.flatMap((cardId) => {
+      const card = cards[cardId]
 
-    return card ? [card] : []
-  })
-  const cardCount = handCards.length
-  const previewActiveCardId = insertPreview?.activeCardId ?? null
-  const previewCardCount = insertPreview?.cardCount ?? 0
-  const activePreviewCard = previewActiveCardId
-    ? handCards.some((card) => card.id === previewActiveCardId)
-    : false
-  const previewBaseCardCount = activePreviewCard ? cardCount - 1 : cardCount
-  const previewIndex = insertPreview
-    ? Math.min(Math.max(insertPreview.index, 0), previewBaseCardCount)
-    : null
-  const totalSlots = insertPreview
-    ? previewBaseCardCount + previewCardCount
-    : cardCount
+      return card ? [card] : []
+    })
+  }
 
-  function getFanStyle(slotIndex: number, isActive = false) {
+  function getFanStyle(slotIndex: number, totalSlots: number, isActive = false) {
     const fanOffset = slotIndex - (totalSlots - 1) / 2
-    const fanXPercent = fanOffset * 85
+    const fanSpacing = totalSlots > 6 ? 46 : totalSlots > 4 ? 64 : 85
+    const fanXPercent = fanOffset * fanSpacing
     const fanY = Math.abs(fanOffset) * 2
     const fanRotation = fanOffset * 2.25
     const fanZ = 100 + Math.round((totalSlots - Math.abs(fanOffset)) * 10) + slotIndex
@@ -73,7 +69,14 @@ export function Hand({
     } as CSSProperties
   }
 
-  function getCardSlotIndex(index: number, cardId: string) {
+  function getCardSlotIndex(
+    handCards: CardView[],
+    index: number,
+    cardId: string,
+    previewIndex: number | null,
+    previewCardCount: number,
+    previewActiveCardId: string | null,
+  ) {
     if (previewIndex === null) {
       return index
     }
@@ -90,41 +93,78 @@ export function Hand({
     return baseIndex + (baseIndex >= previewIndex ? previewCardCount : 0)
   }
 
-  return (
-    <section ref={handRef} className="hand" data-hand aria-label="Player hand">
-      <div className="hand-strip">
-        {previewIndex !== null &&
-          Array.from({ length: previewCardCount }, (_, index) => (
-            <div
-              key={`hand-insert-${index}`}
-              className="hand-insert-slot"
-              style={getFanStyle(previewIndex + index)}
-              aria-hidden="true"
-            />
-          ))}
-        {handCards.map((card, index) => {
-          const isActive = activeCardIds.includes(card.id)
+  function renderHandArea(zone: HandZone, label: string, cardIds: string[]) {
+    const handCards = getHandCards(cardIds)
+    const cardCount = handCards.length
+    const zonePreview = insertPreview?.zone === zone ? insertPreview : null
+    const previewActiveCardId = zonePreview?.activeCardId ?? null
+    const previewCardCount = zonePreview?.cardCount ?? 0
+    const activePreviewCard = previewActiveCardId
+      ? handCards.some((card) => card.id === previewActiveCardId)
+      : false
+    const previewBaseCardCount = activePreviewCard ? cardCount - 1 : cardCount
+    const previewIndex = zonePreview
+      ? Math.min(Math.max(zonePreview.index, 0), previewBaseCardCount)
+      : null
+    const totalSlots = zonePreview
+      ? previewBaseCardCount + previewCardCount
+      : cardCount
 
-          return (
-            <div
-              key={card.id}
-              className={`hand-card-slot ${isActive ? 'is-being-dragged' : ''}`}
-              style={getFanStyle(getCardSlotIndex(index, card.id), isActive)}
-            >
-              <div className="hand-card-drag" data-hand-card-id={card.id}>
-                <CardShell
-                  card={card}
-                  className="hand-card-shell"
-                  isActive={isActive}
-                  ariaLabel={`${card.title}. Click to drop to the board or drag out of your hand.`}
-                  onPointerDown={(event) => onCardPointerDown(event, card.id)}
-                  onKeyDown={(event) => onCardKeyDown(event, card.id)}
-                />
+    return (
+      <div className={`hand-zone hand-zone-${zone}`} data-hand-zone={zone} aria-label={`${label} hand`}>
+        <span className="hand-zone-label">{label}</span>
+        <div className="hand-strip">
+          {previewIndex !== null &&
+            Array.from({ length: previewCardCount }, (_, index) => (
+              <div
+                key={`${zone}-hand-insert-${index}`}
+                className="hand-insert-slot"
+                style={getFanStyle(previewIndex + index, totalSlots)}
+                aria-hidden="true"
+              />
+            ))}
+          {handCards.map((card, index) => {
+            const isActive = activeCardIds.includes(card.id)
+
+            return (
+              <div
+                key={card.id}
+                className={`hand-card-slot ${isActive ? 'is-being-dragged' : ''}`}
+                style={getFanStyle(
+                  getCardSlotIndex(
+                    handCards,
+                    index,
+                    card.id,
+                    previewIndex,
+                    previewCardCount,
+                    previewActiveCardId,
+                  ),
+                  totalSlots,
+                  isActive,
+                )}
+              >
+                <div className="hand-card-drag" data-hand-card-id={card.id}>
+                  <CardShell
+                    card={card}
+                    className="hand-card-shell"
+                    isActive={isActive}
+                    ariaLabel={`${card.title}. Click to drop to the board or drag between Crew, Tired, and the board.`}
+                    onPointerDown={(event) => onCardPointerDown(event, card.id, zone)}
+                    onKeyDown={(event) => onCardKeyDown(event, card.id, zone)}
+                  />
+                </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
+    )
+  }
+
+  return (
+    <section ref={handRef} className="hand" data-hand aria-label="Crew and tired hands">
+      {renderHandArea('crew', 'Crew', crewCardIds)}
+      {renderHandArea('tired', 'Tired', tiredCardIds)}
     </section>
   )
 }

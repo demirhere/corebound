@@ -22,7 +22,13 @@ import {
 
 type BoardView = Pick<
   BoardState,
-  'cards' | 'stacks' | 'decks' | 'handCardIds' | 'dropTargetStackId' | 'dropTargetDeckId'
+  | 'cards'
+  | 'stacks'
+  | 'decks'
+  | 'handCardIds'
+  | 'tiredCardIds'
+  | 'dropTargetStackId'
+  | 'dropTargetDeckId'
 >
 
 type BoardProps = {
@@ -114,7 +120,8 @@ export function Board({
 
       <Hand
         handRef={handRef}
-        cardIds={board.handCardIds}
+        crewCardIds={board.handCardIds}
+        tiredCardIds={board.tiredCardIds}
         cards={board.cards}
         activeCardIds={activeHandCardIds}
         insertPreview={handInsertPreview}

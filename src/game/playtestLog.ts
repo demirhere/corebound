@@ -17,7 +17,7 @@ export type AppendedPlaytestLog = {
 }
 
 function formatDetailValue(value: PlaytestLogDetailValue) {
-  return Array.isArray(value) ? value.join(',') : String(value)
+  return Array.isArray(value) ? value.join(' | ') : String(value)
 }
 
 function formatDetails(details: PlaytestLogEntry['details']) {

@@ -1,4 +1,4 @@
-import { createInitialBoard } from './setup'
+import { createInitialBoardSetup } from './setup'
 import type { BoardState } from './types'
 import {
   appendPlaytestEvents,
@@ -32,10 +32,13 @@ export type GameAction =
     }
 
 export function createInitialGameState(): GameState {
+  const setup = createInitialBoardSetup()
+  const playtestLog = appendPlaytestEvents([], 1, setup.events, new Date().toISOString())
+
   return {
-    board: createInitialBoard(),
-    playtestLog: [],
-    nextLogId: 1,
+    board: setup.board,
+    playtestLog: playtestLog.entries,
+    nextLogId: playtestLog.nextLogId,
   }
 }
 
