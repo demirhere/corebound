@@ -14,11 +14,17 @@ import {
   type DeckKeyDownHandler,
   type DeckPointerDownHandler,
 } from './DeckCard'
+import {
+  Hand,
+  type HandKeyDownHandler,
+  type HandPointerDownHandler,
+} from './Hand'
 
 type BoardView = {
   cards: Record<string, CardView>
   stacks: StackView[]
   decks: DeckCardView[]
+  handCardIds: string[]
   dropTargetStackId: string | null
   dropTargetDeckId: string | null
 }
@@ -26,8 +32,10 @@ type BoardView = {
 type BoardProps = {
   board: BoardView
   boardRef: Ref<HTMLDivElement>
+  handRef: Ref<HTMLElement>
   activeStackIds: readonly string[]
   activeDeckIds: readonly string[]
+  activeHandCardIds: readonly string[]
   stackOffsetRatio: number
   onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void
   onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void
@@ -36,13 +44,17 @@ type BoardProps = {
   onDeckKeyDown: DeckKeyDownHandler
   onCardPointerDown: CardPointerDownHandler
   onCardKeyDown: CardKeyDownHandler
+  onHandCardPointerDown: HandPointerDownHandler
+  onHandCardKeyDown: HandKeyDownHandler
 }
 
 export function Board({
   board,
   boardRef,
+  handRef,
   activeStackIds,
   activeDeckIds,
+  activeHandCardIds,
   stackOffsetRatio,
   onPointerMove,
   onPointerUp,
@@ -51,6 +63,8 @@ export function Board({
   onDeckKeyDown,
   onCardPointerDown,
   onCardKeyDown,
+  onHandCardPointerDown,
+  onHandCardKeyDown,
 }: BoardProps) {
   return (
     <section
@@ -86,6 +100,15 @@ export function Board({
           onCardKeyDown={onCardKeyDown}
         />
       ))}
+
+      <Hand
+        handRef={handRef}
+        cardIds={board.handCardIds}
+        cards={board.cards}
+        activeCardIds={activeHandCardIds}
+        onCardPointerDown={onHandCardPointerDown}
+        onCardKeyDown={onHandCardKeyDown}
+      />
     </section>
   )
 }

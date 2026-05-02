@@ -58,6 +58,102 @@
   }
 }
 
+.hand {
+  --card-width: clamp(76px, 8.2vw, 116px);
+  --card-height: calc(var(--card-width) * 1.42);
+
+  position: absolute;
+  right: clamp(12px, 2.2vw, 28px);
+  bottom: 0;
+  left: clamp(12px, 2.2vw, 28px);
+  z-index: 1000;
+  min-height: calc(var(--card-height) + 34px);
+  padding: 19px clamp(12px, 2vw, 22px) 13px;
+  border: 1px solid rgba(246, 241, 223, 0.18);
+  border-bottom: 0;
+  border-radius: 24px 24px 0 0;
+  background:
+    linear-gradient(180deg, rgba(18, 24, 48, 0.78), rgba(5, 7, 19, 0.94)),
+    radial-gradient(circle at 18% 0%, rgba(100, 243, 255, 0.22), transparent 32%),
+    radial-gradient(circle at 82% 12%, rgba(207, 140, 255, 0.16), transparent 34%);
+  box-shadow:
+    0 -14px 34px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+
+  &.is-drop-target {
+    border-color: rgba(115, 255, 214, 0.92);
+    box-shadow:
+      0 -16px 38px rgba(0, 0, 0, 0.5),
+      0 0 0 3px rgba(115, 255, 214, 0.18),
+      0 0 28px rgba(115, 255, 214, 0.36),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    transform: translateY(-3px);
+  }
+}
+
+.hand-label {
+  position: absolute;
+  top: -12px;
+  left: 22px;
+  padding: 4px 10px 5px;
+  border: 1px solid rgba(246, 241, 223, 0.24);
+  border-radius: 999px;
+  color: rgba(246, 241, 223, 0.86);
+  background: rgba(5, 7, 19, 0.88);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.hand-strip {
+  display: flex;
+  align-items: flex-start;
+  min-height: var(--card-height);
+  gap: clamp(8px, 1vw, 14px);
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 0 2px 7px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(246, 241, 223, 0.42) transparent;
+}
+
+.hand-strip:has(.hand-card-shell.is-being-dragged) {
+  overflow: visible;
+}
+
+.hand-empty {
+  display: grid;
+  min-width: 210px;
+  min-height: calc(var(--card-height) - 10px);
+  place-items: center;
+  margin: 0;
+  border: 1px dashed rgba(246, 241, 223, 0.26);
+  border-radius: 16px;
+  color: rgba(246, 241, 223, 0.58);
+  font-size: clamp(13px, 1.2vw, 16px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.card-shell.hand-card-shell {
+  position: relative;
+  left: auto;
+  top: auto;
+  flex: 0 0 auto;
+  transform-origin: center bottom;
+
+  &.is-being-dragged {
+    z-index: 2;
+  }
+}
+
 .card-stack {
   position: absolute;
   z-index: 10;
@@ -602,6 +698,16 @@
 @media (max-width: 760px) {
   .app {
     --card-width: clamp(96px, 25vw, 120px);
+  }
+
+  .hand {
+    --card-width: clamp(68px, 19vw, 92px);
+
+    right: 8px;
+    left: 8px;
+    min-height: calc(var(--card-height) + 28px);
+    padding: 16px 10px 10px;
+    border-radius: 18px 18px 0 0;
   }
 
   .card-header {

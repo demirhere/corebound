@@ -38,36 +38,48 @@ type BoardCardProps = {
   onKeyDown: CardKeyDownHandler
 }
 
-export function BoardCard({
+type CardShellProps = {
+  card: CardView
+  className?: string
+  style?: CSSProperties
+  isActive?: boolean
+  ariaLabel: string
+  dataHandCardId?: string
+  onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void
+  onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void
+}
+
+export function CardShell({
   card,
-  stackId,
-  cardIndex,
-  isStackActive,
-  stackOffsetRatio,
+  className = '',
+  style,
+  isActive = false,
+  ariaLabel,
+  dataHandCardId,
   onPointerDown,
   onKeyDown,
-}: BoardCardProps) {
+}: CardShellProps) {
   const sampledIcons = pickCardIcons(`${card.id}:${card.title}`)
   const noteLines = pickCardNote(`${card.id}:${card.title}`)
 
   return (
     <div
       className={`card-shell ${card.faceUp ? 'is-face-up' : 'is-face-down'} ${
-        isStackActive ? 'is-being-dragged' : ''
-      }`}
+        isActive ? 'is-being-dragged' : ''
+      } ${className}`}
+      data-hand-card-id={dataHandCardId}
       style={
         {
           '--card-hue': String(card.hue),
           '--card-accent': card.accent,
-          top: `${cardIndex * stackOffsetRatio * 100}%`,
-          zIndex: cardIndex + 1,
+          ...style,
         } as CSSProperties
       }
       role="button"
       tabIndex={0}
-      aria-label={`${card.title}. Click to flip or drag to move this part of the stack.`}
-      onPointerDown={(event) => onPointerDown(event, stackId, card.id, cardIndex)}
-      onKeyDown={(event) => onKeyDown(event, stackId, card.id)}
+      aria-label={ariaLabel}
+      onPointerDown={onPointerDown}
+      onKeyDown={onKeyDown}
     >
       <div className="card-inner">
         <article className="card-face card-front">
@@ -93,5 +105,31 @@ export function BoardCard({
         </article>
       </div>
     </div>
+  )
+}
+
+export function BoardCard({
+  card,
+  stackId,
+  cardIndex,
+  isStackActive,
+  stackOffsetRatio,
+  onPointerDown,
+  onKeyDown,
+}: BoardCardProps) {
+  return (
+    <CardShell
+      card={card}
+      isActive={isStackActive}
+      style={
+        {
+          top: `${cardIndex * stackOffsetRatio * 100}%`,
+          zIndex: cardIndex + 1,
+        } as CSSProperties
+      }
+      ariaLabel={`${card.title}. Click to flip or drag to move this part of the stack.`}
+      onPointerDown={(event) => onPointerDown(event, stackId, card.id, cardIndex)}
+      onKeyDown={(event) => onKeyDown(event, stackId, card.id)}
+    />
   )
 }

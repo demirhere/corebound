@@ -45,6 +45,7 @@ type BoardState = {
   cards: Record<string, Card>
   stacks: Stack[]
   decks: Deck[]
+  handCardIds: string[]
   topZ: number
   nextCardId: number
   dropTargetStackId: string | null
@@ -75,6 +76,7 @@ type StackDragState = {
   latestDeltaY: number
   dropTargetStackId: string | null
   dropTargetDeckId: string | null
+  dropTargetHand: boolean
   hasMoved: boolean
 }
 
@@ -98,7 +100,21 @@ type DeckDragState = {
   hasMoved: boolean
 }
 
-type DragState = StackDragState | DeckDragState
+type HandDragState = {
+  kind: 'hand'
+  pointerId: number
+  cardId: string
+  element: HTMLElement | null
+  startClientX: number
+  startClientY: number
+  currentClientX: number
+  currentClientY: number
+  latestDeltaX: number
+  latestDeltaY: number
+  hasMoved: boolean
+}
+
+type DragState = StackDragState | DeckDragState | HandDragState
 
 type DragPreparation = 'idle' | 'active' | 'stale'
 
@@ -272,6 +288,7 @@ function createInitialBoard(): BoardState {
         cards: shipDeck,
       },
     ],
+    handCardIds: [],
     topZ: 15,
     nextCardId: 1,
     dropTargetStackId: null,
@@ -381,15 +398,18 @@ function withoutCards(cards: Record<string, Card>, cardIds: string[]) {
 
 function App() {
   const boardRef = useRef<HTMLDivElement>(null)
+  const handRef = useRef<HTMLElement>(null)
   const dragsRef = useRef<Map<number, DragState>>(new Map())
   const pendingDragIdsRef = useRef<Set<number>>(new Set())
   const dragFrameRef = useRef<number | null>(null)
   const stackDropTargetCountsRef = useRef<Map<string, number>>(new Map())
   const deckDropTargetCountsRef = useRef<Map<string, number>>(new Map())
+  const handDropTargetCountRef = useRef(0)
   const [board, setBoard] = useState(createInitialBoard)
   const boardStateRef = useRef(board)
   const [activeStackIds, setActiveStackIds] = useState<string[]>([])
   const [activeDeckIds, setActiveDeckIds] = useState<string[]>([])
+  const [activeHandCardIds, setActiveHandCardIds] = useState<string[]>([])
 
   useLayoutEffect(() => {
     boardStateRef.current = board
@@ -411,13 +431,17 @@ function App() {
     for (const deckId of deckDropTargetCountsRef.current.keys()) {
       getDeckElement(deckId)?.classList.add('is-drop-target')
     }
+
+    if (handDropTargetCountRef.current > 0) {
+      getHandElement()?.classList.add('is-drop-target')
+    }
   })
 
   function readBoardMetrics(): BoardMetrics {
     const boardElement = boardRef.current
     const boardRect = boardElement?.getBoundingClientRect()
     const cardRect = boardElement
-      ?.querySelector<HTMLElement>('.card-shell, .deck-card')
+      ?.querySelector<HTMLElement>('.card-stack .card-shell, .deck-card')
       ?.getBoundingClientRect()
     const cardWidth = cardRect?.width ?? 112
     const cardHeight = cardRect?.height ?? 158
@@ -464,6 +488,26 @@ function App() {
     return boardRef.current?.querySelector<HTMLElement>(`[data-deck-id="${deckId}"]`) ?? null
   }
 
+  function getHandElement() {
+    return handRef.current
+  }
+
+  function getHandCardElement(cardId: string) {
+    return handRef.current?.querySelector<HTMLElement>(`[data-hand-card-id="${cardId}"]`) ?? null
+  }
+
+  function isPointInHand(clientX: number, clientY: number) {
+    const handRect = getHandElement()?.getBoundingClientRect()
+
+    return Boolean(
+      handRect &&
+        clientX >= handRect.left &&
+        clientX <= handRect.right &&
+        clientY >= handRect.top &&
+        clientY <= handRect.bottom,
+    )
+  }
+
   function setDragTransform(element: HTMLElement, deltaX: number, deltaY: number) {
     element.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`
   }
@@ -506,6 +550,18 @@ function App() {
     setActiveDeckIds((current) => current.filter((activeId) => activeId !== deckId))
   }
 
+  function addActiveHandCardId(cardId: string) {
+    setActiveHandCardIds((current) => (current.includes(cardId) ? current : [...current, cardId]))
+  }
+
+  function removeActiveHandCardId(cardId: string | null) {
+    if (!cardId) {
+      return
+    }
+
+    setActiveHandCardIds((current) => current.filter((activeId) => activeId !== cardId))
+  }
+
   function hasDraggedPastTolerance(clientX: number, clientY: number, drag: DragState) {
     return Math.hypot(clientX - drag.startClientX, clientY - drag.startClientY) > DRAG_CLICK_TOLERANCE
   }
@@ -536,8 +592,10 @@ function App() {
 
       if (drag.kind === 'stack') {
         moveStackDrag(drag.currentClientX, drag.currentClientY, drag)
-      } else {
+      } else if (drag.kind === 'deck') {
         moveDeckDrag(drag.currentClientX, drag.currentClientY, drag)
+      } else {
+        moveHandDrag(drag.currentClientX, drag.currentClientY, drag)
       }
     }
 
@@ -557,6 +615,9 @@ function App() {
   }
 
   function updateStackDragPosition(clientX: number, clientY: number, drag: StackDragState) {
+    drag.currentClientX = clientX
+    drag.currentClientY = clientY
+
     const deltaX = ((clientX - drag.startClientX) / drag.metrics.width) * 100
     const deltaY = ((clientY - drag.startClientY) / drag.metrics.height) * 100
     const position = clampStackPosition(
@@ -573,6 +634,9 @@ function App() {
   }
 
   function updateDeckDragPosition(clientX: number, clientY: number, drag: DeckDragState) {
+    drag.currentClientX = clientX
+    drag.currentClientY = clientY
+
     const deltaX = ((clientX - drag.startClientX) / drag.metrics.width) * 100
     const deltaY = ((clientY - drag.startClientY) / drag.metrics.height) * 100
     const position = clampStackPosition(drag.startX + deltaX, drag.startY + deltaY, 1, drag.metrics)
@@ -581,6 +645,13 @@ function App() {
     drag.latestY = position.y
     drag.latestDeltaX = ((position.x - drag.startX) / 100) * drag.metrics.width
     drag.latestDeltaY = ((position.y - drag.startY) / 100) * drag.metrics.height
+  }
+
+  function updateHandDragPosition(clientX: number, clientY: number, drag: HandDragState) {
+    drag.currentClientX = clientX
+    drag.currentClientY = clientY
+    drag.latestDeltaX = clientX - drag.startClientX
+    drag.latestDeltaY = clientY - drag.startClientY
   }
 
   function applyStackDragTransform(drag: StackDragState) {
@@ -602,6 +673,17 @@ function App() {
 
   function applyDeckDragTransform(drag: DeckDragState) {
     const element = drag.element ?? getDeckElement(drag.deckId)
+
+    if (!element) {
+      return
+    }
+
+    drag.element = element
+    setDragTransform(element, drag.latestDeltaX, drag.latestDeltaY)
+  }
+
+  function applyHandDragTransform(drag: HandDragState) {
+    const element = drag.element ?? getHandCardElement(drag.cardId)
 
     if (!element) {
       return
@@ -663,11 +745,35 @@ function App() {
     }
   }
 
+  function toggleHandDropTarget(enabled: boolean) {
+    const currentCount = handDropTargetCountRef.current
+    const nextCount = enabled ? currentCount + 1 : Math.max(0, currentCount - 1)
+
+    if (nextCount === currentCount) {
+      return
+    }
+
+    handDropTargetCountRef.current = nextCount
+
+    if (nextCount === 0) {
+      getHandElement()?.classList.remove('is-drop-target')
+      return
+    }
+
+    if (currentCount === 0) {
+      getHandElement()?.classList.add('is-drop-target')
+    }
+  }
+
   function clearStackDragDropTarget(drag: StackDragState) {
     toggleStackDropTarget(drag.dropTargetStackId, false)
     toggleDeckDropTarget(drag.dropTargetDeckId, false)
+    if (drag.dropTargetHand) {
+      toggleHandDropTarget(false)
+    }
     drag.dropTargetStackId = null
     drag.dropTargetDeckId = null
+    drag.dropTargetHand = false
   }
 
   function clearDeckDragDropTarget(drag: DeckDragState) {
@@ -814,6 +920,7 @@ function App() {
     drag.activeStackId = activeId
     drag.dropTargetStackId = null
     drag.dropTargetDeckId = null
+    drag.dropTargetHand = false
 
     flushSync(() => {
       addActiveStackId(activeId)
@@ -890,6 +997,21 @@ function App() {
     return true
   }
 
+  function activateHandDrag(drag: HandDragState) {
+    if (!boardStateRef.current.handCardIds.includes(drag.cardId)) {
+      return false
+    }
+
+    drag.hasMoved = true
+
+    flushSync(() => {
+      addActiveHandCardId(drag.cardId)
+    })
+
+    drag.element = getHandCardElement(drag.cardId) ?? drag.element
+    return true
+  }
+
   function updateStackDropTarget(drag: StackDragState) {
     const activeId = drag.activeStackId
 
@@ -904,30 +1026,41 @@ function App() {
       return
     }
 
+    const dropTargetHand = isPointInHand(drag.currentClientX, drag.currentClientY)
     const previewStacks = current.stacks.map((stack) =>
       stack.id === activeId ? { ...stack, x: drag.latestX, y: drag.latestY } : stack,
     )
-    const dropTarget = getNearestDropTarget(
-      previewStacks,
-      current.decks,
-      current.cards,
-      activeId,
-      drag.metrics,
-    )
+    const dropTarget = dropTargetHand
+      ? { stackId: null, deckId: null }
+      : getNearestDropTarget(
+          previewStacks,
+          current.decks,
+          current.cards,
+          activeId,
+          drag.metrics,
+        )
 
     if (
       dropTarget.stackId === drag.dropTargetStackId &&
-      dropTarget.deckId === drag.dropTargetDeckId
+      dropTarget.deckId === drag.dropTargetDeckId &&
+      dropTargetHand === drag.dropTargetHand
     ) {
       return
     }
 
     toggleStackDropTarget(drag.dropTargetStackId, false)
     toggleDeckDropTarget(drag.dropTargetDeckId, false)
+    if (drag.dropTargetHand) {
+      toggleHandDropTarget(false)
+    }
     drag.dropTargetStackId = dropTarget.stackId
     drag.dropTargetDeckId = dropTarget.deckId
+    drag.dropTargetHand = dropTargetHand
     toggleStackDropTarget(dropTarget.stackId, true)
     toggleDeckDropTarget(dropTarget.deckId, true)
+    if (dropTargetHand) {
+      toggleHandDropTarget(true)
+    }
   }
 
   function updateDeckDropTarget(drag: DeckDragState) {
@@ -1076,6 +1209,74 @@ function App() {
     })
   }
 
+  function getBoardDropPosition(clientX: number, clientY: number, placeAboveHand = false) {
+    const metrics = readBoardMetrics()
+    const boardRect = boardRef.current?.getBoundingClientRect()
+    const handRect = getHandElement()?.getBoundingClientRect()
+    const boardLeft = boardRect?.left ?? 0
+    const boardTop = boardRect?.top ?? 0
+    const targetClientY =
+      placeAboveHand && handRect
+        ? Math.min(clientY, handRect.top - metrics.cardHeight / 2 - 14)
+        : clientY
+
+    return clampStackPosition(
+      ((clientX - boardLeft - metrics.cardWidth / 2) / metrics.width) * 100,
+      ((targetClientY - boardTop - metrics.cardHeight / 2) / metrics.height) * 100,
+      1,
+      metrics,
+    )
+  }
+
+  function dropHandCardToBoard(cardId: string, position: { x: number; y: number }) {
+    setBoard((current) => {
+      const card = current.cards[cardId]
+
+      if (!card || !current.handCardIds.includes(cardId)) {
+        return current
+      }
+
+      const nextZ = current.topZ + 1
+
+      return {
+        ...current,
+        topZ: nextZ,
+        nextCardId: current.nextCardId + 1,
+        dropTargetStackId: null,
+        dropTargetDeckId: null,
+        handCardIds: current.handCardIds.filter((candidateId) => candidateId !== cardId),
+        stacks: [
+          ...current.stacks,
+          {
+            id: `stack-hand-${cardId}-${current.nextCardId}`,
+            cardIds: [cardId],
+            x: position.x,
+            y: position.y,
+            z: nextZ,
+          },
+        ],
+      }
+    })
+  }
+
+  function addStackToHand(sourceStackId: string) {
+    setBoard((current) => {
+      const sourceStack = current.stacks.find((stack) => stack.id === sourceStackId)
+
+      if (!sourceStack) {
+        return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
+      }
+
+      return {
+        ...current,
+        dropTargetStackId: null,
+        dropTargetDeckId: null,
+        handCardIds: [...current.handCardIds, ...sourceStack.cardIds],
+        stacks: current.stacks.filter((stack) => stack.id !== sourceStack.id),
+      }
+    })
+  }
+
   function beginStackDrag(
     event: ReactPointerEvent<HTMLDivElement>,
     stackId: string,
@@ -1133,6 +1334,7 @@ function App() {
       latestDeltaY: 0,
       dropTargetStackId: board.dropTargetStackId,
       dropTargetDeckId: board.dropTargetDeckId,
+      dropTargetHand: false,
       hasMoved: false,
     })
   }
@@ -1179,6 +1381,38 @@ function App() {
     })
   }
 
+  function beginHandDrag(event: ReactPointerEvent<HTMLDivElement>, cardId: string) {
+    if (event.button !== 0 || dragsRef.current.has(event.pointerId)) {
+      return
+    }
+
+    for (const activeDrag of dragsRef.current.values()) {
+      if (activeDrag.kind === 'hand' && activeDrag.cardId === cardId) {
+        return
+      }
+    }
+
+    if (!board.handCardIds.includes(cardId)) {
+      return
+    }
+
+    event.preventDefault()
+    captureBoardPointer(event.pointerId)
+    dragsRef.current.set(event.pointerId, {
+      kind: 'hand',
+      pointerId: event.pointerId,
+      cardId,
+      element: event.currentTarget,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      currentClientX: event.clientX,
+      currentClientY: event.clientY,
+      latestDeltaX: 0,
+      latestDeltaY: 0,
+      hasMoved: false,
+    })
+  }
+
   function prepareStackDrag(clientX: number, clientY: number, drag: StackDragState): DragPreparation {
     if (!drag.hasMoved && !hasDraggedPastTolerance(clientX, clientY, drag)) {
       return 'idle'
@@ -1201,6 +1435,20 @@ function App() {
     updateDeckDragPosition(clientX, clientY, drag)
 
     if (!drag.hasMoved && !activateDeckDrag(drag)) {
+      return 'stale'
+    }
+
+    return drag.hasMoved ? 'active' : 'stale'
+  }
+
+  function prepareHandDrag(clientX: number, clientY: number, drag: HandDragState): DragPreparation {
+    if (!drag.hasMoved && !hasDraggedPastTolerance(clientX, clientY, drag)) {
+      return 'idle'
+    }
+
+    updateHandDragPosition(clientX, clientY, drag)
+
+    if (!drag.hasMoved && !activateHandDrag(drag)) {
       return 'stale'
     }
 
@@ -1239,6 +1487,22 @@ function App() {
 
     applyDeckDragTransform(drag)
     updateDeckDropTarget(drag)
+  }
+
+  function moveHandDrag(clientX: number, clientY: number, drag: HandDragState) {
+    const preparation = prepareHandDrag(clientX, clientY, drag)
+
+    if (preparation === 'stale') {
+      releaseBoardPointer(drag.pointerId)
+      stopTrackingDrag(drag.pointerId)
+      return
+    }
+
+    if (preparation !== 'active') {
+      return
+    }
+
+    applyHandDragTransform(drag)
   }
 
   function moveActiveDrag(event: ReactPointerEvent<HTMLDivElement>) {
@@ -1441,9 +1705,16 @@ function App() {
         const dropTarget = {
           stackId: drag.dropTargetStackId,
           deckId: drag.dropTargetDeckId,
+          hand: drag.dropTargetHand,
         }
 
         clearStackDragDropTarget(drag)
+        if (dropTarget.hand) {
+          clearDragTransform(drag.activeElement)
+          addStackToHand(drag.activeStackId)
+          return
+        }
+
         commitStackDragPosition(drag)
         clearDragTransform(drag.activeElement)
         stackOnDropTarget(drag.activeStackId, dropTarget)
@@ -1451,6 +1722,31 @@ function App() {
       }
 
       clearDropTarget()
+      return
+    }
+
+    if (drag.kind === 'hand') {
+      const preparation = prepareHandDrag(event.clientX, event.clientY, drag)
+
+      if (preparation === 'stale') {
+        removeActiveHandCardId(drag.cardId)
+        clearDragTransform(drag.element)
+        return
+      }
+
+      if (preparation === 'idle') {
+        dropHandCardToBoard(drag.cardId, getBoardDropPosition(event.clientX, event.clientY, true))
+        return
+      }
+
+      removeActiveHandCardId(drag.cardId)
+      updateHandDragPosition(event.clientX, event.clientY, drag)
+      clearDragTransform(drag.element)
+
+      if (!isPointInHand(event.clientX, event.clientY)) {
+        dropHandCardToBoard(drag.cardId, getBoardDropPosition(event.clientX, event.clientY, true))
+      }
+
       return
     }
 
@@ -1503,6 +1799,11 @@ function App() {
         commitStackDragPosition(drag)
         clearDragTransform(drag.activeElement)
       }
+    } else if (drag.kind === 'hand') {
+      if (drag.hasMoved) {
+        removeActiveHandCardId(drag.cardId)
+        clearDragTransform(drag.element)
+      }
     } else if (drag.hasMoved) {
       clearDeckDragDropTarget(drag)
       flushSync(() => {
@@ -1538,13 +1839,33 @@ function App() {
     drawFromDeck(deckId)
   }
 
+  function handleHandKeyDown(event: ReactKeyboardEvent<HTMLDivElement>, cardId: string) {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return
+    }
+
+    const cardRect = event.currentTarget.getBoundingClientRect()
+
+    event.preventDefault()
+    dropHandCardToBoard(
+      cardId,
+      getBoardDropPosition(
+        cardRect.left + cardRect.width / 2,
+        cardRect.top + cardRect.height / 2,
+        true,
+      ),
+    )
+  }
+
   return (
     <main className="app" aria-label="Corebound board prototype">
       <Board
         board={board}
         boardRef={boardRef}
+        handRef={handRef}
         activeStackIds={activeStackIds}
         activeDeckIds={activeDeckIds}
+        activeHandCardIds={activeHandCardIds}
         stackOffsetRatio={STACK_OFFSET_RATIO}
         onPointerMove={moveActiveDrag}
         onPointerUp={finishActiveDrag}
@@ -1553,6 +1874,8 @@ function App() {
         onDeckKeyDown={handleDeckKeyDown}
         onCardPointerDown={beginStackDrag}
         onCardKeyDown={handleCardKeyDown}
+        onHandCardPointerDown={beginHandDrag}
+        onHandCardKeyDown={handleHandKeyDown}
       />
     </main>
   )

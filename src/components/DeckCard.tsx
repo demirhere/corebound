@@ -54,7 +54,7 @@ export function DeckCard({
           '--card-accent': deck.accent,
           left: `${deck.x}%`,
           top: `${deck.y}%`,
-          zIndex: deck.z,
+          zIndex: isActive ? 1101 : deck.z,
         } as CSSProperties
       }
       onPointerDown={(event) => onPointerDown(event, deck.id)}
