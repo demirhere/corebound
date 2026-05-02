@@ -60,6 +60,14 @@ export function cardsToDeckBlueprints(cardIds: string[], cards: Record<string, C
   })
 }
 
+export function getMotherCardIdsInPlay(stacks: readonly Stack[], cards: Record<string, Card>) {
+  return stacks.flatMap((stack) => stack.cardIds.filter((cardId) => cards[cardId]?.kind === 'mother'))
+}
+
+export function countMotherCardsInPlay(stacks: readonly Stack[], cards: Record<string, Card>) {
+  return getMotherCardIdsInPlay(stacks, cards).length
+}
+
 function countRequirementIcons(icons: readonly RequirementIconKind[]) {
   const counts: Record<RequirementIconKind, number> = {
     life: 0,
@@ -104,6 +112,7 @@ export function getHorizonStackCompletion(
     signal: 0,
   }
   let fuelCount = 0
+  let motherCount = 0
   let hasBlockingCard = false
 
   for (const cardId of stack.cardIds) {
@@ -128,15 +137,19 @@ export function getHorizonStackCompletion(
       for (const specialization of card.specializations ?? []) {
         availableIcons[specialization] += 1
       }
+    } else if (card.kind === 'mother') {
+      motherCount += 1
     } else {
       hasBlockingCard = true
     }
   }
 
-  const hasRequiredFuel = fuelCount === horizonCard.horizon.need.fuel
-  const hasRequiredIcons = requirementIconKinds.every(
-    (icon) => availableIcons[icon] >= requiredIcons[icon],
+  const missingIconCount = requirementIconKinds.reduce(
+    (count, icon) => count + Math.max(0, requiredIcons[icon] - availableIcons[icon]),
+    0,
   )
+  const hasRequiredFuel = fuelCount === horizonCard.horizon.need.fuel
+  const hasRequiredIcons = missingIconCount <= motherCount
 
   return {
     horizonCardId,

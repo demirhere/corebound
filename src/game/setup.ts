@@ -13,6 +13,7 @@ import { cardContent, cardRulesText } from './logEvents'
 import type { PlaytestLogEvent } from './playtestLog'
 
 const RESOURCE_DECK_SIZE = 12
+const MOTHER_DECK_SIZE = 6
 
 type DeckArt = {
   icon: CardIconKind
@@ -51,6 +52,12 @@ const horizonArt: Record<HorizonKind, DeckArt> = {
   },
 }
 
+const motherArt: DeckArt = {
+  icon: 'mother',
+  hue: 354,
+  accent: '#ff4f64',
+}
+
 function createResourceDeck(resource: ResourceKind, count: number) {
   const art = resourceArt[resource]
   const title = resource === 'fuel' ? 'Fuel Cell' : 'Hull Plate'
@@ -62,6 +69,16 @@ function createResourceDeck(resource: ResourceKind, count: number) {
     accent: art.accent,
     kind: 'resource',
     resource,
+  }))
+}
+
+function createMotherDeck(count: number) {
+  return Array.from({ length: count }, (): CardBlueprint => ({
+    title: 'MOTHER',
+    icon: motherArt.icon,
+    hue: motherArt.hue,
+    accent: motherArt.accent,
+    kind: 'mother',
   }))
 }
 
@@ -228,6 +245,7 @@ const horizonDeck = [
 
 export function createInitialBoardSetup(): { board: BoardState; events: PlaytestLogEvent[] } {
   const fuelDeck = shuffleCards(createResourceDeck('fuel', RESOURCE_DECK_SIZE))
+  const motherDeckCards = createMotherDeck(MOTHER_DECK_SIZE)
   // const hullDeck = shuffleCards(createResourceDeck('hull', RESOURCE_DECK_SIZE))
   const initialFuelCards = createBoardCards('fuel-start', fuelDeck.slice(0, 3))
   // const initialHullCards = createBoardCards('hull-start', hullDeck.slice(0, 4))
@@ -273,6 +291,17 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
         cards: horizonDeckCards,
       },
       {
+        id: 'mother-deck',
+        title: 'MOTHER Deck',
+        icon: motherArt.icon,
+        hue: motherArt.hue,
+        accent: motherArt.accent,
+        x: 6,
+        y: 40,
+        z: 13,
+        cards: motherDeckCards,
+      },
+      {
         id: 'cryo-deck',
         title: 'Cryo Deck',
         icon: 'person',
@@ -297,6 +326,7 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
     board,
     events: [
       setupDeckCreatedEvent('fuel-deck', 'Fuel Deck', fuelDeckCards),
+      setupDeckCreatedEvent('mother-deck', 'MOTHER Deck', motherDeckCards),
       // setupDeckCreatedEvent('hull-deck', 'Hull Deck', hullDeckCards),
       setupDeckCreatedEvent('horizon-deck', 'Horizon Deck', horizonDeckCards),
       setupDeckCreatedEvent('cryo-deck', 'Cryo Deck', cryoDeckCards),

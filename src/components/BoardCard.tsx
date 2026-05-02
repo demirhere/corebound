@@ -125,6 +125,18 @@ function renderGameplayCardContent(card: CardView) {
     )
   }
 
+  if (card.kind === 'mother') {
+    return (
+      <>
+        <p className="card-kicker">Ship AI</p>
+        <div className="card-primary-icons">
+          <GameIcon kind="mother" />
+        </div>
+        <p className="card-rule-text">Covers 1 non-Fuel Horizon need. Stays in play after use.</p>
+      </>
+    )
+  }
+
   if (card.kind === 'horizon' && card.horizon) {
     const needFuelIcons = Array.from({ length: card.horizon.need.fuel }, () => 'fuel' as const)
 
@@ -169,7 +181,7 @@ export function CardShell({
     <div
       className={`card-shell ${card.faceUp ? 'is-face-up' : 'is-face-down'} ${
         isActive ? 'is-being-dragged' : ''
-      } ${className}`}
+      } card-kind-${card.kind} ${className}`}
       data-hand-card-id={dataHandCardId}
       style={
         {

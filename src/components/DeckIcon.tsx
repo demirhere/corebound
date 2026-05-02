@@ -143,5 +143,14 @@ function renderDeckIcon(kind: CardIconKind) {
           <path className="deck-icon-line" d="M18.8 15c2.4 1.5 8 1.5 10.4 0M17.1 32.6c3.8 1.5 10 1.5 13.8 0" />
         </>
       )
+    case 'mother':
+      return (
+        <>
+          <path className="deck-icon-fill" d="M24 6.8 37.4 14.5v18.9L24 41.2 10.6 33.4V14.5Z" />
+          <path className="deck-icon-cutout" d="M13.3 24s4-7.4 10.7-7.4S34.7 24 34.7 24 30.7 31.4 24 31.4 13.3 24 13.3 24Z" />
+          <circle className="deck-icon-dot" cx="24" cy="24" r="3.2" />
+          <path className="deck-icon-line" d="M24 3.8v5.1M24 39.1v5.1M10.5 11.2l4 4M37.5 11.2l-4 4M10.5 36.8l4-4M37.5 36.8l-4-4" />
+        </>
+      )
   }
 }

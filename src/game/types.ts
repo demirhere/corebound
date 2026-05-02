@@ -16,6 +16,7 @@ export type CardIconKind =
   | 'shield'
   | 'crosshair'
   | 'person'
+  | 'mother'
 
 export type ResourceKind = 'fuel' | 'hull'
 
@@ -25,7 +26,7 @@ export type HorizonKind = 'star' | 'planet' | 'asteroid'
 
 export type RequirementIconKind = CrewSpecialization
 
-export type CardKind = 'resource' | 'crew' | 'horizon'
+export type CardKind = 'resource' | 'crew' | 'horizon' | 'mother'
 
 export type HandZone = 'crew' | 'tired'
 

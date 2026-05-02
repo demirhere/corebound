@@ -592,6 +592,87 @@
     drop-shadow(0 0 12px color-mix(in srgb, var(--card-accent) 52%, transparent));
 }
 
+.card-shell.card-kind-mother .card-face.card-front {
+  color: #fff0e8;
+  background:
+    linear-gradient(90deg, #ff4f64 0 7px, transparent 7px),
+    radial-gradient(circle at 68% 34%, rgba(255, 79, 100, 0.32), transparent 34%),
+    radial-gradient(circle at 38% 74%, rgba(100, 243, 255, 0.12), transparent 36%),
+    repeating-linear-gradient(0deg, rgba(255, 79, 100, 0.12) 0 1px, transparent 1px 7px),
+    linear-gradient(150deg, #1a0710, #2a0b16 62%, #070913);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 0 28px rgba(255, 79, 100, 0.14);
+}
+
+.card-shell.card-kind-mother .card-header {
+  color: #fff0e8;
+  background:
+    linear-gradient(180deg, rgba(255, 79, 100, 0.3), rgba(255, 79, 100, 0.04)),
+    linear-gradient(90deg, rgba(255, 79, 100, 0.24), transparent 72%);
+  text-shadow: 0 0 10px rgba(255, 79, 100, 0.58);
+
+  &::before,
+  &::after {
+    background: color-mix(in srgb, var(--card-accent) 82%, #fff0e8);
+  }
+}
+
+.card-shell.card-kind-mother .card-front::before {
+  border-left-color: rgba(255, 79, 100, 0.34);
+}
+
+.card-shell.card-kind-mother .card-front::after {
+  border-color: rgba(255, 79, 100, 0.2);
+  background: rgba(255, 79, 100, 0.44);
+  box-shadow:
+    0 27px 0 rgba(255, 79, 100, 0.36),
+    0 27px 0 1px rgba(255, 240, 232, 0.08),
+    0 54px 0 rgba(100, 243, 255, 0.22),
+    0 54px 0 1px rgba(255, 240, 232, 0.08);
+}
+
+.card-shell.card-kind-mother .card-art {
+  background:
+    linear-gradient(90deg, transparent 0 21px, rgba(255, 79, 100, 0.1) 21px 22px, transparent 22px),
+    repeating-linear-gradient(180deg, transparent 0 12px, rgba(255, 79, 100, 0.09) 12px 13px, transparent 13px 18px),
+    radial-gradient(circle at 74% 72%, rgba(255, 79, 100, 0.18), transparent 40%);
+
+  &::before {
+    border-color: rgba(255, 79, 100, 0.28);
+    border-radius: 18px;
+  }
+
+  &::after {
+    background: rgba(255, 79, 100, 0.32);
+    box-shadow:
+      -8px 11px 0 rgba(255, 79, 100, 0.2),
+      2px 22px 0 rgba(100, 243, 255, 0.16),
+      -5px 33px 0 rgba(255, 79, 100, 0.14);
+  }
+}
+
+.card-shell.card-kind-mother .card-kicker {
+  border-color: rgba(255, 79, 100, 0.48);
+  color: rgba(255, 240, 232, 0.78);
+  background: rgba(255, 79, 100, 0.12);
+}
+
+.card-shell.card-kind-mother .card-rule-text {
+  color: rgba(255, 240, 232, 0.86);
+  text-shadow: 0 0 8px rgba(255, 79, 100, 0.32);
+}
+
+.card-shell.card-kind-mother .game-icon {
+  --icon-paper: #250912;
+  --icon-ink: #fff0e8;
+
+  background:
+    radial-gradient(circle at 38% 31%, rgba(255, 255, 255, 0.18), transparent 38%),
+    color-mix(in srgb, var(--icon-color) 26%, #18070f);
+  box-shadow: 0 0 14px rgba(255, 79, 100, 0.32);
+}
+
 .card-inner {
   position: relative;
   width: 100%;

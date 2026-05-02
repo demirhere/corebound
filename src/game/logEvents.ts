@@ -45,6 +45,10 @@ export function cardRulesText(card: Card | CardBlueprint) {
     return `needs: ${need}; rewards: ${rewards}`
   }
 
+  if (card.kind === 'mother') {
+    return 'wild: covers 1 non-Fuel Horizon icon; stays in play after use'
+  }
+
   return ''
 }
 

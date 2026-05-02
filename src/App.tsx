@@ -355,6 +355,10 @@ function App() {
     return stack.cardIds.filter((cardId) => cards[cardId]?.kind === 'crew')
   }
 
+  function getSpentMotherCardIds(stack: Stack, cards: Record<string, Card>) {
+    return stack.cardIds.filter((cardId) => cards[cardId]?.kind === 'mother')
+  }
+
   function readyTiredCrew(
     handCardIds: readonly string[],
     tiredCardIds: readonly string[],
@@ -1364,6 +1368,8 @@ function App() {
     const rewards = horizonCard.horizon.rewards
     const spentCrewCardIds = getSpentCrewCardIds(sourceStack, current.cards)
     const spentCrewCardIdSet = new Set(spentCrewCardIds)
+    const spentMotherCardIds = getSpentMotherCardIds(sourceStack, current.cards)
+    const spentMotherCardIdSet = new Set(spentMotherCardIds)
     const readyCrewCount = rewards.reduce(
       (count, reward) => reward.kind === 'ready' ? count + reward.count : count,
       0,
@@ -1404,7 +1410,9 @@ function App() {
     })
     const nextCards = withoutCards(
       current.cards,
-      sourceStack.cardIds.filter((cardId) => !spentCrewCardIdSet.has(cardId)),
+      sourceStack.cardIds.filter(
+        (cardId) => !spentCrewCardIdSet.has(cardId) && !spentMotherCardIdSet.has(cardId),
+      ),
     )
     const handCardIdsWithoutSpentCrew = current.handCardIds.filter(
       (cardId) => !spentCrewCardIdSet.has(cardId),
@@ -1432,6 +1440,31 @@ function App() {
             metrics,
           )
         : null
+    const rewardStackId = `stack-reward-${horizonCard.id}`
+    const nextStacksWithoutSource = current.stacks.filter((stack) => stack.id !== sourceStack.id)
+    const resolvedStacks = [
+      ...nextStacksWithoutSource,
+      ...(spentMotherCardIds.length > 0
+        ? [
+            {
+              ...sourceStack,
+              cardIds: spentMotherCardIds,
+              z: nextZ,
+            },
+          ]
+        : []),
+      ...(rewardCards.length > 0
+        ? [
+            {
+              id: spentMotherCardIds.length > 0 ? rewardStackId : sourceStack.id,
+              cardIds: rewardCards.map((card) => card.id),
+              x: rewardPosition?.x ?? sourceStack.x,
+              y: rewardPosition?.y ?? sourceStack.y,
+              z: nextZ,
+            },
+          ]
+        : []),
+    ]
 
     return {
       board: {
@@ -1447,20 +1480,7 @@ function App() {
           ...createBoardEffectsForHorizonRewards(rewards),
         ],
         cards: nextCards,
-        stacks:
-          rewardCards.length > 0
-            ? current.stacks.map((stack) =>
-                stack.id === sourceStack.id
-                  ? {
-                    ...stack,
-                    cardIds: rewardCards.map((card) => card.id),
-                    x: rewardPosition?.x ?? stack.x,
-                    y: rewardPosition?.y ?? stack.y,
-                    z: nextZ,
-                  }
-                  : stack,
-              )
-            : current.stacks.filter((stack) => stack.id !== sourceStack.id),
+        stacks: resolvedStacks,
         decks: nextDecks,
       },
       events: [horizonCompletedEvent(horizonCard, sourceStack, rewardCards, current.cards)],
