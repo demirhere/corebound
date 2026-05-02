@@ -263,8 +263,8 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
       {
         id: 'stack-fuel-supply',
         cardIds: initialFuelCards.map((card) => card.id),
-        x: 31,
-        y: 17,
+        x: 18,
+        y: 12,
         z: 11,
       },
     ],
