@@ -534,7 +534,7 @@ export function useCardMovementAnimations({ board, boardRef }: UseCardMovementAn
 
       for (const [cardId, origin] of deckDrawOrigins) {
         const target = currentCardElements.get(cardId)
-        const originRect = previousSnapshot.deckRects.get(origin.deckId) ?? currentDeckRects.get(origin.deckId)
+        const originRect = currentDeckRects.get(origin.deckId) ?? previousSnapshot.deckRects.get(origin.deckId)
         const card = board.cards[cardId]
 
         if (!target || !originRect || !card) {

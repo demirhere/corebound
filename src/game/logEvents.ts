@@ -14,7 +14,7 @@ function describeRewards(rewards: readonly HorizonReward[]) {
       }
       if (reward.kind === 'crew') {
         if (reward.label === 'Wake') {
-          return 'Choose 1 of 2 Cryo crew'
+          return 'Choose 1 of 2 Cryo crew, then Ready 1 Tired crew'
         }
 
         return `${reward.label} ${reward.count}`
@@ -58,13 +58,13 @@ export function cardRulesText(card: Card | CardBlueprint) {
 
   if (card.kind === 'gate' && card.gate) {
     const need = [
+      `${card.gate.need.crew} crew`,
       ...card.gate.need.icons,
-      card.gate.need.any > 0 ? `any ${card.gate.need.any}` : null,
     ]
       .filter(Boolean)
       .join(', ')
 
-    return `gate need: ${need}; ${card.gate.motherPenalty.threshold}+ MOTHER cards: commit +${card.gate.motherPenalty.extraHumanCrew} additional human crew`
+    return `gate need: ${need}; MOTHER can cover icons but not crew; ${card.gate.motherPenalty.threshold}+ MOTHER cards: commit +${card.gate.motherPenalty.extraHumanCrew} additional crew`
   }
 
   return ''
@@ -304,7 +304,7 @@ export function motherThresholdCrossedEvent(
 ): PlaytestLogEvent {
   return {
     type: 'mother.threshold_crossed',
-    message: `MOTHER threshold crossed from ${from} to ${to} during ${actionCard.title}; ${gateCard.title} extra human-crew requirement is now active.`,
+    message: `MOTHER threshold crossed from ${from} to ${to} during ${actionCard.title}; ${gateCard.title} extra crew-card requirement is now active.`,
     details: {
       from,
       to,
@@ -389,10 +389,14 @@ export function wakeCrewRecruitedEvent(
   chosenCard: Card,
   unchosenCardIds: readonly string[],
   cards: Record<string, Card>,
+  readiedCrewCardIds: readonly string[],
 ): PlaytestLogEvent {
+  const readiedCrewTitles = cardTitles(readiedCrewCardIds, cards)
+  const readiedCrewText = readiedCrewTitles.length > 0 ? ` Wake readied ${readiedCrewTitles.join(', ')}.` : ''
+
   return {
     type: 'wake.recruited',
-    message: `${describeCard(chosenCard, chosenCard.id)} recruited from Wake and enters Tired.`,
+    message: `${describeCard(chosenCard, chosenCard.id)} recruited from Wake and enters Tired.${readiedCrewText}`,
     details: {
       chosenCardId: chosenCard.id,
       chosenCardTitle: chosenCard.title,
@@ -402,6 +406,10 @@ export function wakeCrewRecruitedEvent(
       unchosenCardTitles: cardTitles(unchosenCardIds, cards),
       unchosenCardSummaries: cardSummaries(unchosenCardIds, cards),
       unchosenCardContents: cardContents(unchosenCardIds, cards),
+      readiedCrewCardIds,
+      readiedCrewTitles,
+      readiedCrewSummaries: cardSummaries(readiedCrewCardIds, cards),
+      readiedCrewContents: cardContents(readiedCrewCardIds, cards),
     },
   }
 }

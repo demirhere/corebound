@@ -94,7 +94,7 @@ function renderReward(reward: HorizonReward, index: number) {
     if (reward.label === 'Wake') {
       return [
         <span key={`wake-${index}`} className="card-wake-reward">
-          <span>Choose 1 of 2</span>
+          <span>Choose 1 of 2, then Ready 1</span>
           <GameIcon kind="tired-person" />
         </span>,
       ]
@@ -139,9 +139,9 @@ function renderReward(reward: HorizonReward, index: number) {
   return []
 }
 
-function renderAnyNeed(count: number, keyPrefix: string) {
+function renderCrewNeed(count: number, keyPrefix: string) {
   return Array.from({ length: count }, (_, index) => (
-    <GameIcon key={`${keyPrefix}-any-${index}`} kind="any" />
+    <GameIcon key={`${keyPrefix}-crew-${index}`} kind="person" />
   ))
 }
 
@@ -258,8 +258,8 @@ function renderGameplayCardContent(card: CardView, fuelDiscount: number) {
         <div className="card-rule-row">
           <span>Need</span>
           <div className="card-rule-icons">
+            {renderCrewNeed(card.gate.need.crew, `${card.id}-gate-crew-need`)}
             {renderIconPips(card.gate.need.icons, `${card.id}-gate-icon-need`)}
-            {renderAnyNeed(card.gate.need.any, `${card.id}-gate`)}
           </div>
         </div>
         {renderGatePenalty(card.gate)}

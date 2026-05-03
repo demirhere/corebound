@@ -1423,20 +1423,27 @@ export function chooseWakeCrewUpdate(cardId: string): BoardUpdater {
       nextTopZ = wakeDraw.pendingWakeChoice ? current.topZ + 1 : current.topZ
     }
 
+    const tiredCardIdsWithChosen = current.tiredCardIds.includes(cardId)
+      ? current.tiredCardIds
+      : [...current.tiredCardIds, cardId]
+    const wakeReadyResult = readyTiredCrew(
+      current.handCardIds.filter((candidateId) => candidateId !== cardId),
+      tiredCardIdsWithChosen,
+      1,
+    )
+
     return withPlaytestEvents({
       ...current,
       topZ: nextTopZ,
       nextCardId,
       dropTargetStackId: null,
       dropTargetDeckId: null,
-      handCardIds: current.handCardIds.filter((candidateId) => candidateId !== cardId),
-      tiredCardIds: current.tiredCardIds.includes(cardId)
-        ? current.tiredCardIds
-        : [...current.tiredCardIds, cardId],
+      handCardIds: wakeReadyResult.handCardIds,
+      tiredCardIds: wakeReadyResult.tiredCardIds,
       pendingWakeChoice: nextPendingWakeChoice,
       cards: nextCards,
       decks: nextDecks,
-    }, wakeCrewRecruitedEvent(chosenCard, unchosenCardIds, current.cards))
+    }, wakeCrewRecruitedEvent(chosenCard, unchosenCardIds, current.cards, wakeReadyResult.readiedCrewCardIds))
   }
 }
 

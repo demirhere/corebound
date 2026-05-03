@@ -222,7 +222,7 @@ function canUseAllCardsInCompletionStack(
         cards,
         {
           icons: objectiveCard.gate.need.icons,
-          any: objectiveCard.gate.need.any,
+          any: 0,
           fuel: 0,
         },
       )
@@ -232,11 +232,12 @@ function canUseAllCardsInCompletionStack(
   return false
 }
 
-function canStackAsSupplyPile(sourceStack: Stack, targetStack: Stack, cards: Record<string, Card>) {
+function canStackAsLoosePile(sourceStack: Stack, targetStack: Stack, cards: Record<string, Card>) {
   const stackedCards = [...targetStack.cardIds, ...sourceStack.cardIds].map((cardId) => cards[cardId])
 
   return (
     stackedCards.every((card) => card?.kind === 'resource' && card.resource === 'fuel') ||
+    stackedCards.every((card) => card?.kind === 'crew') ||
     stackedCards.every((card) => card?.kind === 'mother' && card.spentMother !== true) ||
     stackedCards.every((card) => card?.kind === 'mother' && card.spentMother === true)
   )
@@ -253,7 +254,7 @@ export function canStackCards(
     isFaceUpStack(sourceStack, cards) &&
     isFaceUpStack(targetStack, cards) &&
     (
-      canStackAsSupplyPile(sourceStack, targetStack, cards) ||
+      canStackAsLoosePile(sourceStack, targetStack, cards) ||
       canUseAllCardsInCompletionStack(
         [...targetStack.cardIds, ...sourceStack.cardIds],
         cards,
@@ -300,7 +301,7 @@ export function cardsToDeckBlueprints(cardIds: string[], cards: Record<string, C
               label: card.gate.label,
               need: {
                 icons: [...card.gate.need.icons],
-                any: card.gate.need.any,
+                crew: card.gate.need.crew,
               },
               motherPenalty: { ...card.gate.motherPenalty },
             }
@@ -490,6 +491,30 @@ export function canCompleteNeedWithCrewAndMother(
   return payment !== null
 }
 
+function getGateCrewCardNeedPayment(
+  crewCardIds: readonly string[],
+  cards: Record<string, Card>,
+  icons: readonly RequirementIconKind[],
+  requiredCrewCount: number,
+  motherCount: number,
+): CrewMotherNeedPayment | null {
+  if (crewCardIds.length < requiredCrewCount) {
+    return null
+  }
+
+  const motherCoveredIcons = getMissingNeedIcons(crewCardIds, cards, icons, 0)
+
+  if (motherCoveredIcons.length > motherCount) {
+    return null
+  }
+
+  return {
+    requiredMotherCount: motherCoveredIcons.length,
+    motherCoveredIcons,
+    minimumCrewCount: requiredCrewCount,
+  }
+}
+
 function getGateNeedPayment(
   crewCardIds: readonly string[],
   cards: Record<string, Card>,
@@ -502,13 +527,12 @@ function getGateNeedPayment(
     : 0
 
   if (extraHumanCrewRequired === 0) {
-    const basePayment = getCrewMotherNeedPayment(
+    const basePayment = getGateCrewCardNeedPayment(
       crewCardIds,
       cards,
       gate.need.icons,
-      gate.need.any,
+      gate.need.crew,
       usableMotherCount,
-      0,
     )
 
     if (!basePayment) {
@@ -520,13 +544,12 @@ function getGateNeedPayment(
     }
   }
 
-  const payment = getCrewMotherNeedPayment(
+  const payment = getGateCrewCardNeedPayment(
     crewCardIds,
     cards,
     gate.need.icons,
-    gate.need.any,
+    gate.need.crew + extraHumanCrewRequired,
     usableMotherCount,
-    extraHumanCrewRequired,
   )
 
   if (!payment) {
@@ -778,7 +801,7 @@ export function getGateStackCompletion(
     crewCardIds,
     cards,
     gateCard.gate.need.icons,
-    gateCard.gate.need.any,
+    0,
   )
   const payment = getGateNeedPayment(
     crewCardIds,

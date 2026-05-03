@@ -1435,6 +1435,7 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
     updateDeckDropTarget(drag)
     const dropTargetDeckId = drag.dropTargetDeckId
     clearDeckDragDropTarget(drag)
+    clearDragTransform(drag.element)
 
     flushSync(() => {
       removeActiveDeckId(drag.deckId)
@@ -1446,7 +1447,6 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
         clearDropTarget()
       }
     })
-    clearDragTransform(drag.element)
   }
 
   function cancelActiveDrag(event: ReactPointerEvent<HTMLDivElement>) {
@@ -1476,12 +1476,12 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
       }
     } else if (drag.hasMoved) {
       clearDeckDragDropTarget(drag)
+      clearDragTransform(drag.element)
       flushSync(() => {
         removeActiveDeckId(drag.deckId)
         commitDeckDragPosition(drag)
         clearDropTarget()
       })
-      clearDragTransform(drag.element)
     }
 
     clearDropTarget()

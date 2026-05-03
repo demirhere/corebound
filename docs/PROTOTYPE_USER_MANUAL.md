@@ -43,7 +43,7 @@ Each crew card has two specialization icons. These icons satisfy matching Sector
 
 ## Cryo Crew
 
-Cryo crew enter the game through Wake rewards. The chosen crew joins Tired, not Ready. Tired Cryo crew become Ready after Gate 1 if they are still Tired then.
+Cryo crew enter the game through Wake rewards. The chosen crew joins Tired, then the Wake reward readies 1 Tired crew from the front of the Tired row. Tired Cryo crew become Ready after Gate 1 if they are still Tired then.
 
 | Crew | Icons |
 | --- | --- |
@@ -65,8 +65,8 @@ Sector 2 reuses the same 9-card deck, reshuffled after Gate 1.
 | --- | --- | --- | --- |
 | Dust Garden | Planet | Life, Star | Fuel +1 |
 | Life Orchard | Planet | Fuel 1, Life, Engine | Ready 1 Tired crew |
-| Cryo Choir | Star | Fuel 2, Life, Signal | Wake 1 crew |
-| Sleeper Arklet | Star | Fuel 2, Life, Life, Star | Wake 1 crew |
+| Cryo Choir | Star | Fuel 2, Life, Signal | Wake 1 crew, then Ready 1 Tired crew |
+| Sleeper Arklet | Star | Fuel 2, Life, Life, Star | Wake 1 crew, then Ready 1 Tired crew |
 | Iron Wake | Asteroid | Fuel 1, Engine, Engine | Fuel +1 |
 | Red Salvage | Asteroid | Fuel 1, Engine, Signal | Fuel +1 |
 | Broken Atlas | Asteroid | Signal, Signal | Scout 2 |
@@ -77,8 +77,8 @@ Sector 2 reuses the same 9-card deck, reshuffled after Gate 1.
 
 | Gate | Timing | Need | MOTHER Pressure |
 | --- | --- | --- | --- |
-| Narrow Crossing | End of Sector 1 | Engine, Life, Star, Signal, Any 1 | If 3 or more MOTHER cards have been spent during the run, also commit +1 additional human crew. MOTHER cannot satisfy this. |
-| Dark Threshold | End of Sector 2 | Engine, Life, Star, Signal, Any 2 | If 3 or more MOTHER cards have been spent during the run, also commit +1 additional human crew. MOTHER cannot satisfy this. |
+| Narrow Crossing | End of Sector 1 | 3 Ready crew cards showing Engine, Life, Star, and Signal among them | If 3 or more MOTHER cards have been spent during the run, also commit +1 additional crew card. MOTHER cannot satisfy crew-card requirements. |
+| Dark Threshold | End of Sector 2 | 4 Ready crew cards showing Engine, Life, Star, and Signal among them | If 3 or more MOTHER cards have been spent during the run, also commit +1 additional crew card. MOTHER cannot satisfy crew-card requirements. |
 
 A Gate can only be completed after its sector deck is empty and no Sector cards remain in play.
 
@@ -98,11 +98,11 @@ After Gate 1, all Tired crew become Ready, including woken Cryo crew and crew sp
 
 Specific icons such as Life, Star, Engine, and Signal are paid by matching crew icons.
 
-Any icons are paid by any unused crew icon.
+Gate crew-card requirements are paid with committed Ready crew cards. MOTHER can cover missing Gate icons, but it does not reduce the number of crew cards required.
 
 Fuel requirements are paid by Fuel Cell cards or crew fuel-pairing.
 
-At least 1 human crew must be sent on every Sector or Gate completion if MOTHER is used. MOTHER cannot count as crew.
+At least 1 human crew must be sent on every Sector completion if MOTHER is used. Gates require their listed number of crew cards. MOTHER cannot count as crew.
 
 ### Crew Fuel-Pairing
 
@@ -118,7 +118,7 @@ MOTHER is powerful but increases Gate pressure when spent.
 
 A usable MOTHER card can cover 1 missing non-Fuel icon.
 
-MOTHER cannot pay Fuel, cannot count as crew, and cannot satisfy additional human crew requirements.
+MOTHER cannot pay Fuel, cannot count as crew, and cannot satisfy Gate crew-card requirements.
 
 MOTHER can only help a Sector or Gate completion if at least 1 human crew is committed.
 
@@ -187,7 +187,7 @@ Rewards happen immediately. Some rewards create a choice panel that must be fini
 
 Fuel +1 draws 1 Fuel Cell from the Fuel Deck into play. It stacks onto the existing Fuel Supply if one is in play, otherwise it appears at the Fuel Supply setup position.
 
-Wake 1 reveals up to 2 cards from the Cryo Deck. Choose 1 to recruit into Tired; unchosen Cryo crew go to the bottom of the Cryo Deck.
+Wake 1 reveals up to 2 cards from the Cryo Deck. Choose 1 to recruit into Tired, then Ready 1 Tired crew from the front of the Tired row; unchosen Cryo crew go to the bottom of the Cryo Deck.
 
 Scout N looks at up to the next N Sector cards. Select the cards you do not like to send to the back of the Sector Deck; the single unselected card stays on top.
 
@@ -203,7 +203,7 @@ Keep drawing proposals, completing one Sector from each proposal, and resolving 
 
 After all Sector cards are resolved, stack Ready crew and any needed usable MOTHER cards onto the current Gate.
 
-Gate 1 normally needs Engine, Life, Star, Signal, and Any 1. Gate 2 normally needs Engine, Life, Star, Signal, Any 2. If 3 or more MOTHER cards have been spent by the time a Gate resolves, it also requires +1 additional human crew.
+Gate 1 normally needs 3 Ready crew cards showing Engine, Life, Star, and Signal among them. Gate 2 normally needs 4 Ready crew cards showing Engine, Life, Star, and Signal among them. If 3 or more MOTHER cards have been spent by the time a Gate resolves, it also requires +1 additional crew card.
 
 If Gate 1 is completed, all Tired crew become Ready, Fuel carries forward, spent MOTHER stays spent, unused MOTHER returns to the MOTHER Deck, Sector 2 is revealed, and the same 9-card Sector deck is reshuffled.
 
@@ -217,7 +217,7 @@ Click a manual deck, or press Enter or Space while it is focused, to draw from i
 
 Drag Ready crew from the Crew area onto the board. Tired crew cannot be dragged manually.
 
-Drag a card stack onto a highlighted valid target to combine it into a Sector, Gate, or Emergency Refuel stack. Dragging from a card inside a stack splits that card and every card above it into a new moving stack.
+Drag a card stack onto a highlighted valid target to combine it into a Sector, Gate, Emergency Refuel, or temporary all-crew stack. Dragging from a card inside a stack splits that card and every card above it into a new moving stack.
 
 To Emergency Refuel, stack either 2 valid Ready crew together or stack 1 valid Ready crew with 1 usable MOTHER while no visible Sector is reachable.
 
@@ -235,6 +235,6 @@ Win by completing Dark Threshold after Sector 2 is resolved.
 
 Lose as Stranded in the Reach if no visible Sector can be completed and Emergency Refuel is not available.
 
-Lose as The Gate cannot be passed if the current sector Gate cannot be completed with the remaining Ready crew plus unused MOTHER cards. Unused MOTHER includes usable MOTHER cards in play plus cards still in the MOTHER Deck.
+Lose as The Gate cannot be passed if the current sector Gate cannot be completed with the remaining Ready crew cards plus unused MOTHER cards for missing icons. Unused MOTHER includes usable MOTHER cards in play plus cards still in the MOTHER Deck.
 
 There is no active Hull, health, damage, Beacon, Sector Field, or score track in this prototype.

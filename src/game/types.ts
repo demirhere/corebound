@@ -70,7 +70,7 @@ export type GateDetails = {
   label: string
   need: {
     icons: RequirementIconKind[]
-    any: number
+    crew: number
   }
   motherPenalty: {
     threshold: number
