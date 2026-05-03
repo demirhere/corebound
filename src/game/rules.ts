@@ -1,4 +1,4 @@
-import type { Card, CardBlueprint, RequirementIconKind, Stack } from './types'
+import type { Card, CardBlueprint, GateDetails, RequirementIconKind, Stack } from './types'
 
 export type HorizonStackCompletion = {
   horizonCardId: string
@@ -13,8 +13,9 @@ export type GateStackCompletion = {
   gateCardIndex: number
   isReady: boolean
   motherSpentTotal: number
-  extraAnyIconsRequired: number
+  extraHumanCrewRequired: number
   requiredMotherCount: number
+  motherCoveredIcons: MotherCoveredIcon[]
 }
 
 export type MotherCoveredIcon = RequirementIconKind | 'any' | 'fuel'
@@ -23,6 +24,12 @@ type HorizonNeedPayment = {
   requiredMotherCount: number
   motherCoveredIcons: MotherCoveredIcon[]
   fuelMotherCount: number
+}
+
+type CrewMotherNeedPayment = {
+  requiredMotherCount: number
+  motherCoveredIcons: MotherCoveredIcon[]
+  minimumCrewCount: number
 }
 
 const requirementIconKinds = ['life', 'star', 'engine', 'signal'] as const
@@ -67,7 +74,6 @@ function iconCrewCardsAreUseful(
 
 function canUseFuelSupport(
   crewCount: number,
-  motherCount: number,
   fuelCardCount: number,
   requiredFuel: number,
 ) {
@@ -78,10 +84,10 @@ function canUseFuelSupport(
   }
 
   if (remainingFuel === 0) {
-    return crewCount === 0 && motherCount === 0
+    return crewCount === 0
   }
 
-  return motherCount <= remainingFuel && crewCount + motherCount <= remainingFuel * 2
+  return crewCount <= remainingFuel * 2
 }
 
 function canAssignUsefulSupport(
@@ -117,9 +123,7 @@ function canAssignUsefulSupport(
       const fuelCrewCount = crewCardIds.length - iconCrewCardIds.length
 
       for (let iconMotherCount = 0; iconMotherCount <= Math.min(motherCount, missingIconCount); iconMotherCount += 1) {
-        const fuelMotherCount = motherCount - iconMotherCount
-
-        if (canUseFuelSupport(fuelCrewCount, fuelMotherCount, fuelCardCount, need.fuel)) {
+        if (iconMotherCount === motherCount && canUseFuelSupport(fuelCrewCount, fuelCardCount, need.fuel)) {
           canAssignSupport = true
           return
         }
@@ -203,20 +207,25 @@ function canUseAllCardsInCompletionStack(
   }
 
   if (objectiveCard.kind === 'gate' && objectiveCard.gate && fuelCardCount === 0) {
-    const extraAnyIcons = motherSpentTotalBefore + motherCount >= objectiveCard.gate.motherPenalty.threshold
-      ? objectiveCard.gate.motherPenalty.extraAnyIcons
-      : 0
-
-    return canAssignUsefulSupport(
-      crewCardIds,
-      0,
-      motherCount,
-      cards,
-      {
-        icons: objectiveCard.gate.need.icons,
-        any: objectiveCard.gate.need.any + extraAnyIcons,
-        fuel: 0,
-      },
+    return (
+      getGateNeedPayment(
+        crewCardIds,
+        cards,
+        objectiveCard.gate,
+        motherSpentTotalBefore,
+        motherCount,
+      ) !== null ||
+      canAssignUsefulSupport(
+        crewCardIds,
+        0,
+        motherCount,
+        cards,
+        {
+          icons: objectiveCard.gate.need.icons,
+          any: objectiveCard.gate.need.any,
+          fuel: 0,
+        },
+      )
     )
   }
 
@@ -228,7 +237,8 @@ function canStackAsSupplyPile(sourceStack: Stack, targetStack: Stack, cards: Rec
 
   return (
     stackedCards.every((card) => card?.kind === 'resource' && card.resource === 'fuel') ||
-    stackedCards.every((card) => card?.kind === 'mother' && !card.spentMother)
+    stackedCards.every((card) => card?.kind === 'mother' && card.spentMother !== true) ||
+    stackedCards.every((card) => card?.kind === 'mother' && card.spentMother === true)
   )
 }
 
@@ -396,25 +406,51 @@ function countMissingNeedIcons(
   return getMissingNeedIcons(crewCardIds, cards, icons, any).length
 }
 
-function getMinimumCrewCountForNeedWithMother(
+function getCrewMotherNeedPayment(
   crewCardIds: readonly string[],
   cards: Record<string, Card>,
   icons: readonly RequirementIconKind[],
   any: number,
   motherCount: number,
-) {
+  extraHumanCrewRequired = 0,
+): CrewMotherNeedPayment | null {
   const selectedCardIds: string[] = []
-  let minimumCrewCount: number | null = null
+  let best: CrewMotherNeedPayment | null = null
+
+  function considerSelectedCrew() {
+    const motherCoveredIcons = getMissingNeedIcons(selectedCardIds, cards, icons, any)
+
+    if (motherCoveredIcons.length > motherCount) {
+      return
+    }
+
+    const baseCrewCount = Math.max(1, selectedCardIds.length)
+    const minimumCrewCount = baseCrewCount + extraHumanCrewRequired
+
+    if (crewCardIds.length < minimumCrewCount) {
+      return
+    }
+
+    const candidate = {
+      requiredMotherCount: motherCoveredIcons.length,
+      motherCoveredIcons,
+      minimumCrewCount,
+    }
+
+    if (
+      !best ||
+      candidate.requiredMotherCount < best.requiredMotherCount ||
+      (
+        candidate.requiredMotherCount === best.requiredMotherCount &&
+        candidate.minimumCrewCount < best.minimumCrewCount
+      )
+    ) {
+      best = candidate
+    }
+  }
 
   function search(startIndex: number) {
-    if (minimumCrewCount !== null && selectedCardIds.length >= minimumCrewCount) {
-      return
-    }
-
-    if (countMissingNeedIcons(selectedCardIds, cards, icons, any) <= motherCount) {
-      minimumCrewCount = selectedCardIds.length
-      return
-    }
+    considerSelectedCrew()
 
     for (let index = startIndex; index < crewCardIds.length; index += 1) {
       const cardId = crewCardIds[index]
@@ -431,7 +467,7 @@ function getMinimumCrewCountForNeedWithMother(
 
   search(0)
 
-  return minimumCrewCount
+  return crewCardIds.length > 0 ? best : null
 }
 
 export function canCompleteNeedWithCrewAndMother(
@@ -440,41 +476,92 @@ export function canCompleteNeedWithCrewAndMother(
   icons: readonly RequirementIconKind[],
   any: number,
   motherCount: number,
-  extraAnyIconsRequired = 0,
+  extraHumanCrewRequired = 0,
 ) {
-  const requiredAnyIcons = any + extraAnyIconsRequired
-  const minimumCrewCount = getMinimumCrewCountForNeedWithMother(
+  const payment = getCrewMotherNeedPayment(
     crewCardIds,
     cards,
     icons,
-    requiredAnyIcons,
+    any,
     motherCount,
+    extraHumanCrewRequired,
   )
 
-  return (
-    minimumCrewCount !== null &&
-    crewCardIds.length > 0 &&
-    crewCardIds.length >= minimumCrewCount
-  )
+  return payment !== null
 }
 
-function getMinimumMotherFuelCount(missingFuel: number, crewCount: number, motherCount: number) {
-  if (missingFuel === 0) {
-    return 0
-  }
+function getGateNeedPayment(
+  crewCardIds: readonly string[],
+  cards: Record<string, Card>,
+  gate: GateDetails,
+  motherSpentTotalBefore: number,
+  usableMotherCount: number,
+) {
+  let extraHumanCrewRequired = motherSpentTotalBefore >= gate.motherPenalty.threshold
+    ? gate.motherPenalty.extraHumanCrew
+    : 0
 
-  const maximumMotherFuelCount = Math.min(missingFuel, crewCount, motherCount)
+  if (extraHumanCrewRequired === 0) {
+    const basePayment = getCrewMotherNeedPayment(
+      crewCardIds,
+      cards,
+      gate.need.icons,
+      gate.need.any,
+      usableMotherCount,
+      0,
+    )
 
-  for (let motherFuelCount = 0; motherFuelCount <= maximumMotherFuelCount; motherFuelCount += 1) {
-    const crewPairFuelCount = missingFuel - motherFuelCount
-    const crewRequired = motherFuelCount + crewPairFuelCount * 2
+    if (!basePayment) {
+      return null
+    }
 
-    if (crewRequired <= crewCount) {
-      return motherFuelCount
+    if (motherSpentTotalBefore + basePayment.requiredMotherCount >= gate.motherPenalty.threshold) {
+      extraHumanCrewRequired = gate.motherPenalty.extraHumanCrew
     }
   }
 
-  return null
+  const payment = getCrewMotherNeedPayment(
+    crewCardIds,
+    cards,
+    gate.need.icons,
+    gate.need.any,
+    usableMotherCount,
+    extraHumanCrewRequired,
+  )
+
+  if (!payment) {
+    return null
+  }
+
+  return {
+    ...payment,
+    extraHumanCrewRequired,
+    motherSpentTotal: motherSpentTotalBefore + payment.requiredMotherCount,
+  }
+}
+
+export function canCompleteGateNeedWithCrewAndMother(
+  crewCardIds: readonly string[],
+  cards: Record<string, Card>,
+  gate: GateDetails,
+  motherSpentTotalBefore: number,
+  usableMotherCount: number,
+) {
+  return getGateNeedPayment(
+    crewCardIds,
+    cards,
+    gate,
+    motherSpentTotalBefore,
+    usableMotherCount,
+  ) !== null
+}
+
+function canPayMissingFuelWithCrew(missingFuel: number, crewCount: number) {
+  if (missingFuel === 0) {
+    return true
+  }
+
+  return crewCount >= missingFuel * 2
 }
 
 function isBetterHorizonNeedPayment(candidate: HorizonNeedPayment, best: HorizonNeedPayment | null) {
@@ -514,21 +601,15 @@ function getHorizonNeedPayment(
     }
 
     const remainingCrewCount = crewCardIds.length - selectedIconCrewCardIds.length
-    const remainingMotherCount = motherCount - missingIcons.length
-    const fuelMotherCount = getMinimumMotherFuelCount(missingFuel, remainingCrewCount, remainingMotherCount)
-
-    if (fuelMotherCount === null) {
+    if (!canPayMissingFuelWithCrew(missingFuel, remainingCrewCount)) {
       return
     }
 
-    const motherCoveredIcons = [
-      ...missingIcons,
-      ...Array.from({ length: fuelMotherCount }, () => 'fuel' as const),
-    ]
+    const motherCoveredIcons = [...missingIcons]
     const candidate = {
       requiredMotherCount: motherCoveredIcons.length,
       motherCoveredIcons,
-      fuelMotherCount,
+      fuelMotherCount: 0,
     }
 
     if (isBetterHorizonNeedPayment(candidate, best)) {
@@ -693,44 +774,29 @@ export function getGateStackCompletion(
   }
 
   const crewCardIds = getCrewCardIds(stack, cards)
-  const baseRequiredMotherCount = countMissingNeedIcons(
+  const fallbackRequiredMotherCount = countMissingNeedIcons(
     crewCardIds,
     cards,
     gateCard.gate.need.icons,
     gateCard.gate.need.any,
   )
-  const baseMotherSpentTotal = motherSpentTotalBefore + Math.min(baseRequiredMotherCount, usableMotherCount)
-  const extraAnyIconsRequired =
-    baseMotherSpentTotal >= gateCard.gate.motherPenalty.threshold
-      ? gateCard.gate.motherPenalty.extraAnyIcons
-      : 0
-  const requiredAnyIcons = gateCard.gate.need.any + extraAnyIconsRequired
-  const requiredMotherCount = countMissingNeedIcons(
+  const payment = getGateNeedPayment(
     crewCardIds,
     cards,
-    gateCard.gate.need.icons,
-    requiredAnyIcons,
-  )
-  const motherSpentTotal = motherSpentTotalBefore + Math.min(requiredMotherCount, usableMotherCount)
-  const minimumCrewCount = getMinimumCrewCountForNeedWithMother(
-    crewCardIds,
-    cards,
-    gateCard.gate.need.icons,
-    requiredAnyIcons,
+    gateCard.gate,
+    motherSpentTotalBefore,
     usableMotherCount,
   )
 
   return {
     gateCardId,
     gateCardIndex,
-    motherSpentTotal,
-    extraAnyIconsRequired,
-    requiredMotherCount,
+    motherSpentTotal: payment?.motherSpentTotal ?? motherSpentTotalBefore + Math.min(fallbackRequiredMotherCount, usableMotherCount),
+    extraHumanCrewRequired: payment?.extraHumanCrewRequired ?? 0,
+    requiredMotherCount: payment?.requiredMotherCount ?? fallbackRequiredMotherCount,
+    motherCoveredIcons: payment?.motherCoveredIcons ?? [],
     isReady:
-      minimumCrewCount !== null &&
-      requiredMotherCount <= usableMotherCount &&
-      crewCardIds.length > 0 &&
-      crewCardIds.length >= minimumCrewCount &&
+      payment !== null &&
       !hasBlockingCard,
   }
 }

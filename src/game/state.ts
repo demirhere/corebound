@@ -16,6 +16,12 @@ export type BoardUpdateResult =
 
 export type BoardUpdater = (current: BoardState) => BoardUpdateResult
 
+type PendingSetupDeal = {
+  key: string
+  board: BoardState
+  events: readonly PlaytestLogEvent[]
+}
+
 export type GameState = {
   board: BoardState
   playtestLog: PlaytestLogEntry[]
@@ -23,6 +29,7 @@ export type GameState = {
   previousPlaytestLogSessions: PlaytestLogSession[]
   nextPlaytestLogSessionId: number
   playtestLogSessionStartedAt: string
+  pendingSetupDeal: PendingSetupDeal | null
 }
 
 export type GameAction =
@@ -35,6 +42,11 @@ export type GameAction =
       type: 'reset-game'
       occurredAt: string
     }
+  | {
+      type: 'complete-setup-deal'
+      setupKey: string
+      occurredAt: string
+    }
 
 function createGameState(
   startedAt: string,
@@ -42,15 +54,19 @@ function createGameState(
   nextPlaytestLogSessionId = 1,
 ): GameState {
   const setup = createInitialBoardSetup()
-  const playtestLog = appendPlaytestEvents([], 1, setup.events, startedAt)
 
   return {
-    board: setup.board,
-    playtestLog: playtestLog.entries,
-    nextLogId: playtestLog.nextLogId,
+    board: setup.predealBoard,
+    playtestLog: [],
+    nextLogId: 1,
     previousPlaytestLogSessions,
     nextPlaytestLogSessionId,
     playtestLogSessionStartedAt: startedAt,
+    pendingSetupDeal: {
+      key: startedAt,
+      board: setup.board,
+      events: setup.events,
+    },
   }
 }
 
@@ -95,6 +111,29 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     )
   }
 
+  if (action.type === 'complete-setup-deal') {
+    const pendingSetupDeal = state.pendingSetupDeal
+
+    if (!pendingSetupDeal || pendingSetupDeal.key !== action.setupKey) {
+      return state
+    }
+
+    const playtestLog = appendPlaytestEvents(
+      state.playtestLog,
+      state.nextLogId,
+      pendingSetupDeal.events,
+      action.occurredAt,
+    )
+
+    return {
+      ...state,
+      board: pendingSetupDeal.board,
+      playtestLog: playtestLog.entries,
+      nextLogId: playtestLog.nextLogId,
+      pendingSetupDeal: null,
+    }
+  }
+
   const update = resolveBoardUpdate(action.update(state.board))
 
   if (update.board === state.board && update.events.length === 0) {
@@ -115,5 +154,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     previousPlaytestLogSessions: state.previousPlaytestLogSessions,
     nextPlaytestLogSessionId: state.nextPlaytestLogSessionId,
     playtestLogSessionStartedAt: state.playtestLogSessionStartedAt,
+    pendingSetupDeal: state.pendingSetupDeal,
   }
 }

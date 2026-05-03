@@ -149,14 +149,14 @@ function renderCrewFuelMath() {
   return (
     <div className="card-crew-fuel-math">
       <p className="card-rule-text">
-        Combine with <GameIcon kind="person" /> or <GameIcon kind="mother" /> to use as <GameIcon kind="fuel" />.
+        Combine with another <GameIcon kind="person" /> to use as <GameIcon kind="fuel" />.
       </p>
     </div>
   )
 }
 
 function renderGatePenalty(gate: GateDetails) {
-  if (gate.motherPenalty.extraAnyIcons <= 0) {
+  if (gate.motherPenalty.extraHumanCrew <= 0) {
     return null
   }
 
@@ -165,8 +165,8 @@ function renderGatePenalty(gate: GateDetails) {
       <span className="card-gate-penalty-divider" aria-hidden="true" />
       <p className="card-wake-reward card-gate-penalty-line">
         <span className="card-gate-penalty-pair">
-          <span>+{gate.motherPenalty.extraAnyIcons}</span>
-          <GameIcon kind="any" />
+          <span>+{gate.motherPenalty.extraHumanCrew}</span>
+          <GameIcon kind="person" />
         </span>
         <span>if</span>
         <span className="card-gate-penalty-pair">
@@ -215,7 +215,7 @@ function renderGameplayCardContent(card: CardView, fuelDiscount: number) {
         <p className="card-rule-text">
           {card.spentMother
             ? 'Spent. Counts against MOTHER pressure and cannot be reused.'
-            : 'Covers 1 non-Fuel icon, or pairs with Crew as Fuel. Spent after use.'}
+            : 'Covers 1 non-Fuel icon. Cannot pay Fuel except Emergency Refuel. Spent after use.'}
         </p>
       </>
     )
@@ -263,7 +263,7 @@ function renderGameplayCardContent(card: CardView, fuelDiscount: number) {
           </div>
         </div>
         {renderGatePenalty(card.gate)}
-        <p className="card-rule-text">Finish after traveling through all Sectors.</p>
+        <p className="card-rule-text">Finish after completing this sector's Stars.</p>
       </>
     )
   }

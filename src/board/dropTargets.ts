@@ -10,19 +10,20 @@ import {
   countSpentMotherCardsInPlay,
   isFaceDownStack,
 } from '../game/rules'
-import type { BoardMetrics, Bounds, Card, Deck, DropTarget, Stack } from '../game/types'
+import { getNextStarFuelDiscount } from '../game/effects'
+import { canEmergencyRefuelStack } from '../game/boardQueries'
+import type { BoardMetrics, BoardState, Bounds, Deck, DropTarget } from '../game/types'
 
 const DROP_TARGET_OVERLAP_RATIO = 0.28
 
 export function getNearestDropTarget(
-  stacks: Stack[],
-  decks: Deck[],
-  cards: Record<string, Card>,
+  board: BoardState,
   sourceStackId: string,
   metrics: BoardMetrics,
-  fuelDiscount = 0,
-  motherSpentTotalBefore = countSpentMotherCardsInPlay(stacks, cards),
 ): DropTarget {
+  const { stacks, decks, cards } = board
+  const fuelDiscount = getNextStarFuelDiscount(board.pendingEffects)
+  const motherSpentTotalBefore = countSpentMotherCardsInPlay(stacks, cards)
   const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
 
   if (!sourceStack) {
@@ -57,8 +58,11 @@ export function getNearestDropTarget(
       continue
     }
 
+    const combinedCardIds = [...targetStack.cardIds, ...sourceStack.cardIds]
+
     if (
       !canStackCards(sourceStack, targetStack, cards, fuelDiscount, motherSpentTotalBefore) &&
+      !canEmergencyRefuelStack(board, combinedCardIds) &&
       !canCombineAsDeck(sourceStack, targetStack, cards)
     ) {
       continue
@@ -84,12 +88,12 @@ export function getNearestDropTarget(
 }
 
 export function getStackDropTargetIds(
-  stacks: Stack[],
-  cards: Record<string, Card>,
+  board: BoardState,
   sourceStackId: string,
-  fuelDiscount = 0,
-  motherSpentTotalBefore = countSpentMotherCardsInPlay(stacks, cards),
 ) {
+  const { stacks, cards } = board
+  const fuelDiscount = getNextStarFuelDiscount(board.pendingEffects)
+  const motherSpentTotalBefore = countSpentMotherCardsInPlay(stacks, cards)
   const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
 
   if (!sourceStack) {
@@ -102,6 +106,7 @@ export function getStackDropTargetIds(
     }
 
     return canStackCards(sourceStack, targetStack, cards, fuelDiscount, motherSpentTotalBefore) ||
+      canEmergencyRefuelStack(board, [...targetStack.cardIds, ...sourceStack.cardIds]) ||
       canCombineAsDeck(sourceStack, targetStack, cards)
       ? [targetStack.id]
       : []

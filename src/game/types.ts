@@ -74,7 +74,7 @@ export type GateDetails = {
   }
   motherPenalty: {
     threshold: number
-    extraAnyIcons: number
+    extraHumanCrew: number
   }
 }
 
@@ -137,6 +137,7 @@ export type DeckDrawRules = {
 }
 
 export type CompletedStarSummary = {
+  sector: number
   cardId: string
   cardTitle: string
   crewCardIds: string[]
@@ -162,6 +163,8 @@ export type BoardState = {
     bottomedCardIds: string[]
   } | null
   pendingEffects: BoardEffect[]
+  currentSector: number
+  totalSectors: number
   hasArrived: boolean
   lossReason: GameLossReason | null
   topZ: number

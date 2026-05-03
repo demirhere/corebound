@@ -1,4 +1,4 @@
-import { useReducer } from 'react'
+import { useEffect, useReducer } from 'react'
 import { Board } from './components/Board'
 import { PlaytestLog } from './components/PlaytestLog'
 import {
@@ -13,8 +13,9 @@ import './App.css'
 
 function App() {
   const [game, dispatchGame] = useReducer(gameReducer, undefined, createInitialGameState)
-  const { board, playtestLog, previousPlaytestLogSessions } = game
+  const { board, pendingSetupDeal, playtestLog, previousPlaytestLogSessions } = game
   const resetConsoleLog = usePlaytestLogConsole(playtestLog)
+  const pendingSetupDealKey = pendingSetupDeal?.key ?? null
 
   function setBoard(update: BoardUpdater) {
     dispatchGame({
@@ -27,6 +28,22 @@ function App() {
   const interactions = useBoardInteractions({ board, setBoard })
 
   useCardMovementAnimations({ board, boardRef: interactions.boardRef })
+
+  useEffect(() => {
+    if (!pendingSetupDealKey) {
+      return
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      dispatchGame({
+        type: 'complete-setup-deal',
+        setupKey: pendingSetupDealKey,
+        occurredAt: new Date().toISOString(),
+      })
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [pendingSetupDealKey])
 
   function resetGame() {
     interactions.resetInteractions()
@@ -56,7 +73,6 @@ function App() {
         onHandCardKeyDown={interactions.onHandCardKeyDown}
         onWakeCrewChoice={interactions.onWakeCrewChoice}
         onScoutCardChoice={interactions.onScoutCardChoice}
-        onScoutChoiceReset={interactions.onScoutChoiceReset}
         onScoutChoiceConfirm={interactions.onScoutChoiceConfirm}
         onResetGame={resetGame}
       />

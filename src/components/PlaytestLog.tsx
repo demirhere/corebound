@@ -21,6 +21,12 @@ function formatEventCount(count: number) {
   return `${count} ${count === 1 ? 'event' : 'events'}`
 }
 
+function formatLogFilename(logKey: string) {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+
+  return `corebound-playtest-log-${logKey}-${timestamp}.txt`
+}
+
 export function PlaytestLog({ entries, previousSessions, onResetGame }: PlaytestLogProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedLogKey, setSelectedLogKey] = useState(CURRENT_LOG_KEY)
@@ -46,6 +52,17 @@ export function PlaytestLog({ entries, previousSessions, onResetGame }: Playtest
     } catch {
       setCopyFailed(true)
     }
+  }
+
+  function downloadLog() {
+    const blob = new Blob([formatPlaytestLog(activeEntries)], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+
+    link.href = url
+    link.download = formatLogFilename(activeLogKey)
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   function selectLog(key: string) {
@@ -115,6 +132,19 @@ export function PlaytestLog({ entries, previousSessions, onResetGame }: Playtest
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M8 8h10v12H8z" />
                 <path d="M5 16V4h11" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="playtest-log-download"
+              aria-label="Download log as text file"
+              title="Download log"
+              onClick={downloadLog}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 3v12" />
+                <path d="m7 10 5 5 5-5" />
+                <path d="M5 21h14" />
               </svg>
             </button>
           </header>

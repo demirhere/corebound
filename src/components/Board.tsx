@@ -1,4 +1,5 @@
 import {
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
@@ -32,6 +33,8 @@ type BoardView = Pick<
   | 'pendingWakeChoice'
   | 'pendingScoutChoice'
   | 'pendingEffects'
+  | 'currentSector'
+  | 'totalSectors'
   | 'dropTargetStackId'
   | 'dropTargetDeckId'
   | 'hasArrived'
@@ -58,7 +61,6 @@ type BoardProps = {
   onHandCardKeyDown: HandKeyDownHandler
   onWakeCrewChoice: (cardId: string) => void
   onScoutCardChoice: (cardId: string) => void
-  onScoutChoiceReset: () => void
   onScoutChoiceConfirm: () => void
   onResetGame: () => void
 }
@@ -67,7 +69,7 @@ function lossContent(reason: GameLossReason) {
   if (reason === 'sector-stranded') {
     return {
       title: 'Stranded in the Reach.',
-      body: 'No drawn Sector can be completed with your available Fuel, Ready crew, and unused MOTHER cards.',
+      body: 'No visible Sector can be completed, and Emergency Refuel is not available.',
     }
   }
 
@@ -97,7 +99,6 @@ export function Board({
   onHandCardKeyDown,
   onWakeCrewChoice,
   onScoutCardChoice,
-  onScoutChoiceReset,
   onScoutChoiceConfirm,
   onResetGame,
 }: BoardProps) {
@@ -115,45 +116,36 @@ export function Board({
     return card?.kind === 'horizon' ? [card] : []
   }) ?? []
   const scoutChoiceComplete = Boolean(
-    scoutChoice?.keptCardId &&
-    scoutChoice.bottomedCardIds.length === scoutChoice.choiceCardIds.length - 1,
+    scoutChoice && scoutChoice.choiceCardIds.length - scoutChoice.bottomedCardIds.length === 1,
   )
   const scoutInstruction = !scoutChoice
     ? ''
-    : !scoutChoice.keptCardId
-      ? 'Choose 1 card to place on top of the Sector deck.'
-      : scoutChoiceComplete
-        ? 'Confirm to place the chosen card on top and bottom the rest in the selected order.'
-        : `Choose bottom card ${scoutChoice.bottomedCardIds.length + 1} of ${scoutChoice.choiceCardIds.length - 1}.`
-
-  function scoutCardChoiceLabel(cardId: string) {
-    if (!scoutChoice) {
-      return ''
-    }
-
-    if (scoutChoice.keptCardId === cardId) {
-      return 'Top'
-    }
-
-    const bottomIndex = scoutChoice.bottomedCardIds.indexOf(cardId)
-
-    if (bottomIndex >= 0) {
-      return `Bottom ${bottomIndex + 1}`
-    }
-
-    return scoutChoice.keptCardId ? `Pick bottom ${scoutChoice.bottomedCardIds.length + 1}` : 'Pick top'
-  }
+    : scoutChoiceComplete
+      ? 'Confirm to keep the unselected card on top and send selected cards to the back.'
+      : scoutChoice.choiceCardIds.length === 1
+        ? 'Only 1 card remains. Confirm to leave it on top of the Sector deck.'
+        : 'Select the cards you do not like to send to the back. Leave 1 card unselected for the top.'
 
   function scoutCardChoiceClass(cardId: string) {
     if (!scoutChoice) {
       return ''
     }
 
-    if (scoutChoice.keptCardId === cardId) {
-      return 'is-scout-kept'
-    }
+    return scoutChoice.bottomedCardIds.includes(cardId) ? 'is-scout-selected' : ''
+  }
 
-    return scoutChoice.bottomedCardIds.includes(cardId) ? 'is-scout-bottomed' : ''
+  function getScoutFanStyle(cardIndex: number, cardCount: number) {
+    const fanOffset = cardIndex - (cardCount - 1) / 2
+    const fanSpacing = cardCount > 4 ? 56 : cardCount > 3 ? 68 : 82
+    const fanXPercent = fanOffset * fanSpacing
+    const fanY = Math.abs(fanOffset) * 8
+    const fanRotation = fanOffset * 6
+    const fanZ = 100 + Math.round((cardCount - Math.abs(fanOffset)) * 10) + cardIndex
+
+    return {
+      transform: `translate(calc(-50% + ${fanXPercent}%), calc(-50% + ${fanY}px)) rotate(${fanRotation}deg)`,
+      zIndex: fanZ,
+    } as CSSProperties
   }
 
   return (
@@ -167,14 +159,15 @@ export function Board({
     >
       <aside className="board-notes" aria-label="Quick play instructions">
         <h2>Instructions</h2>
+        <p>Sector {board.currentSector} of {board.totalSectors}</p>
         <ol>
           <li>Draw 3 sector cards, choose 1</li>
           <li>Always send 1+ crew on the trip</li>
           <li>Finish it and discard the others</li>
-          <li>Don't run out of fuel</li>
-          <li>Use MOTHER wisely</li>
-          <li>Plan for the Gate</li>
-          <li>After all Sectors, attempt the Gate</li>
+          <li>Emergency Refuel only if none are reachable</li>
+          <li>MOTHER cannot pay Fuel normally</li>
+          <li>Pass the Gate after 3 Stars</li>
+          <li>Clear Sector {board.totalSectors} to win</li>
         </ol>
       </aside>
 
@@ -219,8 +212,8 @@ export function Board({
       {board.hasArrived && (
         <section className="arrival-panel" role="status" aria-live="polite">
           <p className="arrival-kicker">Gate cleared</p>
-          <h2>You arrived beyond the Narrow Crossing.</h2>
-          <p>Prototype sector complete. Restart to reshuffle the sector and run it again.</p>
+          <h2>You arrived beyond the Dark Threshold.</h2>
+          <p>Two-sector prototype complete. Restart to reshuffle both sectors and run it again.</p>
           <button type="button" onClick={onResetGame}>
             Restart and reshuffle
           </button>
@@ -251,7 +244,7 @@ export function Board({
           aria-labelledby="wake-choice-title"
         >
           <h2 id="wake-choice-title">Choose Cryo Crew</h2>
-          <p>That crew joins your crew area Tired.</p>
+          <p>That crew joins Tired and readies after the next Gate.</p>
           <div className="wake-choice-cards">
             {wakeChoiceCards.map((card) => (
               <CardShell
@@ -291,17 +284,21 @@ export function Board({
           <h2 id="scout-choice-title">Set the Sector deck</h2>
           <p>{scoutInstruction}</p>
           <div className="scout-choice-cards">
-            {scoutChoiceCards.map((card) => {
+            {scoutChoiceCards.map((card, index) => {
               const choiceClass = scoutCardChoiceClass(card.id)
-              const choiceLabel = scoutCardChoiceLabel(card.id)
+              const isSelected = scoutChoice.bottomedCardIds.includes(card.id)
 
               return (
-                <div key={card.id} className="scout-choice-item">
+                <div
+                  key={card.id}
+                  className="scout-choice-item"
+                  style={getScoutFanStyle(index, scoutChoiceCards.length)}
+                >
                   <CardShell
                     card={card}
                     className={`wake-choice-card scout-choice-card ${choiceClass}`}
                     motionCardId={card.id}
-                    ariaLabel={`${card.title}. ${choiceLabel}.`}
+                    ariaLabel={`${card.title}. ${isSelected ? 'Selected to send to the back.' : 'Unselected, currently eligible to stay on top.'}`}
                     onPointerDown={(event) => {
                       event.preventDefault()
                       event.stopPropagation()
@@ -317,15 +314,11 @@ export function Board({
                       onScoutCardChoice(card.id)
                     }}
                   />
-                  <span className="scout-choice-badge">{choiceLabel}</span>
                 </div>
               )
             })}
           </div>
           <div className="scout-choice-actions">
-            <button type="button" onClick={onScoutChoiceReset} disabled={!scoutChoice.keptCardId}>
-              Reset order
-            </button>
             <button type="button" onClick={onScoutChoiceConfirm} disabled={!scoutChoiceComplete}>
               Use Scout
             </button>

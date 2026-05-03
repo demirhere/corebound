@@ -29,7 +29,6 @@ import {
   dropHandCardToBoardUpdate,
   promoteHandCardToStackUpdate,
   reorderHandCardUpdate,
-  resetScoutChoiceUpdate,
   stackOnDropTargetUpdate,
 } from '../board/boardUpdaters'
 import {
@@ -60,9 +59,6 @@ import {
   getCardHandZone,
   getHandCardIds,
 } from '../board/handState'
-import {
-  getNextStarFuelDiscount,
-} from '../game/effects'
 import {
   clamp,
 } from '../game/geometry'
@@ -506,10 +502,8 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
     setStackableTargets(
       drag,
       getStackDropTargetIds(
-        current.stacks,
-        current.cards,
+        current,
         activeId,
-        getNextStarFuelDiscount(current.pendingEffects),
       ),
     )
   }
@@ -750,12 +744,9 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
     const dropTarget = dropTargetDiscard || dropTargetHandZone
       ? { stackId: null, deckId: null }
       : getNearestDropTarget(
-          previewStacks,
-          current.decks,
-          current.cards,
+          { ...current, stacks: previewStacks },
           activeId,
           drag.metrics,
-          getNextStarFuelDiscount(current.pendingEffects),
         )
 
     if (
@@ -901,10 +892,6 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
 
   function chooseScoutCard(cardId: string) {
     setBoard(chooseScoutCardUpdate(cardId))
-  }
-
-  function resetScoutChoice() {
-    setBoard(resetScoutChoiceUpdate)
   }
 
   function confirmScoutChoice() {
@@ -1568,7 +1555,6 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
     onHandCardKeyDown: handleHandKeyDown,
     onWakeCrewChoice: chooseWakeCrew,
     onScoutCardChoice: chooseScoutCard,
-    onScoutChoiceReset: resetScoutChoice,
     onScoutChoiceConfirm: confirmScoutChoice,
     resetInteractions,
   }

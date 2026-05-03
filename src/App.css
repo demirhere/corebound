@@ -257,48 +257,52 @@
 
 .scout-choice-cards {
   --scout-card-width: clamp(92px, 13vw, 150px);
+  --scout-card-height: calc(var(--scout-card-width) * 1.42);
 
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: clamp(16px, 2.4vw, 24px);
-  margin-top: 6px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: calc(var(--scout-card-height) * 1.42);
+  margin: clamp(8px, 2vw, 18px) 0 2px;
+  overflow: visible;
 }
 
 .scout-choice-item {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
+  position: absolute;
+  top: 56%;
+  left: 50%;
+  width: var(--scout-card-width);
+  height: var(--scout-card-height);
+  transform-origin: center bottom;
+  transition: transform 160ms ease;
 }
 
 .card-shell.scout-choice-card {
+  position: absolute;
+  inset: 0;
   width: var(--scout-card-width);
-  height: calc(var(--scout-card-width) * 1.42);
+  height: var(--scout-card-height);
+  transform: none;
+  transition:
+    filter 160ms ease,
+    transform 160ms ease;
 }
 
-.card-shell.scout-choice-card.is-scout-kept {
+.card-shell.scout-choice-card.is-scout-selected {
   filter:
-    drop-shadow(0 22px 18px rgba(0, 0, 0, 0.5))
-    drop-shadow(0 0 16px rgba(115, 255, 214, 0.74));
+    drop-shadow(0 22px 18px rgba(0, 0, 0, 0.52))
+    drop-shadow(0 0 16px rgba(115, 255, 214, 0.68));
+  transform: translateY(-30%);
 }
 
-.card-shell.scout-choice-card.is-scout-bottomed {
-  filter:
-    drop-shadow(0 16px 13px rgba(0, 0, 0, 0.44))
-    saturate(0.82);
+.card-shell.scout-choice-card:not(.is-scout-selected):hover,
+.card-shell.scout-choice-card:not(.is-scout-selected):focus-visible {
+  transform: translateY(-6%);
 }
 
-.scout-choice-badge {
-  padding: 5px 9px;
-  border: 1px solid rgba(246, 241, 223, 0.22);
-  border-radius: 999px;
-  color: #fff8e8;
-  background: rgba(5, 7, 19, 0.62);
-  font-size: 10px;
-  font-weight: 950;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  text-transform: uppercase;
+.card-shell.scout-choice-card.is-scout-selected:hover,
+.card-shell.scout-choice-card.is-scout-selected:focus-visible {
+  transform: translateY(-33%);
 }
 
 .scout-choice-actions {
@@ -328,7 +332,8 @@
 
 .playtest-log-toggle,
 .playtest-log-reset,
-.playtest-log-copy {
+.playtest-log-copy,
+.playtest-log-download {
   pointer-events: auto;
   border: 1px solid rgba(246, 241, 223, 0.28);
   border-radius: 999px;
@@ -467,7 +472,8 @@
   }
 }
 
-.playtest-log-copy {
+.playtest-log-copy,
+.playtest-log-download {
   display: grid;
   flex: 0 0 auto;
   width: 34px;
@@ -704,7 +710,10 @@
   transform-origin: left top;
 }
 
-.hand .card-shell.hand-card-shell:hover,
+.hand-zone-crew .card-shell.hand-card-shell:not(.is-being-dragged):hover {
+  transform: translateY(-8px) scale(var(--hand-card-scale));
+}
+
 .hand .card-shell.hand-card-shell.is-being-dragged {
   transform: scale(var(--hand-card-scale));
 }
@@ -816,8 +825,8 @@
   }
 }
 
-.card-shell:hover,
-.card-shell:hover ~ .card-shell {
+.card-stack .card-shell:hover,
+.card-stack .card-shell:hover ~ .card-shell {
   transform: translateY(-5px) rotate(-1deg);
   filter:
     drop-shadow(0 20px 16px rgba(0, 0, 0, 0.48))

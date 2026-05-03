@@ -1,4 +1,11 @@
-import { HORIZON_DECK_ID, MOTHER_DECK_ID, canManuallyDrawDeck, manualDeckDraw } from '../game/decks'
+import {
+  CRYO_DECK_ID,
+  FUEL_DECK_ID,
+  HORIZON_DECK_ID,
+  MOTHER_DECK_ID,
+  canManuallyDrawDeck,
+  manualDeckDraw,
+} from '../game/decks'
 import {
   applyPendingEffectsToDrawnCard,
   consumeDeckDrawModifiers,
@@ -20,6 +27,7 @@ import {
   cardsStackedEvent,
   deckCreatedFromStacksEvent,
   decksMergedEvent,
+  emergencyRefuelUsedEvent,
   gameLostEvent,
   gateCompletedEvent,
   gateCrewStateBeforeEvent,
@@ -31,6 +39,7 @@ import {
   motherThresholdCrossedEvent,
   readyRewardAppliedEvent,
   scoutUsedEvent,
+  sectorRevealedEvent,
   stackSplitEvent,
   starsCompletedSummaryEvent,
   wakeCrewRecruitedEvent,
@@ -38,15 +47,13 @@ import {
 import type { PlaytestLogEvent } from '../game/playtestLog'
 import {
   canCombineAsDeck,
-  canCompleteHorizonNeedWithFuelOptions,
-  canCompleteNeedWithCrewAndMother,
+  canCompleteGateNeedWithCrewAndMother,
   canStackCards,
   cardsToDeckBlueprints,
   countSpentMotherCardsInPlay,
   countUsableMotherCardsInPlay,
   getGateStackCompletion,
   getHorizonStackCompletion,
-  getMissingNeedIcons,
   getUsableMotherCardIdsInPlay,
   isFaceDownStack,
   isUsableMotherCard,
@@ -54,6 +61,24 @@ import {
   type MotherCoveredIcon,
 } from '../game/rules'
 import { withPlaytestEvents, type BoardUpdater } from '../game/state'
+import {
+  canEmergencyRefuel,
+  canEmergencyRefuelStack,
+  canTravelToAnyHorizon,
+  getDeckCardCount,
+  getEmergencyRefuelStackPayment,
+  getReadyCrewCardIds,
+} from '../game/boardQueries'
+import {
+  FUEL_SUPPLY_STACK_ID,
+  FUEL_SUPPLY_STACK_POSITION,
+  MOTHER_SUPPLY_STACK_ID,
+  MOTHER_SUPPLY_STACK_POSITION,
+  createSectorHorizonDeckCards,
+  getSectorDeckArt,
+  getSectorDeckTitle,
+  getSectorGateBlueprint,
+} from '../game/setup'
 import type {
   BoardMetrics,
   BoardState,
@@ -71,8 +96,6 @@ import {
   removeCardFromHandZones,
 } from './handState'
 import { clamp } from '../game/geometry'
-
-const CRYO_DECK_ID = 'cryo-deck'
 
 type Position = {
   x: number
@@ -141,7 +164,7 @@ function createMotherSpentEvents(
         gateCard,
         motherSpentTotal - 1,
         motherSpentTotal,
-        gateCard.gate.motherPenalty.extraAnyIcons,
+        gateCard.gate.motherPenalty.extraHumanCrew,
       ))
     }
   }
@@ -220,10 +243,6 @@ function markMotherCardsSpent(cards: Record<string, Card>, cardIds: readonly str
   }
 
   return nextCards
-}
-
-function getDeckCardCount(current: BoardState, deckId: string) {
-  return current.decks.find((deck) => deck.id === deckId)?.cards.length ?? 0
 }
 
 function drawWakeChoiceCards(
@@ -327,72 +346,6 @@ function drawScoutChoiceCards(
   }
 }
 
-function getReadyCrewCardIds(current: BoardState) {
-  const tiredCardIdSet = new Set(current.tiredCardIds)
-  const pendingWakeChoiceCardIds = new Set(current.pendingWakeChoice?.choiceCardIds ?? [])
-
-  return Object.values(current.cards).flatMap((card) =>
-    card.kind === 'crew' &&
-      !tiredCardIdSet.has(card.id) &&
-      !pendingWakeChoiceCardIds.has(card.id)
-      ? [card.id]
-      : [],
-  )
-}
-
-function countFuelCardsInPlay(current: BoardState) {
-  const fuelCardIds = new Set<string>()
-
-  for (const stack of current.stacks) {
-    for (const cardId of stack.cardIds) {
-      const card = current.cards[cardId]
-
-      if (card?.kind === 'resource' && card.resource === 'fuel') {
-        fuelCardIds.add(cardId)
-      }
-    }
-  }
-
-  return fuelCardIds.size
-}
-
-function getAvailableMotherCardCount(current: BoardState) {
-  return (
-    countUsableMotherCardsInPlay(current.stacks, current.cards) +
-    getDeckCardCount(current, MOTHER_DECK_ID)
-  )
-}
-
-function canTravelToHorizon(current: BoardState, horizonCard: Card) {
-  if (!horizonCard.horizon) {
-    return false
-  }
-
-  const requiredFuel = Math.max(
-    0,
-    horizonCard.horizon.need.fuel - getNextStarFuelDiscount(current.pendingEffects),
-  )
-
-  return (
-    canCompleteHorizonNeedWithFuelOptions(
-      getReadyCrewCardIds(current),
-      current.cards,
-      horizonCard.horizon.need.icons,
-      requiredFuel,
-      countFuelCardsInPlay(current),
-      getAvailableMotherCardCount(current),
-    )
-  )
-}
-
-function canTravelToAnyHorizon(current: BoardState, horizonCardIds: readonly string[]) {
-  return horizonCardIds.some((cardId) => {
-    const card = current.cards[cardId]
-
-    return card?.kind === 'horizon' && canTravelToHorizon(current, card)
-  })
-}
-
 function getSectorGateCard(current: BoardState) {
   for (const stack of current.stacks) {
     for (const cardId of stack.cardIds) {
@@ -419,28 +372,13 @@ function canCompleteSectorGate(current: BoardState) {
   const usableMotherCardsInPlay = countUsableMotherCardsInPlay(current.stacks, current.cards)
   const availableMotherCardCount = usableMotherCardsInPlay + getDeckCardCount(current, MOTHER_DECK_ID)
 
-  for (let motherCardsUsed = 0; motherCardsUsed <= availableMotherCardCount; motherCardsUsed += 1) {
-    const motherSpentTotalAfterUse = motherSpentTotal + motherCardsUsed
-    const extraAnyIconsRequired =
-      motherSpentTotalAfterUse >= gateCard.gate.motherPenalty.threshold
-        ? gateCard.gate.motherPenalty.extraAnyIcons
-        : 0
-
-    if (
-      canCompleteNeedWithCrewAndMother(
-        readyCrewCardIds,
-        current.cards,
-        gateCard.gate.need.icons,
-        gateCard.gate.need.any,
-        motherCardsUsed,
-        extraAnyIconsRequired,
-      )
-    ) {
-      return true
-    }
-  }
-
-  return false
+  return canCompleteGateNeedWithCrewAndMother(
+    readyCrewCardIds,
+    current.cards,
+    gateCard.gate,
+    motherSpentTotal,
+    availableMotherCardCount,
+  )
 }
 
 function resolveLoss(current: BoardState, reason: GameLossReason) {
@@ -491,6 +429,30 @@ function resolveGateLossIfNeeded(current: BoardState) {
   }
 }
 
+function getVisibleHorizonCardIds(current: BoardState) {
+  return current.stacks.flatMap((stack) =>
+    stack.cardIds.filter((cardId) => current.cards[cardId]?.kind === 'horizon'),
+  )
+}
+
+function resolveSectorStrandedLossIfNeeded(current: BoardState) {
+  const visibleHorizonCardIds = getVisibleHorizonCardIds(current)
+
+  if (
+    current.hasArrived ||
+    current.lossReason ||
+    current.pendingWakeChoice ||
+    current.pendingScoutChoice ||
+    visibleHorizonCardIds.length === 0 ||
+    canTravelToAnyHorizon(current, visibleHorizonCardIds) ||
+    canEmergencyRefuel(current)
+  ) {
+    return { board: current, events: [] }
+  }
+
+  return resolveLoss(current, 'sector-stranded')
+}
+
 function readyTiredCrew(
   handCardIds: readonly string[],
   tiredCardIds: readonly string[],
@@ -502,6 +464,209 @@ function readyTiredCrew(
     handCardIds: [...handCardIds, ...readiedCrewCardIds],
     tiredCardIds: tiredCardIds.slice(readiedCrewCardIds.length),
     readiedCrewCardIds,
+  }
+}
+
+function isFuelResourceCard(card: Card | undefined) {
+  return card?.kind === 'resource' && card.resource === 'fuel'
+}
+
+function findFuelSupplyStack(stacks: readonly Stack[], cards: Record<string, Card>) {
+  return stacks.find(
+    (stack) => stack.cardIds.length > 0 && stack.cardIds.every((cardId) => isFuelResourceCard(cards[cardId])),
+  )
+}
+
+function placeFuelCardsInSupplyStack(
+  stacks: readonly Stack[],
+  cards: Record<string, Card>,
+  fuelCards: readonly Card[],
+  z: number,
+  metrics: BoardMetrics,
+) {
+  const [firstFuelCard] = fuelCards
+
+  if (!firstFuelCard) {
+    return [...stacks]
+  }
+
+  const fuelStack = findFuelSupplyStack(stacks, cards)
+
+  if (fuelStack) {
+    const fuelCardIds = fuelCards.map((card) => card.id)
+
+    return stacks.map((stack) =>
+      stack.id === fuelStack.id
+        ? { ...stack, cardIds: [...stack.cardIds, ...fuelCardIds], z }
+        : stack,
+    )
+  }
+
+  const position = clampStackPosition(
+    FUEL_SUPPLY_STACK_POSITION.x,
+    FUEL_SUPPLY_STACK_POSITION.y,
+    fuelCards.length,
+    metrics,
+  )
+
+  return [
+    ...stacks,
+    {
+      id: stacks.some((stack) => stack.id === FUEL_SUPPLY_STACK_ID)
+        ? `stack-${firstFuelCard.id}`
+        : FUEL_SUPPLY_STACK_ID,
+      cardIds: fuelCards.map((card) => card.id),
+      x: position.x,
+      y: position.y,
+      z,
+    },
+  ]
+}
+
+function findMotherSupplyStack(stacks: readonly Stack[], cards: Record<string, Card>) {
+  return stacks.find(
+    (stack) => stack.cardIds.length > 0 && stack.cardIds.every((cardId) => isUsableMotherCard(cards[cardId])),
+  )
+}
+
+function placeMotherCardsInSupplyStack(
+  stacks: readonly Stack[],
+  cards: Record<string, Card>,
+  motherCards: readonly Card[],
+  z: number,
+  metrics: BoardMetrics,
+) {
+  const [firstMotherCard] = motherCards
+
+  if (!firstMotherCard) {
+    return { stacks: [...stacks], targetStack: null }
+  }
+
+  const motherStack = findMotherSupplyStack(stacks, cards)
+
+  if (motherStack) {
+    const motherCardIds = motherCards.map((card) => card.id)
+    const targetStack = {
+      ...motherStack,
+      cardIds: [...motherStack.cardIds, ...motherCardIds],
+      z,
+    }
+
+    return {
+      stacks: stacks.map((stack) => stack.id === motherStack.id ? targetStack : stack),
+      targetStack,
+    }
+  }
+
+  const position = clampStackPosition(
+    MOTHER_SUPPLY_STACK_POSITION.x,
+    MOTHER_SUPPLY_STACK_POSITION.y,
+    motherCards.length,
+    metrics,
+  )
+  const targetStack = {
+    id: stacks.some((stack) => stack.id === MOTHER_SUPPLY_STACK_ID)
+      ? `stack-${firstMotherCard.id}`
+      : MOTHER_SUPPLY_STACK_ID,
+    cardIds: motherCards.map((card) => card.id),
+    x: position.x,
+    y: position.y,
+    z,
+  }
+
+  return {
+    stacks: [...stacks, targetStack],
+    targetStack,
+  }
+}
+
+function completeEmergencyRefuelStack(current: BoardState, stackId: string, metrics: BoardMetrics) {
+  const sourceStack = current.stacks.find((stack) => stack.id === stackId)
+
+  if (!sourceStack || current.pendingWakeChoice || current.pendingScoutChoice) {
+    return { board: current, events: [] }
+  }
+
+  const payment = getEmergencyRefuelStackPayment(current, sourceStack.cardIds)
+  const fuelDeck = current.decks.find((deck) => deck.id === FUEL_DECK_ID)
+  const fuelBlueprint = fuelDeck?.cards[0]
+
+  if (!payment || !fuelDeck || !fuelBlueprint) {
+    return { board: current, events: [] }
+  }
+
+  const nextZ = current.topZ + 1
+  const fuelCard = {
+    ...fuelBlueprint,
+    id: `emergency-fuel-${current.nextCardId}`,
+    faceUp: true,
+  }
+  const spentCrewCardIdSet = new Set(payment.crewCardIds)
+  const handCardIdsWithoutSpentCrew = current.handCardIds.filter(
+    (cardId) => !spentCrewCardIdSet.has(cardId),
+  )
+  const tiredCardIdsWithSpentCrew = [
+    ...current.tiredCardIds,
+    ...payment.crewCardIds.filter((cardId) => !current.tiredCardIds.includes(cardId)),
+  ]
+  const motherSpentTotalBefore = countSpentMotherCardsInPlay(current.stacks, current.cards)
+  const nextCards = markMotherCardsSpent(
+    {
+      ...current.cards,
+      [fuelCard.id]: fuelCard,
+    },
+    payment.motherCardIds,
+  )
+  const stacksWithoutPayment = current.stacks.flatMap((stack) => {
+    if (stack.id !== sourceStack.id) {
+      return [stack]
+    }
+
+    const pressureCardIds = stack.cardIds.filter((cardId) => !spentCrewCardIdSet.has(cardId))
+
+    return pressureCardIds.length > 0
+      ? [{ ...stack, cardIds: pressureCardIds, z: nextZ }]
+      : []
+  })
+  const nextBoard = {
+    ...current,
+    topZ: nextZ,
+    nextCardId: current.nextCardId + 1,
+    dropTargetStackId: null,
+    dropTargetDeckId: null,
+    handCardIds: handCardIdsWithoutSpentCrew,
+    tiredCardIds: tiredCardIdsWithSpentCrew,
+    cards: nextCards,
+    stacks: placeFuelCardsInSupplyStack(stacksWithoutPayment, nextCards, [fuelCard], nextZ, metrics),
+    decks: current.decks.map((deck) =>
+      deck.id === FUEL_DECK_ID
+        ? { ...deck, cards: deck.cards.slice(1), z: nextZ }
+        : deck,
+    ),
+  }
+  const motherCommittedEvents = createMotherCommittedEvents(
+    current.cards,
+    payment.motherCardIds,
+    fuelCard,
+    payment.motherCardIds.map(() => 'fuel' as const),
+  )
+  const motherSpentEvents = payment.motherCardIds.flatMap((cardId, index) => {
+    const card = current.cards[cardId]
+
+    return card?.kind === 'mother'
+      ? [motherSpentEvent(card, motherSpentTotalBefore + index + 1)]
+      : []
+  })
+  const strandedLoss = resolveSectorStrandedLossIfNeeded(nextBoard)
+
+  return {
+    board: strandedLoss.board,
+    events: [
+      ...motherCommittedEvents,
+      emergencyRefuelUsedEvent(payment.crewCardIds, payment.motherCardIds, fuelCard, current.cards),
+      ...motherSpentEvents,
+      ...strandedLoss.events,
+    ],
   }
 }
 
@@ -658,13 +823,15 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
   }
 
   const resolvedCards = markMotherCardsSpent(nextCards, spentMotherCardIds)
+  const fuelRewardCards = rewardCards.filter((card) => isFuelResourceCard(card))
+  const otherRewardCards = rewardCards.filter((card) => !isFuelResourceCard(card))
 
   const rewardPosition =
-    rewardCards.length > 0
+    otherRewardCards.length > 0
       ? clampStackPosition(
           sourceStack.x + (sourceStack.x > 66 ? -9 : 9),
           sourceStack.y + (sourceStack.y > 56 ? -5 : 5),
-          rewardCards.length,
+          otherRewardCards.length,
           metrics,
         )
       : null
@@ -674,30 +841,36 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
       stack.id !== sourceStack.id &&
       !otherChoiceStacks.some((choiceStack) => choiceStack.id === stack.id),
   )
-  const resolvedStacks = [
-    ...nextStacksWithoutSource,
-    ...(spentMotherCardIds.length > 0
-      ? [
-          {
-            ...sourceStack,
-            cardIds: spentMotherCardIds,
-            z: nextZ,
-            drawChoiceGroupId: undefined,
-          },
-        ]
-      : []),
-    ...(rewardCards.length > 0
-      ? [
-          {
-            id: spentMotherCardIds.length > 0 ? rewardStackId : sourceStack.id,
-            cardIds: rewardCards.map((card) => card.id),
-            x: rewardPosition?.x ?? sourceStack.x,
-            y: rewardPosition?.y ?? sourceStack.y,
-            z: nextZ,
-          },
-        ]
-      : []),
-  ]
+  const resolvedStacks = placeFuelCardsInSupplyStack(
+    [
+      ...nextStacksWithoutSource,
+      ...(spentMotherCardIds.length > 0
+        ? [
+            {
+              ...sourceStack,
+              cardIds: spentMotherCardIds,
+              z: nextZ,
+              drawChoiceGroupId: undefined,
+            },
+          ]
+        : []),
+      ...(otherRewardCards.length > 0
+        ? [
+            {
+              id: spentMotherCardIds.length > 0 ? rewardStackId : sourceStack.id,
+              cardIds: otherRewardCards.map((card) => card.id),
+              x: rewardPosition?.x ?? sourceStack.x,
+              y: rewardPosition?.y ?? sourceStack.y,
+              z: nextZ,
+            },
+          ]
+        : []),
+    ],
+    resolvedCards,
+    fuelRewardCards,
+    nextZ,
+    metrics,
+  )
 
   const nextBoard = {
     ...current,
@@ -710,6 +883,7 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
     completedStarSummaries: [
       ...current.completedStarSummaries,
       {
+        sector: current.currentSector,
         cardId: horizonCard.id,
         cardTitle: horizonCard.title,
         crewCardIds: spentCrewCardIds,
@@ -809,7 +983,27 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
   const returnedMotherCardIdSet = new Set(usableMotherCardIds.filter(
     (cardId) => !spentMotherCardIdSet.has(cardId),
   ))
-  const nextCards = markMotherCardsSpent(current.cards, spentMotherCardIds)
+  const isFinalGate = current.currentSector >= current.totalSectors
+  const nextSector = current.currentSector + 1
+  const nextGateBlueprint = isFinalGate ? null : getSectorGateBlueprint(nextSector)
+  const nextGateCard = nextGateBlueprint
+    ? {
+        ...nextGateBlueprint,
+        id: `gate-${nextSector}-${current.nextCardId}`,
+        faceUp: true,
+      }
+    : null
+  const nextSectorHorizonCards = nextGateCard ? createSectorHorizonDeckCards() : []
+  const nextSectorDeckArt = getSectorDeckArt(nextSector)
+  const nextZ = current.topZ + 1
+  const cardsWithSpentMother = markMotherCardsSpent(current.cards, spentMotherCardIds)
+  const nextCards = { ...cardsWithSpentMother }
+
+  if (nextGateCard) {
+    delete nextCards[gateCard.id]
+    nextCards[nextGateCard.id] = nextGateCard
+  }
+
   const handCardIdsWithoutSpentCrew = current.handCardIds.filter(
     (cardId) => !spentCrewCardIdSet.has(cardId),
   )
@@ -823,24 +1017,74 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
     tiredCardIdsWithSpentCrew.length,
   )
 
+  const nextStacks = current.stacks.flatMap((stack) => {
+    if (stack.id !== sourceStack.id) {
+      return [stack]
+    }
+
+    const keptCardIds = stack.cardIds.filter(
+      (cardId) =>
+        !spentCrewCardIdSet.has(cardId) &&
+        !returnedMotherCardIdSet.has(cardId) &&
+        (isFinalGate || cardId !== gateCard.id),
+    )
+
+    return keptCardIds.length > 0
+      ? [
+          {
+            ...stack,
+            cardIds: keptCardIds,
+            x: isFinalGate ? stack.x : Math.max(6, stack.x - 10),
+            y: isFinalGate ? stack.y : Math.min(72, stack.y + 6),
+            z: nextZ,
+          },
+        ]
+      : []
+  })
   const nextBoard = {
     ...current,
-    hasArrived: true,
+    topZ: nextZ,
+    nextCardId: nextGateCard ? current.nextCardId + 1 : current.nextCardId,
+    currentSector: isFinalGate ? current.currentSector : nextSector,
+    hasArrived: isFinalGate,
     dropTargetStackId: null,
     dropTargetDeckId: null,
     handCardIds: readyCrewResult.handCardIds,
     tiredCardIds: readyCrewResult.tiredCardIds,
     cards: nextCards,
-    stacks: current.stacks.map((stack) =>
-      stack.id === sourceStack.id
+    stacks: [
+      ...nextStacks,
+      ...(nextGateCard
+        ? [
+            {
+              id: `stack-sector-gate-${nextSector}`,
+              cardIds: [nextGateCard.id],
+              x: 43,
+              y: 40,
+              z: nextZ,
+            },
+          ]
+        : []),
+    ],
+    decks: current.decks.map((deck) =>
+      nextGateCard && deck.id === HORIZON_DECK_ID
         ? {
-            ...stack,
-            cardIds: stack.cardIds.filter(
-              (cardId) => !spentCrewCardIdSet.has(cardId) && !returnedMotherCardIdSet.has(cardId),
-            ),
+            ...deck,
+            title: getSectorDeckTitle(nextSector),
+            icon: nextSectorDeckArt.icon,
+            hue: nextSectorDeckArt.hue,
+            accent: nextSectorDeckArt.accent,
+            z: nextZ,
+            draw: {
+              ...manualDeckDraw,
+              count: 3,
+              placement: 'left-row' as const,
+            },
+            cards: nextSectorHorizonCards,
           }
-        : stack,
+        : deck,
     ),
+    pendingEffects: nextGateCard ? [] : current.pendingEffects,
   }
   const returnedMother = returnMotherCardsToDeck(
     nextBoard,
@@ -848,17 +1092,11 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
     sourceStack.id,
     `unused after ${gateCard.title} completion`,
   )
-  const motherCoveredIcons = getMissingNeedIcons(
-    spentCrewCardIds,
-    current.cards,
-    gateCard.gate.need.icons,
-    gateCard.gate.need.any + completion.extraAnyIconsRequired,
-  )
   const motherCommittedEvents = createMotherCommittedEvents(
     current.cards,
     usableMotherCardIds,
     gateCard,
-    motherCoveredIcons,
+    completion.motherCoveredIcons,
   )
   const motherSpentEvents = createMotherSpentEvents(
     current.cards,
@@ -880,7 +1118,8 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
         current.cards,
         usableMotherCardIds.length,
         completion.motherSpentTotal,
-        completion.extraAnyIconsRequired,
+        completion.extraHumanCrewRequired,
+        isFinalGate,
       ),
       starsCompletedSummaryEvent(
         current.completedStarSummaries,
@@ -889,6 +1128,9 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
         current.tiredCardIds,
         completion.motherSpentTotal,
       ),
+      ...(nextGateCard
+        ? [sectorRevealedEvent(nextSector, nextGateCard, nextSectorHorizonCards)]
+        : []),
       ...returnedMother.events,
     ],
   }
@@ -1070,7 +1312,9 @@ export function drawFromDeckUpdate(deckId: string, metrics: BoardMetrics): Board
         z: firstCardZ + index,
         drawChoiceGroupId,
       })
-      drawEvents.push(cardDrawnEvent(newCard, deck, newStackId, position.x, position.y))
+      if (deck.id !== MOTHER_DECK_ID) {
+        drawEvents.push(cardDrawnEvent(newCard, deck, newStackId, position.x, position.y))
+      }
     }
 
     const drawnHorizonCardIds = drawnStacks.flatMap((stack) => {
@@ -1079,6 +1323,36 @@ export function drawFromDeckUpdate(deckId: string, metrics: BoardMetrics): Board
 
       return card?.kind === 'horizon' ? [card.id] : []
     })
+    const motherPlacement = deck.id === MOTHER_DECK_ID
+      ? placeMotherCardsInSupplyStack(
+          current.stacks,
+          nextCards,
+          drawnStacks.flatMap((stack) => {
+            const cardId = stack.cardIds[0]
+            const card = cardId ? nextCards[cardId] : undefined
+
+            return card ? [card] : []
+          }),
+          firstCardZ + drawnStacks.length - 1,
+          metrics,
+        )
+      : null
+    const nextStacks = motherPlacement
+      ? motherPlacement.stacks
+      : [
+          ...current.stacks,
+          ...drawnStacks,
+        ]
+    const nextDrawEvents = motherPlacement?.targetStack
+      ? drawnStacks.flatMap((stack) => {
+          const cardId = stack.cardIds[0]
+          const card = cardId ? nextCards[cardId] : undefined
+
+          return card
+            ? [cardDrawnEvent(card, deck, motherPlacement.targetStack.id, motherPlacement.targetStack.x, motherPlacement.targetStack.y)]
+            : []
+        })
+      : drawEvents
     const nextBoard = {
       ...current,
       topZ: firstCardZ + drawnStacks.length - 1,
@@ -1087,10 +1361,7 @@ export function drawFromDeckUpdate(deckId: string, metrics: BoardMetrics): Board
       dropTargetDeckId: null,
       pendingEffects,
       cards: nextCards,
-      stacks: [
-        ...current.stacks,
-        ...drawnStacks,
-      ],
+      stacks: nextStacks,
       decks: current.decks.map((candidate) =>
         candidate.id === deckId
           ? { ...candidate, cards: candidate.cards.slice(drawnBlueprints.length), z: deckZ }
@@ -1098,13 +1369,11 @@ export function drawFromDeckUpdate(deckId: string, metrics: BoardMetrics): Board
       ),
     }
     const loss =
-      deck.id === HORIZON_DECK_ID &&
-      drawnHorizonCardIds.length > 0 &&
-      !canTravelToAnyHorizon(nextBoard, drawnHorizonCardIds)
-        ? resolveLoss(nextBoard, 'sector-stranded')
+      deck.id === HORIZON_DECK_ID && drawnHorizonCardIds.length > 0
+        ? resolveSectorStrandedLossIfNeeded(nextBoard)
         : { board: nextBoard, events: [] }
 
-    return withPlaytestEvents(loss.board, [...drawEvents, ...loss.events])
+    return withPlaytestEvents(loss.board, [...nextDrawEvents, ...loss.events])
   }
 }
 
@@ -1179,52 +1448,47 @@ export function chooseScoutCardUpdate(cardId: string): BoardUpdater {
       return current
     }
 
-    if (!pendingScoutChoice.keptCardId) {
-      return {
-        ...current,
-        pendingScoutChoice: {
-          ...pendingScoutChoice,
-          keptCardId: cardId,
-        },
-      }
+    const nextBottomedCardIdSet = new Set(pendingScoutChoice.bottomedCardIds)
+
+    if (nextBottomedCardIdSet.has(cardId)) {
+      nextBottomedCardIdSet.delete(cardId)
+    } else if (nextBottomedCardIdSet.size >= pendingScoutChoice.choiceCardIds.length - 1) {
+      return current
+    } else {
+      nextBottomedCardIdSet.add(cardId)
     }
 
-    if (cardId === pendingScoutChoice.keptCardId || pendingScoutChoice.bottomedCardIds.includes(cardId)) {
-      return current
-    }
+    const bottomedCardIds = pendingScoutChoice.choiceCardIds.filter((choiceCardId) => (
+      nextBottomedCardIdSet.has(choiceCardId)
+    ))
+    const keptCardIds = pendingScoutChoice.choiceCardIds.filter((choiceCardId) => (
+      !nextBottomedCardIdSet.has(choiceCardId)
+    ))
 
     return {
       ...current,
       pendingScoutChoice: {
         ...pendingScoutChoice,
-        bottomedCardIds: [...pendingScoutChoice.bottomedCardIds, cardId],
+        keptCardId: keptCardIds.length === 1 ? keptCardIds[0] : null,
+        bottomedCardIds,
       },
     }
   }
 }
 
-export function resetScoutChoiceUpdate(current: BoardState) {
+export function confirmScoutChoiceUpdate(current: BoardState) {
   const pendingScoutChoice = current.pendingScoutChoice
 
   if (!pendingScoutChoice) {
     return current
   }
 
-  return {
-    ...current,
-    pendingScoutChoice: {
-      ...pendingScoutChoice,
-      keptCardId: null,
-      bottomedCardIds: [],
-    },
-  }
-}
+  const keptCardIds = pendingScoutChoice.choiceCardIds.filter((cardId) => (
+    !pendingScoutChoice.bottomedCardIds.includes(cardId)
+  ))
+  const keptCardId = keptCardIds[0]
 
-export function confirmScoutChoiceUpdate(current: BoardState) {
-  const pendingScoutChoice = current.pendingScoutChoice
-  const keptCardId = pendingScoutChoice?.keptCardId
-
-  if (!pendingScoutChoice || !keptCardId) {
+  if (keptCardIds.length !== 1 || !keptCardId) {
     return current
   }
 
@@ -1239,7 +1503,10 @@ export function confirmScoutChoiceUpdate(current: BoardState) {
   }
 
   const keptCard = cardsToDeckBlueprints([keptCardId], current.cards)
-  const bottomedCards = cardsToDeckBlueprints(pendingScoutChoice.bottomedCardIds, current.cards)
+  const bottomedCardIds = pendingScoutChoice.choiceCardIds.filter((cardId) => (
+    bottomedCardIdSet.has(cardId)
+  ))
+  const bottomedCards = cardsToDeckBlueprints(bottomedCardIds, current.cards)
 
   if (keptCard.length !== 1 || bottomedCards.length !== requiredBottomedCardIds.length) {
     return current
@@ -1257,7 +1524,7 @@ export function confirmScoutChoiceUpdate(current: BoardState) {
   }, scoutUsedEvent(
     pendingScoutChoice.choiceCardIds,
     keptCardId,
-    pendingScoutChoice.bottomedCardIds,
+    bottomedCardIds,
     current.cards,
   ))
 }
@@ -1589,13 +1856,16 @@ export function stackOnDropTargetUpdate(
       }, deckCreatedFromStacksEvent(newDeck, sourceStack, targetStack, current.cards))
     }
 
+    const combinedCardIds = [...targetStack.cardIds, ...sourceStack.cardIds]
+    const canResolveEmergencyRefuel = canEmergencyRefuelStack(current, combinedCardIds)
+
     if (!canStackCards(
       sourceStack,
       targetStack,
       current.cards,
       getNextStarFuelDiscount(current.pendingEffects),
       countSpentMotherCardsInPlay(current.stacks, current.cards),
-    )) {
+    ) && !canResolveEmergencyRefuel) {
       return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
     }
 
@@ -1619,9 +1889,14 @@ export function stackOnDropTargetUpdate(
             : stack,
         ),
     }
-    const completedStack = completeReadyHorizonStack(stackedBoard, targetStack.id, metrics)
+    const emergencyRefuel = completeEmergencyRefuelStack(stackedBoard, targetStack.id, metrics)
+    const completedStack = completeReadyHorizonStack(emergencyRefuel.board, targetStack.id, metrics)
     const completedGateStack = completeReadyGateStack(completedStack.board, targetStack.id)
-    const completedEvents = [...completedStack.events, ...completedGateStack.events]
+    const completedEvents = [
+      ...emergencyRefuel.events,
+      ...completedStack.events,
+      ...completedGateStack.events,
+    ]
 
     return withPlaytestEvents(completedGateStack.board, [
       cardsStackedEvent(sourceStack, targetStack, current.cards),

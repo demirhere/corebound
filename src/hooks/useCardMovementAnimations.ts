@@ -4,7 +4,7 @@ import type { BoardState, Card, CardBlueprint, Deck, HandZone } from '../game/ty
 
 const CRYO_DECK_ID = 'cryo-deck'
 const CARD_MOVE_DURATION_MS = 170
-const CARD_DRAW_DURATION_MS = 220
+const CARD_DRAW_DURATION_MS = 600
 const CARD_DRAW_STAGGER_MS = 28
 const MIN_MOVEMENT_PX = 2
 

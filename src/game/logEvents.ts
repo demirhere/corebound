@@ -37,7 +37,7 @@ function describeRewards(rewards: readonly HorizonReward[]) {
 
 export function cardRulesText(card: Card | CardBlueprint) {
   if (card.kind === 'crew') {
-    return `specialties: ${card.specializations?.join(', ') ?? 'none'}; fuel math: crew+crew=fuel, crew+MOTHER=fuel`
+    return `specialties: ${card.specializations?.join(', ') ?? 'none'}; fuel math: crew+crew=fuel; MOTHER cannot pay Fuel outside Emergency Refuel`
   }
 
   if (card.kind === 'horizon' && card.horizon) {
@@ -53,7 +53,7 @@ export function cardRulesText(card: Card | CardBlueprint) {
   }
 
   if (card.kind === 'mother') {
-    return 'wild: covers 1 non-Fuel icon or pairs with Crew as Fuel; spent after use'
+    return 'wild: covers 1 non-Fuel icon; cannot pay Fuel outside Emergency Refuel; spent after use'
   }
 
   if (card.kind === 'gate' && card.gate) {
@@ -64,7 +64,7 @@ export function cardRulesText(card: Card | CardBlueprint) {
       .filter(Boolean)
       .join(', ')
 
-    return `gate need: ${need}; ${card.gate.motherPenalty.threshold}+ MOTHER cards: need +${card.gate.motherPenalty.extraAnyIcons} any icon`
+    return `gate need: ${need}; ${card.gate.motherPenalty.threshold}+ MOTHER cards: commit +${card.gate.motherPenalty.extraHumanCrew} additional human crew`
   }
 
   return ''
@@ -300,11 +300,11 @@ export function motherThresholdCrossedEvent(
   gateCard: Card,
   from: number,
   to: number,
-  extraAnyIconsRequired: number,
+  extraHumanCrewRequired: number,
 ): PlaytestLogEvent {
   return {
     type: 'mother.threshold_crossed',
-    message: `MOTHER threshold crossed from ${from} to ${to} during ${actionCard.title}; ${gateCard.title} extra any-icon requirement is now active.`,
+    message: `MOTHER threshold crossed from ${from} to ${to} during ${actionCard.title}; ${gateCard.title} extra human-crew requirement is now active.`,
     details: {
       from,
       to,
@@ -312,7 +312,7 @@ export function motherThresholdCrossedEvent(
       actionCardId: actionCard.id,
       gateCard: gateCard.title,
       gateCardId: gateCard.id,
-      extraAnyIconsRequired,
+      extraHumanCrewRequired,
     },
   }
 }
@@ -428,6 +428,58 @@ export function readyRewardAppliedEvent(
   }
 }
 
+export function emergencyRefuelUsedEvent(
+  crewCardIds: readonly string[],
+  motherCardIds: readonly string[],
+  fuelCard: Card,
+  cards: Record<string, Card>,
+): PlaytestLogEvent {
+  const crewTitles = cardTitles(crewCardIds, cards)
+  const motherTitles = cardTitles(motherCardIds, cards)
+
+  return {
+    type: 'emergency_refuel.used',
+    message: `Emergency Refuel used: committed ${crewTitles.join(', ')}${motherTitles.length > 0 ? ` with ${motherTitles.join(', ')}` : ''}; gained ${fuelCard.title}.`,
+    details: {
+      crewCardIds,
+      crewTitles,
+      crewSummaries: cardSummaries(crewCardIds, cards),
+      crewContents: cardContents(crewCardIds, cards),
+      motherCardIds,
+      motherTitles,
+      motherSummaries: cardSummaries(motherCardIds, cards),
+      motherContents: cardContents(motherCardIds, cards),
+      fuelCardId: fuelCard.id,
+      fuelCardTitle: fuelCard.title,
+      fuelCardSummary: describeCard(fuelCard, fuelCard.id),
+      fuelCardContent: cardContent(fuelCard),
+    },
+  }
+}
+
+export function sectorRevealedEvent(
+  sector: number,
+  gateCard: Card,
+  horizonCards: readonly CardBlueprint[],
+): PlaytestLogEvent {
+  const horizonSummaries = horizonCards.map((card) => `${card.title}${cardRulesText(card) ? ` [${cardRulesText(card)}]` : ''}`)
+
+  return {
+    type: 'sector.revealed',
+    message: `Sector ${sector} revealed: ${describeCard(gateCard, gateCard.id)}; Sector deck reset with ${horizonCards.length} cards.`,
+    details: {
+      sector,
+      gateCardId: gateCard.id,
+      gateTitle: gateCard.title,
+      gateSummary: describeCard(gateCard, gateCard.id),
+      gateContent: cardContent(gateCard),
+      horizonCardCount: horizonCards.length,
+      horizonSummaries,
+      horizonContents: horizonCards.map(cardContent),
+    },
+  }
+}
+
 export function scoutUsedEvent(
   lookedAtCardIds: readonly string[],
   keptOnTopCardId: string,
@@ -491,11 +543,12 @@ export function gateCompletedEvent(
   cards: Record<string, Card>,
   motherCommittedThisAction: number,
   motherSpentTotal: number,
-  extraAnyIconsRequired: number,
+  extraHumanCrewRequired: number,
+  isFinalGate: boolean,
 ): PlaytestLogEvent {
   return {
     type: 'gate.completed',
-    message: `${describeCard(gateCard, gateCard.id)} completed from ${sourceStack.id}; ship arrived beyond the Gate.`,
+    message: `${describeCard(gateCard, gateCard.id)} completed from ${sourceStack.id}; ${isFinalGate ? 'ship arrived beyond the final Gate' : 'next sector begins'}.`,
     details: {
       gateCardId: gateCard.id,
       gateTitle: gateCard.title,
@@ -506,7 +559,8 @@ export function gateCompletedEvent(
       committedCardContents: cardContents(sourceStack.cardIds, cards),
       motherCommittedThisAction,
       motherSpentTotal,
-      extraAnyIconsRequired,
+      extraHumanCrewRequired,
+      isFinalGate,
     },
   }
 }
@@ -520,10 +574,15 @@ export function starsCompletedSummaryEvent(
 ): PlaytestLogEvent {
   const readyCrewTitles = cardTitles(readyCrewCardIds, cards)
   const tiredCrewTitles = cardTitles(tiredCrewCardIds, cards)
+  const starLabels = completedStars.map((star, index) => {
+    const sectorStarNumber = completedStars.slice(0, index + 1).filter((candidate) => candidate.sector === star.sector).length
+
+    return `Sector ${star.sector} Star ${sectorStarNumber}`
+  })
   const starLines = completedStars.map((star, index) => {
     const crewText = star.crewTitles.join(', ') || 'none'
 
-    return `Star ${index + 1}: ${star.cardTitle}; crew used: ${crewText}; fuel spent: ${star.fuelSpent}; MOTHER spent: ${star.motherSpent}`
+    return `${starLabels[index]}: ${star.cardTitle}; crew used: ${crewText}; fuel spent: ${star.fuelSpent}; MOTHER spent: ${star.motherSpent}`
   })
   const gateLine = `Gate: ready crew: ${readyCrewTitles.join(', ') || 'none'}; tired crew: ${tiredCrewTitles.join(', ') || 'none'}; MOTHER spent total: ${motherSpentTotal}`
 
@@ -531,10 +590,10 @@ export function starsCompletedSummaryEvent(
     type: 'stars_completed_summary',
     message: [...starLines, gateLine].join(' | '),
     details: {
-      starCards: completedStars.map((star, index) => `Star ${index + 1}: ${star.cardTitle}`),
-      starCrewUsed: completedStars.map((star, index) => `Star ${index + 1}: ${star.crewTitles.join(', ') || 'none'}`),
-      starFuelSpent: completedStars.map((star, index) => `Star ${index + 1}: ${star.fuelSpent}`),
-      starMotherSpent: completedStars.map((star, index) => `Star ${index + 1}: ${star.motherSpent}`),
+      starCards: completedStars.map((star, index) => `${starLabels[index]}: ${star.cardTitle}`),
+      starCrewUsed: completedStars.map((star, index) => `${starLabels[index]}: ${star.crewTitles.join(', ') || 'none'}`),
+      starFuelSpent: completedStars.map((star, index) => `${starLabels[index]}: ${star.fuelSpent}`),
+      starMotherSpent: completedStars.map((star, index) => `${starLabels[index]}: ${star.motherSpent}`),
       gateReadyCrewTitles: readyCrewTitles,
       gateTiredCrewTitles: tiredCrewTitles,
       gateMotherSpentTotal: motherSpentTotal,
@@ -545,7 +604,7 @@ export function starsCompletedSummaryEvent(
 export function gameLostEvent(reason: GameLossReason): PlaytestLogEvent {
   const message =
     reason === 'sector-stranded'
-      ? 'No drawn Sector can be completed with available Fuel, Ready crew fuel pairs, and unused MOTHER cards.'
+      ? 'No visible Sector can be completed and Emergency Refuel is not available.'
       : 'The sector Gate cannot be completed with remaining Ready crew and unused MOTHER cards.'
 
   return {
