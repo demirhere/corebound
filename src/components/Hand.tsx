@@ -93,7 +93,7 @@ export function Hand({
     return baseIndex + (baseIndex >= previewIndex ? previewCardCount : 0)
   }
 
-  function renderHandArea(zone: HandZone, label: string, cardIds: string[]) {
+  function renderHandArea(zone: HandZone, label: string, cardIds: string[], subtitle?: string) {
     const handCards = getHandCards(cardIds)
     const cardCount = handCards.length
     const zonePreview = insertPreview?.zone === zone ? insertPreview : null
@@ -113,6 +113,7 @@ export function Hand({
     return (
       <div className={`hand-zone hand-zone-${zone}`} data-hand-zone={zone} aria-label={`${label} hand`}>
         <span className="hand-zone-label">{label}</span>
+        {subtitle && <span className="hand-zone-subtitle">{subtitle}</span>}
         <div className="hand-strip">
           {previewIndex !== null &&
             Array.from({ length: previewCardCount }, (_, index) => (
@@ -151,7 +152,7 @@ export function Hand({
                     ariaLabel={
                       zone === 'crew'
                         ? `${card.title}. Click to drop to the board or drag within Crew and to the board.`
-                        : `${card.title}. Tired crew readies after a Gate or a Horizon ready reward.`
+                        : `${card.title}. Tired crew readies after a Gate or a Sector ready reward.`
                     }
                     onPointerDown={(event) => onCardPointerDown(event, card.id, zone)}
                     onKeyDown={(event) => onCardKeyDown(event, card.id, zone)}
@@ -168,7 +169,7 @@ export function Hand({
   return (
     <section ref={handRef} className="hand" data-hand aria-label="Crew and tired hands">
       {renderHandArea('crew', 'Crew', crewCardIds)}
-      {renderHandArea('tired', 'Tired', tiredCardIds)}
+      {renderHandArea('tired', 'Tired', tiredCardIds, 'until new sector')}
     </section>
   )
 }

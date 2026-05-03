@@ -8,9 +8,13 @@ export const GAME_ICON_KINDS = [
   'signal',
   'mother',
   'person',
+  'tired-person',
+  'any',
 ] as const
 
 export type GameIconKind = (typeof GAME_ICON_KINDS)[number]
+
+const CARD_ART_ICON_KINDS = GAME_ICON_KINDS.filter((kind) => kind !== 'tired-person' && kind !== 'any')
 
 export const GAME_ICON_LABELS: Record<GameIconKind, string> = {
   hull: 'Hull',
@@ -21,7 +25,9 @@ export const GAME_ICON_LABELS: Record<GameIconKind, string> = {
   life: 'Life',
   signal: 'Signal',
   mother: 'MOTHER',
-  person: 'Person',
+  person: 'Crew',
+  'tired-person': 'Tired crew',
+  any: 'Any icon',
 }
 
 const CARD_NOTE_LINES = [
@@ -53,7 +59,7 @@ function hashString(value: string) {
 export function pickCardIcons(seed: string) {
   let cursor = hashString(seed)
   const count = 2 + (cursor % 3)
-  const pool = [...GAME_ICON_KINDS]
+  const pool = [...CARD_ART_ICON_KINDS]
   const icons: GameIconKind[] = []
 
   for (let index = 0; index < count; index += 1) {

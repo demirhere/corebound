@@ -29,7 +29,7 @@ export type RequirementIconKind = CrewSpecialization
 
 export type CardKind = 'resource' | 'crew' | 'horizon' | 'mother' | 'gate'
 
-export type GameLossReason = 'horizon-stranded' | 'gate-failed'
+export type GameLossReason = 'sector-stranded' | 'gate-failed'
 
 export type HandZone = 'crew' | 'tired'
 
@@ -74,7 +74,7 @@ export type GateDetails = {
   }
   motherPenalty: {
     threshold: number
-    extraCrew: number
+    extraAnyIcons: number
   }
 }
 
@@ -136,15 +136,30 @@ export type DeckDrawRules = {
   placement: 'nearby' | 'left-row'
 }
 
+export type CompletedStarSummary = {
+  cardId: string
+  cardTitle: string
+  crewCardIds: string[]
+  crewTitles: string[]
+  fuelSpent: number
+  motherSpent: number
+}
+
 export type BoardState = {
   cards: Record<string, Card>
   stacks: Stack[]
   decks: Deck[]
   handCardIds: string[]
   tiredCardIds: string[]
+  completedStarSummaries: CompletedStarSummary[]
   pendingWakeChoice: {
     remaining: number
     choiceCardIds: string[]
+  } | null
+  pendingScoutChoice: {
+    choiceCardIds: string[]
+    keptCardId: string | null
+    bottomedCardIds: string[]
   } | null
   pendingEffects: BoardEffect[]
   hasArrived: boolean

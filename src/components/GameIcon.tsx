@@ -41,9 +41,9 @@ function renderGameIcon(kind: GameIconKind) {
     case 'engine':
       return (
         <>
-          <circle className="icon-fill" cx="16" cy="16" r="10.4" />
-          <path className="icon-cutout" d="M16 8.7c2.6 3.1 2.5 5.8 0 7.3-3.9.2-6.2-1.4-7-4.8A9 9 0 0 1 16 8.7ZM22.8 19.4c-4 .7-6.3-.6-6.8-3.4 1.8-3.5 4.3-4.6 7.6-3.5a9 9 0 0 1-.8 6.9ZM9.2 19.4c1.4-3.8 3.7-5.1 6.8-3.4 2.1 3.3 1.9 6-.7 8.3a9 9 0 0 1-6.1-4.9Z" />
-          <circle className="icon-dot" cx="16" cy="16" r="2.2" />
+          <path className="icon-fill" d="M16 4.4 24.8 8v7.5c0 5.4-3.2 9.4-8.8 12.1-5.6-2.7-8.8-6.7-8.8-12.1V8Z" />
+          <path className="icon-cutout" d="M16 8.6c3.1 2.8 4.6 5.6 4.6 8.5 0 2.8-1.5 5.1-4.6 7-3.1-1.9-4.6-4.2-4.6-7 0-2.9 1.5-5.7 4.6-8.5Z" />
+          <path className="icon-line" d="M16 12.3v8.7M12.2 16.6h7.6M11.2 22.7h9.6" />
         </>
       )
     case 'star':
@@ -82,6 +82,21 @@ function renderGameIcon(kind: GameIconKind) {
           <circle className="icon-fill" cx="16" cy="10.6" r="5" />
           <path className="icon-fill" d="M7.6 27.2c.8-6.3 3.5-9.4 8.4-9.4s7.6 3.1 8.4 9.4Z" />
           <path className="icon-line" d="M12.4 10.6c1.8 1.1 5.4 1.1 7.2 0M11.4 22.7c2.7 1 6.5 1 9.2 0" />
+        </>
+      )
+    case 'tired-person':
+      return (
+        <>
+          <path className="icon-fill" d="M7.6 27.2c.8-5.9 3.5-8.9 8.4-8.9s7.6 3 8.4 8.9Z" />
+          <circle className="icon-fill" cx="13.7" cy="11.4" r="4.6" />
+          <path className="icon-line" d="M10.8 11.4h5.6M11.6 22.8c2.6 1 6.2 1 8.8 0M20.2 5.7h4.5l-4.5 4.6h4.9M22 13.4h3.4L22 16.9h3.8" />
+        </>
+      )
+    case 'any':
+      return (
+        <>
+          <path className="icon-line" d="M10.3 11.5c.5-3.3 2.7-5.1 6-5.1 3.6 0 5.9 2.1 5.9 5.1 0 2.4-1.3 3.8-3.5 5-1.8 1-2.7 2-2.7 4.4v.7" />
+          <circle className="icon-dot" cx="16" cy="26" r="1.55" />
         </>
       )
   }

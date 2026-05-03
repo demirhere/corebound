@@ -1,19 +1,9 @@
-import { HORIZON_DECK_ID } from './decks'
 import type { BoardEffect, Card, Deck, HorizonReward } from './types'
 
 export function createBoardEffectsForHorizonRewards(rewards: readonly HorizonReward[]) {
   return rewards.flatMap<BoardEffect>((reward) => {
     if (reward.kind === 'next_star_fuel_discount') {
       return [{ kind: 'next_star_fuel_discount', amount: reward.amount }]
-    }
-
-    if (reward.kind === 'scout') {
-      return [{
-        kind: 'deck_draw_modifier',
-        deckId: HORIZON_DECK_ID,
-        drawCount: reward.count + 1,
-        discardCount: 1,
-      }]
     }
 
     return []

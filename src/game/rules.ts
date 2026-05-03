@@ -4,6 +4,7 @@ export type HorizonStackCompletion = {
   horizonCardId: string
   horizonCardIndex: number
   requiredMotherCount: number
+  motherCoveredIcons: MotherCoveredIcon[]
   isReady: boolean
 }
 
@@ -11,9 +12,17 @@ export type GateStackCompletion = {
   gateCardId: string
   gateCardIndex: number
   isReady: boolean
-  motherCardsInPlay: number
-  extraCrewRequired: number
+  motherSpentTotal: number
+  extraAnyIconsRequired: number
   requiredMotherCount: number
+}
+
+export type MotherCoveredIcon = RequirementIconKind | 'any' | 'fuel'
+
+type HorizonNeedPayment = {
+  requiredMotherCount: number
+  motherCoveredIcons: MotherCoveredIcon[]
+  fuelMotherCount: number
 }
 
 const requirementIconKinds = ['life', 'star', 'engine', 'signal'] as const
@@ -133,7 +142,7 @@ function countRequirementIcons(icons: readonly RequirementIconKind[]) {
   return counts
 }
 
-function countMissingNeedIcons(
+export function getMissingNeedIcons(
   crewCardIds: readonly string[],
   cards: Record<string, Card>,
   icons: readonly RequirementIconKind[],
@@ -153,9 +162,8 @@ function countMissingNeedIcons(
     }
   }
 
-  const missingSpecificIconCount = requirementIconKinds.reduce(
-    (count, icon) => count + Math.max(0, requiredIcons[icon] - availableIcons[icon]),
-    0,
+  const missingSpecificIcons: MotherCoveredIcon[] = requirementIconKinds.flatMap((icon) =>
+    Array.from({ length: Math.max(0, requiredIcons[icon] - availableIcons[icon]) }).map(() => icon),
   )
   const unusedCrewIconCount = requirementIconKinds.reduce(
     (count, icon) => count + Math.max(0, availableIcons[icon] - requiredIcons[icon]),
@@ -163,7 +171,18 @@ function countMissingNeedIcons(
   )
   const missingAnyIconCount = Math.max(0, any - unusedCrewIconCount)
 
-  return missingSpecificIconCount + missingAnyIconCount
+  const missingAnyIcons: MotherCoveredIcon[] = Array.from({ length: missingAnyIconCount }).map(() => 'any')
+
+  return [...missingSpecificIcons, ...missingAnyIcons]
+}
+
+function countMissingNeedIcons(
+  crewCardIds: readonly string[],
+  cards: Record<string, Card>,
+  icons: readonly RequirementIconKind[],
+  any: number,
+) {
+  return getMissingNeedIcons(crewCardIds, cards, icons, any).length
 }
 
 function getMinimumCrewCountForNeedWithMother(
@@ -210,21 +229,139 @@ export function canCompleteNeedWithCrewAndMother(
   icons: readonly RequirementIconKind[],
   any: number,
   motherCount: number,
-  extraCrewRequired = 0,
+  extraAnyIconsRequired = 0,
 ) {
+  const requiredAnyIcons = any + extraAnyIconsRequired
   const minimumCrewCount = getMinimumCrewCountForNeedWithMother(
     crewCardIds,
     cards,
     icons,
-    any,
+    requiredAnyIcons,
     motherCount,
   )
 
   return (
     minimumCrewCount !== null &&
     crewCardIds.length > 0 &&
-    crewCardIds.length >= minimumCrewCount + extraCrewRequired
+    crewCardIds.length >= minimumCrewCount
   )
+}
+
+function getMinimumMotherFuelCount(missingFuel: number, crewCount: number, motherCount: number) {
+  if (missingFuel === 0) {
+    return 0
+  }
+
+  const maximumMotherFuelCount = Math.min(missingFuel, crewCount, motherCount)
+
+  for (let motherFuelCount = 0; motherFuelCount <= maximumMotherFuelCount; motherFuelCount += 1) {
+    const crewPairFuelCount = missingFuel - motherFuelCount
+    const crewRequired = motherFuelCount + crewPairFuelCount * 2
+
+    if (crewRequired <= crewCount) {
+      return motherFuelCount
+    }
+  }
+
+  return null
+}
+
+function isBetterHorizonNeedPayment(candidate: HorizonNeedPayment, best: HorizonNeedPayment | null) {
+  if (!best) {
+    return true
+  }
+
+  if (candidate.requiredMotherCount !== best.requiredMotherCount) {
+    return candidate.requiredMotherCount < best.requiredMotherCount
+  }
+
+  return candidate.fuelMotherCount < best.fuelMotherCount
+}
+
+function getHorizonNeedPayment(
+  crewCardIds: readonly string[],
+  cards: Record<string, Card>,
+  icons: readonly RequirementIconKind[],
+  requiredFuel: number,
+  fuelCount: number,
+  motherCount: number,
+): HorizonNeedPayment | null {
+  const missingFuel = requiredFuel - fuelCount
+
+  if (missingFuel < 0 || crewCardIds.length === 0) {
+    return null
+  }
+
+  const selectedIconCrewCardIds: string[] = []
+  let best: HorizonNeedPayment | null = null
+
+  function considerSelectedIconCrew() {
+    const missingIcons = getMissingNeedIcons(selectedIconCrewCardIds, cards, icons, 0)
+
+    if (missingIcons.length > motherCount) {
+      return
+    }
+
+    const remainingCrewCount = crewCardIds.length - selectedIconCrewCardIds.length
+    const remainingMotherCount = motherCount - missingIcons.length
+    const fuelMotherCount = getMinimumMotherFuelCount(missingFuel, remainingCrewCount, remainingMotherCount)
+
+    if (fuelMotherCount === null) {
+      return
+    }
+
+    const motherCoveredIcons = [
+      ...missingIcons,
+      ...Array.from({ length: fuelMotherCount }, () => 'fuel' as const),
+    ]
+    const candidate = {
+      requiredMotherCount: motherCoveredIcons.length,
+      motherCoveredIcons,
+      fuelMotherCount,
+    }
+
+    if (isBetterHorizonNeedPayment(candidate, best)) {
+      best = candidate
+    }
+  }
+
+  function search(startIndex: number) {
+    considerSelectedIconCrew()
+
+    for (let index = startIndex; index < crewCardIds.length; index += 1) {
+      const cardId = crewCardIds[index]
+
+      if (!cardId) {
+        continue
+      }
+
+      selectedIconCrewCardIds.push(cardId)
+      search(index + 1)
+      selectedIconCrewCardIds.pop()
+    }
+  }
+
+  search(0)
+
+  return best
+}
+
+export function canCompleteHorizonNeedWithFuelOptions(
+  crewCardIds: readonly string[],
+  cards: Record<string, Card>,
+  icons: readonly RequirementIconKind[],
+  requiredFuel: number,
+  availableFuelCount: number,
+  motherCount: number,
+) {
+  return getHorizonNeedPayment(
+    crewCardIds,
+    cards,
+    icons,
+    requiredFuel,
+    Math.min(requiredFuel, availableFuelCount),
+    motherCount,
+  ) !== null
 }
 
 export function getHorizonStackCompletion(
@@ -283,21 +420,28 @@ export function getHorizonStackCompletion(
 
   const missingIconCount = countMissingNeedIcons(crewCardIds, cards, horizonCard.horizon.need.icons, 0)
   const requiredFuel = Math.max(0, horizonCard.horizon.need.fuel - fuelDiscount)
-  const hasRequiredFuel = fuelCount === requiredFuel
-  const hasRequiredIcons = missingIconCount <= motherCount
+  const payment = getHorizonNeedPayment(
+    crewCardIds,
+    cards,
+    horizonCard.horizon.need.icons,
+    requiredFuel,
+    fuelCount,
+    motherCount,
+  )
 
   return {
     horizonCardId,
     horizonCardIndex,
-    requiredMotherCount: missingIconCount,
-    isReady: hasRequiredFuel && crewCardIds.length > 0 && hasRequiredIcons && !hasBlockingCard,
+    requiredMotherCount: payment?.requiredMotherCount ?? missingIconCount,
+    motherCoveredIcons: payment?.motherCoveredIcons ?? [],
+    isReady: payment !== null && !hasBlockingCard,
   }
 }
 
 export function getGateStackCompletion(
   stack: Stack,
   cards: Record<string, Card>,
-  spentMotherCardCount: number,
+  motherSpentTotalBefore: number,
 ): GateStackCompletion | null {
   const gateCardIndex = stack.cardIds.findIndex((cardId) => {
     const card = cards[cardId]
@@ -338,36 +482,44 @@ export function getGateStackCompletion(
   }
 
   const crewCardIds = getCrewCardIds(stack, cards)
+  const baseRequiredMotherCount = countMissingNeedIcons(
+    crewCardIds,
+    cards,
+    gateCard.gate.need.icons,
+    gateCard.gate.need.any,
+  )
+  const baseMotherSpentTotal = motherSpentTotalBefore + Math.min(baseRequiredMotherCount, usableMotherCount)
+  const extraAnyIconsRequired =
+    baseMotherSpentTotal >= gateCard.gate.motherPenalty.threshold
+      ? gateCard.gate.motherPenalty.extraAnyIcons
+      : 0
+  const requiredAnyIcons = gateCard.gate.need.any + extraAnyIconsRequired
   const requiredMotherCount = countMissingNeedIcons(
     crewCardIds,
     cards,
     gateCard.gate.need.icons,
-    gateCard.gate.need.any,
+    requiredAnyIcons,
   )
-  const projectedMotherCardsInPlay = spentMotherCardCount + Math.min(requiredMotherCount, usableMotherCount)
+  const motherSpentTotal = motherSpentTotalBefore + Math.min(requiredMotherCount, usableMotherCount)
   const minimumCrewCount = getMinimumCrewCountForNeedWithMother(
     crewCardIds,
     cards,
     gateCard.gate.need.icons,
-    gateCard.gate.need.any,
+    requiredAnyIcons,
     usableMotherCount,
   )
-  const extraCrewRequired =
-    projectedMotherCardsInPlay >= gateCard.gate.motherPenalty.threshold
-      ? gateCard.gate.motherPenalty.extraCrew
-      : 0
 
   return {
     gateCardId,
     gateCardIndex,
-    motherCardsInPlay: projectedMotherCardsInPlay,
-    extraCrewRequired,
+    motherSpentTotal,
+    extraAnyIconsRequired,
     requiredMotherCount,
     isReady:
       minimumCrewCount !== null &&
       requiredMotherCount <= usableMotherCount &&
       crewCardIds.length > 0 &&
-      crewCardIds.length >= minimumCrewCount + extraCrewRequired &&
+      crewCardIds.length >= minimumCrewCount &&
       !hasBlockingCard,
   }
 }

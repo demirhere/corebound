@@ -30,6 +30,7 @@ type BoardView = Pick<
   | 'handCardIds'
   | 'tiredCardIds'
   | 'pendingWakeChoice'
+  | 'pendingScoutChoice'
   | 'pendingEffects'
   | 'dropTargetStackId'
   | 'dropTargetDeckId'
@@ -56,14 +57,17 @@ type BoardProps = {
   onHandCardPointerDown: HandPointerDownHandler
   onHandCardKeyDown: HandKeyDownHandler
   onWakeCrewChoice: (cardId: string) => void
+  onScoutCardChoice: (cardId: string) => void
+  onScoutChoiceReset: () => void
+  onScoutChoiceConfirm: () => void
   onResetGame: () => void
 }
 
 function lossContent(reason: GameLossReason) {
-  if (reason === 'horizon-stranded') {
+  if (reason === 'sector-stranded') {
     return {
       title: 'Stranded in the Reach.',
-      body: 'No drawn Horizon can be completed with your available Fuel, Ready crew, and unused MOTHER cards.',
+      body: 'No drawn Sector can be completed with your available Fuel, Ready crew, and unused MOTHER cards.',
     }
   }
 
@@ -92,15 +96,65 @@ export function Board({
   onHandCardPointerDown,
   onHandCardKeyDown,
   onWakeCrewChoice,
+  onScoutCardChoice,
+  onScoutChoiceReset,
+  onScoutChoiceConfirm,
   onResetGame,
 }: BoardProps) {
   const loss = board.lossReason ? lossContent(board.lossReason) : null
   const fuelDiscount = getNextStarFuelDiscount(board.pendingEffects)
+  const scoutChoice = board.pendingScoutChoice
   const wakeChoiceCards = board.pendingWakeChoice?.choiceCardIds.flatMap((cardId) => {
     const card = board.cards[cardId]
 
     return card?.kind === 'crew' ? [card] : []
   }) ?? []
+  const scoutChoiceCards = scoutChoice?.choiceCardIds.flatMap((cardId) => {
+    const card = board.cards[cardId]
+
+    return card?.kind === 'horizon' ? [card] : []
+  }) ?? []
+  const scoutChoiceComplete = Boolean(
+    scoutChoice?.keptCardId &&
+    scoutChoice.bottomedCardIds.length === scoutChoice.choiceCardIds.length - 1,
+  )
+  const scoutInstruction = !scoutChoice
+    ? ''
+    : !scoutChoice.keptCardId
+      ? 'Choose 1 card to place on top of the Sector deck.'
+      : scoutChoiceComplete
+        ? 'Confirm to place the chosen card on top and bottom the rest in the selected order.'
+        : `Choose bottom card ${scoutChoice.bottomedCardIds.length + 1} of ${scoutChoice.choiceCardIds.length - 1}.`
+
+  function scoutCardChoiceLabel(cardId: string) {
+    if (!scoutChoice) {
+      return ''
+    }
+
+    if (scoutChoice.keptCardId === cardId) {
+      return 'Top'
+    }
+
+    const bottomIndex = scoutChoice.bottomedCardIds.indexOf(cardId)
+
+    if (bottomIndex >= 0) {
+      return `Bottom ${bottomIndex + 1}`
+    }
+
+    return scoutChoice.keptCardId ? `Pick bottom ${scoutChoice.bottomedCardIds.length + 1}` : 'Pick top'
+  }
+
+  function scoutCardChoiceClass(cardId: string) {
+    if (!scoutChoice) {
+      return ''
+    }
+
+    if (scoutChoice.keptCardId === cardId) {
+      return 'is-scout-kept'
+    }
+
+    return scoutChoice.bottomedCardIds.includes(cardId) ? 'is-scout-bottomed' : ''
+  }
 
   return (
     <section
@@ -114,17 +168,14 @@ export function Board({
       <aside className="board-notes" aria-label="Quick play instructions">
         <h2>Instructions</h2>
         <ol>
-          <li>Draw 3 horizon cards, choose 1</li>
+          <li>Draw 3 sector cards, choose 1</li>
+          <li>Always send 1+ crew on the trip</li>
           <li>Finish it and discard the others</li>
           <li>Don't run out of fuel</li>
           <li>Use MOTHER wisely</li>
           <li>Plan for the Gate</li>
-          <li>After all Horizons, attempt the Gate</li>
+          <li>After all Sectors, attempt the Gate</li>
         </ol>
-      </aside>
-
-      <aside className="discard-zone" data-discard-zone aria-label="Discard area">
-        <span className="discard-label">Discard</span>
       </aside>
 
       {board.decks
@@ -224,6 +275,58 @@ export function Board({
                 }}
               />
             ))}
+          </div>
+        </section>
+      )}
+
+      {!board.pendingWakeChoice && scoutChoice && scoutChoiceCards.length > 0 && (
+        <section
+          className="arrival-panel scout-choice-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="scout-choice-title"
+        >
+          <p className="arrival-kicker">Scout</p>
+          <h2 id="scout-choice-title">Set the Sector deck</h2>
+          <p>{scoutInstruction}</p>
+          <div className="scout-choice-cards">
+            {scoutChoiceCards.map((card) => {
+              const choiceClass = scoutCardChoiceClass(card.id)
+              const choiceLabel = scoutCardChoiceLabel(card.id)
+
+              return (
+                <div key={card.id} className="scout-choice-item">
+                  <CardShell
+                    card={card}
+                    className={`wake-choice-card scout-choice-card ${choiceClass}`}
+                    ariaLabel={`${card.title}. ${choiceLabel}.`}
+                    onPointerDown={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      onScoutCardChoice(card.id)
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') {
+                        return
+                      }
+
+                      event.preventDefault()
+                      event.stopPropagation()
+                      onScoutCardChoice(card.id)
+                    }}
+                  />
+                  <span className="scout-choice-badge">{choiceLabel}</span>
+                </div>
+              )
+            })}
+          </div>
+          <div className="scout-choice-actions">
+            <button type="button" onClick={onScoutChoiceReset} disabled={!scoutChoice.keptCardId}>
+              Reset order
+            </button>
+            <button type="button" onClick={onScoutChoiceConfirm} disabled={!scoutChoiceComplete}>
+              Use Scout
+            </button>
           </div>
         </section>
       )}

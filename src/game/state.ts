@@ -4,6 +4,7 @@ import {
   appendPlaytestEvents,
   type PlaytestLogEntry,
   type PlaytestLogEvent,
+  type PlaytestLogSession,
 } from './playtestLog'
 
 export type BoardUpdateResult =
@@ -19,6 +20,9 @@ export type GameState = {
   board: BoardState
   playtestLog: PlaytestLogEntry[]
   nextLogId: number
+  previousPlaytestLogSessions: PlaytestLogSession[]
+  nextPlaytestLogSessionId: number
+  playtestLogSessionStartedAt: string
 }
 
 export type GameAction =
@@ -29,17 +33,29 @@ export type GameAction =
     }
   | {
       type: 'reset-game'
+      occurredAt: string
     }
 
-export function createInitialGameState(): GameState {
+function createGameState(
+  startedAt: string,
+  previousPlaytestLogSessions: PlaytestLogSession[] = [],
+  nextPlaytestLogSessionId = 1,
+): GameState {
   const setup = createInitialBoardSetup()
-  const playtestLog = appendPlaytestEvents([], 1, setup.events, new Date().toISOString())
+  const playtestLog = appendPlaytestEvents([], 1, setup.events, startedAt)
 
   return {
     board: setup.board,
     playtestLog: playtestLog.entries,
     nextLogId: playtestLog.nextLogId,
+    previousPlaytestLogSessions,
+    nextPlaytestLogSessionId,
+    playtestLogSessionStartedAt: startedAt,
   }
+}
+
+export function createInitialGameState(): GameState {
+  return createGameState(new Date().toISOString())
 }
 
 export function withPlaytestEvents(
@@ -60,7 +76,23 @@ function resolveBoardUpdate(result: BoardUpdateResult) {
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   if (action.type === 'reset-game') {
-    return createInitialGameState()
+    const previousPlaytestLogSessions = state.playtestLog.length > 0
+      ? [
+          {
+            id: state.nextPlaytestLogSessionId,
+            startedAt: state.playtestLogSessionStartedAt,
+            endedAt: action.occurredAt,
+            entries: state.playtestLog,
+          },
+          ...state.previousPlaytestLogSessions,
+        ]
+      : state.previousPlaytestLogSessions
+
+    return createGameState(
+      action.occurredAt,
+      previousPlaytestLogSessions,
+      state.nextPlaytestLogSessionId + (state.playtestLog.length > 0 ? 1 : 0),
+    )
   }
 
   const update = resolveBoardUpdate(action.update(state.board))
@@ -80,5 +112,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     board: update.board,
     playtestLog: playtestLog.entries,
     nextLogId: playtestLog.nextLogId,
+    previousPlaytestLogSessions: state.previousPlaytestLogSessions,
+    nextPlaytestLogSessionId: state.nextPlaytestLogSessionId,
+    playtestLogSessionStartedAt: state.playtestLogSessionStartedAt,
   }
 }

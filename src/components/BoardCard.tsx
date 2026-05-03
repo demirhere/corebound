@@ -93,8 +93,8 @@ function renderReward(reward: HorizonReward, index: number) {
     if (reward.label === 'Wake') {
       return [
         <span key={`wake-${index}`} className="card-wake-reward">
-          <GameIcon kind="person" />
-          <span>Choose 1 of 2. Will join tired.</span>
+          <span>Choose 1 of 2</span>
+          <GameIcon kind="tired-person" />
         </span>,
       ]
     }
@@ -105,11 +105,11 @@ function renderReward(reward: HorizonReward, index: number) {
     )
   }
   if (reward.kind === 'scout') {
-    return [
-      <span key={`scout-${index}`} className="card-rule-text">
-        Next round peek at {reward.count} Horizon cards and discard 1.
-      </span>,
-    ]
+      return [
+        <span key={`scout-${index}`} className="card-rule-text">
+        Look at the next {reward.count} Sector cards. Keep 1 on top; bottom the rest in any order.
+        </span>,
+      ]
   }
   if (reward.kind === 'next_star_fuel_discount') {
     return [
@@ -119,37 +119,61 @@ function renderReward(reward: HorizonReward, index: number) {
     ]
   }
   if (reward.kind === 'ready') {
-    const readyText = reward.count === 1
-      ? 'Ready 1 crew that was already Tired before this proposal.'
-      : `Ready ${reward.count} crew that were already Tired before this proposal.`
+    const readyTitle = reward.count === 1 ? 'Ready 1 tired crew' : `Ready ${reward.count} tired crew`
 
-    return [
-      <span key={`ready-${index}`} className="card-wake-reward">
-        {Array.from({ length: reward.count }, (_, rewardIndex) =>
-          <GameIcon key={`ready-${index}-${rewardIndex}`} kind="person" />,
-        )}
-        <span>{readyText}</span>
-      </span>,
-    ]
+    return Array.from({ length: reward.count }, (_, rewardIndex) => (
+      <span
+        key={`ready-${index}-${rewardIndex}`}
+        className="card-wake-reward card-ready-transition"
+        role="img"
+        aria-label={readyTitle}
+        title={readyTitle}
+      >
+        <GameIcon kind="person" />
+        <span className="card-ready-transition-arrow" aria-hidden="true" />
+        <GameIcon kind="tired-person" />
+      </span>
+    ))
   }
   return []
 }
 
 function renderAnyNeed(count: number, keyPrefix: string) {
   return Array.from({ length: count }, (_, index) => (
-    <GameIcon key={`${keyPrefix}-any-${index}`} kind="person" />
+    <GameIcon key={`${keyPrefix}-any-${index}`} kind="any" />
   ))
 }
 
+function renderCrewFuelMath() {
+  return (
+    <div className="card-crew-fuel-math">
+      <p className="card-rule-text">
+        Combine with <GameIcon kind="person" /> or <GameIcon kind="mother" /> to use as <GameIcon kind="fuel" />.
+      </p>
+    </div>
+  )
+}
+
 function renderGatePenalty(gate: GateDetails) {
-  if (gate.motherPenalty.extraCrew <= 0) {
+  if (gate.motherPenalty.extraAnyIcons <= 0) {
     return null
   }
 
   return (
-    <p className="card-rule-text">
-      {gate.motherPenalty.threshold}+ MOTHER cards: need +{gate.motherPenalty.extraCrew} crew.
-    </p>
+    <div className="card-gate-penalty">
+      <span className="card-gate-penalty-divider" aria-hidden="true" />
+      <p className="card-wake-reward card-gate-penalty-line">
+        <span className="card-gate-penalty-pair">
+          <span>+{gate.motherPenalty.extraAnyIcons}</span>
+          <GameIcon kind="any" />
+        </span>
+        <span>if</span>
+        <span className="card-gate-penalty-pair">
+          <span>+{gate.motherPenalty.threshold}</span>
+          <GameIcon kind="mother" />
+        </span>
+      </p>
+    </div>
   )
 }
 
@@ -161,7 +185,7 @@ function renderGameplayCardContent(card: CardView, fuelDiscount: number) {
         <div className="card-primary-icons">
           <GameIcon kind={card.resource} />
         </div>
-        <p className="card-rule-text">Stack this on a Horizon card when it asks for {titleCase(card.resource)}.</p>
+        <p className="card-rule-text">Stack this on a Sector card when it asks for {titleCase(card.resource)}.</p>
       </>
     )
   }
@@ -175,7 +199,7 @@ function renderGameplayCardContent(card: CardView, fuelDiscount: number) {
         <div className="card-primary-icons">
           {renderIconPips(specializations, `${card.id}-crew`)}
         </div>
-        <p className="card-rule-text">Covers both shown specializations when committed.</p>
+        {renderCrewFuelMath()}
       </>
     )
   }
@@ -190,7 +214,7 @@ function renderGameplayCardContent(card: CardView, fuelDiscount: number) {
         <p className="card-rule-text">
           {card.spentMother
             ? 'Spent. Counts against MOTHER pressure and cannot be reused.'
-            : 'Covers 1 non-Fuel icon on a Horizon or Gate. Spent after use.'}
+            : 'Covers 1 non-Fuel icon, or pairs with Crew as Fuel. Spent after use.'}
         </p>
       </>
     )
@@ -238,7 +262,7 @@ function renderGameplayCardContent(card: CardView, fuelDiscount: number) {
           </div>
         </div>
         {renderGatePenalty(card.gate)}
-        <p className="card-rule-text">Finish after traveling through all Horizons.</p>
+        <p className="card-rule-text">Finish after traveling through all Sectors.</p>
       </>
     )
   }

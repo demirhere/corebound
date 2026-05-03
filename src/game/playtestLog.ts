@@ -11,6 +11,13 @@ export type PlaytestLogEntry = PlaytestLogEvent & {
   timestamp: string
 }
 
+export type PlaytestLogSession = {
+  id: number
+  startedAt: string
+  endedAt: string
+  entries: PlaytestLogEntry[]
+}
+
 export type AppendedPlaytestLog = {
   entries: PlaytestLogEntry[]
   nextLogId: number

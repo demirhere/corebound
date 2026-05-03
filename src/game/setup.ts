@@ -140,7 +140,7 @@ function createGateCard(
   label: string,
   icons: RequirementIconKind[],
   any: number,
-  motherPenalty: { threshold: number; extraCrew: number },
+  motherPenalty: { threshold: number; extraAnyIcons: number },
 ): CardBlueprint {
   return {
     title,
@@ -299,7 +299,7 @@ const sectorGate = createGateCard(
   'SECTOR GATE',
   ['engine', 'life', 'star', 'signal'],
   1,
-  { threshold: 3, extraCrew: 1 },
+  { threshold: 3, extraAnyIcons: 1 },
 )
 
 export function createInitialBoardSetup(): { board: BoardState; events: PlaytestLogEvent[] } {
@@ -353,7 +353,7 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
       },
       {
         id: HORIZON_DECK_ID,
-        title: 'Horizon Deck',
+        title: sectorGate.title,
         icon: 'star',
         hue: 261,
         accent: '#b99cff',
@@ -394,7 +394,9 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
     ],
     handCardIds: handCards.map((card) => card.id),
     tiredCardIds: [],
+    completedStarSummaries: [],
     pendingWakeChoice: null,
+    pendingScoutChoice: null,
     pendingEffects: [],
     hasArrived: false,
     lossReason: null,
@@ -410,7 +412,7 @@ export function createInitialBoardSetup(): { board: BoardState; events: Playtest
       setupDeckCreatedEvent('fuel-deck', 'Fuel Deck', fuelDeckCards),
       setupDeckCreatedEvent(MOTHER_DECK_ID, 'MOTHER Deck', motherDeckCards),
       // setupDeckCreatedEvent('hull-deck', 'Hull Deck', hullDeckCards),
-      setupDeckCreatedEvent('horizon-deck', 'Horizon Deck', horizonDeckCards),
+      setupDeckCreatedEvent(HORIZON_DECK_ID, 'Sector Deck', horizonDeckCards),
       setupDeckCreatedEvent('cryo-deck', 'Cryo Deck', cryoDeckCards),
       ...(gateCard ? [setupGateRevealedEvent(gateCard, 'stack-sector-gate')] : []),
       ...initialFuelCards.map((card, index) => setupResourceDrawnEvent(card, 'Fuel Deck', index + 1)),
