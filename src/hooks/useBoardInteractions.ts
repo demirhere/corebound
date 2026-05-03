@@ -1275,8 +1275,10 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
           return
         }
 
-        commitStackDragPosition(drag)
         clearDragTransform(drag.activeElement)
+        flushSync(() => {
+          commitStackDragPosition(drag)
+        })
         stackOnDropTarget(drag.activeStackId, dropTarget)
         return
       }
