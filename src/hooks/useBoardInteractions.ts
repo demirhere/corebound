@@ -52,6 +52,7 @@ import type {
 import {
   getNearestDeckDropTarget,
   getNearestDropTarget,
+  getStackDropTargetIds,
 } from '../board/dropTargets'
 import {
   canPutCardIdsInHand,
@@ -59,6 +60,9 @@ import {
   getCardHandZone,
   getHandCardIds,
 } from '../board/handState'
+import {
+  getNextStarFuelDiscount,
+} from '../game/effects'
 import {
   clamp,
 } from '../game/geometry'
@@ -82,6 +86,7 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
   const pendingDragIdsRef = useRef<Set<number>>(new Set())
   const dragFrameRef = useRef<number | null>(null)
   const stackDropTargetCountsRef = useRef<Map<string, number>>(new Map())
+  const stackableTargetCountsRef = useRef<Map<string, number>>(new Map())
   const deckDropTargetCountsRef = useRef<Map<string, number>>(new Map())
   const handDropTargetCountsRef = useRef<Record<HandZone, number>>({ crew: 0, tired: 0 })
   const discardDropTargetCountRef = useRef(0)
@@ -115,12 +120,13 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
     dragsRef.current.clear()
     pendingDragIdsRef.current.clear()
     stackDropTargetCountsRef.current.clear()
+    stackableTargetCountsRef.current.clear()
     deckDropTargetCountsRef.current.clear()
     handDropTargetCountsRef.current = { crew: 0, tired: 0 }
     discardDropTargetCountRef.current = 0
     boardRef.current
-      ?.querySelectorAll<HTMLElement>('.is-drop-target')
-      .forEach((element) => element.classList.remove('is-drop-target'))
+      ?.querySelectorAll<HTMLElement>('.is-drop-target, .is-stackable-target')
+      .forEach((element) => element.classList.remove('is-drop-target', 'is-stackable-target'))
     boardRef.current
       ?.querySelectorAll<HTMLElement>('.is-discard-preview')
       .forEach((element) => element.classList.remove('is-discard-preview'))
@@ -149,6 +155,10 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
   useLayoutEffect(() => {
     for (const stackId of stackDropTargetCountsRef.current.keys()) {
       getStackElement(stackId)?.classList.add('is-drop-target')
+    }
+
+    for (const stackId of stackableTargetCountsRef.current.keys()) {
+      getStackElement(stackId)?.classList.add('is-stackable-target')
     }
 
     for (const deckId of deckDropTargetCountsRef.current.keys()) {
@@ -434,6 +444,76 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
     }
   }
 
+  function toggleStackableTarget(stackId: string | null, enabled: boolean) {
+    if (!stackId) {
+      return
+    }
+
+    const counts = stackableTargetCountsRef.current
+    const currentCount = counts.get(stackId) ?? 0
+    const nextCount = enabled ? currentCount + 1 : Math.max(0, currentCount - 1)
+
+    if (nextCount === currentCount) {
+      return
+    }
+
+    if (nextCount === 0) {
+      counts.delete(stackId)
+      getStackElement(stackId)?.classList.remove('is-stackable-target')
+      return
+    }
+
+    counts.set(stackId, nextCount)
+
+    if (currentCount === 0) {
+      getStackElement(stackId)?.classList.add('is-stackable-target')
+    }
+  }
+
+  function setStackableTargets(drag: StackDragState, stackIds: readonly string[]) {
+    const currentIds = new Set(drag.stackableTargetStackIds)
+    const nextIds = new Set(stackIds)
+
+    for (const stackId of currentIds) {
+      if (!nextIds.has(stackId)) {
+        toggleStackableTarget(stackId, false)
+      }
+    }
+
+    for (const stackId of nextIds) {
+      if (!currentIds.has(stackId)) {
+        toggleStackableTarget(stackId, true)
+      }
+    }
+
+    drag.stackableTargetStackIds = Array.from(nextIds)
+  }
+
+  function clearStackableTargets(drag: StackDragState) {
+    setStackableTargets(drag, [])
+  }
+
+  function refreshStackableTargets(drag: StackDragState) {
+    const activeId = drag.activeStackId
+
+    if (!activeId) {
+      clearStackableTargets(drag)
+      return
+    }
+
+    const current = boardStateRef.current
+
+    setStackableTargets(
+      drag,
+      getStackDropTargetIds(
+        current.stacks,
+        current.cards,
+        activeId,
+        getNextStarFuelDiscount(current.pendingEffects),
+      ),
+    )
+  }
+
   function toggleDeckDropTarget(deckId: string | null, enabled: boolean) {
     if (!deckId) {
       return
@@ -517,6 +597,7 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
 
   function clearStackDragDropTarget(drag: StackDragState) {
     toggleStackDropTarget(drag.dropTargetStackId, false)
+    clearStackableTargets(drag)
     toggleDeckDropTarget(drag.dropTargetDeckId, false)
     if (drag.dropTargetHandZone) {
       toggleHandDropTarget(drag.dropTargetHandZone, false)
@@ -599,6 +680,7 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
     })
 
     drag.activeElement = getStackElement(activeId) ?? (activeId === drag.stackId ? drag.sourceElement : null)
+    refreshStackableTargets(drag)
     return true
   }
 
@@ -673,6 +755,7 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
           current.cards,
           activeId,
           drag.metrics,
+          getNextStarFuelDiscount(current.pendingEffects),
         )
 
     if (
@@ -910,11 +993,13 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
       dropTargetDeckId: null,
       dropTargetHandZone: null,
       dropTargetDiscard: false,
+      stackableTargetStackIds: [],
       handInsertIndex: null,
       hasMoved: true,
     }
 
     dragsRef.current.set(drag.pointerId, stackDrag)
+    refreshStackableTargets(stackDrag)
     return stackDrag
   }
 
@@ -992,6 +1077,7 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
       dropTargetDeckId: board.dropTargetDeckId,
       dropTargetHandZone: null,
       dropTargetDiscard: false,
+      stackableTargetStackIds: [],
       handInsertIndex: null,
       hasMoved: false,
     })

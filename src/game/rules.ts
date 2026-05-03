@@ -27,6 +27,12 @@ type HorizonNeedPayment = {
 
 const requirementIconKinds = ['life', 'star', 'engine', 'signal'] as const
 
+type CompletionNeed = {
+  icons: readonly RequirementIconKind[]
+  any: number
+  fuel: number
+}
+
 export function isFaceDownStack(stack: Stack, cards: Record<string, Card>) {
   return stack.cardIds.length > 0 && stack.cardIds.every((cardId) => cards[cardId]?.faceUp === false)
 }
@@ -39,8 +45,213 @@ export function isSingleFaceDownCard(stack: Stack, cards: Record<string, Card>) 
   return stack.cardIds.length === 1 && cards[stack.cardIds[0]]?.faceUp === false
 }
 
-export function canStackCards(sourceStack: Stack, targetStack: Stack, cards: Record<string, Card>) {
-  return isFaceUpStack(sourceStack, cards) && isFaceUpStack(targetStack, cards)
+function iconCrewCardsAreUseful(
+  crewCardIds: readonly string[],
+  cards: Record<string, Card>,
+  icons: readonly RequirementIconKind[],
+  any: number,
+) {
+  const missingWithAllCrew = getMissingNeedIcons(crewCardIds, cards, icons, any).length
+
+  return crewCardIds.every((cardId) => {
+    const missingWithoutCard = getMissingNeedIcons(
+      crewCardIds.filter((candidateId) => candidateId !== cardId),
+      cards,
+      icons,
+      any,
+    ).length
+
+    return missingWithoutCard > missingWithAllCrew
+  })
+}
+
+function canUseFuelSupport(
+  crewCount: number,
+  motherCount: number,
+  fuelCardCount: number,
+  requiredFuel: number,
+) {
+  const remainingFuel = requiredFuel - fuelCardCount
+
+  if (remainingFuel < 0) {
+    return false
+  }
+
+  if (remainingFuel === 0) {
+    return crewCount === 0 && motherCount === 0
+  }
+
+  return motherCount <= remainingFuel && crewCount + motherCount <= remainingFuel * 2
+}
+
+function canAssignUsefulSupport(
+  crewCardIds: readonly string[],
+  fuelCardCount: number,
+  motherCount: number,
+  cards: Record<string, Card>,
+  need: CompletionNeed,
+) {
+  if (fuelCardCount > need.fuel) {
+    return false
+  }
+
+  const iconCrewCardIds: string[] = []
+  let canAssignSupport = false
+
+  function searchCrewAssignments(index: number) {
+    if (canAssignSupport) {
+      return
+    }
+
+    if (index >= crewCardIds.length) {
+      if (!iconCrewCardsAreUseful(iconCrewCardIds, cards, need.icons, need.any)) {
+        return
+      }
+
+      const missingIconCount = getMissingNeedIcons(
+        iconCrewCardIds,
+        cards,
+        need.icons,
+        need.any,
+      ).length
+      const fuelCrewCount = crewCardIds.length - iconCrewCardIds.length
+
+      for (let iconMotherCount = 0; iconMotherCount <= Math.min(motherCount, missingIconCount); iconMotherCount += 1) {
+        const fuelMotherCount = motherCount - iconMotherCount
+
+        if (canUseFuelSupport(fuelCrewCount, fuelMotherCount, fuelCardCount, need.fuel)) {
+          canAssignSupport = true
+          return
+        }
+      }
+
+      return
+    }
+
+    const cardId = crewCardIds[index]
+
+    if (!cardId) {
+      searchCrewAssignments(index + 1)
+      return
+    }
+
+    iconCrewCardIds.push(cardId)
+    searchCrewAssignments(index + 1)
+    iconCrewCardIds.pop()
+    searchCrewAssignments(index + 1)
+  }
+
+  searchCrewAssignments(0)
+
+  return canAssignSupport
+}
+
+function canUseAllCardsInCompletionStack(
+  cardIds: readonly string[],
+  cards: Record<string, Card>,
+  fuelDiscount: number,
+  motherSpentTotalBefore: number,
+) {
+  let objectiveCard: Card | null = null
+  const crewCardIds: string[] = []
+  let fuelCardCount = 0
+  let motherCount = 0
+
+  for (const cardId of cardIds) {
+    const card = cards[cardId]
+
+    if (!card?.faceUp) {
+      return false
+    }
+
+    if ((card.kind === 'horizon' && card.horizon) || (card.kind === 'gate' && card.gate)) {
+      if (objectiveCard) {
+        return false
+      }
+
+      objectiveCard = card
+      continue
+    }
+
+    if (card.kind === 'crew') {
+      crewCardIds.push(card.id)
+    } else if (card.kind === 'resource' && card.resource === 'fuel') {
+      fuelCardCount += 1
+    } else if (isUsableMotherCard(card)) {
+      motherCount += 1
+    } else {
+      return false
+    }
+  }
+
+  if (!objectiveCard || crewCardIds.length + fuelCardCount + motherCount === 0) {
+    return false
+  }
+
+  if (objectiveCard.kind === 'horizon' && objectiveCard.horizon) {
+    return canAssignUsefulSupport(
+      crewCardIds,
+      fuelCardCount,
+      motherCount,
+      cards,
+      {
+        icons: objectiveCard.horizon.need.icons,
+        any: 0,
+        fuel: Math.max(0, objectiveCard.horizon.need.fuel - fuelDiscount),
+      },
+    )
+  }
+
+  if (objectiveCard.kind === 'gate' && objectiveCard.gate && fuelCardCount === 0) {
+    const extraAnyIcons = motherSpentTotalBefore + motherCount >= objectiveCard.gate.motherPenalty.threshold
+      ? objectiveCard.gate.motherPenalty.extraAnyIcons
+      : 0
+
+    return canAssignUsefulSupport(
+      crewCardIds,
+      0,
+      motherCount,
+      cards,
+      {
+        icons: objectiveCard.gate.need.icons,
+        any: objectiveCard.gate.need.any + extraAnyIcons,
+        fuel: 0,
+      },
+    )
+  }
+
+  return false
+}
+
+function canStackAsSupplyPile(sourceStack: Stack, targetStack: Stack, cards: Record<string, Card>) {
+  const stackedCards = [...targetStack.cardIds, ...sourceStack.cardIds].map((cardId) => cards[cardId])
+
+  return (
+    stackedCards.every((card) => card?.kind === 'resource' && card.resource === 'fuel') ||
+    stackedCards.every((card) => card?.kind === 'mother' && !card.spentMother)
+  )
+}
+
+export function canStackCards(
+  sourceStack: Stack,
+  targetStack: Stack,
+  cards: Record<string, Card>,
+  fuelDiscount = 0,
+  motherSpentTotalBefore = 0,
+) {
+  return (
+    isFaceUpStack(sourceStack, cards) &&
+    isFaceUpStack(targetStack, cards) &&
+    (
+      canStackAsSupplyPile(sourceStack, targetStack, cards) ||
+      canUseAllCardsInCompletionStack(
+        [...targetStack.cardIds, ...sourceStack.cardIds],
+        cards,
+        fuelDiscount,
+        motherSpentTotalBefore,
+      )
+    )
+  )
 }
 
 export function canCombineAsDeck(sourceStack: Stack, targetStack: Stack, cards: Record<string, Card>) {

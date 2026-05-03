@@ -7,6 +7,7 @@ import {
 import {
   canCombineAsDeck,
   canStackCards,
+  countSpentMotherCardsInPlay,
   isFaceDownStack,
 } from '../game/rules'
 import type { BoardMetrics, Bounds, Card, Deck, DropTarget, Stack } from '../game/types'
@@ -19,6 +20,8 @@ export function getNearestDropTarget(
   cards: Record<string, Card>,
   sourceStackId: string,
   metrics: BoardMetrics,
+  fuelDiscount = 0,
+  motherSpentTotalBefore = countSpentMotherCardsInPlay(stacks, cards),
 ): DropTarget {
   const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
 
@@ -55,7 +58,7 @@ export function getNearestDropTarget(
     }
 
     if (
-      !canStackCards(sourceStack, targetStack, cards) &&
+      !canStackCards(sourceStack, targetStack, cards, fuelDiscount, motherSpentTotalBefore) &&
       !canCombineAsDeck(sourceStack, targetStack, cards)
     ) {
       continue
@@ -78,6 +81,31 @@ export function getNearestDropTarget(
     stackId: nearestKind === 'stack' ? nearestId : null,
     deckId: nearestKind === 'deck' ? nearestId : null,
   }
+}
+
+export function getStackDropTargetIds(
+  stacks: Stack[],
+  cards: Record<string, Card>,
+  sourceStackId: string,
+  fuelDiscount = 0,
+  motherSpentTotalBefore = countSpentMotherCardsInPlay(stacks, cards),
+) {
+  const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
+
+  if (!sourceStack) {
+    return []
+  }
+
+  return stacks.flatMap((targetStack) => {
+    if (targetStack.id === sourceStackId) {
+      return []
+    }
+
+    return canStackCards(sourceStack, targetStack, cards, fuelDiscount, motherSpentTotalBefore) ||
+      canCombineAsDeck(sourceStack, targetStack, cards)
+      ? [targetStack.id]
+      : []
+  })
 }
 
 export function getNearestDeckDropTarget(

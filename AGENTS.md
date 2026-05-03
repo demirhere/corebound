@@ -7,6 +7,7 @@
 - `src/game/` is the domain layer: `types.ts` defines state shape, `setup.ts` creates/shuffles decks and initial board state, `rules.ts` decides stacking/completion legality, `effects.ts` handles pending rewards, and `state.ts` wires reducer updates to playtest log events.
 - Gameplay mutations should flow through `BoardUpdater`/`gameReducer` in `src/game/state.ts`; use `withPlaytestEvents` plus event builders in `src/game/logEvents.ts` when an action should appear in the playtest log.
 - Initial setup shuffles with `Math.random()` in `src/game/setup.ts`; do not assume deterministic card/deck order in checks.
+- Keep `PROTOTYPE_USER_MANUAL.md` updated when gameplay design changes, including setup counts, card rules, rewards, game loop, controls, and win/loss conditions.
 
 ## Commands
 - Install dependencies: `pnpm install`.

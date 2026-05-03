@@ -1589,7 +1589,13 @@ export function stackOnDropTargetUpdate(
       }, deckCreatedFromStacksEvent(newDeck, sourceStack, targetStack, current.cards))
     }
 
-    if (!canStackCards(sourceStack, targetStack, current.cards)) {
+    if (!canStackCards(
+      sourceStack,
+      targetStack,
+      current.cards,
+      getNextStarFuelDiscount(current.pendingEffects),
+      countSpentMotherCardsInPlay(current.stacks, current.cards),
+    )) {
       return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
     }
 

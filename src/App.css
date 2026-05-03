@@ -743,6 +743,32 @@
   opacity: 0.95;
 }
 
+.card-stack.is-stackable-target::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  z-index: 0;
+  width: calc(100% + 20px);
+  height: calc(var(--stack-height, 100%) + 20px);
+  border: 2px dashed color-mix(in srgb, var(--stack-accent, #73ffd6) 86%, #fff8e8);
+  border-radius: 20px;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--stack-accent, #73ffd6) 12%, transparent),
+    0 0 18px color-mix(in srgb, var(--stack-accent, #73ffd6) 28%, transparent);
+  opacity: 0.78;
+  transform: rotate(-0.8deg);
+}
+
+.card-stack.is-drop-target::after {
+  border-style: solid;
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--stack-accent, #73ffd6) 20%, transparent),
+    0 0 24px color-mix(in srgb, var(--stack-accent, #73ffd6) 44%, transparent);
+  opacity: 1;
+}
+
 .card-stack.is-drop-target .card-shell {
   filter:
     drop-shadow(0 18px 14px rgba(0, 0, 0, 0.44))
@@ -1126,6 +1152,8 @@
   gap: 5px;
 
   .game-icon {
+    --icon-frame-width: 1.7px;
+
     width: clamp(24px, 3.8vw, 38px);
   }
 }
@@ -1387,6 +1415,7 @@
   --icon-stroke: color-mix(in srgb, var(--icon-color) 72%, #11131a);
   --icon-paper: #fff8e8;
   --icon-ink: #11131a;
+  --icon-frame-width: 1px;
 
   position: relative;
   display: grid;
@@ -1394,7 +1423,7 @@
   aspect-ratio: 1;
   flex: 0 0 auto;
   place-items: center;
-  border: 1.7px solid var(--icon-ink);
+  border: var(--icon-frame-width) solid var(--icon-ink);
   border-radius: 38% 62% 47% 53% / 54% 42% 58% 46%;
   background:
     radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.48), transparent 38%),
@@ -1446,6 +1475,14 @@
     --icon-stroke: #11131a;
 
     border-radius: 50%;
+
+    .icon-line {
+      stroke-width: 2.7;
+    }
+
+    .icon-dot {
+      r: 1.9px;
+    }
   }
 
   &:nth-child(2n) {
@@ -1466,7 +1503,6 @@
     stroke-width: 2.1;
     stroke-linecap: round;
     stroke-linejoin: round;
-    vector-effect: non-scaling-stroke;
   }
 
   .icon-fill {
@@ -1485,6 +1521,10 @@
     fill: var(--icon-stroke);
   }
 
+}
+
+.card-shell:not(.hand-card-shell) .game-icon {
+  --icon-frame-width: 1.7px;
 }
 
 .game-icon[data-kind='mother'] {

@@ -26,6 +26,7 @@ export type StackDragState = {
   dropTargetDeckId: string | null
   dropTargetHandZone: HandZone | null
   dropTargetDiscard: boolean
+  stackableTargetStackIds: string[]
   handInsertIndex: number | null
   hasMoved: boolean
 }
