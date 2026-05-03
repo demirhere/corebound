@@ -144,7 +144,11 @@ export function Hand({
                   isActive,
                 )}
               >
-                <div className="hand-card-drag" data-hand-card-id={card.id}>
+                <div
+                  className="hand-card-drag"
+                  data-hand-card-id={card.id}
+                  data-motion-card-id={card.id}
+                >
                   <CardShell
                     card={card}
                     className="hand-card-shell"

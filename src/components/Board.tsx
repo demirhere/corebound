@@ -258,6 +258,7 @@ export function Board({
                 key={card.id}
                 card={card}
                 className="wake-choice-card"
+                motionCardId={card.id}
                 ariaLabel={`Choose ${card.title}`}
                 onPointerDown={(event) => {
                   event.preventDefault()
@@ -299,6 +300,7 @@ export function Board({
                   <CardShell
                     card={card}
                     className={`wake-choice-card scout-choice-card ${choiceClass}`}
+                    motionCardId={card.id}
                     ariaLabel={`${card.title}. ${choiceLabel}.`}
                     onPointerDown={(event) => {
                       event.preventDefault()

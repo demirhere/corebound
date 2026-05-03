@@ -7,6 +7,7 @@ import {
   type BoardUpdater,
 } from './game/state'
 import { useBoardInteractions } from './hooks/useBoardInteractions'
+import { useCardMovementAnimations } from './hooks/useCardMovementAnimations'
 import { usePlaytestLogConsole } from './hooks/usePlaytestLogConsole'
 import './App.css'
 
@@ -24,6 +25,8 @@ function App() {
   }
 
   const interactions = useBoardInteractions({ board, setBoard })
+
+  useCardMovementAnimations({ board, boardRef: interactions.boardRef })
 
   function resetGame() {
     interactions.resetInteractions()

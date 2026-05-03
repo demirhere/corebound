@@ -48,6 +48,7 @@ type CardShellProps = {
   isActive?: boolean
   fuelDiscount?: number
   ariaLabel: string
+  motionCardId?: string
   dataHandCardId?: string
   onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void
   onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void
@@ -74,9 +75,9 @@ function renderFuelNeed(printedFuel: number, currentFuelCost: number, keyPrefix:
     ...Array.from({ length: removedFuelCount }, (_, index) => (
       <span key={`${keyPrefix}-removed-fuel-${index}`} className="removed-need-icon" title="Fuel removed by Star effect">
         <GameIcon kind="fuel" />
-        <span className="removed-need-person" aria-hidden="true">
-          <GameIcon kind="person" />
-        </span>
+        <svg className="removed-need-scribble" viewBox="0 0 44 30" focusable="false" aria-hidden="true">
+          <path d="M3.8 17c5.2-4.4 9.8 3.7 15.3-.3 5.5-4.1 10.4 3.3 16.1-.6 2.7-1.9 4.7-2.1 6.5-.7" />
+        </svg>
       </span>
     )),
   ]
@@ -277,6 +278,7 @@ export function CardShell({
   isActive = false,
   fuelDiscount = 0,
   ariaLabel,
+  motionCardId,
   dataHandCardId,
   onPointerDown,
   onKeyDown,
@@ -291,6 +293,7 @@ export function CardShell({
         isActive ? 'is-being-dragged' : ''
       } card-kind-${card.kind} ${card.spentMother ? 'is-spent-mother' : ''} ${className}`}
       data-hand-card-id={dataHandCardId}
+      data-motion-card-id={motionCardId}
       style={
         {
           '--card-hue': String(card.hue),
@@ -350,6 +353,7 @@ export function BoardCard({
       card={card}
       isActive={isStackActive}
       fuelDiscount={fuelDiscount}
+      motionCardId={card.id}
       style={
         {
           top: `${cardIndex * stackOffsetRatio * 100}%`,

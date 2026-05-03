@@ -1194,59 +1194,28 @@
   flex: 0 0 auto;
   place-items: center;
   isolation: isolate;
-
-  > .game-icon {
-    opacity: 0.56;
-    filter: saturate(0.52) contrast(0.92);
-  }
-
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    left: 4%;
-    right: 4%;
-    z-index: 2;
-    height: 3px;
-    border-radius: 999px;
-    pointer-events: none;
-    background: rgba(17, 19, 26, 0.86);
-    box-shadow:
-      0 1px 0 rgba(255, 248, 232, 0.3),
-      0 0 0 1px rgba(255, 248, 232, 0.18);
-  }
-
-  &::before {
-    top: 45%;
-    transform: rotate(-24deg);
-  }
-
-  &::after {
-    top: 50%;
-    background: color-mix(in srgb, var(--card-accent) 48%, #11131a);
-    transform: rotate(21deg);
-  }
 }
 
-.removed-need-person {
+.removed-need-scribble {
   position: absolute;
-  right: -18%;
-  bottom: -20%;
+  top: 50%;
+  left: 50%;
   z-index: 3;
-  display: grid;
-  width: 55%;
-  aspect-ratio: 1;
+  width: 132%;
+  height: 96%;
+  overflow: visible;
   pointer-events: none;
-  transform: rotate(8deg);
+  color: #11131a;
+  filter: drop-shadow(0 1px 0 rgba(255, 248, 232, 0.44));
+  transform: translate(-50%, -50%) rotate(-11deg);
 
-  .game-icon {
-    --icon-color: #11131a;
-
-    width: 100%;
-    border-width: 1.2px;
-    opacity: 0.95;
-    background: rgba(255, 248, 232, 0.86);
-    transform: none;
+  path {
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 4.8;
+    vector-effect: non-scaling-stroke;
   }
 }
 
