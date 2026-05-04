@@ -178,7 +178,7 @@ export type BoardState = {
     bottomedCardIds: string[]
   } | null
   pendingEffects: BoardEffect[]
-  pendingMapRefillSlotIndex: number | null
+  pendingMapRefreshAfterScout: boolean
   stressCount: number
   currentSector: number
   totalSectors: number

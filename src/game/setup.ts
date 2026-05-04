@@ -26,18 +26,23 @@ export const TOTAL_SECTORS = 2
 export const MAP_SLOT_COUNT = 3
 export const ROUTE_SLOT_COUNT = 3
 export const MAP_SLOT_POSITIONS = [
-  { x: 39, y: 12 },
-  { x: 53, y: 12 },
-  { x: 67, y: 12 },
+  { x: 45, y: 8 },
+  { x: 58, y: 8 },
+  { x: 71, y: 8 },
+] as const
+export const TRAVELED_STOP_POSITIONS = [
+  { x: 56, y: 39 },
+  { x: 61, y: 47 },
+  { x: 66, y: 55 },
 ] as const
 export const FUEL_SUPPLY_STACK_ID = 'stack-fuel-supply'
 export const FUEL_SUPPLY_STACK_POSITION = {
-  x: 18,
-  y: 12,
+  x: 15,
+  y: 8,
 }
 export const MOTHER_SUPPLY_STACK_ID = 'stack-mother-supply'
 export const MOTHER_SUPPLY_STACK_POSITION = {
-  x: 18,
+  x: 15,
   y: 40,
 }
 
@@ -360,7 +365,7 @@ export function getSectorGateBlueprint(sector: number) {
 }
 
 export function getSectorDeckTitle(sector: number) {
-  return `Sector ${sector} Stop Deck`
+  return `Sector ${sector} Deck`
 }
 
 export function getSectorDeckArt(sector: number) {
@@ -436,8 +441,8 @@ export function createInitialBoardSetup(): InitialBoardSetup {
         icon: resourceArt.fuel.icon,
         hue: resourceArt.fuel.hue,
         accent: resourceArt.fuel.accent,
-        x: 6,
-        y: 12,
+        x: 3,
+        y: 8,
         z: 1012,
         draw: automaticRewardDeckDraw,
         cards: fuelDeckCards,
@@ -448,8 +453,8 @@ export function createInitialBoardSetup(): InitialBoardSetup {
         icon: initialSectorDeckArt.icon,
         hue: initialSectorDeckArt.hue,
         accent: initialSectorDeckArt.accent,
-        x: 81,
-        y: 12,
+        x: 85,
+        y: 8,
         z: 1014,
         draw: {
           ...automaticRewardDeckDraw,
@@ -463,7 +468,7 @@ export function createInitialBoardSetup(): InitialBoardSetup {
         icon: motherArt.icon,
         hue: motherArt.hue,
         accent: motherArt.accent,
-        x: 6,
+        x: 3,
         y: 40,
         z: 1013,
         draw: manualDeckDraw,
@@ -475,8 +480,8 @@ export function createInitialBoardSetup(): InitialBoardSetup {
         icon: crewArt.icon,
         hue: crewArt.hue,
         accent: crewArt.accent,
-        x: 6,
-        y: 68,
+        x: 3,
+        y: 72,
         z: 1015,
         draw: automaticRewardDeckDraw,
         cards: cryoDeckCards,
@@ -491,7 +496,7 @@ export function createInitialBoardSetup(): InitialBoardSetup {
     pendingWakeChoice: null,
     pendingScoutChoice: null,
     pendingEffects: [],
-    pendingMapRefillSlotIndex: null,
+    pendingMapRefreshAfterScout: false,
     stressCount: 0,
     currentSector: 1,
     totalSectors: TOTAL_SECTORS,

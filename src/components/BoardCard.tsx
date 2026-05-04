@@ -137,7 +137,7 @@ export function BoardCard({
   onKeyDown,
 }: BoardCardProps) {
   const ariaLabel = isTraveledStop
-    ? `${card.title}. Traveled destination. This completed Stop stays on the board.`
+    ? `${card.title}. Traveled destination in the route area. Drag to organize traveled Stops.`
     : `${card.title}. Drag to move this part of the stack.`
 
   return (

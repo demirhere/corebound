@@ -327,6 +327,14 @@ function shouldAnimateExistingMove(
     return true
   }
 
+  if (
+    previousLocation.kind === 'stack' &&
+    currentLocation.kind === 'stack' &&
+    currentLocation.stackId.startsWith('stack-route-')
+  ) {
+    return true
+  }
+
   return previousLocation.kind === 'choice' || currentLocation.kind === 'choice'
 }
 

@@ -29,6 +29,10 @@ function stackContainsRouteCard(stackCardIds: readonly string[], routeCardIds: R
   return stackCardIds.some((cardId) => routeCardIds.has(cardId))
 }
 
+function stackContainsOnlyRouteCards(stackCardIds: readonly string[], routeCardIds: ReadonlySet<string>) {
+  return stackCardIds.length > 0 && stackCardIds.every((cardId) => routeCardIds.has(cardId))
+}
+
 export function getNearestDropTarget(
   board: BoardState,
   sourceStackId: string,
@@ -40,8 +44,10 @@ export function getNearestDropTarget(
   const spentBeacons = countSpentShipParts(board.routeSlots, 'wayfinder-beacon')
   const routeCardIds = new Set(getRouteCardIds(board.routeSlots))
   const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
+  const sourceHasRouteCard = sourceStack ? stackContainsRouteCard(sourceStack.cardIds, routeCardIds) : false
+  const sourceIsRouteOnly = sourceStack ? stackContainsOnlyRouteCards(sourceStack.cardIds, routeCardIds) : false
 
-  if (!sourceStack || stackContainsRouteCard(sourceStack.cardIds, routeCardIds)) {
+  if (!sourceStack || (sourceHasRouteCard && !sourceIsRouteOnly)) {
     return { stackId: null, deckId: null }
   }
 
@@ -73,7 +79,19 @@ export function getNearestDropTarget(
       continue
     }
 
-    if (stackContainsRouteCard(targetStack.cardIds, routeCardIds)) {
+    const targetHasRouteCard = stackContainsRouteCard(targetStack.cardIds, routeCardIds)
+    const targetIsRouteOnly = stackContainsOnlyRouteCards(targetStack.cardIds, routeCardIds)
+
+    if (sourceIsRouteOnly) {
+      if (!targetIsRouteOnly) {
+        continue
+      }
+
+      considerTarget('stack', targetStack.id, getStackBounds(targetStack, metrics))
+      continue
+    }
+
+    if (targetHasRouteCard) {
       continue
     }
 
@@ -87,7 +105,7 @@ export function getNearestDropTarget(
     considerTarget('stack', targetStack.id, getStackBounds(targetStack, metrics))
   }
 
-  if (sourceIsFaceDown) {
+  if (sourceIsFaceDown && !sourceIsRouteOnly) {
     for (const targetDeck of decks) {
       if (targetDeck.cards.length === 0) {
         continue
@@ -113,8 +131,10 @@ export function getStackDropTargetIds(
   const spentBeacons = countSpentShipParts(board.routeSlots, 'wayfinder-beacon')
   const routeCardIds = new Set(getRouteCardIds(board.routeSlots))
   const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
+  const sourceHasRouteCard = sourceStack ? stackContainsRouteCard(sourceStack.cardIds, routeCardIds) : false
+  const sourceIsRouteOnly = sourceStack ? stackContainsOnlyRouteCards(sourceStack.cardIds, routeCardIds) : false
 
-  if (!sourceStack || stackContainsRouteCard(sourceStack.cardIds, routeCardIds)) {
+  if (!sourceStack || (sourceHasRouteCard && !sourceIsRouteOnly)) {
     return []
   }
 
@@ -123,7 +143,14 @@ export function getStackDropTargetIds(
       return []
     }
 
-    if (stackContainsRouteCard(targetStack.cardIds, routeCardIds)) {
+    const targetHasRouteCard = stackContainsRouteCard(targetStack.cardIds, routeCardIds)
+    const targetIsRouteOnly = stackContainsOnlyRouteCards(targetStack.cardIds, routeCardIds)
+
+    if (sourceIsRouteOnly) {
+      return targetIsRouteOnly ? [targetStack.id] : []
+    }
+
+    if (targetHasRouteCard) {
       return []
     }
 

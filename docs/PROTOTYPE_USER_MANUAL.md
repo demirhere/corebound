@@ -28,8 +28,8 @@ On load or restart, setup is staged as an animated deal instead of cards snappin
 | Fuel Deck | 10 Fuel Cell cards | The remaining Fuel Cells stay in the Fuel Deck. Fuel rewards draw from here. |
 | Starting Crew | 5 crew | Deal all starting crew to the Crew area as Ready crew. |
 | Tired Crew | 0 crew | Starts empty. Crew used on Stops or Gates move here. |
-| Stop Deck | 9 Stops | Shuffle all 9 Stops for the sector. Deal 3 face up into the Map and leave the rest in the Stop Deck. |
-| Map | 3 Stops | These are the visible unvisited Stops available this sector. Traveled Stops stay on the board where they were completed. |
+| Stop Deck | 9 Stops | Shuffle all 9 Stops for the sector. Deal 3 face up side by side into the Map and leave the rest in the Stop Deck for later 3-card Map offers. |
+| Map | 3 Stops | These are the current visible Stops. Complete 1, move that traveled Stop to the route area, discard the other visible Stops, then draw 3 new side-by-side Stops after the first and second traveled Stop. |
 | Gate | 1 Gate card | Reveal Narrow Crossing face up at setup. |
 | MOTHER Deck | 6 MOTHER cards | Place as a manual draw deck. Draws 1 card at a time. |
 | Stress | 0 Stress | Spent MOTHER adds Stress. |
@@ -37,31 +37,31 @@ On load or restart, setup is staged as an animated deal instead of cards snappin
 
 ## Crew Icons
 
-Each crew card has two specialization icons. These icons satisfy matching Stop or Gate requirements, and unused crew can also be paired to pay Fuel.
+Each crew card has two specialization icons. These icons satisfy matching Stop or Gate requirements. Fuel Cells pay Fuel normally. Without enough Fuel Cells, only one Ready Engineer paired with one Ready Scientist can make 1 water to pay 1 Fuel. Other crew pairs cannot pay Fuel.
 
-The visible crew icon formerly called Star is now called Nav.
+The visible crew icon formerly called Star is now called Nav. Science uses a beaker icon.
 
 | Starting Crew | Icons | Role |
 | --- | --- | --- |
-| Lei Watanabe | Life, Nav | Scout |
+| Lei Watanabe | Life, Nav | Pilot |
 | Mara Voss | Engine, Engine | Engineer |
-| Ada Chen | Engine, Signal | Technician |
+| Ada Chen | Engine, Science | Scientist |
 | Sana Iqbal | Life, Life | Medic |
-| Nia Okonkwo | Signal, Nav | Recon |
+| Nia Okonkwo | Science, Nav | Recon |
 
 | Cryo Crew | Icons | Role |
 | --- | --- | --- |
 | Juno Pike | Engine, Nav | Helmsman |
 | Tomas Hale | Engine, Life | Mechanic |
 | Priya Shah | Life, Engine | Mechanic |
-| Elise Tan | Life, Signal | Doctor |
-| Ilya Rao | Nav, Signal | Recon |
-| Oren Vale | Signal, Signal | Operator |
+| Elise Tan | Life, Science | Doctor |
+| Ilya Rao | Nav, Science | Recon |
+| Oren Vale | Science, Science | Operator |
 | Malik Ortega | Nav, Nav | Pilot |
 
 ## Stops And Ship Parts
 
-Stops are shuffled into the Stop Deck. A sector begins with exactly 3 face-up Map Stops. Completing a Stop marks it traveled; the card stays on the board where it was completed instead of moving elsewhere.
+Stops are shuffled into the Stop Deck. A sector begins with exactly 3 face-up Map Stops dealt side by side. Completing a Stop marks it traveled; the card moves to the route area instead of staying in the Map. The other visible Map Stops are discarded, then the next 3 Stops are drawn side by side as a fresh Map offer after the first and second traveled Stop.
 
 Each traveled Stop gives exactly 1 Gate-only Ship Part based on its type. A Stop's complete reward set, including its Gate-only Ship Part, is printed on the card from the moment it is drawn.
 
@@ -69,13 +69,13 @@ Each traveled Stop gives exactly 1 Gate-only Ship Part based on its type. A Stop
 | --- | --- | --- | --- | --- |
 | Dust Garden | Planet | Life, Nav | Fuel +1 | Water Tank |
 | Life Orchard | Planet | Fuel 1, Life, Engine | Ready 1 Tired crew | Water Tank |
-| Cryo Choir | Deep Space | Fuel 2, Life, Signal | Wake 1 crew, then Ready 1 Tired crew | Wayfinder Beacon |
+| Cryo Choir | Deep Space | Fuel 2, Life, Science | Wake 1 crew, then Ready 1 Tired crew | Wayfinder Beacon |
 | Sleeper Arklet | Deep Space | Fuel 2, Life, Life, Nav | Wake 1 crew, then Ready 1 Tired crew | Wayfinder Beacon |
 | Iron Wake | Asteroid | Fuel 1, Engine, Engine | Fuel +1 | Hull Patch |
-| Red Salvage | Asteroid | Fuel 1, Engine, Signal | Fuel +1 | Hull Patch |
-| Broken Atlas | Asteroid | Signal, Signal | Scout 2 | Hull Patch |
+| Red Salvage | Asteroid | Fuel 1, Engine, Science | Fuel +1 | Hull Patch |
+| Broken Atlas | Asteroid | Science, Science | Scout 2 | Hull Patch |
 | Gravity Sling | Deep Space | Fuel 2, Nav, Engine | Next Stop costs -1 Fuel | Wayfinder Beacon |
-| Quiet Relay | Planet | Fuel 1, Signal, Nav | Scout 3 | Water Tank |
+| Quiet Relay | Planet | Fuel 1, Science, Nav | Scout 3 | Water Tank |
 
 Ship Parts are used only at the Gate. Each Ship Part can be spent once. Spent Ship Parts stay visible on their traveled Stop cards. Unspent Ship Parts expire after the sector Gate resolves.
 
@@ -90,16 +90,19 @@ Ship Parts are used only at the Gate. Each Ship Part can be spent once. Spent Sh
 On each turn while fewer than 3 Stops have been traveled this sector:
 
 1. Choose 1 face-up Stop from the Map.
-2. Pay its Fuel and icon requirements with Ready crew, Fuel, and usable MOTHER.
+2. Pay its Fuel and icon requirements with Ready crew, Fuel Cells, Engineer + Scientist water pairs, and usable MOTHER.
 3. Move used crew to Tired.
 4. Spend MOTHER only if needed to cover missing non-Fuel icons.
 5. Resolve the Stop's printed Visit Reward.
-6. Leave the completed Stop on the board where it is and mark it traveled.
+6. Move the completed Stop to the route area and mark it traveled.
 7. Its Ship Part is now available for the Gate.
-8. If fewer than 3 Stops have been traveled, refill only the emptied Map lane from the Stop Deck.
-9. If the third Stop was just traveled, do not refill. Clear remaining untraveled Map Stops and undealt Stop Deck cards, then attempt the Gate.
+8. Discard the other visible untraveled Map Stops.
+9. If fewer than 3 Stops have been traveled, draw 3 new Stops side by side from the Stop Deck into the Map.
+10. If the third Stop was just traveled, do not draw again. Clear any undealt Stop Deck cards, then attempt the Gate.
 
 Important: a Ship Part cannot help complete the Stop that created it. Ship Parts are available only after that Stop's completion and Visit Reward fully resolve.
+
+Important: crew-made water for Fuel payment requires exactly one Ready Engineer plus one Ready Scientist per Fuel. Those two crew cannot also satisfy Stop icons for that same completion, and they move to Tired with the other used crew.
 
 ## Rewards
 
@@ -107,7 +110,7 @@ Fuel +1 draws 1 Fuel Cell from the Fuel Deck into play. It stacks onto the exist
 
 Wake 1 reveals up to 2 cards from the Cryo Deck. Choose 1 to recruit into Tired, then Ready 1 Tired crew from the front of the Tired row; unchosen Cryo crew go to the bottom of the Cryo Deck.
 
-Scout N looks at the top N Stop Deck cards. Choose 1 to put on top of the Stop Deck. Put the rest on the bottom in any order. In this prototype, the Scout choice panel asks you to select the cards to bottom and leave 1 unselected for the top.
+Scout N looks at the top N Stop Deck cards. Choose the card you like to keep on top of the Stop Deck. The others are sent to the back in their revealed order. If Scout resolves after a Stop, complete the Scout choice before drawing the next 3-card Map offer.
 
 Ready 1 moves the front Tired crew card back to the Crew area.
 
@@ -119,8 +122,8 @@ Gate requirements are two separate checks: crew slots and required icons.
 
 | Gate | Timing | Crew Slots | Icons Needed | Stress |
 | --- | --- | ---: | --- | --- |
-| Narrow Crossing | After 3 Sector 1 Stops | 3 | Engine, Life, Nav, Signal | If Stress is 3+, add 1 red crew slot. |
-| Dark Threshold | After 3 Sector 2 Stops | 4 | Engine, Life, Nav, Signal | If Stress is 3+, add 1 red crew slot. |
+| Narrow Crossing | After 3 Sector 1 Stops | 3 | Engine, Life, Nav, Science | If Stress is 3+, add 1 red crew slot. |
+| Dark Threshold | After 3 Sector 2 Stops | 4 | Engine, Life, Nav, Science | If Stress is 3+, add 1 red crew slot. |
 
 Gate resolution order:
 
@@ -162,7 +165,7 @@ Stress carries from Sector 1 to Sector 2.
 
 ## Valid Completion Stacks
 
-A Stop completion stack can contain the Stop card, Ready crew, Fuel Cells, and usable MOTHER cards. Other card types block completion.
+A Stop completion stack can contain the Stop card, Ready crew, Fuel Cells, and usable MOTHER cards. Crew paying Fuel must be valid Engineer + Scientist water pairs. Other card types block completion.
 
 A Gate completion stack can contain the Gate card, Ready crew, and usable MOTHER cards. Fuel Cells and other card types block completion.
 
@@ -179,19 +182,21 @@ After Gate 1 succeeds:
 5. Stress carries forward.
 6. The 9 Stops are reshuffled for Sector 2.
 7. Dark Threshold is revealed.
-8. Deal 3 Stops into the Sector 2 Map.
+8. Deal 3 Stops side by side into the Sector 2 Map.
 
 After Gate 2 succeeds, the player wins.
 
 ## Prototype Controls
 
-Click a manual deck, or press Enter or Space while it is focused, to draw from it. The MOTHER Deck draws 1 card, stacking onto an existing usable MOTHER stack if one is in play or dealing next to the MOTHER Deck setup position otherwise. The Stop Deck is refilled automatically by the Map loop and Scout.
+Click a manual deck, or press Enter or Space while it is focused, to draw from it. The MOTHER Deck draws 1 card, stacking onto an existing usable MOTHER stack if one is in play or dealing next to the MOTHER Deck setup position otherwise. The Stop Deck automatically draws 3 cards for each Map offer; Scout can set the top card before the next offer.
 
 Drag decks to reposition them. A deck can merge only with another deck containing the same card family, such as Fuel with Fuel or MOTHER with MOTHER.
 
 Drag Ready crew from the Crew area onto the board. Tired crew cannot be dragged manually unless a reward or Water Tank readies them first.
 
-Drag a card stack onto a highlighted valid target to combine it into a Stop, Gate, or temporary support stack of Ready crew, Fuel Cells, and usable MOTHER cards. Dragging from a card inside a stack splits that card and every card above it into a new moving stack.
+Drag a card stack onto a highlighted valid target to combine it into a Stop, Gate, or temporary support stack of Ready crew, Fuel Cells, Engineer + Scientist water pairs, and usable MOTHER cards. Dragging from a card inside a stack splits that card and every card above it into a new moving stack.
+
+Drag traveled Stop cards onto each other to stack them and organize board space. Traveled Stops cannot be stacked into payment stacks or discarded.
 
 Use the Ship Part buttons during the Gate. Water Tank readies a Tired crew. Hull Patch fills a crew slot. Wayfinder Beacon covers a missing icon.
 
@@ -218,12 +223,14 @@ There is no active Hull, health, damage, sector field, score track, market, reli
 ```text
 CORE LOOP
 
-1. Visit 1 Map Stop.
+1. Choose 1 of 3 Map Stops.
 2. Pay Fuel + icons.
+   Engineer + Scientist = 1 water for Fuel.
 3. Move used crew to Tired.
 4. Get the Stop reward.
-5. Leave the traveled Stop on the board.
-6. Refill that Map lane.
+5. Move the traveled Stop to the route area.
+6. Discard the other Map Stops.
+7. Draw 3 new Map Stops unless that was the 3rd Stop.
 
 After 3 Stops: face the Gate.
 

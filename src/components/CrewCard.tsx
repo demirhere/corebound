@@ -24,11 +24,11 @@ function getCrewRole(specializations: readonly CrewSpecialization[]) {
 
   const set = new Set(labels)
   if (set.has('Engine') && set.has('Life')) return 'Mechanic'
-  if (set.has('Engine') && set.has('Signal')) return 'Technician'
+  if (set.has('Engine') && set.has('Science')) return 'Scientist'
   if (set.has('Engine') && set.has('Nav')) return 'Helmsman'
-  if (set.has('Life') && set.has('Signal')) return 'Doctor'
-  if (set.has('Life') && set.has('Nav')) return 'Scout'
-  if (set.has('Signal') && set.has('Nav')) return 'Recon'
+  if (set.has('Life') && set.has('Science')) return 'Doctor'
+  if (set.has('Life') && set.has('Nav')) return 'Pilot'
+  if (set.has('Science') && set.has('Nav')) return 'Recon'
 
   return labels.join(' / ')
 }
@@ -50,6 +50,12 @@ function renderCrewPortrait(portraitIndex: number) {
 export function renderCrewCardContent(card: Card) {
   const specializations = card.specializations ?? []
   const portraitIndex = card.portraitIndex ?? 0
+  const crewRole = getCrewRole(specializations)
+  const waterPairPartner = crewRole === 'Engineer'
+    ? 'Scientist'
+    : crewRole === 'Scientist'
+      ? 'Engineer'
+      : null
 
   return (
     <div className="crew-nametag">
@@ -60,7 +66,7 @@ export function renderCrewCardContent(card: Card) {
       <div className="crew-nameplate">
         <span className="crew-name">{card.title}</span>
         <span className="crew-name-rule" aria-hidden="true" />
-        <span className="crew-role">{getCrewRole(specializations)}</span>
+        <span className="crew-role">{crewRole}</span>
       </div>
 
       <div className="crew-specialties" aria-label="Specializations">
@@ -71,11 +77,13 @@ export function renderCrewCardContent(card: Card) {
         </div>
       </div>
 
-      <div className="crew-rule-note">
-        <p className="card-rule-text">
-          Makes <GameIcon kind="fuel" /> when paired with another crew.
-        </p>
-      </div>
+      {waterPairPartner && (
+        <div className="crew-rule-note">
+          <p className="card-rule-text">
+            Makes <GameIcon kind="fuel" /> when paired with {waterPairPartner}.
+          </p>
+        </div>
+      )}
     </div>
   )
 }

@@ -2,9 +2,9 @@ import {
   MAP_SLOT_COUNT,
   MAP_SLOT_POSITIONS,
   ROUTE_SLOT_COUNT,
+  TRAVELED_STOP_POSITIONS,
 } from '../game/setup'
 import type {
-  BoardState,
   RouteSlot,
   ShipPartKind,
   Stack,
@@ -22,22 +22,26 @@ export function getMapStackId(slotIndex: number) {
   return `stack-map-${slotIndex + 1}`
 }
 
-export function getMapStackPosition(current: BoardState, slotIndex: number) {
+export function getMapStackPosition(slotIndex: number) {
   const basePosition = MAP_SLOT_POSITIONS[slotIndex] ?? MAP_SLOT_POSITIONS[0]
-  const traveledStopsInLane = current.routeSlots.filter((slot) => slot?.mapSlotIndex === slotIndex).length
 
   return {
-    x: basePosition.x + traveledStopsInLane * 3.5,
-    y: basePosition.y + traveledStopsInLane * 5.5,
+    x: basePosition.x,
+    y: basePosition.y,
   }
 }
 
-export function getRefilledMapStackId(current: BoardState, slotIndex: number, cardId: string) {
-  const preferredStackId = getMapStackId(slotIndex)
+export function getRouteStackId(routeSlotIndex: number) {
+  return `stack-route-${routeSlotIndex + 1}`
+}
 
-  return current.stacks.some((stack) => stack.id === preferredStackId)
-    ? `${preferredStackId}-${cardId}`
-    : preferredStackId
+export function getRouteStackPosition(routeSlotIndex: number) {
+  const position = TRAVELED_STOP_POSITIONS[routeSlotIndex] ?? TRAVELED_STOP_POSITIONS[0]
+
+  return {
+    x: position.x,
+    y: position.y,
+  }
 }
 
 export function getRouteCardIds(routeSlots: readonly (RouteSlot | null)[]) {
@@ -48,6 +52,12 @@ export function stackContainsRouteCard(stack: Stack, routeSlots: readonly (Route
   const routeCardIds = new Set(getRouteCardIds(routeSlots))
 
   return stack.cardIds.some((cardId) => routeCardIds.has(cardId))
+}
+
+export function stackContainsOnlyRouteCards(stack: Stack, routeSlots: readonly (RouteSlot | null)[]) {
+  const routeCardIds = new Set(getRouteCardIds(routeSlots))
+
+  return stack.cardIds.length > 0 && stack.cardIds.every((cardId) => routeCardIds.has(cardId))
 }
 
 function countRouteStops(routeSlots: readonly (RouteSlot | null)[]) {

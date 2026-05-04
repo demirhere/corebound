@@ -11,7 +11,6 @@ import {
   WakeChoiceDialog,
 } from './BoardDialogs'
 import {
-  HistoryPanel,
   InstructionsPanel,
   ShipPartsPanel,
   StressTracker,
@@ -98,14 +97,13 @@ export function Board({
       onPointerCancel={onPointerCancel}
     >
       <InstructionsPanel totalSectors={board.totalSectors} />
-      <ShipPartsPanel
-        board={board}
-        isGameOver={isGameOver}
-        onRouteShipPartUse={onRouteShipPartUse}
-      />
-      <StressTracker stressCount={board.stressCount} />
-      <HistoryPanel archivedRouteCardCount={board.archivedRouteCardIds.length} />
-
+      <div className="board-status-area" aria-label="Board status">
+        <StressTracker stressCount={board.stressCount} />
+        <ShipPartsPanel
+          board={board}
+          onRouteShipPartUse={onRouteShipPartUse}
+        />
+      </div>
       {board.decks
         .filter((deck) => deck.cards.length > 0)
         .map((deck) => (

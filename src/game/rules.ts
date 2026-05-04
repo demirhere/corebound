@@ -40,6 +40,8 @@ type CompletionNeed = {
   fuel: number
 }
 
+type WaterPairCrewRole = 'engineer' | 'scientist'
+
 export function isFaceDownStack(stack: Stack, cards: Record<string, Card>) {
   return stack.cardIds.length > 0 && stack.cardIds.every((cardId) => cards[cardId]?.faceUp === false)
 }
@@ -72,8 +74,47 @@ function iconCrewCardsAreUseful(
   })
 }
 
-function canUseFuelSupport(
-  crewCount: number,
+function getWaterPairCrewRole(card: Card | undefined): WaterPairCrewRole | null {
+  if (card?.kind !== 'crew') {
+    return null
+  }
+
+  const specializations = card.specializations ?? []
+
+  if (specializations.length > 0 && specializations.every((specialization) => specialization === 'engine')) {
+    return 'engineer'
+  }
+
+  const specializationSet = new Set(specializations)
+
+  return specializationSet.has('engine') && specializationSet.has('signal') ? 'scientist' : null
+}
+
+function countWaterPairCrewRoles(
+  crewCardIds: readonly string[],
+  cards: Record<string, Card>,
+) {
+  let engineerCount = 0
+  let scientistCount = 0
+
+  for (const cardId of crewCardIds) {
+    const role = getWaterPairCrewRole(cards[cardId])
+
+    if (role === 'engineer') {
+      engineerCount += 1
+    } else if (role === 'scientist') {
+      scientistCount += 1
+    } else {
+      return null
+    }
+  }
+
+  return { engineerCount, scientistCount }
+}
+
+function canUseWaterSupport(
+  crewCardIds: readonly string[],
+  cards: Record<string, Card>,
   fuelCardCount: number,
   requiredFuel: number,
 ) {
@@ -84,10 +125,16 @@ function canUseFuelSupport(
   }
 
   if (remainingFuel === 0) {
-    return crewCount === 0
+    return crewCardIds.length === 0
   }
 
-  return crewCount <= remainingFuel * 2
+  const roleCounts = countWaterPairCrewRoles(crewCardIds, cards)
+
+  return Boolean(
+    roleCounts &&
+      roleCounts.engineerCount <= remainingFuel &&
+      roleCounts.scientistCount <= remainingFuel,
+  )
 }
 
 function canAssignUsefulSupport(
@@ -120,10 +167,11 @@ function canAssignUsefulSupport(
         need.icons,
         need.any,
       ).length
-      const fuelCrewCount = crewCardIds.length - iconCrewCardIds.length
+      const iconCrewCardIdSet = new Set(iconCrewCardIds)
+      const fuelCrewCardIds = crewCardIds.filter((cardId) => !iconCrewCardIdSet.has(cardId))
 
       for (let iconMotherCount = 0; iconMotherCount <= Math.min(motherCount, missingIconCount); iconMotherCount += 1) {
-        if (iconMotherCount === motherCount && canUseFuelSupport(fuelCrewCount, fuelCardCount, need.fuel)) {
+        if (iconMotherCount === motherCount && canUseWaterSupport(fuelCrewCardIds, cards, fuelCardCount, need.fuel)) {
           canAssignSupport = true
           return
         }
@@ -148,6 +196,17 @@ function canAssignUsefulSupport(
   searchCrewAssignments(0)
 
   return canAssignSupport
+}
+
+function canStackLegalGateSupport(
+  crewCardIds: readonly string[],
+  gate: GateDetails,
+  motherCount: number,
+  beaconCount: number,
+) {
+  const maxMotherIconCoverage = Math.max(0, gate.need.icons.length - beaconCount)
+
+  return crewCardIds.length + motherCount > 0 && motherCount <= maxMotherIconCoverage
 }
 
 function canUseAllCardsInCompletionStack(
@@ -209,7 +268,7 @@ function canUseAllCardsInCompletionStack(
   }
 
   if (objectiveCard.kind === 'gate' && objectiveCard.gate && fuelCardCount === 0) {
-    return getGateNeedPayment(
+    const gatePayment = getGateNeedPayment(
       crewCardIds,
       cards,
       objectiveCard.gate,
@@ -217,7 +276,14 @@ function canUseAllCardsInCompletionStack(
       motherCount,
       hullPatchCount,
       beaconCount,
-    ) !== null
+    )
+
+    return gatePayment !== null || canStackLegalGateSupport(
+      crewCardIds,
+      objectiveCard.gate,
+      motherCount,
+      beaconCount,
+    )
   }
 
   return false
@@ -610,12 +676,22 @@ export function canCompleteGateNeedWithCrewAndMother(
   ) !== null
 }
 
-function canPayMissingFuelWithCrew(missingFuel: number, crewCount: number) {
+function canPayMissingFuelWithCrew(
+  missingFuel: number,
+  crewCardIds: readonly string[],
+  cards: Record<string, Card>,
+) {
   if (missingFuel === 0) {
     return true
   }
 
-  return crewCount >= missingFuel * 2
+  const roleCounts = countWaterPairCrewRoles(crewCardIds, cards)
+
+  return Boolean(
+    roleCounts &&
+      roleCounts.engineerCount >= missingFuel &&
+      roleCounts.scientistCount >= missingFuel,
+  )
 }
 
 function isBetterHorizonNeedPayment(candidate: HorizonNeedPayment, best: HorizonNeedPayment | null) {
@@ -654,8 +730,10 @@ function getHorizonNeedPayment(
       return
     }
 
-    const remainingCrewCount = crewCardIds.length - selectedIconCrewCardIds.length
-    if (!canPayMissingFuelWithCrew(missingFuel, remainingCrewCount)) {
+    const selectedIconCrewCardIdSet = new Set(selectedIconCrewCardIds)
+    const fuelCrewCardIds = crewCardIds.filter((cardId) => !selectedIconCrewCardIdSet.has(cardId))
+
+    if (!canPayMissingFuelWithCrew(missingFuel, fuelCrewCardIds, cards)) {
       return
     }
 

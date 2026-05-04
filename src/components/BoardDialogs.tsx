@@ -201,19 +201,19 @@ function getScoutChoiceCards(board: BoardView) {
 }
 
 function isScoutChoiceComplete(scoutChoice: NonNullable<BoardView['pendingScoutChoice']>) {
-  return scoutChoice.choiceCardIds.length - scoutChoice.bottomedCardIds.length === 1
+  return scoutChoice.keptCardId !== null || scoutChoice.choiceCardIds.length === 1
 }
 
 function getScoutInstruction(scoutChoice: NonNullable<BoardView['pendingScoutChoice']>) {
-  if (isScoutChoiceComplete(scoutChoice)) {
-    return 'Confirm to keep the unselected card on top and send selected cards to the back.'
-  }
-
   if (scoutChoice.choiceCardIds.length === 1) {
-    return 'Only 1 card remains. Confirm to leave it on top of the Stop Deck.'
+    return 'Only 1 card is available. Confirm to leave it on top of the Stop Deck.'
   }
 
-  return 'Select the cards you do not like to send to the back. Leave 1 card unselected for the top.'
+  if (isScoutChoiceComplete(scoutChoice)) {
+    return 'Confirm to keep the selected card on top and send the others to the back.'
+  }
+
+  return 'Choose the Stop card you like. The others will be sent to the back.'
 }
 
 function getScoutFanStyle(cardIndex: number, cardCount: number) {
@@ -263,7 +263,13 @@ export function ScoutChoiceDialog({
         <p>{getScoutInstruction(scoutChoice)}</p>
         <div className="scout-choice-cards">
           {scoutChoiceCards.map((card, index) => {
-            const isSelected = scoutChoice.bottomedCardIds.includes(card.id)
+            const isOnlyChoice = scoutChoice.choiceCardIds.length === 1
+            const isSelected = scoutChoice.keptCardId === card.id || isOnlyChoice
+            const ariaSelectionLabel = isSelected
+              ? 'Selected to stay on top.'
+              : scoutChoice.keptCardId
+                ? 'Will be sent to the back.'
+                : 'Choose to keep this on top.'
 
             return (
               <div
@@ -275,7 +281,7 @@ export function ScoutChoiceDialog({
                   card={card}
                   className={`wake-choice-card scout-choice-card ${isSelected ? 'is-scout-selected' : ''}`}
                   motionCardId={card.id}
-                  ariaLabel={`${card.title}. ${isSelected ? 'Selected to send to the back.' : 'Unselected, currently eligible to stay on top.'}`}
+                  ariaLabel={`${card.title}. ${ariaSelectionLabel}`}
                   onPointerDown={(event) => {
                     event.preventDefault()
                     event.stopPropagation()

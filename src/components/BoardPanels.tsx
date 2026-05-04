@@ -25,8 +25,9 @@ export function InstructionsPanel({ totalSectors }: { totalSectors: number }) {
       <ol>
         <li>Visit 1 Map Stop</li>
         <li>Always send 1+ crew on the trip</li>
-        <li>Leave traveled Stops on the board</li>
-        <li>Refill only that Map lane</li>
+        <li>Move traveled Stops to the route</li>
+        <li>Discard the other Map Stops</li>
+        <li>Draw 3 new Stops side by side</li>
         <li>After 3 Stops, face the Gate</li>
         <li>Printed Ship Parts help only at the Gate</li>
         <li>Clear Sector {totalSectors} to win</li>
@@ -37,11 +38,10 @@ export function InstructionsPanel({ totalSectors }: { totalSectors: number }) {
 
 type ShipPartsPanelProps = {
   board: BoardView
-  isGameOver: boolean
   onRouteShipPartUse: (routeSlotIndex: number) => void
 }
 
-export function ShipPartsPanel({ board, isGameOver, onRouteShipPartUse }: ShipPartsPanelProps) {
+export function ShipPartsPanel({ board, onRouteShipPartUse }: ShipPartsPanelProps) {
   const shipPartEntries = board.routeSlots.flatMap((routeSlot, index) => {
     const card = routeSlot ? board.cards[routeSlot.cardId] : null
 
@@ -56,10 +56,6 @@ export function ShipPartsPanel({ board, isGameOver, onRouteShipPartUse }: ShipPa
         ]
       : []
   })
-
-  if (isGameOver || shipPartEntries.length === 0) {
-    return null
-  }
 
   return (
     <section className="ship-parts-area" aria-label="Ship Parts">
@@ -110,17 +106,4 @@ export function StressTracker({ stressCount }: { stressCount: number }) {
   )
 }
 
-export function HistoryPanel({ archivedRouteCardCount }: { archivedRouteCardCount: number }) {
-  if (archivedRouteCardCount === 0) {
-    return null
-  }
 
-  return (
-    <aside className="history-area" aria-label="Archived traveled Stops">
-      <h2>History</h2>
-      <p>
-        {archivedRouteCardCount} archived traveled Stop{archivedRouteCardCount === 1 ? '' : 's'}
-      </p>
-    </aside>
-  )
-}

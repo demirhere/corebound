@@ -21,7 +21,7 @@ export function getRequirementIconLabel(icon: RequirementIconKind) {
     return 'Engine'
   }
 
-  return 'Signal'
+  return 'Science'
 }
 
 export function getShipPartForStopKind(kind: HorizonKind): ShipPartKind {

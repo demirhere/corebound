@@ -63,8 +63,9 @@ function renderGameIcon(kind: GameIconKind) {
     case 'signal':
       return (
         <>
-          <path className="icon-fill" d="M6.3 19.8a8.4 8.4 0 0 0 11.9 0l-5.9-5.9Z" />
-          <path className="icon-line" d="M12.2 23.1 9.3 28M12.2 23.1l5.9 4.9M18.9 13a5.5 5.5 0 0 1 0 6.1M22.1 9.7a10 10 0 0 1 0 12.6M25.4 6.5a14.3 14.3 0 0 1 0 19" />
+          <path className="icon-fill" d="M12.2 4.8h7.6v7.3l5.4 9.4c1.9 3.3-.5 6.1-4.2 6.1H11c-3.7 0-6.1-2.8-4.2-6.1l5.4-9.4Z" />
+          <path className="icon-cutout" d="M10.1 21.2h11.8l1.1 1.9c.8 1.4-.2 2.5-2 2.5H11c-1.8 0-2.8-1.1-2-2.5Z" />
+          <path className="icon-line" d="M11.4 4.8h9.2M13.9 4.8v7.9l-5.4 9.4M18.1 4.8v7.9l5.4 9.4M10.4 20.8h11.2M12.3 24h7.4" />
         </>
       )
     case 'mother':

@@ -54,7 +54,7 @@ export function cardRulesText(card: Card | CardBlueprint) {
   if (card.kind === 'crew') {
     const specialties = card.specializations?.map(getRequirementIconLabel).join(', ') ?? 'none'
 
-    return `specialties: ${specialties}; fuel math: crew+crew=fuel; MOTHER cannot pay Fuel`
+    return `specialties: ${specialties}; water math: Engineer+Scientist=water; MOTHER cannot pay Fuel`
   }
 
   if (card.kind === 'horizon' && card.horizon) {
@@ -161,17 +161,18 @@ export function mapInitializedEvent(sector: number, mapCards: readonly Card[]): 
   }
 }
 
-export function mapRefilledEvent(sector: number, slotIndex: number, card: Card): PlaytestLogEvent {
+export function mapRefilledEvent(sector: number, mapCards: readonly Card[]): PlaytestLogEvent {
+  const cardTitlesText = mapCards.map((card) => card.title).join(', ') || 'none'
+
   return {
     type: 'map.refilled',
-    message: `Sector ${sector} Map slot ${slotIndex + 1} refilled with ${describeCard(card, card.id)}.`,
+    message: `Sector ${sector} Map refreshed with ${mapCards.length} Stops: ${cardTitlesText}.`,
     details: {
       sector,
-      slot: slotIndex + 1,
-      cardId: card.id,
-      cardTitle: card.title,
-      cardSummary: describeCard(card, card.id),
-      cardContent: cardContent(card),
+      cardIds: mapCards.map((card) => card.id),
+      cardTitles: mapCards.map((card) => card.title),
+      cardSummaries: mapCards.map((card) => describeCard(card, card.id)),
+      cardContents: mapCards.map(cardContent),
     },
   }
 }
@@ -296,7 +297,7 @@ export function motherCommittedEvent(
   coversIcon: MotherCoveredIcon | null,
 ): PlaytestLogEvent {
   const assignmentMessage = coversIcon === 'fuel'
-    ? 'paired with Crew for Fuel'
+    ? 'Engineer+Scientist pair for water'
     : coversIcon ? `covering ${coversIcon}` : 'overcommitted'
   const baseDetails = {
     cardId: motherCard.id,
@@ -438,7 +439,7 @@ export function stopMovedToRouteEvent(
 
   return {
     type: 'stop.traveled',
-    message: `${stopCard.title} stays on the board as traveled Stop ${routeSlotIndex + 1}. ${shipPartLabel} available.${gateBegins ? ' Gate begins.' : ''}`,
+    message: `${stopCard.title} moved to traveled Stop ${routeSlotIndex + 1}. ${shipPartLabel} available.${gateBegins ? ' Gate begins.' : ''}`,
     details: {
       stopCardId: stopCard.id,
       stopTitle: stopCard.title,
