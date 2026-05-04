@@ -20,6 +20,19 @@ import {
   getNearbyDrawPosition,
 } from './interactionGeometry'
 import {
+  countPotentialGateShipParts,
+  countShipParts,
+  countSpentShipParts,
+  createEmptyMapSlots,
+  createEmptyRouteSlots,
+  getMapStackId,
+  getMapStackPosition,
+  getRefilledMapStackId,
+  getRouteCardIds,
+  isRouteFilled,
+  stackContainsRouteCard,
+} from './routeState'
+import {
   cardDrawnEvent,
   cardsDiscardedEvent,
   cardsMovedToHandEvent,
@@ -82,7 +95,6 @@ import {
   MAP_SLOT_POSITIONS,
   MOTHER_SUPPLY_STACK_ID,
   MOTHER_SUPPLY_STACK_POSITION,
-  ROUTE_SLOT_COUNT,
   createSectorHorizonDeckCards,
   getSectorDeckArt,
   getSectorDeckTitle,
@@ -97,8 +109,6 @@ import type {
   DropTarget,
   GameLossReason,
   HandZone,
-  RouteSlot,
-  ShipPartKind,
   Stack,
 } from '../game/types'
 import {
@@ -115,78 +125,12 @@ type Position = {
   y: number
 }
 
-function createEmptyRouteSlots() {
-  return Array<RouteSlot | null>(ROUTE_SLOT_COUNT).fill(null)
-}
-
-function createEmptyMapSlots() {
-  return Array<string | null>(MAP_SLOT_COUNT).fill(null)
-}
-
-function getMapStackId(slotIndex: number) {
-  return `stack-map-${slotIndex + 1}`
-}
-
-function getMapStackPosition(current: BoardState, slotIndex: number) {
-  const basePosition = MAP_SLOT_POSITIONS[slotIndex] ?? MAP_SLOT_POSITIONS[0]
-  const traveledStopsInLane = current.routeSlots.filter((slot) => slot?.mapSlotIndex === slotIndex).length
-
-  return {
-    x: basePosition.x + traveledStopsInLane * 3.5,
-    y: basePosition.y + traveledStopsInLane * 5.5,
-  }
-}
-
-function getRefilledMapStackId(current: BoardState, slotIndex: number, cardId: string) {
-  const preferredStackId = getMapStackId(slotIndex)
-
-  return current.stacks.some((stack) => stack.id === preferredStackId)
-    ? `${preferredStackId}-${cardId}`
-    : preferredStackId
-}
-
 function createCardFromBlueprint(blueprint: CardBlueprint, id: string): Card {
   return {
     ...blueprint,
     id,
     faceUp: true,
   }
-}
-
-function getRouteCardIds(routeSlots: readonly (RouteSlot | null)[]) {
-  return routeSlots.flatMap((slot) => slot ? [slot.cardId] : [])
-}
-
-function stackContainsRouteCard(stack: Stack, routeSlots: readonly (RouteSlot | null)[]) {
-  const routeCardIds = new Set(getRouteCardIds(routeSlots))
-
-  return stack.cardIds.some((cardId) => routeCardIds.has(cardId))
-}
-
-function countRouteStops(routeSlots: readonly (RouteSlot | null)[]) {
-  return routeSlots.filter(Boolean).length
-}
-
-function isRouteFilled(routeSlots: readonly (RouteSlot | null)[]) {
-  return countRouteStops(routeSlots) >= ROUTE_SLOT_COUNT
-}
-
-function countShipParts(
-  routeSlots: readonly (RouteSlot | null)[],
-  shipPart: ShipPartKind,
-  statuses: readonly RouteSlot['status'][],
-) {
-  return routeSlots.reduce((count, slot) => (
-    slot?.shipPart === shipPart && statuses.includes(slot.status) ? count + 1 : count
-  ), 0)
-}
-
-function countSpentShipParts(routeSlots: readonly (RouteSlot | null)[], shipPart: ShipPartKind) {
-  return countShipParts(routeSlots, shipPart, ['spent'])
-}
-
-function countPotentialGateShipParts(routeSlots: readonly (RouteSlot | null)[], shipPart: ShipPartKind) {
-  return countShipParts(routeSlots, shipPart, ['available', 'spent'])
 }
 
 type ActivateStackDragUpdateArgs = {

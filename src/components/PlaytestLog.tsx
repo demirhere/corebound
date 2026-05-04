@@ -37,7 +37,7 @@ export function PlaytestLog({ entries, previousSessions, onResetGame }: Playtest
     : previousSessions.find((session) => String(session.id) === selectedLogKey) ?? null
   const activeLogKey = selectedPreviousSession ? String(selectedPreviousSession.id) : CURRENT_LOG_KEY
   const activeEntries = selectedPreviousSession ? selectedPreviousSession.entries : entries
-  const visibleEntries = [...activeEntries].reverse()
+  const visibleEntries = isOpen ? [...activeEntries].reverse() : []
   const copyState = copyFailed
     ? 'failed'
     : copiedLog?.key === activeLogKey && copiedLog.entryCount === activeEntries.length

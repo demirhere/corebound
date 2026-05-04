@@ -1,17 +1,23 @@
 import {
-  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
 import { getNextStopFuelDiscount } from '../game/effects'
-import type { BoardState, GameLossReason, RouteSlot } from '../game/types'
+import type { BoardState } from '../game/types'
 import {
-  getShipPartLabel,
-  getShipPartUseText,
-} from '../game/shipParts'
+  ArrivalDialog,
+  LossDialog,
+  ScoutChoiceDialog,
+  WakeChoiceDialog,
+} from './BoardDialogs'
+import {
+  HistoryPanel,
+  InstructionsPanel,
+  ShipPartsPanel,
+  StressTracker,
+} from './BoardPanels'
 import { CardStack } from './CardStack'
 import {
-  CardShell,
   type CardKeyDownHandler,
   type CardPointerDownHandler,
 } from './BoardCard'
@@ -20,7 +26,6 @@ import {
   type DeckKeyDownHandler,
   type DeckPointerDownHandler,
 } from './DeckCard'
-import { GameIcon } from './GameIcon'
 import {
   Hand,
   type HandInsertPreview,
@@ -55,83 +60,6 @@ type BoardProps = {
   onResetGame: () => void
 }
 
-type LossStat = {
-  label: string
-  value: string
-  iconKind?: 'fuel' | 'hull'
-  iconLabel?: string
-}
-
-function lossContent(reason: GameLossReason) {
-  if (reason === 'sector-stranded') {
-    return {
-      title: 'Stranded in the Reach.',
-      body: 'No visible Map Stop can be completed.',
-    }
-  }
-
-  return {
-    title: 'The Gate cannot be passed.',
-    body: 'The Gate cannot be completed with available Ship Parts, Ready crew, and unused MOTHER cards.',
-  }
-}
-
-function getLossStats(board: BoardView): LossStat[] {
-  const fuelSpent = board.completedStarSummaries.reduce(
-    (total, summary) => total + summary.fuelSpent,
-    0,
-  )
-  const sectorsCompleted = Math.max(0, Math.min(board.totalSectors, board.currentSector - 1))
-
-  return [
-    {
-      label: 'Stops visited',
-      value: String(board.completedStarSummaries.length),
-    },
-    {
-      label: 'Sectors completed',
-      value: String(sectorsCompleted),
-    },
-    {
-      label: 'Most used resource',
-      value: fuelSpent > 0 ? 'Fuel' : 'None',
-      iconKind: fuelSpent > 0 ? 'fuel' : undefined,
-      iconLabel: fuelSpent > 0 ? 'Fuel' : undefined,
-    },
-    {
-      label: 'Stress',
-      value: String(board.stressCount),
-    },
-  ]
-}
-
-function isGateActive(board: BoardView) {
-  return board.routeSlots.every(Boolean) && !board.pendingWakeChoice && !board.pendingScoutChoice
-}
-
-function canUseRouteShipPart(board: BoardView, routeSlot: RouteSlot | null) {
-  if (!routeSlot || routeSlot.status !== 'available' || !isGateActive(board)) {
-    return false
-  }
-
-  return routeSlot.shipPart !== 'water-tank' || board.tiredCardIds.length > 0
-}
-
-function FailureFlameIcon() {
-  return (
-    <figure className="crashed-ship-art" aria-hidden="true">
-      <svg viewBox="0 0 420 330" focusable="false">
-        <path className="flame-icon-fill" d="M214 38c-60 66-93 116-93 170 0 58 40 98 89 98 52 0 91-39 91-96 0-47-25-87-67-126 3 37-9 67-35 91 5-48-3-91 15-137Z" />
-        <path className="flame-icon-cutout" d="M206 154c-29 34-45 59-45 88 0 28 20 48 47 48 29 0 49-21 49-50 0-24-13-45-36-69 1 23-6 40-22 54 3-28-3-52 7-71Z" />
-        <path className="flame-icon-line" d="M179 91c-24 35-36 70-36 106M270 164c8 19 11 38 8 58M191 279c17 6 37 6 55 0M137 238c9 23 27 41 52 53" />
-        <path className="flame-icon-spark" d="M95 144l28 5M315 116l21-18M322 229l28 12M108 231l-24 18" />
-        <circle className="flame-icon-dot" cx="303" cy="78" r="6" />
-        <circle className="flame-icon-dot" cx="101" cy="91" r="4.8" />
-      </svg>
-    </figure>
-  )
-}
-
 export function Board({
   board,
   boardRef,
@@ -156,68 +84,9 @@ export function Board({
   onRouteShipPartUse,
   onResetGame,
 }: BoardProps) {
-  const loss = board.lossReason ? lossContent(board.lossReason) : null
-  const lossStats = loss ? getLossStats(board) : []
-  const isGameOver = board.hasArrived || Boolean(loss)
+  const isGameOver = board.hasArrived || Boolean(board.lossReason)
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
   const traveledStopCardIds = new Set(board.routeSlots.flatMap((routeSlot) => routeSlot ? [routeSlot.cardId] : []))
-  const shipPartEntries = board.routeSlots.flatMap((routeSlot, index) => {
-    const card = routeSlot ? board.cards[routeSlot.cardId] : null
-
-    return routeSlot && card
-      ? [
-          {
-            routeSlot,
-            routeSlotIndex: index,
-            card,
-            shipPartLabel: getShipPartLabel(routeSlot.shipPart),
-          },
-        ]
-      : []
-  })
-  const scoutChoice = board.pendingScoutChoice
-  const wakeChoiceCards = board.pendingWakeChoice?.choiceCardIds.flatMap((cardId) => {
-    const card = board.cards[cardId]
-
-    return card?.kind === 'crew' ? [card] : []
-  }) ?? []
-  const scoutChoiceCards = scoutChoice?.choiceCardIds.flatMap((cardId) => {
-    const card = board.cards[cardId]
-
-    return card?.kind === 'horizon' ? [card] : []
-  }) ?? []
-  const scoutChoiceComplete = Boolean(
-    scoutChoice && scoutChoice.choiceCardIds.length - scoutChoice.bottomedCardIds.length === 1,
-  )
-  const scoutInstruction = !scoutChoice
-    ? ''
-    : scoutChoiceComplete
-      ? 'Confirm to keep the unselected card on top and send selected cards to the back.'
-      : scoutChoice.choiceCardIds.length === 1
-        ? 'Only 1 card remains. Confirm to leave it on top of the Stop Deck.'
-        : 'Select the cards you do not like to send to the back. Leave 1 card unselected for the top.'
-
-  function scoutCardChoiceClass(cardId: string) {
-    if (!scoutChoice) {
-      return ''
-    }
-
-    return scoutChoice.bottomedCardIds.includes(cardId) ? 'is-scout-selected' : ''
-  }
-
-  function getScoutFanStyle(cardIndex: number, cardCount: number) {
-    const fanOffset = cardIndex - (cardCount - 1) / 2
-    const fanSpacing = cardCount > 4 ? 56 : cardCount > 3 ? 68 : 82
-    const fanXPercent = fanOffset * fanSpacing
-    const fanY = Math.abs(fanOffset) * 8
-    const fanRotation = fanOffset * 6
-    const fanZ = 100 + Math.round((cardCount - Math.abs(fanOffset)) * 10) + cardIndex
-
-    return {
-      transform: `translate(calc(-50% + ${fanXPercent}%), calc(-50% + ${fanY}px)) rotate(${fanRotation}deg)`,
-      zIndex: fanZ,
-    } as CSSProperties
-  }
 
   return (
     <section
@@ -228,69 +97,14 @@ export function Board({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
     >
-      <aside className="board-notes" aria-label="Quick play instructions">
-        <h2>Instructions</h2>
-        <ol>
-          <li>Visit 1 Map Stop</li>
-          <li>Always send 1+ crew on the trip</li>
-          <li>Leave traveled Stops on the board</li>
-          <li>Refill only that Map lane</li>
-          <li>After 3 Stops, face the Gate</li>
-          <li>Printed Ship Parts help only at the Gate</li>
-          <li>Clear Sector {board.totalSectors} to win</li>
-        </ol>
-      </aside>
-
-      {!isGameOver && shipPartEntries.length > 0 && (
-        <section className="ship-parts-area" aria-label="Ship Parts">
-          <h2>Ship Parts</h2>
-          <div className="ship-part-list">
-            {shipPartEntries.map(({ routeSlot, routeSlotIndex, card, shipPartLabel }) => {
-              const canUseShipPart = canUseRouteShipPart(board, routeSlot)
-
-              return (
-                <article className={`ship-part-item is-${routeSlot.status}`} key={routeSlot.cardId}>
-                  <p>
-                    <span>{shipPartLabel}</span>
-                    <em>{routeSlot.status}</em>
-                  </p>
-                  <strong>{card.title}</strong>
-                  <small>{getShipPartUseText(routeSlot.shipPart)}</small>
-                  <button
-                    type="button"
-                    disabled={!canUseShipPart}
-                    aria-label={`Use ${shipPartLabel} from ${card.title}`}
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onClick={() => onRouteShipPartUse(routeSlotIndex)}
-                  >
-                    {routeSlot.status === 'spent' ? 'Spent' : 'Use Part'}
-                  </button>
-                </article>
-              )
-            })}
-          </div>
-        </section>
-      )}
-
-      <aside className="stress-area" aria-label="Stress area">
-        <p className="stress-tracker" aria-live="polite">
-          <span className="stress-label">Stress</span>
-          <span className="stress-history">
-            {Array.from({ length: board.stressCount + 1 }, (_, i) => (
-              <span key={i} className={i < board.stressCount ? 'stress-old' : 'stress-current'}>
-                {i}
-              </span>
-            ))}
-          </span>
-        </p>
-      </aside>
-
-      {board.archivedRouteCardIds.length > 0 && (
-        <aside className="history-area" aria-label="Archived traveled Stops">
-          <h2>History</h2>
-          <p>{board.archivedRouteCardIds.length} archived traveled Stop{board.archivedRouteCardIds.length === 1 ? '' : 's'}</p>
-        </aside>
-      )}
+      <InstructionsPanel totalSectors={board.totalSectors} />
+      <ShipPartsPanel
+        board={board}
+        isGameOver={isGameOver}
+        onRouteShipPartUse={onRouteShipPartUse}
+      />
+      <StressTracker stressCount={board.stressCount} />
+      <HistoryPanel archivedRouteCardCount={board.archivedRouteCardIds.length} />
 
       {board.decks
         .filter((deck) => deck.cards.length > 0)
@@ -332,142 +146,19 @@ export function Board({
         onCardKeyDown={onHandCardKeyDown}
       />
 
-      {board.hasArrived && (
-        <div className="dialog-overlay">
-          <section className="arrival-panel" role="status" aria-live="polite">
-            <p className="arrival-kicker">Gate cleared</p>
-            <h2>You arrived beyond the Dark Threshold.</h2>
-            <p>Two-sector prototype complete. Restart to reshuffle both sectors and run it again.</p>
-            <button type="button" onClick={onResetGame}>
-              Restart and reshuffle
-            </button>
-          </section>
-        </div>
-      )}
-
-      {loss && (
-        <div className="dialog-overlay failure-overlay">
-          <FailureFlameIcon />
-          <section
-            className="arrival-panel loss-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="loss-title"
-          >
-            <p className="arrival-kicker">Ship failed</p>
-            <h2 id="loss-title">{loss.title}</h2>
-            <p>{loss.body}</p>
-            <dl className="loss-stats" aria-label="Failed run stats">
-              {lossStats.map((stat) => (
-                <div className="loss-stat" key={stat.label}>
-                  <dt>{stat.label}</dt>
-                  <dd aria-label={stat.iconLabel ?? stat.value}>
-                    {stat.iconKind && <GameIcon kind={stat.iconKind} />}
-                    <span>{stat.value}</span>
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            <button type="button" onClick={onResetGame}>
-              New Run
-            </button>
-          </section>
-        </div>
-      )}
-
-      {!isGameOver && board.pendingWakeChoice && wakeChoiceCards.length > 0 && (
-        <div className="dialog-overlay">
-          <section
-            className="arrival-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="wake-choice-title"
-          >
-            <h2 id="wake-choice-title">Choose Cryo Crew</h2>
-            <p>That crew joins Tired and readies after the next Gate.</p>
-            <div className="wake-choice-cards">
-              {wakeChoiceCards.map((card) => (
-                <CardShell
-                  key={card.id}
-                  card={card}
-                  className="wake-choice-card"
-                  motionCardId={card.id}
-                  ariaLabel={`Choose ${card.title}`}
-                  onPointerDown={(event) => {
-                    event.preventDefault()
-                    event.stopPropagation()
-                    onWakeCrewChoice(card.id)
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key !== 'Enter' && event.key !== ' ') {
-                      return
-                    }
-
-                    event.preventDefault()
-                    event.stopPropagation()
-                    onWakeCrewChoice(card.id)
-                  }}
-                />
-              ))}
-            </div>
-          </section>
-        </div>
-      )}
-
-      {!isGameOver && !board.pendingWakeChoice && scoutChoice && scoutChoiceCards.length > 0 && (
-        <div className="dialog-overlay">
-          <section
-            className="arrival-panel scout-choice-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="scout-choice-title"
-          >
-            <p className="arrival-kicker">Scout</p>
-            <h2 id="scout-choice-title">Set the Stop Deck</h2>
-            <p>{scoutInstruction}</p>
-            <div className="scout-choice-cards">
-              {scoutChoiceCards.map((card, index) => {
-                const choiceClass = scoutCardChoiceClass(card.id)
-                const isSelected = scoutChoice.bottomedCardIds.includes(card.id)
-
-                return (
-                  <div
-                    key={card.id}
-                    className="scout-choice-item"
-                    style={getScoutFanStyle(index, scoutChoiceCards.length)}
-                  >
-                    <CardShell
-                      card={card}
-                      className={`wake-choice-card scout-choice-card ${choiceClass}`}
-                      motionCardId={card.id}
-                      ariaLabel={`${card.title}. ${isSelected ? 'Selected to send to the back.' : 'Unselected, currently eligible to stay on top.'}`}
-                      onPointerDown={(event) => {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        onScoutCardChoice(card.id)
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Enter' && event.key !== ' ') {
-                          return
-                        }
-
-                        event.preventDefault()
-                        event.stopPropagation()
-                        onScoutCardChoice(card.id)
-                      }}
-                    />
-                  </div>
-                )
-              })}
-            </div>
-            <div className="scout-choice-actions">
-              <button type="button" onClick={onScoutChoiceConfirm} disabled={!scoutChoiceComplete}>
-                Use Scout
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
+      <ArrivalDialog hasArrived={board.hasArrived} onResetGame={onResetGame} />
+      <LossDialog board={board} onResetGame={onResetGame} />
+      <WakeChoiceDialog
+        board={board}
+        isGameOver={isGameOver}
+        onWakeCrewChoice={onWakeCrewChoice}
+      />
+      <ScoutChoiceDialog
+        board={board}
+        isGameOver={isGameOver}
+        onScoutCardChoice={onScoutCardChoice}
+        onScoutChoiceConfirm={onScoutChoiceConfirm}
+      />
     </section>
   )
 }
