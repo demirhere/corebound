@@ -17,6 +17,7 @@ type CardStackProps = {
   stackOffsetRatio: number
   fuelDiscount: number
   stressCount: number
+  traveledStopCardIds: ReadonlySet<string>
   onCardPointerDown: CardPointerDownHandler
   onCardKeyDown: CardKeyDownHandler
 }
@@ -29,6 +30,7 @@ export function CardStack({
   stackOffsetRatio,
   fuelDiscount,
   stressCount,
+  traveledStopCardIds,
   onCardPointerDown,
   onCardKeyDown,
 }: CardStackProps) {
@@ -69,6 +71,7 @@ export function CardStack({
             stackOffsetRatio={stackOffsetRatio}
             fuelDiscount={fuelDiscount}
             stressCount={stressCount}
+            isTraveledStop={traveledStopCardIds.has(card.id)}
             onPointerDown={onCardPointerDown}
             onKeyDown={onCardKeyDown}
           />

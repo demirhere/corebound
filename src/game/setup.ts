@@ -136,6 +136,7 @@ function createMotherDeck(count: number) {
 function createCrewCard(
   title: string,
   specializations: [CrewSpecialization, CrewSpecialization],
+  portraitIndex: number,
 ): CardBlueprint {
   return {
     title,
@@ -144,6 +145,7 @@ function createCrewCard(
     accent: crewArt.accent,
     kind: 'crew',
     specializations,
+    portraitIndex,
   }
 }
 
@@ -285,21 +287,21 @@ function setupGateRevealedEvent(card: Card, stackId: string): PlaytestLogEvent {
 }
 
 const startingCrewCards = [
-  createCrewCard('Lei Watanabe', ['life', 'star']),
-  createCrewCard('Mara Voss', ['engine', 'engine']),
-  createCrewCard('Ada Chen', ['engine', 'signal']),
-  createCrewCard('Sana Iqbal', ['life', 'life']),
-  createCrewCard('Nia Okonkwo', ['signal', 'star']),
+  createCrewCard('Lei Watanabe', ['life', 'star'], 2),
+  createCrewCard('Mara Voss', ['engine', 'engine'], 14),
+  createCrewCard('Ada Chen', ['engine', 'signal'], 5),
+  createCrewCard('Sana Iqbal', ['life', 'life'], 7),
+  createCrewCard('Nia Okonkwo', ['signal', 'star'], 10),
 ]
 
 const cryoCrewDeck = [
-  createCrewCard('Juno Pike', ['engine', 'star']),
-  createCrewCard('Tomas Hale', ['engine', 'life']),
-  createCrewCard('Priya Shah', ['life', 'engine']),
-  createCrewCard('Elise Tan', ['life', 'signal']),
-  createCrewCard('Ilya Rao', ['star', 'signal']),
-  createCrewCard('Oren Vale', ['signal', 'signal']),
-  createCrewCard('Malik Ortega', ['star', 'star']),
+  createCrewCard('Juno Pike', ['engine', 'star'], 4),
+  createCrewCard('Tomas Hale', ['engine', 'life'], 1),
+  createCrewCard('Priya Shah', ['life', 'engine'], 12),
+  createCrewCard('Elise Tan', ['life', 'signal'], 8),
+  createCrewCard('Ilya Rao', ['star', 'signal'], 6),
+  createCrewCard('Oren Vale', ['signal', 'signal'], 13),
+  createCrewCard('Malik Ortega', ['star', 'star'], 15),
 ]
 
 const horizonDeck = [
@@ -483,7 +485,6 @@ export function createInitialBoardSetup(): InitialBoardSetup {
     mapSlots: mapStopCards.map((card) => card.id),
     routeSlots: Array.from({ length: ROUTE_SLOT_COUNT }, () => null),
     archivedRouteCardIds: [],
-    setAsideStops: [],
     handCardIds: handCards.map((card) => card.id),
     tiredCardIds: [],
     completedStarSummaries: [],

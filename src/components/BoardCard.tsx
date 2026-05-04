@@ -8,13 +8,20 @@ import type {
   CrewSpecialization,
   GateDetails,
   HorizonReward,
+  ShipPartKind,
   RequirementIconKind,
   ResourceKind,
 } from '../game/types'
-import { getStopTypeLabel } from '../game/shipParts'
+import {
+  getShipPartForStopKind,
+  getShipPartLabel,
+  getShipPartUseText,
+  getStopTypeLabel,
+} from '../game/shipParts'
 import { DeckIcon } from './DeckIcon'
 import { GameIcon } from './GameIcon'
 import { pickCardIcons, pickCardNote } from './gameIcons'
+import { renderCrewCardContent } from './CrewCard'
 
 export type CardView = Card
 
@@ -39,6 +46,7 @@ type BoardCardProps = {
   stackOffsetRatio: number
   fuelDiscount: number
   stressCount: number
+  isTraveledStop?: boolean
   onPointerDown: CardPointerDownHandler
   onKeyDown: CardKeyDownHandler
 }
@@ -50,6 +58,7 @@ type CardShellProps = {
   isActive?: boolean
   fuelDiscount?: number
   stressCount?: number
+  isTraveledStop?: boolean
   ariaLabel: string
   motionCardId?: string
   dataHandCardId?: string
@@ -142,22 +151,25 @@ function renderReward(reward: HorizonReward, index: number) {
   return []
 }
 
+function renderShipPartReward(shipPart: ShipPartKind) {
+  return (
+    <span
+      key={`ship-part-${shipPart}`}
+      className="card-reward-chip card-ship-part-reward"
+      title={getShipPartUseText(shipPart)}
+    >
+      <GameIcon kind="parts" />
+      <span>Gate: {getShipPartLabel(shipPart)}</span>
+    </span>
+  )
+}
+
 function renderCrewNeed(count: number, keyPrefix: string, className = '') {
   return Array.from({ length: count }, (_, index) => (
     <span key={`${keyPrefix}-crew-${index}`} className={className}>
       <GameIcon kind="person" />
     </span>
   ))
-}
-
-function renderCrewFuelMath() {
-  return (
-    <div className="card-crew-fuel-math">
-      <p className="card-rule-text">
-        Combine with another <GameIcon kind="person" /> to use as <GameIcon kind="fuel" />.
-      </p>
-    </div>
-  )
 }
 
 function renderGatePenalty(gate: GateDetails, stressCount: number) {
@@ -199,17 +211,7 @@ function renderGameplayCardContent(card: CardView, fuelDiscount: number, stressC
   }
 
   if (card.kind === 'crew') {
-    const specializations = card.specializations ?? []
-
-    return (
-      <>
-        <p className="card-kicker">Crew</p>
-        <div className="card-primary-icons">
-          {renderIconPips(specializations, `${card.id}-crew`)}
-        </div>
-        {renderCrewFuelMath()}
-      </>
-    )
+    return renderCrewCardContent(card)
   }
 
   if (card.kind === 'mother') {
@@ -232,6 +234,7 @@ function renderGameplayCardContent(card: CardView, fuelDiscount: number, stressC
     const currentFuelCost = Math.max(0, card.horizon.need.fuel - fuelDiscount)
     const hasFuelDiscount = currentFuelCost < card.horizon.need.fuel
     const removedFuelCount = card.horizon.need.fuel - currentFuelCost
+    const shipPart = getShipPartForStopKind(card.horizon.kind)
 
     return (
       <>
@@ -252,6 +255,7 @@ function renderGameplayCardContent(card: CardView, fuelDiscount: number, stressC
           <span className="card-reward-equals">=</span>
           <div className="card-rule-icons">
             {card.horizon.rewards.map(renderReward)}
+            {renderShipPartReward(shipPart)}
           </div>
         </div>
       </>
@@ -280,7 +284,7 @@ function renderGameplayCardContent(card: CardView, fuelDiscount: number, stressC
           </div>
         </div>
         {renderGatePenalty(card.gate, stressCount)}
-        <p className="card-rule-text">Finish after 3 Route Stops. MOTHER and Beacons cover icons only.</p>
+        <p className="card-rule-text">Finish after 3 traveled Stops. MOTHER and Beacons cover icons only.</p>
       </>
     )
   }
@@ -295,12 +299,14 @@ export function CardShell({
   isActive = false,
   fuelDiscount = 0,
   stressCount = 0,
+  isTraveledStop = false,
   ariaLabel,
   motionCardId,
   dataHandCardId,
   onPointerDown,
   onKeyDown,
 }: CardShellProps) {
+  const isCrewCard = card.kind === 'crew'
   const sampledIcons = pickCardIcons(`${card.id}:${card.title}`)
   const noteLines = pickCardNote(`${card.id}:${card.title}`)
   const gameplayContent = renderGameplayCardContent(card, fuelDiscount, stressCount)
@@ -309,7 +315,7 @@ export function CardShell({
     <div
       className={`card-shell ${card.faceUp ? 'is-face-up' : 'is-face-down'} ${
         isActive ? 'is-being-dragged' : ''
-      } card-kind-${card.kind} ${card.spentMother ? 'is-spent-mother' : ''} ${className}`}
+      } card-kind-${card.kind} ${card.spentMother ? 'is-spent-mother' : ''} ${isTraveledStop ? 'is-traveled-stop' : ''} ${className}`}
       data-hand-card-id={dataHandCardId}
       data-motion-card-id={motionCardId}
       style={
@@ -327,10 +333,12 @@ export function CardShell({
     >
       <div className="card-inner">
         <article className="card-face card-front">
-          <header className="card-header">
-            <span className="card-title">{card.title}</span>
-          </header>
-          <div className={`card-art ${gameplayContent ? 'card-art-gameplay' : ''}`} aria-hidden="true">
+          {!isCrewCard && (
+            <header className="card-header">
+              <span className="card-title">{card.title}</span>
+            </header>
+          )}
+          <div className={`card-art ${gameplayContent ? 'card-art-gameplay' : ''} ${isCrewCard ? 'crew-card-art' : ''}`} aria-hidden="true">
             {gameplayContent ?? (
               <>
                 <div className="card-icon-row">
@@ -364,15 +372,21 @@ export function BoardCard({
   stackOffsetRatio,
   fuelDiscount,
   stressCount,
+  isTraveledStop = false,
   onPointerDown,
   onKeyDown,
 }: BoardCardProps) {
+  const ariaLabel = isTraveledStop
+    ? `${card.title}. Traveled destination. This completed Stop stays on the board.`
+    : `${card.title}. Drag to move this part of the stack.`
+
   return (
     <CardShell
       card={card}
       isActive={isStackActive}
       fuelDiscount={fuelDiscount}
       stressCount={stressCount}
+      isTraveledStop={isTraveledStop}
       motionCardId={card.id}
       style={
         {
@@ -380,7 +394,7 @@ export function BoardCard({
           zIndex: cardIndex + 1,
         } as CSSProperties
       }
-      ariaLabel={`${card.title}. Drag to move this part of the stack.`}
+      ariaLabel={ariaLabel}
       onPointerDown={(event) => onPointerDown(event, stackId, card.id, cardIndex)}
       onKeyDown={(event) => onKeyDown(event, stackId, card.id)}
     />

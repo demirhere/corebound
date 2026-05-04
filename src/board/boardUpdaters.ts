@@ -1,6 +1,5 @@
 import {
   CRYO_DECK_ID,
-  FUEL_DECK_ID,
   HORIZON_DECK_ID,
   MOTHER_DECK_ID,
   automaticRewardDeckDraw,
@@ -28,7 +27,6 @@ import {
   cardsStackedEvent,
   deckCreatedFromStacksEvent,
   decksMergedEvent,
-  distressCallUsedEvent,
   gameLostEvent,
   gateCompletedEvent,
   gateCrewSlotsCheckedEvent,
@@ -50,7 +48,6 @@ import {
   stackSplitEvent,
   starsCompletedSummaryEvent,
   stopMovedToRouteEvent,
-  stopsSetAsideEvent,
   stressAddedEvent,
   stressThresholdActiveEvent,
   wakeCrewRecruitedEvent,
@@ -74,11 +71,8 @@ import {
 } from '../game/rules'
 import { withPlaytestEvents, type BoardUpdater } from '../game/state'
 import {
-  canDistressCall,
-  canDistressReplaceMapSlot,
   canTravelToAnyHorizon,
   getDeckCardCount,
-  getDistressCallOptions,
   getReadyCrewCardIds,
 } from '../game/boardQueries'
 import {
@@ -104,7 +98,6 @@ import type {
   GameLossReason,
   HandZone,
   RouteSlot,
-  SetAsideStopSummary,
   ShipPartKind,
   Stack,
 } from '../game/types'
@@ -134,6 +127,24 @@ function getMapStackId(slotIndex: number) {
   return `stack-map-${slotIndex + 1}`
 }
 
+function getMapStackPosition(current: BoardState, slotIndex: number) {
+  const basePosition = MAP_SLOT_POSITIONS[slotIndex] ?? MAP_SLOT_POSITIONS[0]
+  const traveledStopsInLane = current.routeSlots.filter((slot) => slot?.mapSlotIndex === slotIndex).length
+
+  return {
+    x: basePosition.x + traveledStopsInLane * 3.5,
+    y: basePosition.y + traveledStopsInLane * 5.5,
+  }
+}
+
+function getRefilledMapStackId(current: BoardState, slotIndex: number, cardId: string) {
+  const preferredStackId = getMapStackId(slotIndex)
+
+  return current.stacks.some((stack) => stack.id === preferredStackId)
+    ? `${preferredStackId}-${cardId}`
+    : preferredStackId
+}
+
 function createCardFromBlueprint(blueprint: CardBlueprint, id: string): Card {
   return {
     ...blueprint,
@@ -144,6 +155,12 @@ function createCardFromBlueprint(blueprint: CardBlueprint, id: string): Card {
 
 function getRouteCardIds(routeSlots: readonly (RouteSlot | null)[]) {
   return routeSlots.flatMap((slot) => slot ? [slot.cardId] : [])
+}
+
+function stackContainsRouteCard(stack: Stack, routeSlots: readonly (RouteSlot | null)[]) {
+  const routeCardIds = new Set(getRouteCardIds(routeSlots))
+
+  return stack.cardIds.some((cardId) => routeCardIds.has(cardId))
 }
 
 function countRouteStops(routeSlots: readonly (RouteSlot | null)[]) {
@@ -170,18 +187,6 @@ function countSpentShipParts(routeSlots: readonly (RouteSlot | null)[], shipPart
 
 function countPotentialGateShipParts(routeSlots: readonly (RouteSlot | null)[], shipPart: ShipPartKind) {
   return countShipParts(routeSlots, shipPart, ['available', 'spent'])
-}
-
-function summarizeStopBlueprint(blueprint: CardBlueprint, source: SetAsideStopSummary['source']): SetAsideStopSummary | null {
-  return blueprint.kind === 'horizon' && blueprint.horizon
-    ? { cardTitle: blueprint.title, stopKind: blueprint.horizon.kind, source }
-    : null
-}
-
-function summarizeStopCard(card: Card | undefined, source: SetAsideStopSummary['source']): SetAsideStopSummary | null {
-  return card?.kind === 'horizon' && card.horizon
-    ? { cardTitle: card.title, stopKind: card.horizon.kind, source }
-    : null
 }
 
 type ActivateStackDragUpdateArgs = {
@@ -525,8 +530,7 @@ function resolveSectorStrandedLossIfNeeded(current: BoardState) {
     current.pendingScoutChoice ||
     isSectorHorizonFinished(current) ||
     visibleHorizonCardIds.length === 0 ||
-    canTravelToAnyHorizon(current, visibleHorizonCardIds) ||
-    canDistressCall(current)
+    canTravelToAnyHorizon(current, visibleHorizonCardIds)
   ) {
     return { board: current, events: [] }
   }
@@ -664,9 +668,9 @@ function placeMotherCardsInSupplyStack(
 function refillMapSlot(current: BoardState, slotIndex: number) {
   const horizonDeck = current.decks.find((deck) => deck.id === HORIZON_DECK_ID)
   const blueprint = horizonDeck?.cards[0]
-  const position = MAP_SLOT_POSITIONS[slotIndex] ?? MAP_SLOT_POSITIONS[0]
+  const position = getMapStackPosition(current, slotIndex)
 
-  if (!horizonDeck || !blueprint || !position || slotIndex < 0 || slotIndex >= MAP_SLOT_COUNT) {
+  if (!horizonDeck || !blueprint || slotIndex < 0 || slotIndex >= MAP_SLOT_COUNT) {
     return {
       board: {
         ...current,
@@ -692,7 +696,7 @@ function refillMapSlot(current: BoardState, slotIndex: number) {
     stacks: [
       ...current.stacks,
       {
-        id: getMapStackId(slotIndex),
+        id: getRefilledMapStackId(current, slotIndex, card.id),
         cardIds: [card.id],
         x: position.x,
         y: position.y,
@@ -712,22 +716,9 @@ function refillMapSlot(current: BoardState, slotIndex: number) {
   }
 }
 
-function setAsideRemainingStopsForGate(current: BoardState) {
+function clearRemainingStopsForGate(current: BoardState) {
   const mapCardIds = current.mapSlots.flatMap((cardId) => cardId ? [cardId] : [])
   const mapCardIdSet = new Set(mapCardIds)
-  const horizonDeck = current.decks.find((deck) => deck.id === HORIZON_DECK_ID)
-  const setAsideStops = [
-    ...mapCardIds.flatMap((cardId) => {
-      const summary = summarizeStopCard(current.cards[cardId], 'map')
-
-      return summary ? [summary] : []
-    }),
-    ...(horizonDeck?.cards.flatMap((blueprint) => {
-      const summary = summarizeStopBlueprint(blueprint, 'deck')
-
-      return summary ? [summary] : []
-    }) ?? []),
-  ]
   const gateCard = getSectorGateCard(current)
   const thresholdEvents = gateCard?.gate && current.stressCount >= gateCard.gate.motherPenalty.threshold
     ? [stressThresholdActiveEvent(gateCard, current.stressCount, gateCard.gate.motherPenalty.extraHumanCrew)]
@@ -738,7 +729,6 @@ function setAsideRemainingStopsForGate(current: BoardState) {
       ...current,
       mapSlots: createEmptyMapSlots(),
       pendingMapRefillSlotIndex: null,
-      setAsideStops,
       cards: withoutCards(current.cards, mapCardIds),
       stacks: current.stacks.filter((stack) => !stack.cardIds.some((cardId) => mapCardIdSet.has(cardId))),
       decks: current.decks.map((deck) =>
@@ -747,10 +737,7 @@ function setAsideRemainingStopsForGate(current: BoardState) {
           : deck,
       ),
     },
-    events: [
-      stopsSetAsideEvent(current.currentSector, setAsideStops),
-      ...thresholdEvents,
-    ],
+    events: thresholdEvents,
   }
 }
 
@@ -883,6 +870,7 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
     index === routeSlotIndex
       ? {
           cardId: horizonCard.id,
+          mapSlotIndex,
           shipPart,
           status: 'available' as const,
         }
@@ -923,26 +911,34 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
         )
       : null
   const rewardStackId = `stack-reward-${horizonCard.id}`
+  const spentMotherStackId = `stack-spent-mother-${horizonCard.id}`
   const nextStacksWithoutSource = current.stacks.filter(
     (stack) => stack.id !== sourceStack.id,
   )
   const resolvedStacks = placeFuelCardsInSupplyStack(
     [
       ...nextStacksWithoutSource,
+      {
+        ...sourceStack,
+        cardIds: [horizonCard.id],
+        z: nextZ,
+        drawChoiceGroupId: undefined,
+      },
       ...(spentMotherCardIds.length > 0
         ? [
             {
-              ...sourceStack,
+              id: spentMotherStackId,
               cardIds: spentMotherCardIds,
+              x: sourceStack.x + (sourceStack.x > 66 ? -4 : 4),
+              y: sourceStack.y + 4,
               z: nextZ,
-              drawChoiceGroupId: undefined,
             },
           ]
         : []),
       ...(otherRewardCards.length > 0
         ? [
             {
-              id: spentMotherCardIds.length > 0 ? rewardStackId : sourceStack.id,
+              id: rewardStackId,
               cardIds: otherRewardCards.map((card) => card.id),
               x: rewardPosition?.x ?? sourceStack.x,
               y: rewardPosition?.y ?? sourceStack.y,
@@ -996,7 +992,7 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
     shipPartAvailableEvent(horizonCard, routeSlotIndex, shipPart),
   ]
   const progressed = routeFilledAfterCompletion
-    ? setAsideRemainingStopsForGate(nextBoard)
+    ? clearRemainingStopsForGate(nextBoard)
     : shouldScoutBeforeRefill
       ? { board: nextBoard, events: [] as PlaytestLogEvent[] }
       : refillMapSlot(nextBoard, mapSlotIndex)
@@ -1112,10 +1108,16 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
   const cardsWithSpentMother = markMotherCardsSpent(current.cards, spentMotherCardIds)
   const nextCards = { ...cardsWithSpentMother }
   const routeCardIds = getRouteCardIds(current.routeSlots)
+  const routeCardIdSet = new Set(routeCardIds)
   const nextStressCount = current.stressCount + spentMotherCardIds.length
 
   if (nextGateCard) {
     delete nextCards[gateCard.id]
+
+    for (const routeCardId of routeCardIds) {
+      delete nextCards[routeCardId]
+    }
+
     nextCards[nextGateCard.id] = nextGateCard
 
     for (const mapStopCard of nextMapStopCards) {
@@ -1137,6 +1139,12 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
   )
 
   const nextStacks = current.stacks.flatMap((stack) => {
+    if (nextGateCard && stack.cardIds.some((cardId) => routeCardIdSet.has(cardId))) {
+      const keptCardIds = stack.cardIds.filter((cardId) => !routeCardIdSet.has(cardId))
+
+      return keptCardIds.length > 0 ? [{ ...stack, cardIds: keptCardIds }] : []
+    }
+
     if (stack.id !== sourceStack.id) {
       return [stack]
     }
@@ -1175,7 +1183,6 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
     archivedRouteCardIds: isFinalGate
       ? current.archivedRouteCardIds
       : [...current.archivedRouteCardIds, ...routeCardIds],
-    setAsideStops: nextGateCard ? [] : current.setAsideStops,
     handCardIds: readyCrewResult.handCardIds,
     tiredCardIds: readyCrewResult.tiredCardIds,
     pendingMapRefillSlotIndex: null,
@@ -1338,118 +1345,6 @@ export function spendRouteShipPartUpdate(routeSlotIndex: number): BoardUpdater {
   }
 }
 
-export function distressCallGainFuelUpdate(metrics: BoardMetrics): BoardUpdater {
-  return (current) => {
-    const options = getDistressCallOptions(current)
-    const fuelDeck = current.decks.find((deck) => deck.id === FUEL_DECK_ID)
-    const fuelBlueprint = fuelDeck?.cards[0]
-
-    if (!options.canGainFuel || !fuelDeck || !fuelBlueprint) {
-      return current
-    }
-
-    const nextZ = current.topZ + 1
-    const fuelCard = createCardFromBlueprint(fuelBlueprint, `distress-fuel-${current.nextCardId}`)
-    const nextStress = current.stressCount + 1
-    const nextCards = {
-      ...current.cards,
-      [fuelCard.id]: fuelCard,
-    }
-    const nextBoard = {
-      ...current,
-      topZ: nextZ,
-      nextCardId: current.nextCardId + 1,
-      dropTargetStackId: null,
-      dropTargetDeckId: null,
-      stressCount: nextStress,
-      cards: nextCards,
-      stacks: placeFuelCardsInSupplyStack(current.stacks, nextCards, [fuelCard], nextZ, metrics),
-      decks: current.decks.map((deck) =>
-        deck.id === FUEL_DECK_ID
-          ? { ...deck, cards: deck.cards.slice(1), z: nextZ }
-          : deck,
-      ),
-    }
-    const strandedLoss = resolveSectorStrandedLossIfNeeded(nextBoard)
-
-    return withPlaytestEvents(strandedLoss.board, [
-      stressAddedEvent('Distress Call', current.stressCount, nextStress),
-      distressCallUsedEvent('gain-fuel', nextStress, `gained ${fuelCard.title}`),
-      ...strandedLoss.events,
-    ])
-  }
-}
-
-export function distressCallReplaceMapStopUpdate(slotIndex: number): BoardUpdater {
-  return (current) => {
-    if (!canDistressReplaceMapSlot(current, slotIndex)) {
-      return current
-    }
-
-    const replacedCardId = current.mapSlots[slotIndex]
-    const replacedCard = replacedCardId ? current.cards[replacedCardId] : null
-    const horizonDeck = current.decks.find((deck) => deck.id === HORIZON_DECK_ID)
-    const replacementBlueprint = horizonDeck?.cards[0]
-    const sourceStack = current.stacks.find((stack) => replacedCardId ? stack.cardIds.includes(replacedCardId) : false)
-
-    if (!replacedCardId || !replacedCard?.horizon || !horizonDeck || !replacementBlueprint || !sourceStack || sourceStack.cardIds.length !== 1) {
-      return current
-    }
-
-    const replacedBlueprint = cardsToDeckBlueprints([replacedCardId], current.cards)[0]
-
-    if (!replacedBlueprint) {
-      return current
-    }
-
-    const nextZ = current.topZ + 1
-    const replacementCard = createCardFromBlueprint(
-      replacementBlueprint,
-      `distress-stop-${current.currentSector}-${slotIndex + 1}-${current.nextCardId}`,
-    )
-    const nextStress = current.stressCount + 1
-    const nextCards = withoutCards(
-      {
-        ...current.cards,
-        [replacementCard.id]: replacementCard,
-      },
-      [replacedCardId],
-    )
-    const nextBoard = {
-      ...current,
-      topZ: nextZ,
-      nextCardId: current.nextCardId + 1,
-      dropTargetStackId: null,
-      dropTargetDeckId: null,
-      stressCount: nextStress,
-      mapSlots: current.mapSlots.map((cardId, index) => index === slotIndex ? replacementCard.id : cardId),
-      cards: nextCards,
-      stacks: current.stacks.map((stack) =>
-        stack.id === sourceStack.id
-          ? { ...stack, cardIds: [replacementCard.id], z: nextZ }
-          : stack,
-      ),
-      decks: current.decks.map((deck) =>
-        deck.id === HORIZON_DECK_ID
-          ? { ...deck, cards: [...deck.cards.slice(1), replacedBlueprint], z: nextZ }
-          : deck,
-      ),
-    }
-    const strandedLoss = resolveSectorStrandedLossIfNeeded(nextBoard)
-
-    return withPlaytestEvents(strandedLoss.board, [
-      stressAddedEvent('Distress Call', current.stressCount, nextStress),
-      distressCallUsedEvent(
-        'replace-stop',
-        nextStress,
-        `replaced ${replacedCard.title} with ${replacementCard.title}`,
-      ),
-      mapRefilledEvent(current.currentSector, slotIndex, replacementCard),
-      ...strandedLoss.events,
-    ])
-  }
-}
-
 export function clearBoardDropTargetUpdate(current: BoardState) {
   return current.dropTargetStackId || current.dropTargetDeckId
     ? { ...current, dropTargetStackId: null, dropTargetDeckId: null }
@@ -1465,14 +1360,18 @@ export function activateStackDragUpdate({
   startY,
 }: ActivateStackDragUpdateArgs): BoardUpdater {
   return (current) => {
-    const sourceStack = current.stacks.find((stack) => stack.id === stackId)
+      const sourceStack = current.stacks.find((stack) => stack.id === stackId)
 
-    if (!sourceStack || sourceStack.cardIds[cardIndex] !== cardId) {
-      return current
-    }
+      if (!sourceStack || sourceStack.cardIds[cardIndex] !== cardId) {
+        return current
+      }
 
-    const nextZ = current.topZ + 1
-    const movingCardIds = sourceStack.cardIds.slice(cardIndex)
+      const nextZ = current.topZ + 1
+      const movingCardIds = sourceStack.cardIds.slice(cardIndex)
+
+      if (movingCardIds.some((movingCardId) => getRouteCardIds(current.routeSlots).includes(movingCardId))) {
+        return current
+      }
     const nextStacks =
       cardIndex > 0
         ? current.stacks.flatMap((stack) => {
@@ -1934,6 +1833,10 @@ export function discardStackUpdate(stackId: string): BoardUpdater {
       return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
     }
 
+    if (stackContainsRouteCard(stack, current.routeSlots)) {
+      return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
+    }
+
     const returnedMotherCardIds = getUsableMotherCardIds(stack, current.cards)
     const returnedMotherCardIdSet = new Set(returnedMotherCardIds)
     const discardedCardIds = stack.cardIds.filter((cardId) => !returnedMotherCardIdSet.has(cardId))
@@ -2161,6 +2064,10 @@ export function stackOnDropTargetUpdate(
     const targetStack = current.stacks.find((stack) => stack.id === targetStackId)
 
     if (!targetStack) {
+      return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
+    }
+
+    if (stackContainsRouteCard(sourceStack, current.routeSlots) || stackContainsRouteCard(targetStack, current.routeSlots)) {
       return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
     }
 

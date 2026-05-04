@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Pangolin&family=Playpen+Sans:wght@400;500;600&display=swap');
+
 .app {
   --card-width: clamp(110px, 11.5vw, 168px);
   --card-height: calc(var(--card-width) * 1.42);
@@ -117,11 +119,8 @@
   }
 }
 
-.route-area,
-.stress-area,
-.distress-call-panel,
-.set-aside-area,
-.archived-route-area {
+.ship-parts-area,
+.history-area {
   position: absolute;
   z-index: 2;
   color: #fff8e8;
@@ -140,22 +139,34 @@
   }
 }
 
-.route-area {
+.stress-area {
+  position: absolute;
+  z-index: 2;
+
+  p {
+    margin: 0;
+  }
+}
+
+.ship-parts-area {
   left: clamp(280px, 28vw, 520px);
   bottom: clamp(132px, 19svh, 184px);
   width: min(48vw, 720px);
+  pointer-events: auto;
 }
 
-.route-slots {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(96px, var(--card-width)));
+.ship-part-list {
+  display: flex;
+  flex-wrap: wrap;
   gap: clamp(10px, 1.2vw, 16px);
   margin-top: 8px;
 }
 
-.route-slot {
-  min-height: calc(var(--card-height) + 96px);
-  padding: 8px;
+.ship-part-item {
+  display: grid;
+  width: min(190px, 30vw);
+  gap: 5px;
+  padding: 10px;
   border: 2px solid rgba(255, 248, 232, 0.18);
   border-radius: 18px;
   background:
@@ -163,40 +174,9 @@
     rgba(5, 7, 19, 0.58);
   box-shadow: 0 16px 26px rgba(0, 0, 0, 0.28);
 
-  &.is-empty {
-    display: grid;
-    place-items: center;
-    border-style: dashed;
-    opacity: 0.68;
-  }
-
   &.is-spent {
     filter: saturate(0.72);
   }
-
-  > header {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 6px;
-    font-size: 10px;
-    font-weight: 950;
-    text-transform: uppercase;
-  }
-}
-
-.card-shell.route-card-shell {
-  position: relative;
-  cursor: default;
-  transform: rotate(-0.6deg);
-}
-
-.ship-part-panel {
-  display: grid;
-  gap: 4px;
-  margin-top: 8px;
-  color: #10141d;
-  font-size: 11px;
 
   p {
     display: flex;
@@ -204,13 +184,23 @@
     gap: 8px;
     padding: 5px 7px;
     border-radius: 10px;
+    color: #10141d;
     background: color-mix(in srgb, #73ffd6 72%, #fff8e8);
+    font-size: 11px;
     font-weight: 950;
+    text-transform: uppercase;
   }
 
   em {
     font-style: normal;
     text-transform: uppercase;
+  }
+
+  strong {
+    color: rgba(255, 248, 232, 0.94);
+    font-size: 12px;
+    font-weight: 950;
+    line-height: 1.05;
   }
 
   small {
@@ -238,17 +228,7 @@
   }
 }
 
-.empty-route-slot {
-  color: rgba(255, 248, 232, 0.72);
-  font-size: 12px;
-  font-style: italic;
-  font-weight: 900;
-}
-
-.stress-area,
-.distress-call-panel,
-.set-aside-area,
-.archived-route-area {
+.history-area {
   right: clamp(10px, 1.4vw, 22px);
   width: min(230px, 23vw);
   padding: 12px;
@@ -259,86 +239,83 @@
 }
 
 .stress-area {
-  top: 29%;
+  top: clamp(12px, 2vw, 24px);
+  left: calc(clamp(14px, 2vw, 28px) + min(340px, 62vw) + clamp(24px, 3vw, 48px));
+  right: auto;
+  width: auto;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  backdrop-filter: none;
+  color: #4a5278;
+  pointer-events: none;
 }
 
-.stress-count {
-  color: #ff4f64;
-  font-size: clamp(30px, 3.2vw, 48px);
-  font-weight: 1000;
-  letter-spacing: -0.08em;
-  line-height: 0.95;
+.stress-tracker {
+  display: inline-grid;
+  justify-items: start;
+  margin: 0;
+  color: inherit;
+  font-family: 'Segoe Script', 'Bradley Hand', 'Comic Sans MS', cursive, sans-serif;
+  font-size: clamp(14px, 1.45vw, 21px);
+  font-style: italic;
+  font-weight: 850;
+  letter-spacing: -0.045em;
+  line-height: 1.08;
+  transform: rotate(-0.6deg);
 }
 
-.stress-tokens {
-  display: flex;
+.stress-label {
+  display: inline-block;
+  position: relative;
+}
+
+.stress-label::after {
+  content: '';
+  position: absolute;
+  top: clamp(17px, 1.8vw, 26px);
+  left: 0;
+  width: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  clip-path: polygon(0 49%, 10% 39%, 23% 55%, 35% 44%, 48% 53%, 60% 42%, 74% 56%, 88% 43%, 100% 52%, 100% 75%, 0 73%);
+  opacity: 0.72;
+  transform: rotate(-1deg);
+}
+
+.stress-history {
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: 5px;
-  margin: 6px 0;
+  gap: 6px;
+  align-items: baseline;
+  margin-top: clamp(8px, 0.7vw, 11px);
+  font-size: clamp(14px, 1.45vw, 21px);
 }
 
-.stress-token {
-  width: 15px;
-  height: 15px;
-  border: 2px solid rgba(255, 248, 232, 0.52);
-  border-radius: 50%;
-  background: #ff4f64;
-  box-shadow: 0 0 12px rgba(255, 79, 100, 0.38);
+.stress-old {
+  position: relative;
+  color: inherit;
+  text-decoration: line-through;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 1.5px;
+  opacity: 0.72;
 }
 
-.stress-area small,
-.distress-call-panel p,
-.set-aside-area p,
-.archived-route-area p {
+.stress-current {
+  color: inherit;
+}
+
+.history-area p {
   color: rgba(255, 248, 232, 0.72);
   font-size: 11px;
   font-weight: 800;
   line-height: 1.2;
 }
 
-.distress-call-panel {
-  top: 48%;
-}
-
-.distress-call-actions {
-  display: grid;
-  gap: 6px;
-  margin-top: 8px;
-
-  button {
-    padding: 7px 8px;
-    border: 2px solid rgba(255, 248, 232, 0.72);
-    border-radius: 10px;
-    color: #10141d;
-    background: #fff8e8;
-    cursor: pointer;
-    font-size: 10px;
-    font-weight: 950;
-    text-align: left;
-
-    &:disabled {
-      cursor: not-allowed;
-      opacity: 0.36;
-    }
-  }
-}
-
-.set-aside-area {
+.history-area {
   top: 72%;
-
-  ul {
-    display: grid;
-    gap: 3px;
-    margin: 6px 0 0;
-    padding-left: 1.1em;
-    color: rgba(255, 248, 232, 0.7);
-    font-size: 10px;
-    font-weight: 800;
-  }
-}
-
-.archived-route-area {
-  top: 86%;
 }
 
 .dialog-overlay {
@@ -1270,6 +1247,31 @@
   &.is-face-down .card-inner {
     transform: rotateY(180deg);
   }
+
+  &.is-traveled-stop {
+    cursor: default;
+    filter: drop-shadow(0 10px 9px rgba(0, 0, 0, 0.36)) saturate(0.82);
+
+    .card-inner::after {
+      content: 'Traveled';
+      position: absolute;
+      right: 9px;
+      bottom: 9px;
+      z-index: 4;
+      padding: 4px 7px;
+      border: 2px solid rgba(17, 19, 26, 0.62);
+      border-radius: 999px;
+      color: #11131a;
+      background: color-mix(in srgb, var(--card-accent) 48%, #fff8e8);
+      font-size: clamp(9px, 0.78vw, 11px);
+      font-style: italic;
+      font-weight: 950;
+      letter-spacing: 0.04em;
+      line-height: 1;
+      text-transform: uppercase;
+      transform: rotate(-4deg);
+    }
+  }
 }
 
 .card-stack .card-shell:hover,
@@ -1430,6 +1432,211 @@
 
 .card-gate-penalty.is-active {
   color: #ff4f64;
+}
+
+.card-shell.card-kind-crew {
+  --crew-paper: #f2e9cf;
+  --crew-paper-dark: #d8c9a5;
+  --crew-ink: #1b1d1c;
+  --crew-muted-ink: rgba(27, 29, 28, 0.62);
+
+  .card-face.card-front {
+    border-color: #171717;
+    color: var(--crew-ink);
+    background:
+      radial-gradient(circle at 72% 13%, color-mix(in srgb, var(--card-accent) 19%, transparent), transparent 27%),
+      linear-gradient(90deg, rgba(67, 89, 84, 0.055) 0 1px, transparent 1px),
+      linear-gradient(rgba(67, 89, 84, 0.055) 0 1px, transparent 1px),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 42%),
+      linear-gradient(150deg, #f8efd8 0%, var(--crew-paper) 58%, var(--crew-paper-dark) 100%);
+    background-size:
+      auto,
+      12px 12px,
+      12px 12px,
+      auto,
+      auto;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.52),
+      inset 0 0 28px rgba(93, 70, 38, 0.13);
+  }
+
+  .card-front::before,
+  .card-front::after {
+    content: none;
+  }
+
+  .crew-card-art {
+    display: block;
+    padding: clamp(8px, 0.9vw, 12px) 9px 7px;
+    background: none;
+
+    &::before {
+      content: none;
+    }
+
+    &::after {
+      content: none;
+    }
+  }
+}
+
+.crew-nametag {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto auto auto 1fr auto;
+  height: 100%;
+  min-width: 0;
+  gap: clamp(2px, 0.3vw, 4px);
+}
+
+.crew-photo-panel {
+  position: relative;
+  display: grid;
+  min-height: clamp(58px, 6.3vw, 84px);
+  place-items: center;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  overflow: visible;
+  transform: none;
+}
+
+.crew-photo {
+  position: relative;
+  width: clamp(54px, 5.9vw, 80px);
+  aspect-ratio: 1;
+  background-image: url('/assets/crew-photos.png');
+  background-repeat: no-repeat;
+  background-size: 432% 432%;
+  background-position: var(--crew-photo-x, 0%) var(--crew-photo-y, 0%);
+}
+
+.crew-nameplate {
+  position: relative;
+  display: grid;
+  justify-items: start;
+  gap: 0;
+  min-width: 0;
+  padding: 0 4px clamp(4px, 0.36vw, 6px);
+}
+
+.crew-name {
+  max-width: 100%;
+  overflow: hidden;
+  color: #101112;
+  font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  text-align: left;
+  text-overflow: clip;
+  text-shadow: 0 1px 0 rgba(255, 248, 232, 0.42);
+  white-space: nowrap;
+  transform: rotate(-1.1deg);
+}
+
+.crew-name-rule {
+  display: block;
+  width: min(94%, clamp(84px, 8.4vw, 128px));
+  height: 6px;
+  margin-top: -1px;
+  margin-bottom: clamp(2px, 0.26vw, 4px);
+  border-radius: 999px;
+  background: #3b65bc;
+  clip-path: polygon(0 51%, 12% 42%, 27% 55%, 42% 43%, 58% 56%, 75% 42%, 100% 53%, 100% 75%, 0 72%);
+  opacity: 0.9;
+  transform: rotate(-0.6deg);
+}
+
+.crew-role {
+  max-width: 100%;
+  overflow: hidden;
+  color: #3b65bc;
+  font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  text-align: left;
+  text-overflow: clip;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.crew-specialties {
+  display: grid;
+  justify-items: start;
+  gap: clamp(2px, 0.28vw, 4px);
+  min-width: 0;
+  padding: 0 4px;
+}
+
+.crew-specialties-label {
+  color: var(--crew-muted-ink);
+  font-family: ui-monospace, 'SFMono-Regular', 'Roboto Mono', monospace;
+  font-size: clamp(6px, 0.58vw, 8px);
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.crew-specialty-icons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  gap: 4px;
+
+  .game-icon {
+    --icon-frame-width: 1.2px;
+
+    width: clamp(14px, 2.7vw, 23px);
+  }
+}
+
+.crew-rule-note {
+  position: relative;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  min-height: auto;
+  margin: 0;
+  padding: clamp(3px, 0.34vw, 5px) 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  transform: none;
+
+  &::before,
+  &::after {
+    content: none;
+  }
+
+  .card-rule-text {
+    display: inline;
+    color: #11131a;
+    font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    text-align: left;
+  }
+
+  .game-icon {
+    --icon-frame-width: 1.2px;
+
+    display: inline-grid;
+    width: 1.25em;
+    margin: 0 0.05em;
+    vertical-align: -0.26em;
+  }
 }
 
 .card-inner {
@@ -1749,6 +1956,15 @@
   font-size: clamp(9px, 0.82vw, 12px);
   font-weight: 950;
   line-height: 1;
+}
+
+.card-ship-part-reward {
+  border-color: rgba(17, 19, 26, 0.38);
+  background: color-mix(in srgb, #f2994a 42%, #fff8e8);
+
+  .game-icon {
+    width: clamp(15px, 1.7vw, 20px);
+  }
 }
 
 .card-wake-reward {
@@ -2271,7 +2487,7 @@
     min-height: 38px;
   }
 
-  .route-area {
+  .ship-parts-area {
     left: 6px;
     bottom: 136px;
     width: calc(100vw - 12px);
@@ -2279,29 +2495,22 @@
     transform-origin: bottom left;
   }
 
-  .stress-area,
-  .distress-call-panel,
-  .set-aside-area,
-  .archived-route-area {
+  .history-area {
     right: 6px;
     width: min(170px, 42vw);
     padding: 8px;
   }
 
   .stress-area {
-    top: 68px;
+    top: clamp(12px, 2vw, 24px);
+    left: calc(6px + min(340px, 62vw) + 16px);
+    right: auto;
+    width: auto;
+    padding: 0;
   }
 
-  .distress-call-panel {
-    top: 210px;
-  }
-
-  .set-aside-area {
+  .history-area {
     top: 430px;
-  }
-
-  .archived-route-area {
-    top: 540px;
   }
 
   .hand {

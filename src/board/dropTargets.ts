@@ -21,6 +21,14 @@ function countSpentShipParts(routeSlots: readonly (RouteSlot | null)[], shipPart
   ), 0)
 }
 
+function getRouteCardIds(routeSlots: readonly (RouteSlot | null)[]) {
+  return routeSlots.flatMap((slot) => slot ? [slot.cardId] : [])
+}
+
+function stackContainsRouteCard(stackCardIds: readonly string[], routeCardIds: ReadonlySet<string>) {
+  return stackCardIds.some((cardId) => routeCardIds.has(cardId))
+}
+
 export function getNearestDropTarget(
   board: BoardState,
   sourceStackId: string,
@@ -30,9 +38,10 @@ export function getNearestDropTarget(
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
   const spentHullPatches = countSpentShipParts(board.routeSlots, 'hull-patch')
   const spentBeacons = countSpentShipParts(board.routeSlots, 'wayfinder-beacon')
+  const routeCardIds = new Set(getRouteCardIds(board.routeSlots))
   const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
 
-  if (!sourceStack) {
+  if (!sourceStack || stackContainsRouteCard(sourceStack.cardIds, routeCardIds)) {
     return { stackId: null, deckId: null }
   }
 
@@ -61,6 +70,10 @@ export function getNearestDropTarget(
 
   for (const targetStack of stacks) {
     if (targetStack.id === sourceStackId) {
+      continue
+    }
+
+    if (stackContainsRouteCard(targetStack.cardIds, routeCardIds)) {
       continue
     }
 
@@ -98,14 +111,19 @@ export function getStackDropTargetIds(
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
   const spentHullPatches = countSpentShipParts(board.routeSlots, 'hull-patch')
   const spentBeacons = countSpentShipParts(board.routeSlots, 'wayfinder-beacon')
+  const routeCardIds = new Set(getRouteCardIds(board.routeSlots))
   const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
 
-  if (!sourceStack) {
+  if (!sourceStack || stackContainsRouteCard(sourceStack.cardIds, routeCardIds)) {
     return []
   }
 
   return stacks.flatMap((targetStack) => {
     if (targetStack.id === sourceStackId) {
+      return []
+    }
+
+    if (stackContainsRouteCard(targetStack.cardIds, routeCardIds)) {
       return []
     }
 

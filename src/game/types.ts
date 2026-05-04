@@ -98,6 +98,7 @@ export type CardBlueprint = {
   kind: CardKind
   resource?: ResourceKind
   specializations?: CrewSpecialization[]
+  portraitIndex?: number
   horizon?: HorizonDetails
   gate?: GateDetails
 }
@@ -123,14 +124,9 @@ export type ShipPartStatus = 'available' | 'spent' | 'expired'
 
 export type RouteSlot = {
   cardId: string
+  mapSlotIndex: number
   shipPart: ShipPartKind
   status: ShipPartStatus
-}
-
-export type SetAsideStopSummary = {
-  cardTitle: string
-  stopKind: HorizonKind
-  source: 'map' | 'deck'
 }
 
 export type Deck = {
@@ -169,7 +165,6 @@ export type BoardState = {
   mapSlots: (string | null)[]
   routeSlots: (RouteSlot | null)[]
   archivedRouteCardIds: string[]
-  setAsideStops: SetAsideStopSummary[]
   handCardIds: string[]
   tiredCardIds: string[]
   completedStarSummaries: CompletedStarSummary[]

@@ -1,4 +1,4 @@
-import { FUEL_DECK_ID, HORIZON_DECK_ID, MOTHER_DECK_ID } from './decks'
+import { MOTHER_DECK_ID } from './decks'
 import { getNextStopFuelDiscount } from './effects'
 import {
   canCompleteHorizonNeedWithFuelOptions,
@@ -84,58 +84,4 @@ export function canTravelToAnyHorizon(current: BoardState, horizonCardIds: reado
 
 export function canTravelToAnyVisibleHorizon(current: BoardState) {
   return getVisibleHorizonCards(current).some((card) => canTravelToHorizon(current, card))
-}
-
-export function getDistressCallOptions(current: BoardState) {
-  const isBlocked = Boolean(
-    current.hasArrived ||
-      current.lossReason ||
-      current.pendingWakeChoice ||
-      current.pendingScoutChoice ||
-      current.routeSlots.every(Boolean),
-  )
-
-  if (isBlocked || getVisibleHorizonCards(current).length === 0 || canTravelToAnyVisibleHorizon(current)) {
-    return {
-      canUse: false,
-      canGainFuel: false,
-      canReplaceMapStop: false,
-    }
-  }
-
-  const canGainFuel = getDeckCardCount(current, FUEL_DECK_ID) > 0
-  const canReplaceMapStop =
-    getDeckCardCount(current, HORIZON_DECK_ID) > 0 &&
-    current.mapSlots.some((cardId) => {
-      const card = cardId ? current.cards[cardId] : null
-
-      return card?.kind === 'horizon'
-    })
-
-  return {
-    canUse: canGainFuel || canReplaceMapStop,
-    canGainFuel,
-    canReplaceMapStop,
-  }
-}
-
-export function canDistressCall(current: BoardState) {
-  return getDistressCallOptions(current).canUse
-}
-
-export function canDistressReplaceMapSlot(current: BoardState, slotIndex: number) {
-  const options = getDistressCallOptions(current)
-
-  if (
-    !options.canReplaceMapStop ||
-    slotIndex < 0 ||
-    slotIndex >= current.mapSlots.length
-  ) {
-    return false
-  }
-
-  const cardId = current.mapSlots[slotIndex]
-  const card = cardId ? current.cards[cardId] : null
-
-  return card?.kind === 'horizon'
 }

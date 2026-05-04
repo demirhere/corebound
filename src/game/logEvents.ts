@@ -5,7 +5,6 @@ import type {
   Deck,
   GameLossReason,
   HorizonReward,
-  SetAsideStopSummary,
   ShipPartKind,
   Stack,
 } from './types'
@@ -173,20 +172,6 @@ export function mapRefilledEvent(sector: number, slotIndex: number, card: Card):
       cardTitle: card.title,
       cardSummary: describeCard(card, card.id),
       cardContent: cardContent(card),
-    },
-  }
-}
-
-export function stopsSetAsideEvent(sector: number, setAsideStops: readonly SetAsideStopSummary[]): PlaytestLogEvent {
-  const stopTitles = setAsideStops.map((stop) => `${stop.cardTitle} (${stop.source})`)
-
-  return {
-    type: 'stops.set_aside',
-    message: `Sector ${sector} Gate begins. Unvisited Stops set aside: ${stopTitles.join(', ') || 'none'}.`,
-    details: {
-      sector,
-      stopCount: setAsideStops.length,
-      stopTitles,
     },
   }
 }
@@ -452,8 +437,8 @@ export function stopMovedToRouteEvent(
   const shipPartLabel = getShipPartLabel(shipPart)
 
   return {
-    type: 'stop.moved_to_route',
-    message: `${stopCard.title} moved to Route slot ${routeSlotIndex + 1}. ${shipPartLabel} available.${gateBegins ? ' Gate begins.' : ''}`,
+    type: 'stop.traveled',
+    message: `${stopCard.title} stays on the board as traveled Stop ${routeSlotIndex + 1}. ${shipPartLabel} available.${gateBegins ? ' Gate begins.' : ''}`,
     details: {
       stopCardId: stopCard.id,
       stopTitle: stopCard.title,
@@ -470,7 +455,7 @@ export function shipPartAvailableEvent(stopCard: Card, routeSlotIndex: number, s
 
   return {
     type: 'ship_part.available',
-    message: `${shipPartLabel} available from ${stopCard.title} in Route slot ${routeSlotIndex + 1}.`,
+    message: `${shipPartLabel} available from traveled ${stopCard.title}.`,
     details: {
       stopCardId: stopCard.id,
       stopTitle: stopCard.title,
@@ -570,22 +555,6 @@ export function stressThresholdActiveEvent(gateCard: Card, stressCount: number, 
       gateTitle: gateCard.title,
       stressCount,
       extraCrewSlots,
-    },
-  }
-}
-
-export function distressCallUsedEvent(
-  choice: 'gain-fuel' | 'replace-stop',
-  stressAfter: number,
-  detailsText: string,
-): PlaytestLogEvent {
-  return {
-    type: 'distress_call.used',
-    message: `Distress Call used: +1 Stress, ${detailsText}. Stress is now ${stressAfter}.`,
-    details: {
-      choice,
-      stressAfter,
-      details: detailsText,
     },
   }
 }
@@ -747,8 +716,8 @@ export function routeArchivedEvent(sector: number, routeCardIds: readonly string
   const routeTitles = cardTitles(routeCardIds, cards)
 
   return {
-    type: 'route.archived',
-    message: `Sector ${sector} Route archived after Gate: ${routeTitles.join(', ') || 'none'}.`,
+    type: 'traveled_stops.archived',
+    message: `Sector ${sector} traveled Stops archived after Gate: ${routeTitles.join(', ') || 'none'}.`,
     details: {
       sector,
       routeCardIds,
@@ -771,7 +740,7 @@ export function starsCompletedSummaryEvent(
   const starLabels = completedStars.map((star, index) => {
     const sectorStarNumber = completedStars.slice(0, index + 1).filter((candidate) => candidate.sector === star.sector).length
 
-    return `Sector ${star.sector} Route Stop ${sectorStarNumber}`
+    return `Sector ${star.sector} Traveled Stop ${sectorStarNumber}`
   })
   const starLines = completedStars.map((star, index) => {
     const crewText = star.crewTitles.join(', ') || 'none'
@@ -798,7 +767,7 @@ export function starsCompletedSummaryEvent(
 export function gameLostEvent(reason: GameLossReason): PlaytestLogEvent {
   const message =
     reason === 'sector-stranded'
-      ? 'No visible Map Stop can be completed and Distress Call cannot help.'
+      ? 'No visible Map Stop can be completed.'
       : 'The Gate cannot be completed with available Ship Parts, Ready crew, and unused MOTHER cards.'
 
   return {

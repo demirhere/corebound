@@ -23,8 +23,6 @@ import {
   commitStackDragPositionUpdate,
   confirmScoutChoiceUpdate,
   deckOnDropTargetUpdate,
-  distressCallGainFuelUpdate,
-  distressCallReplaceMapStopUpdate,
   discardHandCardUpdate,
   discardStackUpdate,
   drawFromDeckUpdate,
@@ -905,14 +903,6 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
     setBoard(spendRouteShipPartUpdate(routeSlotIndex))
   }
 
-  function distressCallGainFuel() {
-    setBoard(distressCallGainFuelUpdate(readBoardMetrics()))
-  }
-
-  function distressCallReplaceMapStop(slotIndex: number) {
-    setBoard(distressCallReplaceMapStopUpdate(slotIndex))
-  }
-
   function getBoardDropPosition(clientX: number, clientY: number, placeAboveHand = false) {
     const metrics = readBoardMetrics()
 
@@ -1572,8 +1562,6 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
     onScoutCardChoice: chooseScoutCard,
     onScoutChoiceConfirm: confirmScoutChoice,
     onRouteShipPartUse: spendRouteShipPart,
-    onDistressGainFuel: distressCallGainFuel,
-    onDistressReplaceMapStop: distressCallReplaceMapStop,
     resetInteractions,
   }
 }
