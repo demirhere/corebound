@@ -370,18 +370,28 @@ function drawScoutChoiceCards(
   }
 }
 
-function getSectorGateCard(current: BoardState) {
+function getSectorGateStack(current: BoardState) {
   for (const stack of current.stacks) {
     for (const cardId of stack.cardIds) {
       const card = current.cards[cardId]
 
       if (card?.kind === 'gate' && card.gate) {
-        return card
+        return { stack, gateCard: card }
       }
     }
   }
 
   return null
+}
+
+function getSectorGateCard(current: BoardState) {
+  return getSectorGateStack(current)?.gateCard ?? null
+}
+
+function completeReadySectorGateStack(current: BoardState) {
+  const gateStack = getSectorGateStack(current)
+
+  return gateStack ? completeReadyGateStack(current, gateStack.stack.id) : { board: current, events: [] }
 }
 
 function canCompleteSectorGate(current: BoardState) {
@@ -1340,10 +1350,12 @@ export function spendRouteShipPartUpdate(routeSlotIndex: number): BoardUpdater {
       handCardIds: readyResult?.handCardIds ?? current.handCardIds,
       tiredCardIds: readyResult?.tiredCardIds ?? current.tiredCardIds,
     }
-    const gateLoss = resolveGateLossIfNeeded(nextBoard)
+    const completedGate = completeReadySectorGateStack(nextBoard)
+    const gateLoss = resolveGateLossIfNeeded(completedGate.board)
 
     return withPlaytestEvents(gateLoss.board, [
       shipPartSpentEvent(routeCard, routeSlotIndex, routeSlot.find.shipPart),
+      ...completedGate.events,
       ...gateLoss.events,
     ])
   }
