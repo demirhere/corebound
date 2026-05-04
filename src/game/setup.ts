@@ -341,7 +341,7 @@ const horizonDeck = [
     [{ kind: 'crew', label: 'Wake', count: 1 }],
   )),
   createHorizonCard('Sleeper Arklet', 'deep-space', 2, ['life', 'life', 'star'], visitRewardFind(
-    'Dormant Crew Roster',
+    'Cryo Access Codes',
     [{ kind: 'crew', label: 'Wake', count: 1 }],
   )),
   createHorizonCard('Iron Wake', 'asteroid', 1, ['engine', 'engine'], shipPartFind(
