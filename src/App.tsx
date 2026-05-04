@@ -74,6 +74,9 @@ function App() {
         onWakeCrewChoice={interactions.onWakeCrewChoice}
         onScoutCardChoice={interactions.onScoutCardChoice}
         onScoutChoiceConfirm={interactions.onScoutChoiceConfirm}
+        onRouteShipPartUse={interactions.onRouteShipPartUse}
+        onDistressGainFuel={interactions.onDistressGainFuel}
+        onDistressReplaceMapStop={interactions.onDistressReplaceMapStop}
         onResetGame={resetGame}
       />
       <PlaytestLog

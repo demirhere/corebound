@@ -2,8 +2,8 @@ import type { BoardEffect, Card, Deck, HorizonReward } from './types'
 
 export function createBoardEffectsForHorizonRewards(rewards: readonly HorizonReward[]) {
   return rewards.flatMap<BoardEffect>((reward) => {
-    if (reward.kind === 'next_star_fuel_discount') {
-      return [{ kind: 'next_star_fuel_discount', amount: reward.amount }]
+    if (reward.kind === 'next_stop_fuel_discount') {
+      return [{ kind: 'next_stop_fuel_discount', amount: reward.amount }]
     }
 
     return []
@@ -19,15 +19,15 @@ export function getPendingDrawCount(deck: Pick<Deck, 'id' | 'draw'>, effects: re
   return Math.max(baseDrawCount, ...modifiedDrawCounts)
 }
 
-export function getNextStarFuelDiscount(effects: readonly BoardEffect[]) {
-  return effects.find((effect) => effect.kind === 'next_star_fuel_discount')?.amount ?? 0
+export function getNextStopFuelDiscount(effects: readonly BoardEffect[]) {
+  return effects.find((effect) => effect.kind === 'next_stop_fuel_discount')?.amount ?? 0
 }
 
-export function consumeNextStarFuelDiscount(effects: readonly BoardEffect[]) {
+export function consumeNextStopFuelDiscount(effects: readonly BoardEffect[]) {
   let hasConsumedDiscount = false
 
   return effects.flatMap<BoardEffect>((effect) => {
-    if (!hasConsumedDiscount && effect.kind === 'next_star_fuel_discount') {
+    if (!hasConsumedDiscount && effect.kind === 'next_stop_fuel_discount') {
       hasConsumedDiscount = true
       return []
     }

@@ -1,4 +1,4 @@
-import type { Card, CardBlueprint, GateDetails, RequirementIconKind, Stack } from './types'
+import type { Card, CardBlueprint, Deck, GateDetails, RequirementIconKind, Stack } from './types'
 
 export type HorizonStackCompletion = {
   horizonCardId: string
@@ -154,7 +154,9 @@ function canUseAllCardsInCompletionStack(
   cardIds: readonly string[],
   cards: Record<string, Card>,
   fuelDiscount: number,
-  motherSpentTotalBefore: number,
+  stressCountBefore: number,
+  hullPatchCount: number,
+  beaconCount: number,
 ) {
   let objectiveCard: Card | null = null
   const crewCardIds: string[] = []
@@ -207,26 +209,15 @@ function canUseAllCardsInCompletionStack(
   }
 
   if (objectiveCard.kind === 'gate' && objectiveCard.gate && fuelCardCount === 0) {
-    return (
-      getGateNeedPayment(
-        crewCardIds,
-        cards,
-        objectiveCard.gate,
-        motherSpentTotalBefore,
-        motherCount,
-      ) !== null ||
-      canAssignUsefulSupport(
-        crewCardIds,
-        0,
-        motherCount,
-        cards,
-        {
-          icons: objectiveCard.gate.need.icons,
-          any: 0,
-          fuel: 0,
-        },
-      )
-    )
+    return getGateNeedPayment(
+      crewCardIds,
+      cards,
+      objectiveCard.gate,
+      stressCountBefore,
+      motherCount,
+      hullPatchCount,
+      beaconCount,
+    ) !== null
   }
 
   return false
@@ -239,7 +230,13 @@ function canStackAsLoosePile(sourceStack: Stack, targetStack: Stack, cards: Reco
     stackedCards.every((card) => card?.kind === 'resource' && card.resource === 'fuel') ||
     stackedCards.every((card) => card?.kind === 'crew') ||
     stackedCards.every((card) => card?.kind === 'mother' && card.spentMother !== true) ||
-    stackedCards.every((card) => card?.kind === 'mother' && card.spentMother === true)
+    stackedCards.every((card) => card?.kind === 'mother' && card.spentMother === true) ||
+    stackedCards.every(
+      (card) =>
+        card?.kind === 'crew' ||
+        (card?.kind === 'resource' && card.resource === 'fuel') ||
+        isUsableMotherCard(card),
+    )
   )
 }
 
@@ -248,7 +245,9 @@ export function canStackCards(
   targetStack: Stack,
   cards: Record<string, Card>,
   fuelDiscount = 0,
-  motherSpentTotalBefore = 0,
+  stressCountBefore = 0,
+  hullPatchCount = 0,
+  beaconCount = 0,
 ) {
   return (
     isFaceUpStack(sourceStack, cards) &&
@@ -259,7 +258,9 @@ export function canStackCards(
         [...targetStack.cardIds, ...sourceStack.cardIds],
         cards,
         fuelDiscount,
-        motherSpentTotalBefore,
+        stressCountBefore,
+        hullPatchCount,
+        beaconCount,
       )
     )
   )
@@ -267,6 +268,40 @@ export function canStackCards(
 
 export function canCombineAsDeck(sourceStack: Stack, targetStack: Stack, cards: Record<string, Card>) {
   return isSingleFaceDownCard(sourceStack, cards) && isSingleFaceDownCard(targetStack, cards)
+}
+
+function getDeckCardFamily(card: CardBlueprint) {
+  if (card.kind === 'resource') {
+    return card.resource ? `resource:${card.resource}` : null
+  }
+
+  return card.kind
+}
+
+function getDeckFamily(deck: Deck) {
+  const firstCard = deck.cards[0]
+
+  if (!firstCard) {
+    return null
+  }
+
+  const family = getDeckCardFamily(firstCard)
+
+  if (!family) {
+    return null
+  }
+
+  return deck.cards.every((card) => getDeckCardFamily(card) === family) ? family : null
+}
+
+export function canMergeDecks(sourceDeck: Deck, targetDeck: Deck) {
+  if (sourceDeck.id === targetDeck.id || sourceDeck.cards.length === 0 || targetDeck.cards.length === 0) {
+    return false
+  }
+
+  const sourceFamily = getDeckFamily(sourceDeck)
+
+  return sourceFamily !== null && sourceFamily === getDeckFamily(targetDeck)
 }
 
 export function cardsToDeckBlueprints(cardIds: string[], cards: Record<string, Card>) {
@@ -497,14 +532,20 @@ function getGateCrewCardNeedPayment(
   icons: readonly RequirementIconKind[],
   requiredCrewCount: number,
   motherCount: number,
+  beaconCount: number,
 ): CrewMotherNeedPayment | null {
   if (crewCardIds.length < requiredCrewCount) {
     return null
   }
 
-  const motherCoveredIcons = getMissingNeedIcons(crewCardIds, cards, icons, 0)
+  const missingIcons = getMissingNeedIcons(crewCardIds, cards, icons, 0)
+  const motherCoveredIcons = missingIcons.slice(Math.min(beaconCount, missingIcons.length))
 
   if (motherCoveredIcons.length > motherCount) {
+    return null
+  }
+
+  if (motherCoveredIcons.length > 0 && crewCardIds.length === 0) {
     return null
   }
 
@@ -519,37 +560,23 @@ function getGateNeedPayment(
   crewCardIds: readonly string[],
   cards: Record<string, Card>,
   gate: GateDetails,
-  motherSpentTotalBefore: number,
+  stressCountBefore: number,
   usableMotherCount: number,
+  hullPatchCount = 0,
+  beaconCount = 0,
 ) {
-  let extraHumanCrewRequired = motherSpentTotalBefore >= gate.motherPenalty.threshold
+  const extraHumanCrewRequired = stressCountBefore >= gate.motherPenalty.threshold
     ? gate.motherPenalty.extraHumanCrew
     : 0
-
-  if (extraHumanCrewRequired === 0) {
-    const basePayment = getGateCrewCardNeedPayment(
-      crewCardIds,
-      cards,
-      gate.need.icons,
-      gate.need.crew,
-      usableMotherCount,
-    )
-
-    if (!basePayment) {
-      return null
-    }
-
-    if (motherSpentTotalBefore + basePayment.requiredMotherCount >= gate.motherPenalty.threshold) {
-      extraHumanCrewRequired = gate.motherPenalty.extraHumanCrew
-    }
-  }
+  const requiredCrewSlots = Math.max(0, gate.need.crew + extraHumanCrewRequired - hullPatchCount)
 
   const payment = getGateCrewCardNeedPayment(
     crewCardIds,
     cards,
     gate.need.icons,
-    gate.need.crew + extraHumanCrewRequired,
+    requiredCrewSlots,
     usableMotherCount,
+    beaconCount,
   )
 
   if (!payment) {
@@ -559,7 +586,7 @@ function getGateNeedPayment(
   return {
     ...payment,
     extraHumanCrewRequired,
-    motherSpentTotal: motherSpentTotalBefore + payment.requiredMotherCount,
+    motherSpentTotal: stressCountBefore + payment.requiredMotherCount,
   }
 }
 
@@ -567,15 +594,19 @@ export function canCompleteGateNeedWithCrewAndMother(
   crewCardIds: readonly string[],
   cards: Record<string, Card>,
   gate: GateDetails,
-  motherSpentTotalBefore: number,
+  stressCountBefore: number,
   usableMotherCount: number,
+  hullPatchCount = 0,
+  beaconCount = 0,
 ) {
   return getGateNeedPayment(
     crewCardIds,
     cards,
     gate,
-    motherSpentTotalBefore,
+    stressCountBefore,
     usableMotherCount,
+    hullPatchCount,
+    beaconCount,
   ) !== null
 }
 
@@ -756,7 +787,9 @@ export function getHorizonStackCompletion(
 export function getGateStackCompletion(
   stack: Stack,
   cards: Record<string, Card>,
-  motherSpentTotalBefore: number,
+  stressCountBefore: number,
+  hullPatchCount = 0,
+  beaconCount = 0,
 ): GateStackCompletion | null {
   const gateCardIndex = stack.cardIds.findIndex((cardId) => {
     const card = cards[cardId]
@@ -803,20 +836,27 @@ export function getGateStackCompletion(
     gateCard.gate.need.icons,
     0,
   )
+  const fallbackMotherAfterBeacons = Math.max(0, fallbackRequiredMotherCount - beaconCount)
   const payment = getGateNeedPayment(
     crewCardIds,
     cards,
     gateCard.gate,
-    motherSpentTotalBefore,
+    stressCountBefore,
     usableMotherCount,
+    hullPatchCount,
+    beaconCount,
   )
 
   return {
     gateCardId,
     gateCardIndex,
-    motherSpentTotal: payment?.motherSpentTotal ?? motherSpentTotalBefore + Math.min(fallbackRequiredMotherCount, usableMotherCount),
-    extraHumanCrewRequired: payment?.extraHumanCrewRequired ?? 0,
-    requiredMotherCount: payment?.requiredMotherCount ?? fallbackRequiredMotherCount,
+    motherSpentTotal: payment?.motherSpentTotal ?? stressCountBefore + Math.min(fallbackMotherAfterBeacons, usableMotherCount),
+    extraHumanCrewRequired: payment?.extraHumanCrewRequired ?? (
+      stressCountBefore >= gateCard.gate.motherPenalty.threshold
+        ? gateCard.gate.motherPenalty.extraHumanCrew
+        : 0
+    ),
+    requiredMotherCount: payment?.requiredMotherCount ?? fallbackMotherAfterBeacons,
     motherCoveredIcons: payment?.motherCoveredIcons ?? [],
     isReady:
       payment !== null &&

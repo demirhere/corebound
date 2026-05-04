@@ -49,7 +49,7 @@ export type HorizonReward =
       count: number
     }
   | {
-      kind: 'next_star_fuel_discount'
+      kind: 'next_stop_fuel_discount'
       amount: number
     }
   | {
@@ -80,7 +80,7 @@ export type GateDetails = {
 
 export type BoardEffect =
   | {
-      kind: 'next_star_fuel_discount'
+      kind: 'next_stop_fuel_discount'
       amount: number
     }
   | {
@@ -117,6 +117,22 @@ export type Stack = {
   drawChoiceGroupId?: string
 }
 
+export type ShipPartKind = 'water-tank' | 'hull-patch' | 'wayfinder-beacon'
+
+export type ShipPartStatus = 'available' | 'spent' | 'expired'
+
+export type RouteSlot = {
+  cardId: string
+  shipPart: ShipPartKind
+  status: ShipPartStatus
+}
+
+export type SetAsideStopSummary = {
+  cardTitle: string
+  stopKind: HorizonKind
+  source: 'map' | 'deck'
+}
+
 export type Deck = {
   id: string
   title: string
@@ -150,6 +166,10 @@ export type BoardState = {
   cards: Record<string, Card>
   stacks: Stack[]
   decks: Deck[]
+  mapSlots: (string | null)[]
+  routeSlots: (RouteSlot | null)[]
+  archivedRouteCardIds: string[]
+  setAsideStops: SetAsideStopSummary[]
   handCardIds: string[]
   tiredCardIds: string[]
   completedStarSummaries: CompletedStarSummary[]
@@ -163,6 +183,8 @@ export type BoardState = {
     bottomedCardIds: string[]
   } | null
   pendingEffects: BoardEffect[]
+  pendingMapRefillSlotIndex: number | null
+  stressCount: number
   currentSector: number
   totalSectors: number
   hasArrived: boolean

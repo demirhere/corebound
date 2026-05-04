@@ -37,7 +37,7 @@ export function DeckCard({
   const canDraw = canManuallyDrawDeck(deck)
   const actionLabel = canDraw
     ? 'Click to draw or drag to move.'
-    : 'Automatic rewards only; drag to move.'
+    : 'Automatic refill or rewards only; drag to move.'
 
   return (
     <button

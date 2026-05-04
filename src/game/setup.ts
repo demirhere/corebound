@@ -17,12 +17,19 @@ import {
   automaticRewardDeckDraw,
   manualDeckDraw,
 } from './decks'
-import { cardContent, cardRulesText } from './logEvents'
+import { cardContent, cardRulesText, mapInitializedEvent } from './logEvents'
 import type { PlaytestLogEvent } from './playtestLog'
 
 const RESOURCE_DECK_SIZE = 12
 const MOTHER_DECK_SIZE = 6
 export const TOTAL_SECTORS = 2
+export const MAP_SLOT_COUNT = 3
+export const ROUTE_SLOT_COUNT = 3
+export const MAP_SLOT_POSITIONS = [
+  { x: 39, y: 12 },
+  { x: 53, y: 12 },
+  { x: 67, y: 12 },
+] as const
 export const FUEL_SUPPLY_STACK_ID = 'stack-fuel-supply'
 export const FUEL_SUPPLY_STACK_POSITION = {
   x: 18,
@@ -318,7 +325,7 @@ const horizonDeck = [
     { kind: 'scout', count: 2 },
   ]),
   createHorizonCard('Gravity Sling', 'star', 2, ['star', 'engine'], [
-    { kind: 'next_star_fuel_discount', amount: 1 },
+    { kind: 'next_stop_fuel_discount', amount: 1 },
   ]),
   createHorizonCard('Quiet Relay', 'planet', 1, ['signal', 'star'], [
     { kind: 'scout', count: 3 },
@@ -351,9 +358,7 @@ export function getSectorGateBlueprint(sector: number) {
 }
 
 export function getSectorDeckTitle(sector: number) {
-  const gate = getSectorGateBlueprint(sector)
-
-  return gate?.title ?? `Sector ${sector}`
+  return `Sector ${sector} Stop Deck`
 }
 
 export function getSectorDeckArt(sector: number) {
@@ -375,10 +380,17 @@ export function createInitialBoardSetup(): InitialBoardSetup {
   const handCards = createBoardCards('crew-hand', startingCrewCards)
   const sectorGate = getSectorGateBlueprint(1)
   const [gateCard] = createBoardCards('gate', sectorGate ? [sectorGate] : [])
-  const initialCards = [...initialFuelCards, ...handCards, ...(gateCard ? [gateCard] : [])]
   const fuelDeckCards = fuelDeck.slice(2)
   // const hullDeckCards = hullDeck.slice(4)
   const horizonDeckCards = createSectorHorizonDeckCards()
+  const mapStopCards = createBoardCards('map-1', horizonDeckCards.slice(0, MAP_SLOT_COUNT))
+  const remainingHorizonDeckCards = horizonDeckCards.slice(MAP_SLOT_COUNT)
+  const initialCards = [
+    ...initialFuelCards,
+    ...handCards,
+    ...(gateCard ? [gateCard] : []),
+    ...mapStopCards,
+  ]
   const cryoDeckCards = shuffleCards(cryoCrewDeck)
   const initialSectorDeckArt = getSectorDeckArt(1)
 
@@ -403,6 +415,17 @@ export function createInitialBoardSetup(): InitialBoardSetup {
             },
           ]
         : []),
+      ...mapStopCards.map((card, index) => {
+        const position = MAP_SLOT_POSITIONS[index] ?? MAP_SLOT_POSITIONS[0]
+
+        return {
+          id: `stack-map-${index + 1}`,
+          cardIds: [card.id],
+          x: position.x,
+          y: position.y,
+          z: 1017 + index,
+        }
+      }),
     ],
     decks: [
       {
@@ -427,11 +450,10 @@ export function createInitialBoardSetup(): InitialBoardSetup {
         y: 12,
         z: 1014,
         draw: {
-          ...manualDeckDraw,
-          count: 3,
-          placement: 'left-row',
+          ...automaticRewardDeckDraw,
+          placement: 'nearby',
         },
-        cards: horizonDeckCards,
+        cards: remainingHorizonDeckCards,
       },
       {
         id: MOTHER_DECK_ID,
@@ -458,17 +480,23 @@ export function createInitialBoardSetup(): InitialBoardSetup {
         cards: cryoDeckCards,
       },
     ],
+    mapSlots: mapStopCards.map((card) => card.id),
+    routeSlots: Array.from({ length: ROUTE_SLOT_COUNT }, () => null),
+    archivedRouteCardIds: [],
+    setAsideStops: [],
     handCardIds: handCards.map((card) => card.id),
     tiredCardIds: [],
     completedStarSummaries: [],
     pendingWakeChoice: null,
     pendingScoutChoice: null,
     pendingEffects: [],
+    pendingMapRefillSlotIndex: null,
+    stressCount: 0,
     currentSector: 1,
     totalSectors: TOTAL_SECTORS,
     hasArrived: false,
     lossReason: null,
-    topZ: 1016,
+    topZ: 1016 + mapStopCards.length,
     nextCardId: 1,
     dropTargetStackId: null,
     dropTargetDeckId: null,
@@ -507,6 +535,7 @@ export function createInitialBoardSetup(): InitialBoardSetup {
       setupDeckCreatedEvent(HORIZON_DECK_ID, getSectorDeckTitle(1), horizonDeckCards),
       setupDeckCreatedEvent(CRYO_DECK_ID, 'Cryo Deck', cryoDeckCards),
       ...(gateCard ? [setupGateRevealedEvent(gateCard, 'stack-sector-gate')] : []),
+      mapInitializedEvent(1, mapStopCards),
       ...initialFuelCards.map((card, index) => setupResourceDrawnEvent(card, 'Fuel Deck', index + 1)),
       // ...initialHullCards.map((card, index) => setupResourceDrawnEvent(card, 'Hull Deck', index + 1)),
       ...handCards.map((card, index) => setupCrewDealtEvent(card, index + 1)),

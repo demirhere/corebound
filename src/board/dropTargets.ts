@@ -6,15 +6,20 @@ import {
 } from '../game/geometry'
 import {
   canCombineAsDeck,
+  canMergeDecks,
   canStackCards,
-  countSpentMotherCardsInPlay,
   isFaceDownStack,
 } from '../game/rules'
-import { getNextStarFuelDiscount } from '../game/effects'
-import { canEmergencyRefuelStack } from '../game/boardQueries'
-import type { BoardMetrics, BoardState, Bounds, Deck, DropTarget } from '../game/types'
+import { getNextStopFuelDiscount } from '../game/effects'
+import type { BoardMetrics, BoardState, Bounds, Deck, DropTarget, RouteSlot, ShipPartKind } from '../game/types'
 
 const DROP_TARGET_OVERLAP_RATIO = 0.28
+
+function countSpentShipParts(routeSlots: readonly (RouteSlot | null)[], shipPart: ShipPartKind) {
+  return routeSlots.reduce((count, slot) => (
+    slot?.shipPart === shipPart && slot.status === 'spent' ? count + 1 : count
+  ), 0)
+}
 
 export function getNearestDropTarget(
   board: BoardState,
@@ -22,8 +27,9 @@ export function getNearestDropTarget(
   metrics: BoardMetrics,
 ): DropTarget {
   const { stacks, decks, cards } = board
-  const fuelDiscount = getNextStarFuelDiscount(board.pendingEffects)
-  const motherSpentTotalBefore = countSpentMotherCardsInPlay(stacks, cards)
+  const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
+  const spentHullPatches = countSpentShipParts(board.routeSlots, 'hull-patch')
+  const spentBeacons = countSpentShipParts(board.routeSlots, 'wayfinder-beacon')
   const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
 
   if (!sourceStack) {
@@ -58,11 +64,8 @@ export function getNearestDropTarget(
       continue
     }
 
-    const combinedCardIds = [...targetStack.cardIds, ...sourceStack.cardIds]
-
     if (
-      !canStackCards(sourceStack, targetStack, cards, fuelDiscount, motherSpentTotalBefore) &&
-      !canEmergencyRefuelStack(board, combinedCardIds) &&
+      !canStackCards(sourceStack, targetStack, cards, fuelDiscount, board.stressCount, spentHullPatches, spentBeacons) &&
       !canCombineAsDeck(sourceStack, targetStack, cards)
     ) {
       continue
@@ -92,8 +95,9 @@ export function getStackDropTargetIds(
   sourceStackId: string,
 ) {
   const { stacks, cards } = board
-  const fuelDiscount = getNextStarFuelDiscount(board.pendingEffects)
-  const motherSpentTotalBefore = countSpentMotherCardsInPlay(stacks, cards)
+  const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
+  const spentHullPatches = countSpentShipParts(board.routeSlots, 'hull-patch')
+  const spentBeacons = countSpentShipParts(board.routeSlots, 'wayfinder-beacon')
   const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
 
   if (!sourceStack) {
@@ -105,8 +109,7 @@ export function getStackDropTargetIds(
       return []
     }
 
-    return canStackCards(sourceStack, targetStack, cards, fuelDiscount, motherSpentTotalBefore) ||
-      canEmergencyRefuelStack(board, [...targetStack.cardIds, ...sourceStack.cardIds]) ||
+    return canStackCards(sourceStack, targetStack, cards, fuelDiscount, board.stressCount, spentHullPatches, spentBeacons) ||
       canCombineAsDeck(sourceStack, targetStack, cards)
       ? [targetStack.id]
       : []
@@ -130,7 +133,7 @@ export function getNearestDeckDropTarget(
   let nearestCenterDistance = Number.POSITIVE_INFINITY
 
   for (const targetDeck of decks) {
-    if (targetDeck.id === sourceDeckId || targetDeck.cards.length === 0) {
+    if (!canMergeDecks(sourceDeck, targetDeck)) {
       continue
     }
 

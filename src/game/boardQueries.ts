@@ -1,9 +1,8 @@
-import { FUEL_DECK_ID, MOTHER_DECK_ID } from './decks'
-import { getNextStarFuelDiscount } from './effects'
+import { FUEL_DECK_ID, HORIZON_DECK_ID, MOTHER_DECK_ID } from './decks'
+import { getNextStopFuelDiscount } from './effects'
 import {
   canCompleteHorizonNeedWithFuelOptions,
   countUsableMotherCardsInPlay,
-  isUsableMotherCard,
 } from './rules'
 import type { BoardState, Card } from './types'
 
@@ -48,13 +47,11 @@ export function getAvailableMotherCardCount(current: BoardState) {
 }
 
 export function getVisibleHorizonCards(current: BoardState) {
-  return current.stacks.flatMap((stack) =>
-    stack.cardIds.flatMap((cardId) => {
-      const card = current.cards[cardId]
+  return current.mapSlots.flatMap((cardId) => {
+    const card = cardId ? current.cards[cardId] : null
 
-      return card?.kind === 'horizon' && card.horizon ? [card] : []
-    }),
-  )
+    return card?.kind === 'horizon' && card.horizon ? [card] : []
+  })
 }
 
 export function canTravelToHorizon(current: BoardState, horizonCard: Card) {
@@ -64,7 +61,7 @@ export function canTravelToHorizon(current: BoardState, horizonCard: Card) {
 
   const requiredFuel = Math.max(
     0,
-    horizonCard.horizon.need.fuel - getNextStarFuelDiscount(current.pendingEffects),
+    horizonCard.horizon.need.fuel - getNextStopFuelDiscount(current.pendingEffects),
   )
 
   return canCompleteHorizonNeedWithFuelOptions(
@@ -89,87 +86,56 @@ export function canTravelToAnyVisibleHorizon(current: BoardState) {
   return getVisibleHorizonCards(current).some((card) => canTravelToHorizon(current, card))
 }
 
-function hasEngineOrStar(card: Card | undefined) {
-  return card?.kind === 'crew' && (
-    card.specializations?.includes('engine') ||
-    card.specializations?.includes('star')
-  )
-}
-
-function hasEmergencyRefuelReadyPayment(current: BoardState) {
-  const readyCrewCardIds = getReadyCrewCardIds(current)
-  const engineOrStarCrewCardIds = readyCrewCardIds.filter((cardId) => hasEngineOrStar(current.cards[cardId]))
-
-  return (
-    (readyCrewCardIds.length >= 2 && engineOrStarCrewCardIds.length > 0) ||
-    (engineOrStarCrewCardIds.length > 0 && getAvailableMotherCardCount(current) > 0)
-  )
-}
-
-export function canEmergencyRefuel(current: BoardState) {
-  if (
+export function getDistressCallOptions(current: BoardState) {
+  const isBlocked = Boolean(
     current.hasArrived ||
-    current.lossReason ||
-    current.pendingWakeChoice ||
-    current.pendingScoutChoice ||
-    getDeckCardCount(current, FUEL_DECK_ID) === 0
+      current.lossReason ||
+      current.pendingWakeChoice ||
+      current.pendingScoutChoice ||
+      current.routeSlots.every(Boolean),
+  )
+
+  if (isBlocked || getVisibleHorizonCards(current).length === 0 || canTravelToAnyVisibleHorizon(current)) {
+    return {
+      canUse: false,
+      canGainFuel: false,
+      canReplaceMapStop: false,
+    }
+  }
+
+  const canGainFuel = getDeckCardCount(current, FUEL_DECK_ID) > 0
+  const canReplaceMapStop =
+    getDeckCardCount(current, HORIZON_DECK_ID) > 0 &&
+    current.mapSlots.some((cardId) => {
+      const card = cardId ? current.cards[cardId] : null
+
+      return card?.kind === 'horizon'
+    })
+
+  return {
+    canUse: canGainFuel || canReplaceMapStop,
+    canGainFuel,
+    canReplaceMapStop,
+  }
+}
+
+export function canDistressCall(current: BoardState) {
+  return getDistressCallOptions(current).canUse
+}
+
+export function canDistressReplaceMapSlot(current: BoardState, slotIndex: number) {
+  const options = getDistressCallOptions(current)
+
+  if (
+    !options.canReplaceMapStop ||
+    slotIndex < 0 ||
+    slotIndex >= current.mapSlots.length
   ) {
     return false
   }
 
-  const visibleHorizonCards = getVisibleHorizonCards(current)
+  const cardId = current.mapSlots[slotIndex]
+  const card = cardId ? current.cards[cardId] : null
 
-  if (visibleHorizonCards.length === 0 || canTravelToAnyVisibleHorizon(current)) {
-    return false
-  }
-
-  const availableFuelCount = countFuelCardsInPlay(current)
-  const fuelDiscount = getNextStarFuelDiscount(current.pendingEffects)
-  const allVisibleStarsCostMoreFuelThanShipHas = visibleHorizonCards.every((card) => (
-    card.horizon && Math.max(0, card.horizon.need.fuel - fuelDiscount) > availableFuelCount
-  ))
-
-  return allVisibleStarsCostMoreFuelThanShipHas && hasEmergencyRefuelReadyPayment(current)
-}
-
-export function getEmergencyRefuelStackPayment(current: BoardState, cardIds: readonly string[]) {
-  if (!canEmergencyRefuel(current)) {
-    return null
-  }
-
-  const readyCrewCardIdSet = new Set(getReadyCrewCardIds(current))
-  const crewCardIds: string[] = []
-  const motherCardIds: string[] = []
-
-  for (const cardId of cardIds) {
-    const card = current.cards[cardId]
-
-    if (card?.kind === 'crew' && readyCrewCardIdSet.has(card.id)) {
-      crewCardIds.push(card.id)
-      continue
-    }
-
-    if (isUsableMotherCard(card)) {
-      motherCardIds.push(card.id)
-      continue
-    }
-
-    return null
-  }
-
-  if (crewCardIds.length === 2 && motherCardIds.length === 0) {
-    return crewCardIds.some((cardId) => hasEngineOrStar(current.cards[cardId]))
-      ? { crewCardIds, motherCardIds }
-      : null
-  }
-
-  if (crewCardIds.length === 1 && motherCardIds.length === 1 && hasEngineOrStar(current.cards[crewCardIds[0]])) {
-    return { crewCardIds, motherCardIds }
-  }
-
-  return null
-}
-
-export function canEmergencyRefuelStack(current: BoardState, cardIds: readonly string[]) {
-  return getEmergencyRefuelStackPayment(current, cardIds) !== null
+  return card?.kind === 'horizon'
 }

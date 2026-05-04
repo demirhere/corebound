@@ -21,7 +21,7 @@ export const GAME_ICON_LABELS: Record<GameIconKind, string> = {
   fuel: 'Fuel',
   parts: 'Parts',
   engine: 'Engine',
-  star: 'Star',
+  star: 'Nav',
   life: 'Life',
   signal: 'Signal',
   mother: 'MOTHER',

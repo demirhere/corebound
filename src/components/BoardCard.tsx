@@ -11,6 +11,7 @@ import type {
   RequirementIconKind,
   ResourceKind,
 } from '../game/types'
+import { getStopTypeLabel } from '../game/shipParts'
 import { DeckIcon } from './DeckIcon'
 import { GameIcon } from './GameIcon'
 import { pickCardIcons, pickCardNote } from './gameIcons'
@@ -37,6 +38,7 @@ type BoardCardProps = {
   isStackActive: boolean
   stackOffsetRatio: number
   fuelDiscount: number
+  stressCount: number
   onPointerDown: CardPointerDownHandler
   onKeyDown: CardKeyDownHandler
 }
@@ -47,6 +49,7 @@ type CardShellProps = {
   style?: CSSProperties
   isActive?: boolean
   fuelDiscount?: number
+  stressCount?: number
   ariaLabel: string
   motionCardId?: string
   dataHandCardId?: string
@@ -73,7 +76,7 @@ function renderFuelNeed(printedFuel: number, currentFuelCost: number, keyPrefix:
       <GameIcon key={`${keyPrefix}-fuel-${index}`} kind="fuel" />
     )),
     ...Array.from({ length: removedFuelCount }, (_, index) => (
-      <span key={`${keyPrefix}-removed-fuel-${index}`} className="removed-need-icon" title="Fuel removed by Star effect">
+      <span key={`${keyPrefix}-removed-fuel-${index}`} className="removed-need-icon" title="Fuel removed by Stop effect">
         <GameIcon kind="fuel" />
         <svg className="removed-need-scribble" viewBox="0 0 44 30" focusable="false" aria-hidden="true">
           <path d="M3.8 17c5.2-4.4 9.8 3.7 15.3-.3 5.5-4.1 10.4 3.3 16.1-.6 2.7-1.9 4.7-2.1 6.5-.7" />
@@ -106,16 +109,16 @@ function renderReward(reward: HorizonReward, index: number) {
     )
   }
   if (reward.kind === 'scout') {
-      return [
-        <span key={`scout-${index}`} className="card-rule-text">
-        Look at the next {reward.count} Sector cards. Keep 1 on top; bottom the rest in any order.
-        </span>,
-      ]
-  }
-  if (reward.kind === 'next_star_fuel_discount') {
     return [
-      <span key={`next-star-discount-${index}`} className="card-rule-text">
-        The next Star you complete this sector costs -{reward.amount} Fuel.
+      <span key={`scout-${index}`} className="card-rule-text">
+        Look at the top {reward.count} Stop Deck cards. Keep 1 on top; bottom the rest.
+      </span>,
+    ]
+  }
+  if (reward.kind === 'next_stop_fuel_discount') {
+    return [
+      <span key={`next-stop-discount-${index}`} className="card-rule-text">
+        The next Stop you complete this sector costs -{reward.amount} Fuel.
       </span>,
     ]
   }
@@ -139,9 +142,11 @@ function renderReward(reward: HorizonReward, index: number) {
   return []
 }
 
-function renderCrewNeed(count: number, keyPrefix: string) {
+function renderCrewNeed(count: number, keyPrefix: string, className = '') {
   return Array.from({ length: count }, (_, index) => (
-    <GameIcon key={`${keyPrefix}-crew-${index}`} kind="person" />
+    <span key={`${keyPrefix}-crew-${index}`} className={className}>
+      <GameIcon kind="person" />
+    </span>
   ))
 }
 
@@ -155,30 +160,32 @@ function renderCrewFuelMath() {
   )
 }
 
-function renderGatePenalty(gate: GateDetails) {
+function renderGatePenalty(gate: GateDetails, stressCount: number) {
   if (gate.motherPenalty.extraHumanCrew <= 0) {
     return null
   }
 
+  const isActive = stressCount >= gate.motherPenalty.threshold
+
   return (
-    <div className="card-gate-penalty">
+    <div className={`card-gate-penalty ${isActive ? 'is-active' : ''}`}>
       <span className="card-gate-penalty-divider" aria-hidden="true" />
       <p className="card-wake-reward card-gate-penalty-line">
         <span className="card-gate-penalty-pair">
           <span>+{gate.motherPenalty.extraHumanCrew}</span>
           <GameIcon kind="person" />
         </span>
-        <span>if</span>
+        <span>at</span>
         <span className="card-gate-penalty-pair">
           <span>+{gate.motherPenalty.threshold}</span>
-          <GameIcon kind="mother" />
+          <span>Stress</span>
         </span>
       </p>
     </div>
   )
 }
 
-function renderGameplayCardContent(card: CardView, fuelDiscount: number) {
+function renderGameplayCardContent(card: CardView, fuelDiscount: number, stressCount: number) {
   if (card.kind === 'resource' && card.resource) {
     return (
       <>
@@ -186,7 +193,7 @@ function renderGameplayCardContent(card: CardView, fuelDiscount: number) {
         <div className="card-primary-icons">
           <GameIcon kind={card.resource} />
         </div>
-        <p className="card-rule-text">Stack this on a Sector card when it asks for {titleCase(card.resource)}.</p>
+        <p className="card-rule-text">Stack this on a Stop when it asks for {titleCase(card.resource)}.</p>
       </>
     )
   }
@@ -214,8 +221,8 @@ function renderGameplayCardContent(card: CardView, fuelDiscount: number) {
         </div>
         <p className="card-rule-text">
           {card.spentMother
-            ? 'Spent. Counts against MOTHER pressure and cannot be reused.'
-            : 'Covers 1 non-Fuel icon. Cannot pay Fuel except Emergency Refuel. Spent after use.'}
+            ? 'Spent. Adds 1 Stress and cannot be reused.'
+            : 'Covers 1 non-Fuel icon only. Never fills a crew slot. Spent after use.'}
         </p>
       </>
     )
@@ -228,7 +235,7 @@ function renderGameplayCardContent(card: CardView, fuelDiscount: number) {
 
     return (
       <>
-        <p className="card-kicker">{titleCase(card.horizon.kind)}</p>
+        <p className="card-kicker">{getStopTypeLabel(card.horizon.kind)} Stop</p>
         <div className="card-rule-row">
           <span>Need</span>
           <div className="card-rule-icons">
@@ -238,7 +245,7 @@ function renderGameplayCardContent(card: CardView, fuelDiscount: number) {
         </div>
         {hasFuelDiscount && (
           <p className="card-rule-text">
-            Next Star discount: {removedFuelCount} Fuel scribbled out.
+            Next Stop discount: {removedFuelCount} Fuel scribbled out.
           </p>
         )}
         <div className="card-rule-row">
@@ -255,15 +262,25 @@ function renderGameplayCardContent(card: CardView, fuelDiscount: number) {
     return (
       <>
         <p className="card-kicker">{card.gate.label}</p>
-        <div className="card-rule-row">
-          <span>Need</span>
+        <div className="card-rule-row card-gate-section">
+          <span>Crew slots</span>
           <div className="card-rule-icons">
             {renderCrewNeed(card.gate.need.crew, `${card.id}-gate-crew-need`)}
+            {stressCount >= card.gate.motherPenalty.threshold && renderCrewNeed(
+              card.gate.motherPenalty.extraHumanCrew,
+              `${card.id}-gate-stress-crew-need`,
+              'gate-extra-crew-icon',
+            )}
+          </div>
+        </div>
+        <div className="card-rule-row card-gate-section">
+          <span>Icons needed</span>
+          <div className="card-rule-icons">
             {renderIconPips(card.gate.need.icons, `${card.id}-gate-icon-need`)}
           </div>
         </div>
-        {renderGatePenalty(card.gate)}
-        <p className="card-rule-text">Finish after completing this sector's Stars.</p>
+        {renderGatePenalty(card.gate, stressCount)}
+        <p className="card-rule-text">Finish after 3 Route Stops. MOTHER and Beacons cover icons only.</p>
       </>
     )
   }
@@ -277,6 +294,7 @@ export function CardShell({
   style,
   isActive = false,
   fuelDiscount = 0,
+  stressCount = 0,
   ariaLabel,
   motionCardId,
   dataHandCardId,
@@ -285,7 +303,7 @@ export function CardShell({
 }: CardShellProps) {
   const sampledIcons = pickCardIcons(`${card.id}:${card.title}`)
   const noteLines = pickCardNote(`${card.id}:${card.title}`)
-  const gameplayContent = renderGameplayCardContent(card, fuelDiscount)
+  const gameplayContent = renderGameplayCardContent(card, fuelDiscount, stressCount)
 
   return (
     <div
@@ -345,6 +363,7 @@ export function BoardCard({
   isStackActive,
   stackOffsetRatio,
   fuelDiscount,
+  stressCount,
   onPointerDown,
   onKeyDown,
 }: BoardCardProps) {
@@ -353,6 +372,7 @@ export function BoardCard({
       card={card}
       isActive={isStackActive}
       fuelDiscount={fuelDiscount}
+      stressCount={stressCount}
       motionCardId={card.id}
       style={
         {

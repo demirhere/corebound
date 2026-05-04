@@ -173,7 +173,7 @@ export function Hand({
   return (
     <section ref={handRef} className="hand" data-hand aria-label="Crew and tired hands">
       {renderHandArea('crew', 'Crew', crewCardIds)}
-      {renderHandArea('tired', 'Tired', tiredCardIds, 'until new sector')}
+      {renderHandArea('tired', 'Tired', tiredCardIds, 'Gate, Water Tank, or reward')}
     </section>
   )
 }

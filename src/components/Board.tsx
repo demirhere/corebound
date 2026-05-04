@@ -3,8 +3,17 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
-import { getNextStarFuelDiscount } from '../game/effects'
-import type { BoardState, GameLossReason } from '../game/types'
+import { getNextStopFuelDiscount } from '../game/effects'
+import {
+  canDistressReplaceMapSlot,
+  getDistressCallOptions,
+} from '../game/boardQueries'
+import type { BoardState, GameLossReason, RouteSlot } from '../game/types'
+import {
+  getShipPartLabel,
+  getShipPartUseText,
+  getStopTypeLabel,
+} from '../game/shipParts'
 import { CardStack } from './CardStack'
 import {
   CardShell,
@@ -24,24 +33,7 @@ import {
   type HandPointerDownHandler,
 } from './Hand'
 
-type BoardView = Pick<
-  BoardState,
-  | 'cards'
-  | 'stacks'
-  | 'decks'
-  | 'handCardIds'
-  | 'tiredCardIds'
-  | 'pendingWakeChoice'
-  | 'pendingScoutChoice'
-  | 'pendingEffects'
-  | 'completedStarSummaries'
-  | 'currentSector'
-  | 'totalSectors'
-  | 'dropTargetStackId'
-  | 'dropTargetDeckId'
-  | 'hasArrived'
-  | 'lossReason'
->
+type BoardView = BoardState
 
 type BoardProps = {
   board: BoardView
@@ -64,6 +56,9 @@ type BoardProps = {
   onWakeCrewChoice: (cardId: string) => void
   onScoutCardChoice: (cardId: string) => void
   onScoutChoiceConfirm: () => void
+  onRouteShipPartUse: (routeSlotIndex: number) => void
+  onDistressGainFuel: () => void
+  onDistressReplaceMapStop: (slotIndex: number) => void
   onResetGame: () => void
 }
 
@@ -78,24 +73,24 @@ function lossContent(reason: GameLossReason) {
   if (reason === 'sector-stranded') {
     return {
       title: 'Stranded in the Reach.',
-      body: 'No visible Sector can be completed, and Emergency Refuel is not available.',
+      body: 'No visible Map Stop can be completed, and Distress Call cannot help.',
     }
   }
 
   return {
     title: 'The Gate cannot be passed.',
-    body: 'The sector Gate cannot be completed with the remaining Ready crew and unused MOTHER cards.',
+    body: 'The Gate cannot be completed with available Ship Parts, Ready crew, and unused MOTHER cards.',
   }
 }
 
-function countSpentMotherCards(board: BoardView) {
+function getSpentMotherCards(board: BoardView) {
   const inStackCardIds = new Set(board.stacks.flatMap((stack) => stack.cardIds))
 
-  return Array.from(inStackCardIds).reduce((count, cardId) => {
+  return Array.from(inStackCardIds).flatMap((cardId) => {
     const card = board.cards[cardId]
 
-    return card?.kind === 'mother' && card.spentMother === true ? count + 1 : count
-  }, 0)
+    return card?.kind === 'mother' && card.spentMother === true ? [card] : []
+  })
 }
 
 function getLossStats(board: BoardView): LossStat[] {
@@ -107,7 +102,7 @@ function getLossStats(board: BoardView): LossStat[] {
 
   return [
     {
-      label: 'Destinations traveled',
+      label: 'Stops visited',
       value: String(board.completedStarSummaries.length),
     },
     {
@@ -121,10 +116,22 @@ function getLossStats(board: BoardView): LossStat[] {
       iconLabel: fuelSpent > 0 ? 'Fuel' : undefined,
     },
     {
-      label: 'MOTHER cards used',
-      value: String(countSpentMotherCards(board)),
+      label: 'Stress',
+      value: String(board.stressCount),
     },
   ]
+}
+
+function isGateActive(board: BoardView) {
+  return board.routeSlots.every(Boolean) && !board.pendingWakeChoice && !board.pendingScoutChoice
+}
+
+function canUseRouteShipPart(board: BoardView, routeSlot: RouteSlot | null) {
+  if (!routeSlot || routeSlot.status !== 'available' || !isGateActive(board)) {
+    return false
+  }
+
+  return routeSlot.shipPart !== 'water-tank' || board.tiredCardIds.length > 0
 }
 
 function FailureFlameIcon() {
@@ -163,11 +170,17 @@ export function Board({
   onWakeCrewChoice,
   onScoutCardChoice,
   onScoutChoiceConfirm,
+  onRouteShipPartUse,
+  onDistressGainFuel,
+  onDistressReplaceMapStop,
   onResetGame,
 }: BoardProps) {
   const loss = board.lossReason ? lossContent(board.lossReason) : null
   const lossStats = loss ? getLossStats(board) : []
-  const fuelDiscount = getNextStarFuelDiscount(board.pendingEffects)
+  const isGameOver = board.hasArrived || Boolean(loss)
+  const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
+  const distressOptions = getDistressCallOptions(board)
+  const spentMotherCards = getSpentMotherCards(board)
   const scoutChoice = board.pendingScoutChoice
   const wakeChoiceCards = board.pendingWakeChoice?.choiceCardIds.flatMap((cardId) => {
     const card = board.cards[cardId]
@@ -187,7 +200,7 @@ export function Board({
     : scoutChoiceComplete
       ? 'Confirm to keep the unselected card on top and send selected cards to the back.'
       : scoutChoice.choiceCardIds.length === 1
-        ? 'Only 1 card remains. Confirm to leave it on top of the Sector deck.'
+        ? 'Only 1 card remains. Confirm to leave it on top of the Stop Deck.'
         : 'Select the cards you do not like to send to the back. Leave 1 card unselected for the top.'
 
   function scoutCardChoiceClass(cardId: string) {
@@ -224,15 +237,129 @@ export function Board({
       <aside className="board-notes" aria-label="Quick play instructions">
         <h2>Instructions</h2>
         <ol>
-          <li>Draw 3 sector cards, choose 1</li>
+          <li>Visit 1 Map Stop</li>
           <li>Always send 1+ crew on the trip</li>
-          <li>Finish it and discard the others</li>
-          <li>Emergency Refuel only if none are reachable</li>
-          <li>MOTHER cannot pay Fuel normally</li>
-          <li>Pass the Gate after 3 Stars</li>
+          <li>Put completed Stops in your Route</li>
+          <li>Refill only the emptied Map slot</li>
+          <li>After 3 Stops, face the Gate</li>
+          <li>Ship Parts help only at the Gate</li>
+          <li>Distress Call only if stuck</li>
           <li>Clear Sector {board.totalSectors} to win</li>
         </ol>
       </aside>
+
+      <section className="route-area" aria-label="Route and Ship Parts">
+        <h2>Route</h2>
+        <div className="route-slots">
+          {board.routeSlots.map((routeSlot, index) => {
+            const card = routeSlot ? board.cards[routeSlot.cardId] : null
+            const shipPartLabel = routeSlot ? getShipPartLabel(routeSlot.shipPart) : null
+            const canUseShipPart = canUseRouteShipPart(board, routeSlot)
+
+            return (
+              <article
+                className={`route-slot ${routeSlot ? 'has-route-card' : 'is-empty'} ${routeSlot?.status === 'spent' ? 'is-spent' : ''}`}
+                key={`route-slot-${index}`}
+              >
+                <header>
+                  <span>Route {index + 1}</span>
+                  {card?.horizon && <strong>{getStopTypeLabel(card.horizon.kind)}</strong>}
+                </header>
+                {card ? (
+                  <>
+                    <CardShell
+                      card={card}
+                      className="route-card-shell"
+                      fuelDiscount={0}
+                      stressCount={board.stressCount}
+                      motionCardId={card.id}
+                      ariaLabel={`${card.title}. Route Stop with ${shipPartLabel}.`}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                        }
+                      }}
+                    />
+                    {routeSlot && (
+                      <div className="ship-part-panel">
+                        <p>
+                          <span>{shipPartLabel}</span>
+                          <em>{routeSlot.status}</em>
+                        </p>
+                        <small>{getShipPartUseText(routeSlot.shipPart)}</small>
+                        <button
+                          type="button"
+                          disabled={!canUseShipPart}
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={() => onRouteShipPartUse(index)}
+                        >
+                          Use Part
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="empty-route-slot">Visit a Map Stop.</p>
+                )}
+              </article>
+            )
+          })}
+        </div>
+      </section>
+
+      <aside className="stress-area" aria-label="Stress area">
+        <h2>Stress</h2>
+        <p className="stress-count">{board.stressCount}</p>
+        <div className="stress-tokens" aria-hidden="true">
+          {Array.from({ length: board.stressCount }, (_, index) => (
+            <span className="stress-token" key={`stress-${index}`} />
+          ))}
+        </div>
+        <p>3+ Stress adds 1 red Gate crew slot.</p>
+        <small>{spentMotherCards.length} spent MOTHER card{spentMotherCards.length === 1 ? '' : 's'} in the Stress area.</small>
+      </aside>
+
+      <aside className="distress-call-panel" aria-label="Distress Call">
+        <h2>Distress Call</h2>
+        <p>Only if no Map Stop is reachable. Add 1 Stress, then choose one.</p>
+        <div className="distress-call-actions">
+          <button type="button" disabled={!distressOptions.canGainFuel} onClick={onDistressGainFuel}>
+            Gain 1 Fuel
+          </button>
+          {board.mapSlots.map((cardId, index) => {
+            const card = cardId ? board.cards[cardId] : null
+
+            return (
+              <button
+                type="button"
+                key={`distress-map-${index}`}
+                disabled={!canDistressReplaceMapSlot(board, index)}
+                onClick={() => onDistressReplaceMapStop(index)}
+              >
+                Replace {card?.title ?? `Map ${index + 1}`}
+              </button>
+            )
+          })}
+        </div>
+      </aside>
+
+      <aside className="set-aside-area" aria-label="Set-aside unvisited Stops">
+        <h2>Set Aside</h2>
+        <p>{board.setAsideStops.length} unvisited Stop{board.setAsideStops.length === 1 ? '' : 's'}</p>
+        <ul>
+          {board.setAsideStops.slice(0, 5).map((stop, index) => (
+            <li key={`${stop.cardTitle}-${stop.source}-${index}`}>{stop.cardTitle}</li>
+          ))}
+        </ul>
+      </aside>
+
+      {board.archivedRouteCardIds.length > 0 && (
+        <aside className="archived-route-area" aria-label="Archived Routes">
+          <h2>History</h2>
+          <p>{board.archivedRouteCardIds.length} archived Route Stop{board.archivedRouteCardIds.length === 1 ? '' : 's'}</p>
+        </aside>
+      )}
 
       {board.decks
         .filter((deck) => deck.cards.length > 0)
@@ -254,11 +381,12 @@ export function Board({
           cards={board.cards}
           isDropTarget={board.dropTargetStackId === stack.id}
           isActive={activeStackIds.includes(stack.id)}
-          stackOffsetRatio={stackOffsetRatio}
-          fuelDiscount={fuelDiscount}
-          onCardPointerDown={onCardPointerDown}
-          onCardKeyDown={onCardKeyDown}
-        />
+            stackOffsetRatio={stackOffsetRatio}
+            fuelDiscount={fuelDiscount}
+            stressCount={board.stressCount}
+            onCardPointerDown={onCardPointerDown}
+            onCardKeyDown={onCardKeyDown}
+          />
       ))}
 
       <Hand
@@ -315,7 +443,7 @@ export function Board({
         </div>
       )}
 
-      {board.pendingWakeChoice && wakeChoiceCards.length > 0 && (
+      {!isGameOver && board.pendingWakeChoice && wakeChoiceCards.length > 0 && (
         <div className="dialog-overlay">
           <section
             className="arrival-panel"
@@ -354,7 +482,7 @@ export function Board({
         </div>
       )}
 
-      {!board.pendingWakeChoice && scoutChoice && scoutChoiceCards.length > 0 && (
+      {!isGameOver && !board.pendingWakeChoice && scoutChoice && scoutChoiceCards.length > 0 && (
         <div className="dialog-overlay">
           <section
             className="arrival-panel scout-choice-panel"
@@ -363,7 +491,7 @@ export function Board({
             aria-labelledby="scout-choice-title"
           >
             <p className="arrival-kicker">Scout</p>
-            <h2 id="scout-choice-title">Set the Sector deck</h2>
+            <h2 id="scout-choice-title">Set the Stop Deck</h2>
             <p>{scoutInstruction}</p>
             <div className="scout-choice-cards">
               {scoutChoiceCards.map((card, index) => {

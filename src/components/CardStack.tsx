@@ -16,6 +16,7 @@ type CardStackProps = {
   isActive: boolean
   stackOffsetRatio: number
   fuelDiscount: number
+  stressCount: number
   onCardPointerDown: CardPointerDownHandler
   onCardKeyDown: CardKeyDownHandler
 }
@@ -27,6 +28,7 @@ export function CardStack({
   isActive,
   stackOffsetRatio,
   fuelDiscount,
+  stressCount,
   onCardPointerDown,
   onCardKeyDown,
 }: CardStackProps) {
@@ -66,6 +68,7 @@ export function CardStack({
             isStackActive={isActive}
             stackOffsetRatio={stackOffsetRatio}
             fuelDiscount={fuelDiscount}
+            stressCount={stressCount}
             onPointerDown={onCardPointerDown}
             onKeyDown={onCardKeyDown}
           />
