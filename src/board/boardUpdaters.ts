@@ -10,7 +10,7 @@ import {
   applyPendingEffectsToDrawnCard,
   consumeDeckDrawModifiers,
   consumeNextStopFuelDiscount,
-  createBoardEffectsForHorizonRewards,
+  createBoardEffectsForVisitRewards,
   getNextStopFuelDiscount,
   getPendingDrawCount,
 } from '../game/effects'
@@ -120,7 +120,6 @@ import {
   removeCardFromHandZones,
 } from './handState'
 import { clamp } from '../game/geometry'
-import { getShipPartForStopKind } from '../game/shipParts'
 
 type Position = {
   x: number
@@ -392,11 +391,11 @@ function canCompleteSectorGate(current: BoardState) {
     return false
   }
 
-  const availableWaterTanks = countShipParts(current.routeSlots, 'water-tank', ['available'])
+  const availableMedbayRehydrators = countShipParts(current.routeSlots, 'medbay-rehydrator', ['available'])
   const readyCrewCardIds = getReadyCrewCardIds(current)
   const potentiallyReadiedCrewCardIds = current.tiredCardIds
     .filter((cardId) => current.cards[cardId]?.kind === 'crew')
-    .slice(0, availableWaterTanks)
+    .slice(0, availableMedbayRehydrators)
   const usableMotherCardsInPlay = countUsableMotherCardsInPlay(current.stacks, current.cards)
   const availableMotherCardCount = usableMotherCardsInPlay + getDeckCardCount(current, MOTHER_DECK_ID)
 
@@ -406,8 +405,8 @@ function canCompleteSectorGate(current: BoardState) {
     gateCard.gate,
     current.stressCount,
     availableMotherCardCount,
-    countPotentialGateShipParts(current.routeSlots, 'hull-patch'),
-    countPotentialGateShipParts(current.routeSlots, 'wayfinder-beacon'),
+    countPotentialGateShipParts(current.routeSlots, 'service-drone-bay'),
+    countPotentialGateShipParts(current.routeSlots, 'adaptive-control-console'),
   )
 }
 
@@ -687,7 +686,7 @@ function drawNextMapChoices(current: BoardState) {
     board: nextBoard,
     events: [
       ...(discardedMapCardIds.length > 0
-        ? [cardsDiscardedEvent(discardedMapCardIds, current.cards, 'unchosen Map Stops')]
+        ? [cardsDiscardedEvent(discardedMapCardIds, current.cards, 'unchosen Map Destinations')]
         : []),
       mapRefilledEvent(current.currentSector, drawnMapCards),
     ],
@@ -717,7 +716,7 @@ function clearRemainingStopsForGate(current: BoardState) {
     },
     events: [
       ...(mapCardIdSet.size > 0
-        ? [cardsDiscardedEvent(mapCardIds, current.cards, 'unchosen Map Stops')]
+        ? [cardsDiscardedEvent(mapCardIds, current.cards, 'unchosen Map Destinations')]
         : []),
       ...thresholdEvents,
     ],
@@ -751,7 +750,10 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
   }
 
   const nextZ = current.topZ + 1
-  const rewards = horizonCard.horizon.rewards
+  const find = horizonCard.horizon.find
+  const rewards = find.kind === 'visit_reward' ? find.rewards : []
+  const shipPartFind = find.kind === 'ship_part' ? find : null
+  const keepsCompletedCardOnRoute = shipPartFind !== null
   const spentCrewCardIds = getSpentCrewCardIds(sourceStack, current.cards)
   const spentCrewCardIdSet = new Set(spentCrewCardIds)
   const spentFuelCount = sourceStack.cardIds.filter((cardId) => {
@@ -848,14 +850,22 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
 
   let pendingWakeChoice: BoardState['pendingWakeChoice'] = current.pendingWakeChoice
   let pendingScoutChoice: BoardState['pendingScoutChoice'] = current.pendingScoutChoice
-  const shipPart = getShipPartForStopKind(horizonCard.horizon.kind)
   const nextRouteSlots = current.routeSlots.map((slot, index) => (
     index === routeSlotIndex
       ? {
           cardId: horizonCard.id,
           mapSlotIndex,
-          shipPart,
-          status: 'available' as const,
+          find: shipPartFind
+            ? {
+                kind: 'ship_part' as const,
+                itemName: shipPartFind.itemName,
+                shipPart: shipPartFind.shipPart,
+                status: 'available' as const,
+              }
+            : {
+                kind: 'visit_reward' as const,
+                itemName: find.itemName,
+              },
         }
       : slot
   ))
@@ -902,15 +912,19 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
   const resolvedStacks = placeFuelCardsInSupplyStack(
     [
       ...nextStacksWithoutSource,
-      {
-        ...sourceStack,
-        id: getRouteStackId(routeSlotIndex),
-        cardIds: [horizonCard.id],
-        x: routeStackPosition.x,
-        y: routeStackPosition.y,
-        z: nextZ,
-        drawChoiceGroupId: undefined,
-      },
+      ...(keepsCompletedCardOnRoute
+        ? [
+            {
+              ...sourceStack,
+              id: getRouteStackId(routeSlotIndex),
+              cardIds: [horizonCard.id],
+              x: routeStackPosition.x,
+              y: routeStackPosition.y,
+              z: nextZ,
+              drawChoiceGroupId: undefined,
+            },
+          ]
+        : []),
       ...(spentMotherCardIds.length > 0
         ? [
             {
@@ -968,15 +982,17 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
     stressCount: current.stressCount + spentMotherCardIds.length,
     pendingEffects: [
       ...consumeNextStopFuelDiscount(current.pendingEffects),
-      ...createBoardEffectsForHorizonRewards(rewards),
+      ...createBoardEffectsForVisitRewards(rewards),
     ],
     cards: resolvedCards,
     stacks: resolvedStacks,
     decks: nextDecks,
   }
   const routeEvents = [
-    stopMovedToRouteEvent(horizonCard, routeSlotIndex, shipPart, routeFilledAfterCompletion),
-    shipPartAvailableEvent(horizonCard, routeSlotIndex, shipPart),
+    stopMovedToRouteEvent(horizonCard, routeSlotIndex, find, routeFilledAfterCompletion),
+    ...(shipPartFind
+      ? [shipPartAvailableEvent(horizonCard, routeSlotIndex, shipPartFind.shipPart)]
+      : []),
   ]
   const progressed = routeFilledAfterCompletion
     ? clearRemainingStopsForGate(nextBoard)
@@ -1037,15 +1053,15 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
     return { board: current, events: [] }
   }
 
-  const spentHullPatchCount = countSpentShipParts(current.routeSlots, 'hull-patch')
-  const spentBeaconCount = countSpentShipParts(current.routeSlots, 'wayfinder-beacon')
+  const spentServiceDroneBayCount = countSpentShipParts(current.routeSlots, 'service-drone-bay')
+  const spentControlConsoleCount = countSpentShipParts(current.routeSlots, 'adaptive-control-console')
   const stressCountBefore = current.stressCount
   const completion = getGateStackCompletion(
     sourceStack,
     current.cards,
     stressCountBefore,
-    spentHullPatchCount,
-    spentBeaconCount,
+    spentServiceDroneBayCount,
+    spentControlConsoleCount,
   )
 
   if (!completion?.isReady) {
@@ -1255,8 +1271,8 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
       gateCrewStateBeforeEvent(current.cards, getReadyCrewCardIds(current), current.tiredCardIds),
       ...motherCommittedEvents,
       ...motherSpentEvents,
-      gateCrewSlotsCheckedEvent(gateCard, requiredCrewSlots, spentCrewCardIds.length, spentHullPatchCount),
-      gateIconsCheckedEvent(gateCard, missingIconsBeforeCoverage, spentBeaconCount, completion.requiredMotherCount),
+      gateCrewSlotsCheckedEvent(gateCard, requiredCrewSlots, spentCrewCardIds.length, spentServiceDroneBayCount),
+      gateIconsCheckedEvent(gateCard, missingIconsBeforeCoverage, spentControlConsoleCount, completion.requiredMotherCount),
       gateCompletedEvent(
         gateCard,
         sourceStack,
@@ -1292,7 +1308,8 @@ export function spendRouteShipPartUpdate(routeSlotIndex: number): BoardUpdater {
 
     if (
       !routeSlot ||
-      routeSlot.status !== 'available' ||
+      routeSlot.find.kind !== 'ship_part' ||
+      routeSlot.find.status !== 'available' ||
       !routeCard ||
       current.hasArrived ||
       current.lossReason ||
@@ -1303,16 +1320,16 @@ export function spendRouteShipPartUpdate(routeSlotIndex: number): BoardUpdater {
       return current
     }
 
-    if (routeSlot.shipPart === 'water-tank' && current.tiredCardIds.length === 0) {
+    if (routeSlot.find.shipPart === 'medbay-rehydrator' && current.tiredCardIds.length === 0) {
       return current
     }
 
-    const readyResult = routeSlot.shipPart === 'water-tank'
+    const readyResult = routeSlot.find.shipPart === 'medbay-rehydrator'
       ? readyTiredCrew(current.handCardIds, current.tiredCardIds, 1)
       : null
     const nextRouteSlots = current.routeSlots.map((slot, index) => (
       index === routeSlotIndex && slot
-        ? { ...slot, status: 'spent' as const }
+        ? { ...slot, find: slot.find.kind === 'ship_part' ? { ...slot.find, status: 'spent' as const } : slot.find }
         : slot
     ))
     const nextBoard = {
@@ -1326,7 +1343,7 @@ export function spendRouteShipPartUpdate(routeSlotIndex: number): BoardUpdater {
     const gateLoss = resolveGateLossIfNeeded(nextBoard)
 
     return withPlaytestEvents(gateLoss.board, [
-      shipPartSpentEvent(routeCard, routeSlotIndex, routeSlot.shipPart),
+      shipPartSpentEvent(routeCard, routeSlotIndex, routeSlot.find.shipPart),
       ...gateLoss.events,
     ])
   }
@@ -2109,8 +2126,8 @@ export function stackOnDropTargetUpdate(
       current.cards,
       getNextStopFuelDiscount(current.pendingEffects),
       current.stressCount,
-      countSpentShipParts(current.routeSlots, 'hull-patch'),
-      countSpentShipParts(current.routeSlots, 'wayfinder-beacon'),
+      countSpentShipParts(current.routeSlots, 'service-drone-bay'),
+      countSpentShipParts(current.routeSlots, 'adaptive-control-console'),
     )) {
       return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
     }

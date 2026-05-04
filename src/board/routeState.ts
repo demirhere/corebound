@@ -6,6 +6,7 @@ import {
 } from '../game/setup'
 import type {
   RouteSlot,
+  ShipPartStatus,
   ShipPartKind,
   Stack,
 } from '../game/types'
@@ -71,10 +72,14 @@ export function isRouteFilled(routeSlots: readonly (RouteSlot | null)[]) {
 export function countShipParts(
   routeSlots: readonly (RouteSlot | null)[],
   shipPart: ShipPartKind,
-  statuses: readonly RouteSlot['status'][],
+  statuses: readonly ShipPartStatus[],
 ) {
   return routeSlots.reduce((count, slot) => (
-    slot?.shipPart === shipPart && statuses.includes(slot.status) ? count + 1 : count
+    slot?.find.kind === 'ship_part' &&
+      slot.find.shipPart === shipPart &&
+      statuses.includes(slot.find.status)
+      ? count + 1
+      : count
   ), 0)
 }
 

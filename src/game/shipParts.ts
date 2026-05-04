@@ -1,12 +1,4 @@
-import type { HorizonKind, RequirementIconKind, ShipPartKind } from './types'
-
-export function getStopTypeLabel(kind: HorizonKind) {
-  if (kind === 'star') {
-    return 'Deep Space'
-  }
-
-  return kind === 'planet' ? 'Planet' : 'Asteroid'
-}
+import type { RequirementIconKind, ShipPartKind } from './types'
 
 export function getRequirementIconLabel(icon: RequirementIconKind) {
   if (icon === 'star') {
@@ -24,36 +16,24 @@ export function getRequirementIconLabel(icon: RequirementIconKind) {
   return 'Science'
 }
 
-export function getShipPartForStopKind(kind: HorizonKind): ShipPartKind {
-  if (kind === 'planet') {
-    return 'water-tank'
-  }
-
-  if (kind === 'asteroid') {
-    return 'hull-patch'
-  }
-
-  return 'wayfinder-beacon'
-}
-
 export function getShipPartLabel(shipPart: ShipPartKind) {
-  if (shipPart === 'water-tank') {
-    return 'Water Tank'
+  if (shipPart === 'medbay-rehydrator') {
+    return 'Medbay Rehydrator'
   }
 
-  if (shipPart === 'hull-patch') {
-    return 'Hull Patch'
+  if (shipPart === 'service-drone-bay') {
+    return 'Service Drone Bay'
   }
 
-  return 'Wayfinder Beacon'
+  return 'Adaptive Control Console'
 }
 
 export function getShipPartUseText(shipPart: ShipPartKind) {
-  if (shipPart === 'water-tank') {
+  if (shipPart === 'medbay-rehydrator') {
     return 'Ready 1 Tired crew before Gate payment.'
   }
 
-  if (shipPart === 'hull-patch') {
+  if (shipPart === 'service-drone-bay') {
     return 'Fill 1 Gate crew slot. No icon.'
   }
 

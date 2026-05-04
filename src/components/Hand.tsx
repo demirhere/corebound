@@ -53,7 +53,7 @@ export function Hand({
       <HandZoneArea
         zone="tired"
         label="Tired"
-        subtitle="Gate, Water Tank, or reward"
+        subtitle="Gate, Medbay Rehydrator, or reward"
         cardIds={tiredCardIds}
         cards={cards}
         activeCardIds={activeCardIdSet}

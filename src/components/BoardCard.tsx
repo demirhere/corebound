@@ -70,12 +70,18 @@ export function CardShell({
   const sampledIcons = pickCardIcons(`${card.id}:${card.title}`)
   const noteLines = pickCardNote(`${card.id}:${card.title}`)
   const gameplayContent = renderGameplayCardContent(card, fuelDiscount, stressCount)
+  const resourceClass = card.kind === 'resource' && card.resource ? `card-resource-${card.resource}` : ''
+  const isShipPartDestination = card.kind === 'horizon' && card.horizon?.find.kind === 'ship_part'
+  const horizonFindClass = card.kind === 'horizon' && card.horizon
+    ? card.horizon.find.kind === 'ship_part' ? 'card-find-ship-part' : 'card-find-visit-reward'
+    : ''
+  const headerTitle = card.kind === 'horizon' && card.horizon ? card.horizon.find.itemName : card.title
 
   return (
     <div
       className={`card-shell ${card.faceUp ? 'is-face-up' : 'is-face-down'} ${
         isActive ? 'is-being-dragged' : ''
-      } card-kind-${card.kind} ${card.spentMother ? 'is-spent-mother' : ''} ${isTraveledStop ? 'is-traveled-stop' : ''} ${className}`}
+      } card-kind-${card.kind} ${resourceClass} ${horizonFindClass} ${card.spentMother ? 'is-spent-mother' : ''} ${isTraveledStop ? 'is-traveled-stop' : ''} ${className}`}
       data-hand-card-id={dataHandCardId}
       data-motion-card-id={motionCardId}
       style={
@@ -95,7 +101,14 @@ export function CardShell({
         <article className="card-face card-front">
           {!isCrewCard && (
             <header className="card-header">
-              <span className="card-title">{card.title}</span>
+              {isShipPartDestination && card.kind === 'horizon' && card.horizon ? (
+                <>
+                  <span className="card-destination-title">{card.title}</span>
+                  <span className="card-title">{card.horizon.find.itemName}</span>
+                </>
+              ) : (
+                <span className="card-title">{headerTitle}</span>
+              )}
             </header>
           )}
           <div className={`card-art ${gameplayContent ? 'card-art-gameplay' : ''} ${isCrewCard ? 'crew-card-art' : ''}`} aria-hidden="true">
@@ -136,9 +149,12 @@ export function BoardCard({
   onPointerDown,
   onKeyDown,
 }: BoardCardProps) {
+  const cardLabel = card.kind === 'horizon' && card.horizon
+    ? `${card.horizon.find.itemName} at ${card.title}`
+    : card.title
   const ariaLabel = isTraveledStop
-    ? `${card.title}. Traveled destination in the route area. Drag to organize traveled Stops.`
-    : `${card.title}. Drag to move this part of the stack.`
+    ? `${cardLabel}. Traveled destination in the route area. Drag to organize traveled destinations.`
+    : `${cardLabel}. Drag to move this part of the stack.`
 
   return (
     <CardShell

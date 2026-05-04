@@ -39,12 +39,9 @@ function renderDeckIcon(kind: CardIconKind) {
           <path className="deck-icon-line" d="M24 5v6M24 37v6M5 24h6M37 24h6M10.6 10.6l4.3 4.3M33.1 33.1l4.3 4.3M37.4 10.6l-4.3 4.3M14.9 33.1l-4.3 4.3" />
         </>
       )
-    case 'drop':
+    case 'zap':
       return (
-        <>
-          <path className="deck-icon-fill" d="M24 5.8C17.7 13.8 13.5 19.7 13.5 27.1a10.5 10.5 0 0 0 21 0C34.5 19.7 30.3 13.8 24 5.8Z" />
-          <path className="deck-icon-line" d="M18.2 29.2c2.9 1.8 8.8 1.8 11.6 0M21 22.3h6" />
-        </>
+        <path className="deck-icon-line" d="M28.2 6.6 12.5 26.8h10.7l-2 14.6 15-21.6H25.9Z" />
       )
     case 'antenna':
       return (

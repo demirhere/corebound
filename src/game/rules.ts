@@ -202,9 +202,9 @@ function canStackLegalGateSupport(
   crewCardIds: readonly string[],
   gate: GateDetails,
   motherCount: number,
-  beaconCount: number,
+  controlConsoleCount: number,
 ) {
-  const maxMotherIconCoverage = Math.max(0, gate.need.icons.length - beaconCount)
+  const maxMotherIconCoverage = Math.max(0, gate.need.icons.length - controlConsoleCount)
 
   return crewCardIds.length + motherCount > 0 && motherCount <= maxMotherIconCoverage
 }
@@ -214,8 +214,8 @@ function canUseAllCardsInCompletionStack(
   cards: Record<string, Card>,
   fuelDiscount: number,
   stressCountBefore: number,
-  hullPatchCount: number,
-  beaconCount: number,
+  serviceDroneBayCount: number,
+  controlConsoleCount: number,
 ) {
   let objectiveCard: Card | null = null
   const crewCardIds: string[] = []
@@ -274,15 +274,15 @@ function canUseAllCardsInCompletionStack(
       objectiveCard.gate,
       stressCountBefore,
       motherCount,
-      hullPatchCount,
-      beaconCount,
+      serviceDroneBayCount,
+      controlConsoleCount,
     )
 
     return gatePayment !== null || canStackLegalGateSupport(
       crewCardIds,
       objectiveCard.gate,
       motherCount,
-      beaconCount,
+      controlConsoleCount,
     )
   }
 
@@ -306,27 +306,58 @@ function canStackAsLoosePile(sourceStack: Stack, targetStack: Stack, cards: Reco
   )
 }
 
+function isShipPartBlueprintCard(card: Card | undefined) {
+  return card?.kind === 'horizon' && card.horizon?.find.kind === 'ship_part'
+}
+
+function isDestinationSupportCard(card: Card | undefined) {
+  return (
+    card?.kind === 'crew' ||
+    (card?.kind === 'resource' && card.resource === 'fuel') ||
+    isUsableMotherCard(card)
+  )
+}
+
+function canStackAsBlueprintPrepPile(sourceStack: Stack, targetStack: Stack, cards: Record<string, Card>) {
+  const stackedCards = [...targetStack.cardIds, ...sourceStack.cardIds].map((cardId) => cards[cardId])
+  let blueprintCount = 0
+  let supportCount = 0
+
+  for (const card of stackedCards) {
+    if (isShipPartBlueprintCard(card)) {
+      blueprintCount += 1
+    } else if (isDestinationSupportCard(card)) {
+      supportCount += 1
+    } else {
+      return false
+    }
+  }
+
+  return blueprintCount === 1 && supportCount > 0
+}
+
 export function canStackCards(
   sourceStack: Stack,
   targetStack: Stack,
   cards: Record<string, Card>,
   fuelDiscount = 0,
   stressCountBefore = 0,
-  hullPatchCount = 0,
-  beaconCount = 0,
+  serviceDroneBayCount = 0,
+  controlConsoleCount = 0,
 ) {
   return (
     isFaceUpStack(sourceStack, cards) &&
     isFaceUpStack(targetStack, cards) &&
     (
       canStackAsLoosePile(sourceStack, targetStack, cards) ||
+      canStackAsBlueprintPrepPile(sourceStack, targetStack, cards) ||
       canUseAllCardsInCompletionStack(
         [...targetStack.cardIds, ...sourceStack.cardIds],
         cards,
         fuelDiscount,
         stressCountBefore,
-        hullPatchCount,
-        beaconCount,
+        serviceDroneBayCount,
+        controlConsoleCount,
       )
     )
   )
@@ -394,7 +425,13 @@ export function cardsToDeckBlueprints(cardIds: string[], cards: Record<string, C
                 fuel: card.horizon.need.fuel,
                 icons: [...card.horizon.need.icons],
               },
-              rewards: card.horizon.rewards.map((reward) => ({ ...reward })),
+              find: card.horizon.find.kind === 'ship_part'
+                ? { ...card.horizon.find }
+                : {
+                    kind: 'visit_reward',
+                    itemName: card.horizon.find.itemName,
+                    rewards: card.horizon.find.rewards.map((reward) => ({ ...reward })),
+                  },
             }
           : undefined,
         gate: card.gate
@@ -598,14 +635,14 @@ function getGateCrewCardNeedPayment(
   icons: readonly RequirementIconKind[],
   requiredCrewCount: number,
   motherCount: number,
-  beaconCount: number,
+  controlConsoleCount: number,
 ): CrewMotherNeedPayment | null {
   if (crewCardIds.length < requiredCrewCount) {
     return null
   }
 
   const missingIcons = getMissingNeedIcons(crewCardIds, cards, icons, 0)
-  const motherCoveredIcons = missingIcons.slice(Math.min(beaconCount, missingIcons.length))
+  const motherCoveredIcons = missingIcons.slice(Math.min(controlConsoleCount, missingIcons.length))
 
   if (motherCoveredIcons.length > motherCount) {
     return null
@@ -628,13 +665,13 @@ function getGateNeedPayment(
   gate: GateDetails,
   stressCountBefore: number,
   usableMotherCount: number,
-  hullPatchCount = 0,
-  beaconCount = 0,
+  serviceDroneBayCount = 0,
+  controlConsoleCount = 0,
 ) {
   const extraHumanCrewRequired = stressCountBefore >= gate.motherPenalty.threshold
     ? gate.motherPenalty.extraHumanCrew
     : 0
-  const requiredCrewSlots = Math.max(0, gate.need.crew + extraHumanCrewRequired - hullPatchCount)
+  const requiredCrewSlots = Math.max(0, gate.need.crew + extraHumanCrewRequired - serviceDroneBayCount)
 
   const payment = getGateCrewCardNeedPayment(
     crewCardIds,
@@ -642,7 +679,7 @@ function getGateNeedPayment(
     gate.need.icons,
     requiredCrewSlots,
     usableMotherCount,
-    beaconCount,
+    controlConsoleCount,
   )
 
   if (!payment) {
@@ -662,8 +699,8 @@ export function canCompleteGateNeedWithCrewAndMother(
   gate: GateDetails,
   stressCountBefore: number,
   usableMotherCount: number,
-  hullPatchCount = 0,
-  beaconCount = 0,
+  serviceDroneBayCount = 0,
+  controlConsoleCount = 0,
 ) {
   return getGateNeedPayment(
     crewCardIds,
@@ -671,8 +708,8 @@ export function canCompleteGateNeedWithCrewAndMother(
     gate,
     stressCountBefore,
     usableMotherCount,
-    hullPatchCount,
-    beaconCount,
+    serviceDroneBayCount,
+    controlConsoleCount,
   ) !== null
 }
 
@@ -866,8 +903,8 @@ export function getGateStackCompletion(
   stack: Stack,
   cards: Record<string, Card>,
   stressCountBefore: number,
-  hullPatchCount = 0,
-  beaconCount = 0,
+  serviceDroneBayCount = 0,
+  controlConsoleCount = 0,
 ): GateStackCompletion | null {
   const gateCardIndex = stack.cardIds.findIndex((cardId) => {
     const card = cards[cardId]
@@ -914,27 +951,27 @@ export function getGateStackCompletion(
     gateCard.gate.need.icons,
     0,
   )
-  const fallbackMotherAfterBeacons = Math.max(0, fallbackRequiredMotherCount - beaconCount)
+  const fallbackMotherAfterControlConsoles = Math.max(0, fallbackRequiredMotherCount - controlConsoleCount)
   const payment = getGateNeedPayment(
     crewCardIds,
     cards,
     gateCard.gate,
     stressCountBefore,
     usableMotherCount,
-    hullPatchCount,
-    beaconCount,
+    serviceDroneBayCount,
+    controlConsoleCount,
   )
 
   return {
     gateCardId,
     gateCardIndex,
-    motherSpentTotal: payment?.motherSpentTotal ?? stressCountBefore + Math.min(fallbackMotherAfterBeacons, usableMotherCount),
+    motherSpentTotal: payment?.motherSpentTotal ?? stressCountBefore + Math.min(fallbackMotherAfterControlConsoles, usableMotherCount),
     extraHumanCrewRequired: payment?.extraHumanCrewRequired ?? (
       stressCountBefore >= gateCard.gate.motherPenalty.threshold
         ? gateCard.gate.motherPenalty.extraHumanCrew
         : 0
     ),
-    requiredMotherCount: payment?.requiredMotherCount ?? fallbackMotherAfterBeacons,
+    requiredMotherCount: payment?.requiredMotherCount ?? fallbackMotherAfterControlConsoles,
     motherCoveredIcons: payment?.motherCoveredIcons ?? [],
     isReady:
       payment !== null &&

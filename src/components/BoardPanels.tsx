@@ -11,11 +11,16 @@ function isGateActive(board: BoardView) {
 }
 
 function canUseRouteShipPart(board: BoardView, routeSlot: RouteSlot | null) {
-  if (!routeSlot || routeSlot.status !== 'available' || !isGateActive(board)) {
+  if (
+    !routeSlot ||
+    routeSlot.find.kind !== 'ship_part' ||
+    routeSlot.find.status !== 'available' ||
+    !isGateActive(board)
+  ) {
     return false
   }
 
-  return routeSlot.shipPart !== 'water-tank' || board.tiredCardIds.length > 0
+  return routeSlot.find.shipPart !== 'medbay-rehydrator' || board.tiredCardIds.length > 0
 }
 
 export function InstructionsPanel({ totalSectors }: { totalSectors: number }) {
@@ -23,13 +28,13 @@ export function InstructionsPanel({ totalSectors }: { totalSectors: number }) {
     <aside className="board-notes" aria-label="Quick play instructions">
       <h2>Instructions</h2>
       <ol>
-        <li>Visit 1 Map Stop</li>
+        <li>Visit 1 Map Destination</li>
         <li>Always send 1+ crew on the trip</li>
-        <li>Move traveled Stops to the route</li>
-        <li>Discard the other Map Stops</li>
-        <li>Draw 3 new Stops side by side</li>
-        <li>After 3 Stops, face the Gate</li>
-        <li>Printed Ship Parts help only at the Gate</li>
+        <li>Keep Ship Part Destinations on the route</li>
+        <li>Discard the other Map Destinations</li>
+        <li>Draw 3 new Destinations side by side</li>
+        <li>After 3 Destinations, face the Gate</li>
+        <li>Ship Part finds help only at the Gate</li>
         <li>Clear Sector {totalSectors} to win</li>
       </ol>
     </aside>
@@ -44,14 +49,17 @@ type ShipPartsPanelProps = {
 export function ShipPartsPanel({ board, onRouteShipPartUse }: ShipPartsPanelProps) {
   const shipPartEntries = board.routeSlots.flatMap((routeSlot, index) => {
     const card = routeSlot ? board.cards[routeSlot.cardId] : null
+    const shipPartFind = routeSlot?.find.kind === 'ship_part' ? routeSlot.find : null
 
-    return routeSlot && card
+    return routeSlot && shipPartFind && card
       ? [
           {
             routeSlot,
             routeSlotIndex: index,
             card,
-            shipPartLabel: getShipPartLabel(routeSlot.shipPart),
+            shipPart: shipPartFind.shipPart,
+            shipPartStatus: shipPartFind.status,
+            shipPartLabel: getShipPartLabel(shipPartFind.shipPart),
           },
         ]
       : []
@@ -61,17 +69,17 @@ export function ShipPartsPanel({ board, onRouteShipPartUse }: ShipPartsPanelProp
     <section className="ship-parts-area" aria-label="Ship Parts">
       <h2>Ship Parts</h2>
       <div className="ship-part-list">
-        {shipPartEntries.map(({ routeSlot, routeSlotIndex, card, shipPartLabel }) => {
+        {shipPartEntries.map(({ routeSlot, routeSlotIndex, card, shipPart, shipPartStatus, shipPartLabel }) => {
           const canUseShipPart = canUseRouteShipPart(board, routeSlot)
 
           return (
-            <article className={`ship-part-item is-${routeSlot.status}`} key={routeSlot.cardId}>
+            <article className={`ship-part-item is-${shipPartStatus}`} key={routeSlot.cardId}>
               <p>
                 <span>{shipPartLabel}</span>
-                <em>{routeSlot.status}</em>
+                <em>{shipPartStatus}</em>
               </p>
               <strong>{card.title}</strong>
-              <small>{getShipPartUseText(routeSlot.shipPart)}</small>
+              <small>{getShipPartUseText(shipPart)}</small>
               <button
                 type="button"
                 disabled={!canUseShipPart}
@@ -79,7 +87,7 @@ export function ShipPartsPanel({ board, onRouteShipPartUse }: ShipPartsPanelProp
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={() => onRouteShipPartUse(routeSlotIndex)}
               >
-                {routeSlot.status === 'spent' ? 'Spent' : 'Use Part'}
+                {shipPartStatus === 'spent' ? 'Spent' : 'Use Part'}
               </button>
             </article>
           )
@@ -105,5 +113,3 @@ export function StressTracker({ stressCount }: { stressCount: number }) {
     </aside>
   )
 }
-
-

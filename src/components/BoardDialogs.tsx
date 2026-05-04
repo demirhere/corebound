@@ -16,7 +16,7 @@ function lossContent(reason: GameLossReason) {
   if (reason === 'sector-stranded') {
     return {
       title: 'Stranded in the Reach.',
-      body: 'No visible Map Stop can be completed.',
+      body: 'No visible Map Destination can be completed.',
     }
   }
 
@@ -35,7 +35,7 @@ function getLossStats(board: BoardView): LossStat[] {
 
   return [
     {
-      label: 'Stops visited',
+      label: 'Destinations visited',
       value: String(board.completedStarSummaries.length),
     },
     {
@@ -161,7 +161,7 @@ export function WakeChoiceDialog({ board, isGameOver, onWakeCrewChoice }: {
         aria-labelledby="wake-choice-title"
       >
         <h2 id="wake-choice-title">Choose Cryo Crew</h2>
-        <p>That crew joins Tired and readies after the next Gate.</p>
+        <p>That crew joins Tired. Then Ready 1 crew that was already Tired.</p>
         <div className="wake-choice-cards">
           {wakeChoiceCards.map((card) => (
             <CardShell
@@ -206,14 +206,14 @@ function isScoutChoiceComplete(scoutChoice: NonNullable<BoardView['pendingScoutC
 
 function getScoutInstruction(scoutChoice: NonNullable<BoardView['pendingScoutChoice']>) {
   if (scoutChoice.choiceCardIds.length === 1) {
-    return 'Only 1 card is available. Confirm to leave it on top of the Stop Deck.'
+    return 'Only 1 card is available. Confirm to leave it on top of the Sector Deck.'
   }
 
   if (isScoutChoiceComplete(scoutChoice)) {
     return 'Confirm to keep the selected card on top and send the others to the back.'
   }
 
-  return 'Choose the Stop card you like. The others will be sent to the back.'
+  return 'Choose the Destination card you like. The others will be sent to the back.'
 }
 
 function getScoutFanStyle(cardIndex: number, cardCount: number) {
@@ -259,7 +259,7 @@ export function ScoutChoiceDialog({
         aria-labelledby="scout-choice-title"
       >
         <p className="arrival-kicker">Scout</p>
-        <h2 id="scout-choice-title">Set the Stop Deck</h2>
+        <h2 id="scout-choice-title">Set the Sector Deck</h2>
         <p>{getScoutInstruction(scoutChoice)}</p>
         <div className="scout-choice-cards">
           {scoutChoiceCards.map((card, index) => {

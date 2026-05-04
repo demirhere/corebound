@@ -3,10 +3,11 @@ import type {
   CardBlueprint,
   CompletedStarSummary,
   Deck,
+  DestinationFind,
   GameLossReason,
-  HorizonReward,
   ShipPartKind,
   Stack,
+  VisitReward,
 } from './types'
 import type { PlaytestLogEvent } from './playtestLog'
 import type { MotherCoveredIcon } from './rules'
@@ -14,14 +15,13 @@ import {
   getRequirementIconLabel,
   getShipPartLabel,
   getShipPartUseText,
-  getStopTypeLabel,
 } from './shipParts'
 
 function roundPosition(value: number) {
   return Math.round(value * 10) / 10
 }
 
-function describeRewards(rewards: readonly HorizonReward[]) {
+function describeVisitRewards(rewards: readonly VisitReward[]) {
   return rewards
     .map((reward) => {
       if (reward.kind === 'resource') {
@@ -38,16 +38,24 @@ function describeRewards(rewards: readonly HorizonReward[]) {
         return `Scout ${reward.count}`
       }
       if (reward.kind === 'next_stop_fuel_discount') {
-        return `Next Stop costs -${reward.amount} Fuel`
+        return `Next Destination costs -${reward.amount} Fuel`
       }
       if (reward.kind === 'ready') {
         return reward.count === 1
-          ? 'Ready 1 crew that was already Tired before this Stop'
-          : `Ready ${reward.count} crew that were already Tired before this Stop`
+          ? 'Ready 1 crew that was already Tired before this Destination'
+          : `Ready ${reward.count} crew that were already Tired before this Destination`
       }
       return ''
     })
     .join(', ')
+}
+
+function describeFind(find: DestinationFind) {
+  if (find.kind === 'ship_part') {
+    return `${find.itemName}: ${getShipPartUseText(find.shipPart)}`
+  }
+
+  return `${find.itemName}: ${describeVisitRewards(find.rewards) || 'no immediate benefit'}`
 }
 
 export function cardRulesText(card: Card | CardBlueprint) {
@@ -64,9 +72,8 @@ export function cardRulesText(card: Card | CardBlueprint) {
     ]
       .filter(Boolean)
       .join('; ')
-    const rewards = describeRewards(card.horizon.rewards) || 'none'
 
-    return `${getStopTypeLabel(card.horizon.kind)} Stop; needs: ${need}; rewards: ${rewards}`
+    return `Destination: ${card.title}; costs: ${need}; find: ${describeFind(card.horizon.find)}`
   }
 
   if (card.kind === 'mother') {
@@ -76,7 +83,7 @@ export function cardRulesText(card: Card | CardBlueprint) {
   if (card.kind === 'gate' && card.gate) {
     const icons = card.gate.need.icons.map(getRequirementIconLabel).join(', ')
 
-    return `gate crew slots: ${card.gate.need.crew}; icons needed: ${icons}; MOTHER and Beacons cover icons only; ${card.gate.motherPenalty.threshold}+ Stress adds ${card.gate.motherPenalty.extraHumanCrew} crew slot`
+    return `gate crew slots: ${card.gate.need.crew}; icons needed: ${icons}; MOTHER and Adaptive Control Consoles cover icons only; ${card.gate.motherPenalty.threshold}+ Stress adds ${card.gate.motherPenalty.extraHumanCrew} crew slot`
   }
 
   return ''
@@ -150,7 +157,7 @@ export function mapInitializedEvent(sector: number, mapCards: readonly Card[]): 
 
   return {
     type: 'map.initialized',
-    message: `Sector ${sector} Map initialized with 3 Stops: ${cardTitlesText}.`,
+    message: `Sector ${sector} Map initialized with 3 Destinations: ${cardTitlesText}.`,
     details: {
       sector,
       cardIds: mapCards.map((card) => card.id),
@@ -166,7 +173,7 @@ export function mapRefilledEvent(sector: number, mapCards: readonly Card[]): Pla
 
   return {
     type: 'map.refilled',
-    message: `Sector ${sector} Map refreshed with ${mapCards.length} Stops: ${cardTitlesText}.`,
+    message: `Sector ${sector} Map refreshed with ${mapCards.length} Destinations: ${cardTitlesText}.`,
     details: {
       sector,
       cardIds: mapCards.map((card) => card.id),
@@ -410,12 +417,16 @@ export function horizonCompletedEvent(
   rewardCards: readonly Card[],
   cards: Record<string, Card>,
 ): PlaytestLogEvent {
+  const find = horizonCard.horizon?.find
+
   return {
     type: 'stop.completed',
-    message: `${describeCard(horizonCard, horizonCard.id)} completed from ${sourceStack.id}; rewards: ${describeRewards(horizonCard.horizon?.rewards ?? []) || 'none'}.`,
+    message: `${describeCard(horizonCard, horizonCard.id)} completed from ${sourceStack.id}; found: ${find ? describeFind(find) : 'none'}.`,
     details: {
       stopCardId: horizonCard.id,
       stopTitle: horizonCard.title,
+      foundItemName: find?.itemName ?? null,
+      findKind: find?.kind ?? null,
       sourceStackId: sourceStack.id,
       spentCardIds: sourceStack.cardIds,
       spentCardTitles: cardTitles(sourceStack.cardIds, cards),
@@ -432,20 +443,27 @@ export function horizonCompletedEvent(
 export function stopMovedToRouteEvent(
   stopCard: Card,
   routeSlotIndex: number,
-  shipPart: ShipPartKind,
+  find: DestinationFind,
   gateBegins: boolean,
 ): PlaytestLogEvent {
-  const shipPartLabel = getShipPartLabel(shipPart)
+  const findText = find.kind === 'ship_part'
+    ? `${getShipPartLabel(find.shipPart)} available`
+    : `${find.itemName} resolved`
+  const travelText = find.kind === 'ship_part'
+    ? `${stopCard.title} moved to traveled Destination ${routeSlotIndex + 1}`
+    : `${stopCard.title} marked traveled Destination ${routeSlotIndex + 1} and cleared`
 
   return {
     type: 'stop.traveled',
-    message: `${stopCard.title} moved to traveled Stop ${routeSlotIndex + 1}. ${shipPartLabel} available.${gateBegins ? ' Gate begins.' : ''}`,
+    message: `${travelText}. ${findText}.${gateBegins ? ' Gate begins.' : ''}`,
     details: {
       stopCardId: stopCard.id,
       stopTitle: stopCard.title,
       routeSlot: routeSlotIndex + 1,
-      shipPart,
-      shipPartLabel,
+      findKind: find.kind,
+      foundItemName: find.itemName,
+      shipPart: find.kind === 'ship_part' ? find.shipPart : null,
+      shipPartLabel: find.kind === 'ship_part' ? getShipPartLabel(find.shipPart) : null,
       gateBegins,
     },
   }
@@ -569,7 +587,7 @@ export function sectorRevealedEvent(
 
   return {
     type: 'sector.revealed',
-    message: `Sector ${sector} revealed: ${describeCard(gateCard, gateCard.id)}; Stop Deck reset with ${horizonCards.length} Stops.`,
+    message: `Sector ${sector} revealed: ${describeCard(gateCard, gateCard.id)}; Sector Deck reset with ${horizonCards.length} Destinations.`,
     details: {
       sector,
       gateCardId: gateCard.id,
@@ -600,7 +618,7 @@ export function scoutUsedEvent(
     message: [
       'scout.used:',
       `looked at: ${lookedAtTitles.join(', ') || 'none'}`,
-      `kept on top of Stop Deck: ${keptOnTopTitle}`,
+      `kept on top of Sector Deck: ${keptOnTopTitle}`,
       `bottomed: ${bottomedTitles.join(', ') || 'none'}`,
     ].join('\n'),
     details: {
@@ -644,19 +662,19 @@ export function gateCrewSlotsCheckedEvent(
   gateCard: Card,
   requiredCrewSlots: number,
   crewCommitted: number,
-  hullPatchesSpent: number,
+  serviceDroneBaysSpent: number,
 ): PlaytestLogEvent {
-  const filledSlots = crewCommitted + hullPatchesSpent
+  const filledSlots = crewCommitted + serviceDroneBaysSpent
 
   return {
     type: 'gate.crew_slots_checked',
-    message: `${gateCard.title} crew slots checked: ${filledSlots}/${requiredCrewSlots} filled (${crewCommitted} crew, ${hullPatchesSpent} Hull Patch).`,
+    message: `${gateCard.title} crew slots checked: ${filledSlots}/${requiredCrewSlots} filled (${crewCommitted} crew, ${serviceDroneBaysSpent} Service Drone Bay).`,
     details: {
       gateCardId: gateCard.id,
       gateTitle: gateCard.title,
       requiredCrewSlots,
       crewCommitted,
-      hullPatchesSpent,
+      serviceDroneBaysSpent,
       filledSlots,
     },
   }
@@ -665,7 +683,7 @@ export function gateCrewSlotsCheckedEvent(
 export function gateIconsCheckedEvent(
   gateCard: Card,
   missingIconsBeforeCoverage: readonly MotherCoveredIcon[],
-  beaconsSpent: number,
+  controlConsolesSpent: number,
   motherSpent: number,
 ): PlaytestLogEvent {
   const missingIconText = missingIconsBeforeCoverage.map((icon) => (
@@ -674,12 +692,12 @@ export function gateIconsCheckedEvent(
 
   return {
     type: 'gate.icons_checked',
-    message: `${gateCard.title} icons checked: ${missingIconText.join(', ') || 'none missing'} before Beacon/MOTHER coverage; ${beaconsSpent} Beacon, ${motherSpent} MOTHER used.`,
+    message: `${gateCard.title} icons checked: ${missingIconText.join(', ') || 'none missing'} before Adaptive Control Console/MOTHER coverage; ${controlConsolesSpent} Adaptive Control Console, ${motherSpent} MOTHER used.`,
     details: {
       gateCardId: gateCard.id,
       gateTitle: gateCard.title,
       missingIconsBeforeCoverage: missingIconText,
-      beaconsSpent,
+      controlConsolesSpent,
       motherSpent,
     },
   }
@@ -718,7 +736,7 @@ export function routeArchivedEvent(sector: number, routeCardIds: readonly string
 
   return {
     type: 'traveled_stops.archived',
-    message: `Sector ${sector} traveled Stops archived after Gate: ${routeTitles.join(', ') || 'none'}.`,
+    message: `Sector ${sector} traveled Destinations archived after Gate: ${routeTitles.join(', ') || 'none'}.`,
     details: {
       sector,
       routeCardIds,
@@ -741,7 +759,7 @@ export function starsCompletedSummaryEvent(
   const starLabels = completedStars.map((star, index) => {
     const sectorStarNumber = completedStars.slice(0, index + 1).filter((candidate) => candidate.sector === star.sector).length
 
-    return `Sector ${star.sector} Traveled Stop ${sectorStarNumber}`
+    return `Sector ${star.sector} Traveled Destination ${sectorStarNumber}`
   })
   const starLines = completedStars.map((star, index) => {
     const crewText = star.crewTitles.join(', ') || 'none'
@@ -768,7 +786,7 @@ export function starsCompletedSummaryEvent(
 export function gameLostEvent(reason: GameLossReason): PlaytestLogEvent {
   const message =
     reason === 'sector-stranded'
-      ? 'No visible Map Stop can be completed.'
+      ? 'No visible Map Destination can be completed.'
       : 'The Gate cannot be completed with available Ship Parts, Ready crew, and unused MOTHER cards.'
 
   return {

@@ -1,6 +1,6 @@
-import type { BoardEffect, Card, Deck, HorizonReward } from './types'
+import type { BoardEffect, Card, Deck, VisitReward } from './types'
 
-export function createBoardEffectsForHorizonRewards(rewards: readonly HorizonReward[]) {
+export function createBoardEffectsForVisitRewards(rewards: readonly VisitReward[]) {
   return rewards.flatMap<BoardEffect>((reward) => {
     if (reward.kind === 'next_stop_fuel_discount') {
       return [{ kind: 'next_stop_fuel_discount', amount: reward.amount }]

@@ -25,10 +25,7 @@ function renderGameIcon(kind: GameIconKind) {
       )
     case 'fuel':
       return (
-        <>
-          <path className="icon-fill" d="M16 3.9C11.8 9.2 9 13.1 9 18.1a7 7 0 0 0 14 0c0-5-2.8-8.9-7-14.2Z" />
-          <path className="icon-line" d="M12.1 19.5c1.9 1.2 5.9 1.2 7.8 0M14 14.7h4" />
-        </>
+        <path className="icon-line" d="M18.7 4.3 8.2 17.9h7.2l-1.3 9.8 9.9-14.3h-7Z" />
       )
     case 'parts':
       return (

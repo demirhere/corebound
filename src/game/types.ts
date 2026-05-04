@@ -2,7 +2,7 @@ export type CardIconKind =
   | 'rocket'
   | 'sprout'
   | 'sun'
-  | 'drop'
+  | 'zap'
   | 'antenna'
   | 'satellite'
   | 'moon'
@@ -23,7 +23,7 @@ export type ResourceKind = 'fuel' | 'hull'
 
 export type CrewSpecialization = 'life' | 'star' | 'engine' | 'signal'
 
-export type HorizonKind = 'star' | 'planet' | 'asteroid'
+export type HorizonKind = 'deep-space' | 'planet' | 'asteroid'
 
 export type RequirementIconKind = CrewSpecialization
 
@@ -33,7 +33,11 @@ export type GameLossReason = 'sector-stranded' | 'gate-failed'
 
 export type HandZone = 'crew' | 'tired'
 
-export type HorizonReward =
+export type ShipPartKind = 'medbay-rehydrator' | 'service-drone-bay' | 'adaptive-control-console'
+
+export type ShipPartStatus = 'available' | 'spent' | 'expired'
+
+export type VisitReward =
   | {
       kind: 'resource'
       resource: ResourceKind
@@ -57,13 +61,25 @@ export type HorizonReward =
       count: number
     }
 
+export type DestinationFind =
+  | {
+      kind: 'ship_part'
+      itemName: string
+      shipPart: ShipPartKind
+    }
+  | {
+      kind: 'visit_reward'
+      itemName: string
+      rewards: VisitReward[]
+    }
+
 export type HorizonDetails = {
   kind: HorizonKind
   need: {
     fuel: number
     icons: RequirementIconKind[]
   }
-  rewards: HorizonReward[]
+  find: DestinationFind
 }
 
 export type GateDetails = {
@@ -118,15 +134,22 @@ export type Stack = {
   drawChoiceGroupId?: string
 }
 
-export type ShipPartKind = 'water-tank' | 'hull-patch' | 'wayfinder-beacon'
-
-export type ShipPartStatus = 'available' | 'spent' | 'expired'
+export type RouteSlotFind =
+  | {
+      kind: 'ship_part'
+      itemName: string
+      shipPart: ShipPartKind
+      status: ShipPartStatus
+    }
+  | {
+      kind: 'visit_reward'
+      itemName: string
+    }
 
 export type RouteSlot = {
   cardId: string
   mapSlotIndex: number
-  shipPart: ShipPartKind
-  status: ShipPartStatus
+  find: RouteSlotFind
 }
 
 export type Deck = {

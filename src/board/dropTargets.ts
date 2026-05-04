@@ -17,7 +17,9 @@ const DROP_TARGET_OVERLAP_RATIO = 0.28
 
 function countSpentShipParts(routeSlots: readonly (RouteSlot | null)[], shipPart: ShipPartKind) {
   return routeSlots.reduce((count, slot) => (
-    slot?.shipPart === shipPart && slot.status === 'spent' ? count + 1 : count
+    slot?.find.kind === 'ship_part' && slot.find.shipPart === shipPart && slot.find.status === 'spent'
+      ? count + 1
+      : count
   ), 0)
 }
 
@@ -40,8 +42,8 @@ export function getNearestDropTarget(
 ): DropTarget {
   const { stacks, decks, cards } = board
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
-  const spentHullPatches = countSpentShipParts(board.routeSlots, 'hull-patch')
-  const spentBeacons = countSpentShipParts(board.routeSlots, 'wayfinder-beacon')
+  const spentServiceDroneBays = countSpentShipParts(board.routeSlots, 'service-drone-bay')
+  const spentControlConsoles = countSpentShipParts(board.routeSlots, 'adaptive-control-console')
   const routeCardIds = new Set(getRouteCardIds(board.routeSlots))
   const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
   const sourceHasRouteCard = sourceStack ? stackContainsRouteCard(sourceStack.cardIds, routeCardIds) : false
@@ -96,7 +98,7 @@ export function getNearestDropTarget(
     }
 
     if (
-      !canStackCards(sourceStack, targetStack, cards, fuelDiscount, board.stressCount, spentHullPatches, spentBeacons) &&
+      !canStackCards(sourceStack, targetStack, cards, fuelDiscount, board.stressCount, spentServiceDroneBays, spentControlConsoles) &&
       !canCombineAsDeck(sourceStack, targetStack, cards)
     ) {
       continue
@@ -127,8 +129,8 @@ export function getStackDropTargetIds(
 ) {
   const { stacks, cards } = board
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
-  const spentHullPatches = countSpentShipParts(board.routeSlots, 'hull-patch')
-  const spentBeacons = countSpentShipParts(board.routeSlots, 'wayfinder-beacon')
+  const spentServiceDroneBays = countSpentShipParts(board.routeSlots, 'service-drone-bay')
+  const spentControlConsoles = countSpentShipParts(board.routeSlots, 'adaptive-control-console')
   const routeCardIds = new Set(getRouteCardIds(board.routeSlots))
   const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
   const sourceHasRouteCard = sourceStack ? stackContainsRouteCard(sourceStack.cardIds, routeCardIds) : false
@@ -154,7 +156,7 @@ export function getStackDropTargetIds(
       return []
     }
 
-    return canStackCards(sourceStack, targetStack, cards, fuelDiscount, board.stressCount, spentHullPatches, spentBeacons) ||
+    return canStackCards(sourceStack, targetStack, cards, fuelDiscount, board.stressCount, spentServiceDroneBays, spentControlConsoles) ||
       canCombineAsDeck(sourceStack, targetStack, cards)
       ? [targetStack.id]
       : []
