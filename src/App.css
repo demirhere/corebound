@@ -2290,29 +2290,39 @@
 }
 
 .deck-card {
+  --deck-cover-light: hsl(var(--card-hue) 43% 33%);
+  --deck-cover: hsl(var(--card-hue) 45% 29%);
+  --deck-cover-dark: hsl(var(--card-hue) 46% 25%);
+  --deck-letter: color-mix(in srgb, var(--card-accent) 34%, #f4d9a4);
+  --deck-edge: color-mix(in srgb, var(--deck-cover-light) 88%, #fff8e8);
+  --deck-line: color-mix(in srgb, var(--deck-letter) 74%, var(--deck-cover-light));
+  --deck-ink: #151916;
+
   position: absolute;
   z-index: 10;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  display: grid;
+  place-items: center;
   isolation: isolate;
   width: var(--card-width);
   height: var(--card-height);
-  padding: 13px 10px 11px;
-  border: clamp(3px, 0.35vw, 5px) solid #11131a;
-  border-radius: 12px;
-  color: #fff8e8;
+  padding: clamp(15px, 1.45vw, 22px) clamp(11px, 1.05vw, 16px);
+  border: 0;
+  border-radius: clamp(18px, 1.5vw, 28px);
+  color: var(--deck-letter);
   background:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 5px),
-    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.08) 0 1px, transparent 1px 6px),
-    linear-gradient(145deg, hsl(var(--card-hue) 50% 34%), hsl(var(--card-hue) 55% 22%));
+    radial-gradient(circle at 22% 12%, rgba(255, 255, 255, 0.11), transparent 33%),
+    radial-gradient(circle at 70% 86%, rgba(0, 0, 0, 0.22), transparent 46%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.085) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, transparent 0 8px, rgba(255, 255, 255, 0.026) 8px 9px, transparent 9px 16px),
+    linear-gradient(145deg, var(--deck-cover-light), var(--deck-cover) 49%, var(--deck-cover-dark));
   box-shadow:
-    6px -6px 0 rgba(255, 255, 255, 0.09),
-    12px -12px 0 rgba(255, 255, 255, 0.04),
-    inset 0 0 0 2px rgba(255, 255, 255, 0.08),
-    0 18px 16px rgba(0, 0, 0, 0.42);
+    5px -5px 0 rgba(255, 255, 255, 0.08),
+    10px -10px 0 rgba(255, 255, 255, 0.035),
+    inset 0 0 0 1px var(--deck-edge),
+    inset 0 11px 18px rgba(255, 255, 255, 0.045),
+    inset 0 -18px 28px rgba(0, 0, 0, 0.18),
+    0 19px 18px rgba(0, 0, 0, 0.46);
   cursor: grab;
   touch-action: none;
   transition:
@@ -2323,10 +2333,13 @@
   &.is-manual-draw:hover {
     transform: translateY(-6px) rotate(1deg);
     box-shadow:
-      7px -7px 0 rgba(255, 255, 255, 0.11),
-      14px -14px 0 rgba(255, 255, 255, 0.05),
-      0 24px 22px rgba(0, 0, 0, 0.5),
-      0 0 18px color-mix(in srgb, var(--card-accent) 58%, transparent);
+      6px -6px 0 rgba(255, 255, 255, 0.1),
+      12px -12px 0 rgba(255, 255, 255, 0.045),
+      inset 0 0 0 1px var(--deck-edge),
+      inset 0 11px 18px rgba(255, 255, 255, 0.05),
+      inset 0 -18px 28px rgba(0, 0, 0, 0.18),
+      0 25px 23px rgba(0, 0, 0, 0.52),
+      0 0 18px color-mix(in srgb, var(--card-accent) 52%, transparent);
   }
 
   &.is-automatic-reward {
@@ -2346,10 +2359,13 @@
     transform: translateY(-2px) scale(1.03);
     will-change: transform;
     box-shadow:
-      8px -8px 0 rgba(255, 255, 255, 0.11),
-      16px -16px 0 rgba(255, 255, 255, 0.05),
-      0 28px 24px rgba(0, 0, 0, 0.54),
-      0 0 20px color-mix(in srgb, var(--card-accent) 62%, transparent);
+      7px -7px 0 rgba(255, 255, 255, 0.1),
+      14px -14px 0 rgba(255, 255, 255, 0.045),
+      inset 0 0 0 1px var(--deck-edge),
+      inset 0 11px 18px rgba(255, 255, 255, 0.05),
+      inset 0 -18px 28px rgba(0, 0, 0, 0.18),
+      0 29px 25px rgba(0, 0, 0, 0.56),
+      0 0 20px color-mix(in srgb, var(--card-accent) 58%, transparent);
   }
 
   &.is-drop-target::before {
@@ -2373,46 +2389,107 @@
 
   &.is-drop-target {
     box-shadow:
-      6px -6px 0 rgba(255, 255, 255, 0.09),
-      12px -12px 0 rgba(255, 255, 255, 0.04),
+      5px -5px 0 rgba(255, 255, 255, 0.08),
+      10px -10px 0 rgba(255, 255, 255, 0.035),
+      inset 0 0 0 1px var(--deck-edge),
       inset 0 0 0 3px color-mix(in srgb, var(--card-accent) 72%, rgba(255, 255, 255, 0.1)),
-      0 18px 16px rgba(0, 0, 0, 0.42),
+      inset 0 11px 18px rgba(255, 255, 255, 0.045),
+      inset 0 -18px 28px rgba(0, 0, 0, 0.18),
+      0 19px 18px rgba(0, 0, 0, 0.46),
       0 0 22px color-mix(in srgb, var(--card-accent) 50%, transparent);
   }
 }
 
 .deck-badge {
   position: absolute;
-  top: -12px;
-  right: -12px;
+  top: clamp(7px, 0.75vw, 11px);
+  right: clamp(7px, 0.75vw, 11px);
   z-index: 2;
   display: grid;
-  min-width: 32px;
-  height: 32px;
+  min-width: clamp(24px, 2.2vw, 32px);
+  height: clamp(24px, 2.2vw, 32px);
   place-items: center;
-  border: 3px solid #11131a;
+  border: 1.5px solid color-mix(in srgb, var(--deck-line) 82%, transparent);
   border-radius: 999px;
-  color: #080a12;
-  background: var(--card-accent);
-  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.24);
-  font-size: 15px;
+  color: var(--deck-ink);
+  background:
+    radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.48), transparent 42%),
+    color-mix(in srgb, var(--deck-letter) 86%, #fff8e8);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 3px 0 rgba(0, 0, 0, 0.24);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: clamp(12px, 1vw, 15px);
   font-weight: 950;
+}
+
+.deck-title-lockup {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: min(86%, 142px);
+  place-items: center;
+  gap: clamp(7px, 0.8vw, 12px);
+  color: var(--deck-letter);
 }
 
 .deck-title {
   position: relative;
   z-index: 1;
   max-width: 100%;
-  color: #fff8e8;
-  font-size: clamp(11px, 1vw, 14px);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: currentColor;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: clamp(10px, 1.08vw, 17px);
   font-weight: 950;
-  letter-spacing: 0.06em;
-  line-height: 1;
+  letter-spacing: 0.16em;
+  line-height: 1.18;
   text-align: center;
   text-shadow:
-    0 2px 0 rgba(17, 19, 26, 0.44),
-    0 0 12px color-mix(in srgb, var(--card-accent) 42%, transparent);
+    0 -2px 0 color-mix(in srgb, var(--deck-ink) 58%, transparent),
+    0 2px 0 color-mix(in srgb, var(--deck-edge) 62%, transparent);
+  text-wrap: balance;
   text-transform: uppercase;
+  white-space: normal;
+}
+
+.deck-card .deck-mark-icon {
+  width: clamp(36px, 3.8vw, 58px);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: currentColor;
+  filter:
+    drop-shadow(0 -2px 0 color-mix(in srgb, var(--deck-ink) 50%, transparent))
+    drop-shadow(0 2px 0 color-mix(in srgb, var(--deck-edge) 58%, transparent));
+  transform: none;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .deck-icon-fill,
+  .deck-icon-cutout,
+  .deck-icon-line {
+    stroke: currentColor;
+    stroke-width: 2.15;
+  }
+
+  .deck-icon-fill,
+  .deck-icon-dot {
+    fill: currentColor;
+  }
+
+  .deck-icon-cutout {
+    fill: color-mix(in srgb, var(--deck-cover) 82%, #050713);
+  }
+
+  .deck-icon-line {
+    fill: none;
+  }
 }
 
 .deck-icon {

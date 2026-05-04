@@ -35,6 +35,7 @@ export function DeckCard({
   onKeyDown,
 }: DeckCardProps) {
   const canDraw = canManuallyDrawDeck(deck)
+  const displayTitle = getDeckDisplayTitle(deck.title)
   const actionLabel = canDraw
     ? 'Click to draw or drag to move.'
     : 'Automatic refill or rewards only; drag to move.'
@@ -59,13 +60,19 @@ export function DeckCard({
       }
       onPointerDown={(event) => onPointerDown(event, deck.id)}
       onKeyDown={(event) => onKeyDown(event, deck.id)}
-      aria-label={`${deck.title}. ${deck.cards.length} cards left. ${actionLabel}`}
+      aria-label={`${displayTitle}. ${deck.cards.length} cards left. ${actionLabel}`}
     >
       <span className="deck-badge" aria-hidden="true">
         {deck.cards.length}
       </span>
-      <DeckIcon kind={deck.icon} />
-      <span className="deck-title">{deck.title}</span>
+      <span className="deck-title-lockup">
+        <DeckIcon kind={deck.icon} className="deck-mark-icon" />
+        <span className="deck-title">{displayTitle}</span>
+      </span>
     </button>
   )
+}
+
+function getDeckDisplayTitle(title: string) {
+  return title.replace(/\s+Deck$/i, '')
 }
