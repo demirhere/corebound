@@ -41,23 +41,23 @@ Each crew card has two specialization icons. These icons satisfy matching Stop o
 
 The visible crew icon formerly called Star is now called Nav.
 
-| Starting Crew | Icons |
-| --- | --- |
-| Lei Watanabe | Life, Nav |
-| Mara Voss | Engine, Engine |
-| Ada Chen | Engine, Signal |
-| Sana Iqbal | Life, Life |
-| Nia Okonkwo | Signal, Nav |
+| Starting Crew | Icons | Role |
+| --- | --- | --- |
+| Lei Watanabe | Life, Nav | Scout |
+| Mara Voss | Engine, Engine | Engineer |
+| Ada Chen | Engine, Signal | Technician |
+| Sana Iqbal | Life, Life | Medic |
+| Nia Okonkwo | Signal, Nav | Recon |
 
-| Cryo Crew | Icons |
-| --- | --- |
-| Juno Pike | Engine, Nav |
-| Tomas Hale | Engine, Life |
-| Priya Shah | Life, Engine |
-| Elise Tan | Life, Signal |
-| Ilya Rao | Nav, Signal |
-| Oren Vale | Signal, Signal |
-| Malik Ortega | Nav, Nav |
+| Cryo Crew | Icons | Role |
+| --- | --- | --- |
+| Juno Pike | Engine, Nav | Helmsman |
+| Tomas Hale | Engine, Life | Mechanic |
+| Priya Shah | Life, Engine | Mechanic |
+| Elise Tan | Life, Signal | Doctor |
+| Ilya Rao | Nav, Signal | Recon |
+| Oren Vale | Signal, Signal | Operator |
+| Malik Ortega | Nav, Nav | Pilot |
 
 ## Stops And Ship Parts
 

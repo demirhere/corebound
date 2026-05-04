@@ -9,17 +9,28 @@ const PORTRAIT_OVERSCAN = 1.08
 
 function getCrewRole(specializations: readonly CrewSpecialization[]) {
   if (specializations.length === 0) {
-    return 'Field Specialist'
+    return 'Crew'
   }
 
   const labels = specializations.map(getRequirementIconLabel)
   const [firstLabel] = labels
 
   if (firstLabel && labels.every((label) => label === firstLabel)) {
-    return `${firstLabel} Specialist`
+    if (firstLabel === 'Engine') return 'Engineer'
+    if (firstLabel === 'Life') return 'Medic'
+    if (firstLabel === 'Nav') return 'Pilot'
+    return 'Operator'
   }
 
-  return `${labels.join(' / ')} Specialist`
+  const set = new Set(labels)
+  if (set.has('Engine') && set.has('Life')) return 'Mechanic'
+  if (set.has('Engine') && set.has('Signal')) return 'Technician'
+  if (set.has('Engine') && set.has('Nav')) return 'Helmsman'
+  if (set.has('Life') && set.has('Signal')) return 'Doctor'
+  if (set.has('Life') && set.has('Nav')) return 'Scout'
+  if (set.has('Signal') && set.has('Nav')) return 'Recon'
+
+  return labels.join(' / ')
 }
 
 function renderCrewPortrait(portraitIndex: number) {
