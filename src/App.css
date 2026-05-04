@@ -1823,13 +1823,100 @@
 
 .card-kind-horizon {
   .card-header {
-    min-height: 30%;
+    display: grid;
+    align-content: start;
+    align-items: start;
+    justify-items: start;
+    box-sizing: border-box;
+    height: clamp(96px, 45%, 118px);
+    min-height: 0;
+    gap: 5px;
+    padding: 6px 14px 3px 18px;
+    font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    text-shadow: none;
+  }
+
+  .card-destination-title {
+    position: relative;
+    z-index: 1;
+    display: inline-block;
+    max-width: 100%;
+    margin-top: 6px;
+    padding: 4px 8px;
+    overflow: hidden;
+    color: #fff8e3;
+    background: #3b65bc;
+    clip-path: polygon(
+      0% 0%, 100% 0%,
+      99% 12%, 100% 26%, 98.5% 40%, 100% 54%, 98% 68%, 100% 82%, 99% 94%,
+      100% 100%, 0% 100%,
+      1% 94%, 0% 82%, 2% 68%, 0% 54%, 1.5% 40%, 0% 26%, 1% 12%
+    );
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-overflow: clip;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transform: rotate(-0.8deg);
   }
 
   .card-title {
-    padding-right: 16px;
-    line-height: 0.96;
+    display: block;
+    margin-top: 10px;
+    margin-bottom: 4px;
+    padding-right: 4px;
+    padding-bottom: 2px;
+    overflow: visible;
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: -0.025em;
+    line-height: 1;
+    text-transform: none;
     white-space: normal;
+    transform: rotate(-1.1deg);
+  }
+
+  .card-art {
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 3px 14px 11px 18px;
+  }
+
+  .sector-card-header-detail {
+    display: block;
+    box-sizing: border-box;
+    width: 80%;
+    max-width: 80%;
+    min-width: 0;
+    margin-top: 0;
+    overflow-wrap: normal;
+    align-self: start;
+    justify-self: start;
+    white-space: normal;
+  }
+
+  .card-rule-text {
+    font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    text-shadow: none;
+  }
+
+  .card-destination-title,
+  .card-title,
+  .sector-card-cost-row,
+  .sector-card-header-detail,
+  .sector-card-footer {
+    text-shadow: none;
   }
 }
 
@@ -2126,23 +2213,8 @@
   }
 
   .card-header {
-    display: grid;
-    align-content: start;
-    align-items: start;
-    justify-items: start;
-    box-sizing: border-box;
-    height: clamp(68px, 35%, 84px);
-    gap: 6px;
-    min-height: 0;
-    padding: 6px 14px 3px 18px;
     color: var(--blueprint-paper);
     background: transparent;
-    font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-    line-height: 1;
-    text-shadow: none;
 
     &::before {
       content: none;
@@ -2154,35 +2226,14 @@
   }
 
   .card-destination-title {
-    display: block;
-    max-width: 100%;
-    margin-top: 2px;
-    color: var(--blueprint-text);
-    font-size: 16px;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-    line-height: 1.05;
-    text-overflow: clip;
-    text-transform: none;
-    white-space: normal;
+    color: #fff8e3;
   }
 
   .card-title {
-    display: block;
-    padding-right: 4px;
     color: var(--blueprint-text);
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    line-height: 1.24;
-    padding-bottom: 2px;
-    text-transform: none;
-    white-space: normal;
   }
 
   .card-art {
-    gap: 6px;
-    padding: 3px 14px 11px 18px;
     background: none;
 
     &::before {
@@ -2201,24 +2252,14 @@
     color: var(--blueprint-text);
   }
 
-  .card-rule-text {
-    font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
-    font-size: 12px;
-    font-style: normal;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-    line-height: 1;
-    text-shadow: none;
-  }
-
   .card-destination-title,
   .card-title,
-  .blueprint-cost-row,
-  .blueprint-reward-text {
+  .sector-card-cost-row,
+  .sector-card-footer {
     text-shadow: none;
   }
 
-  .blueprint-part-mark .game-icon {
+  .sector-card-part-mark .game-icon {
     --icon-paper: rgba(244, 234, 212, 0.1);
     --icon-ink: rgba(244, 234, 212, 0.94);
     --icon-stroke: rgba(244, 234, 212, 0.94);
@@ -2309,36 +2350,40 @@
   text-transform: uppercase;
 }
 
-.blueprint-part-mark,
-.blueprint-cost-row,
-.blueprint-reward-text {
+.sector-card-visual,
+.sector-card-cost-row,
+.sector-card-footer {
   position: relative;
   z-index: 1;
   font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
 }
 
-.blueprint-part-mark {
+.sector-card-visual {
   display: grid;
+  flex: 1;
   width: 100%;
-  min-height: clamp(54px, 6.1vw, 82px);
+  min-height: clamp(20px, 4vw, 64px);
   place-items: center;
-
-  .game-icon {
-    --icon-frame-width: 2px;
-
-    width: clamp(45px, 5.2vw, 70px);
-  }
 }
 
-.blueprint-cost-row {
-  display: flex;
-  align-items: center;
+.sector-card-part-mark .game-icon {
+  --icon-frame-width: 2px;
+
+  width: clamp(38px, 4.4vw, 58px);
+}
+
+.sector-card-visit-mark .sector-card-visit-icon {
+  width: clamp(38px, 4.4vw, 58px);
+}
+
+.sector-card-cost-row {
+  display: grid;
+  align-items: start;
   width: 100%;
-  gap: 6px;
-  color: var(--blueprint-text);
+  gap: 3px;
+  margin-bottom: 3px;
 
   > span {
-    flex: 0 0 auto;
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.02em;
@@ -2346,56 +2391,34 @@
     text-transform: uppercase;
   }
 
+  > .card-rule-icons {
+    justify-content: flex-start;
+    width: 100%;
+  }
 }
 
-.blueprint-discount {
+.sector-card-discount {
   margin-top: -3px;
 }
 
-.blueprint-reward-text {
-  margin-top: auto;
-  color: var(--blueprint-text);
-}
-
-.card-find-panel {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  box-sizing: border-box;
+.sector-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   width: 100%;
-  gap: 5px;
-  padding: 7px 7px 8px;
-  border: 1.5px solid rgba(17, 19, 26, 0.2);
-  border-radius: 10px;
-  background: rgba(255, 248, 232, 0.54);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  gap: 4px;
+  margin-top: auto;
 }
 
-.card-find-label {
-  color: rgba(17, 19, 26, 0.58);
-  font-size: clamp(8px, 0.68vw, 10px);
-  font-weight: 950;
-  letter-spacing: 0.12em;
-  line-height: 1;
-  text-transform: uppercase;
+.sector-card-detail {
+  display: inline;
 }
 
-.card-find-reward {
-  min-height: clamp(23px, 2.5vw, 32px);
-}
-
-.card-find-panel.is-ship-part {
-  border-color: rgba(16, 58, 89, 0.44);
-  border-style: dashed;
-  background:
-    linear-gradient(135deg, rgba(222, 249, 255, 0.88), rgba(122, 195, 225, 0.28)),
-    repeating-linear-gradient(90deg, transparent 0 12px, rgba(16, 58, 89, 0.07) 12px 13px);
-}
-
-.card-find-panel.is-visit-reward {
-  background:
-    linear-gradient(135deg, rgba(255, 248, 232, 0.68), rgba(255, 255, 255, 0.18)),
-    radial-gradient(circle at 90% 16%, color-mix(in srgb, var(--card-accent) 20%, transparent), transparent 38%);
+.sector-card-detail .game-icon {
+  display: inline-grid;
+  width: 1.25em;
+  margin: 0 0.08em;
+  vertical-align: -0.14em;
 }
 
 .card-primary-icons {

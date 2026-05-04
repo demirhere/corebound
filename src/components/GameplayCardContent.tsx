@@ -8,12 +8,10 @@ import type {
   ShipPartKind,
   VisitReward,
 } from '../game/types'
-import {
-  getShipPartLabel,
-  getShipPartUseText,
-} from '../game/shipParts'
+import { getShipPartUseText } from '../game/shipParts'
 import { renderCrewCardContent } from './CrewCard'
 import { GameIcon } from './GameIcon'
+import { SectorCardLayout } from './SectorCardLayout'
 
 function titleCase(value: string) {
   return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`
@@ -47,9 +45,11 @@ function renderFuelNeed(printedFuel: number, currentFuelCost: number, keyPrefix:
 function renderReward(reward: VisitReward, index: number) {
   if (reward.kind === 'resource') {
     return [
-      <span key={`${reward.resource}-${index}`} className="card-reward-chip">
-        <GameIcon kind={reward.resource} />
-        <span>+{reward.count} {titleCase(reward.resource)}</span>
+      <span key={`${reward.resource}-${index}`} className="sector-card-detail">
+        Collect{' '}
+        {Array.from({ length: reward.count }, (_, rewardIndex) => (
+          <GameIcon key={`${reward.resource}-${index}-${rewardIndex}`} kind={reward.resource} />
+        ))}
       </span>,
     ]
   }
@@ -57,105 +57,146 @@ function renderReward(reward: VisitReward, index: number) {
   if (reward.kind === 'crew') {
     if (reward.label === 'Wake') {
       return [
-        <span key={`wake-${index}`} className="card-wake-reward">
-          <span>Wake 1: choose 1 of 2, then Ready 1</span>
-          <GameIcon kind="tired-person" />
+        <span key={`wake-${index}`} className="sector-card-detail">
+          Wake 1 <GameIcon kind="tired-person" /> and then Ready 1{' '}
+          <GameIcon kind="person" />
         </span>,
       ]
     }
 
     const iconKind = 'person'
 
-    return Array.from({ length: reward.count }, (_, rewardIndex) =>
-      <GameIcon key={`${iconKind}-${index}-${rewardIndex}`} kind={iconKind} />,
-    )
+    return [
+      <span key={`crew-${index}`} className="sector-card-detail">
+        {reward.label} {reward.count}{' '}
+        {Array.from({ length: reward.count }, (_, rewardIndex) => (
+          <GameIcon key={`${iconKind}-${index}-${rewardIndex}`} kind={iconKind} />
+        ))}
+      </span>
+    ]
   }
 
   if (reward.kind === 'scout') {
     return [
       <span key={`scout-${index}`} className="card-rule-text">
-        Look at the top {reward.count} Sector Deck cards. Keep 1 on top; bottom the rest.
+        Peek at top {reward.count} stops, keep 1.
       </span>,
     ]
   }
 
   if (reward.kind === 'next_stop_fuel_discount') {
     return [
-      <span key={`next-stop-discount-${index}`} className="card-rule-text">
-        The next Destination you complete this sector costs -{reward.amount} Fuel.
+      <span key={`next-stop-discount-${index}`} className="sector-card-detail">
+        Next stop -{reward.amount}{' '}
+        <GameIcon kind="fuel" />
       </span>,
     ]
   }
 
   if (reward.kind === 'ready') {
-    const readyTitle = reward.count === 1 ? 'Ready 1 Tired crew' : `Ready ${reward.count} Tired crew`
+    const readyText = reward.count === 1 ? 'Ready 1' : `Ready ${reward.count}`
+    const readyTitle = `${readyText} crew`
 
-    return Array.from({ length: reward.count }, (_, rewardIndex) => (
+    return [
       <span
-        key={`ready-${index}-${rewardIndex}`}
-        className="card-wake-reward card-ready-transition"
+        key={`ready-${index}`}
+        className="sector-card-detail"
         role="img"
         aria-label={readyTitle}
         title={readyTitle}
       >
-        <GameIcon kind="tired-person" />
-        <span className="card-ready-transition-arrow" aria-hidden="true" />
-        <GameIcon kind="person" />
-        <span>{readyTitle}</span>
+        {readyText}{' '}
+        {Array.from({ length: reward.count }, (_, rewardIndex) => (
+          <GameIcon key={`ready-${index}-${rewardIndex}`} kind="person" />
+        ))}
       </span>
-    ))
+    ]
   }
 
   return []
 }
 
-function renderShipPartReward(shipPart: ShipPartKind) {
-  return (
-    <span
-      key={`ship-part-${shipPart}`}
-      className="card-reward-chip card-ship-part-reward"
-      title={`${getShipPartLabel(shipPart)}: ${getShipPartUseText(shipPart)}`}
-    >
-      <GameIcon kind="parts" />
-      <span>{getShipPartUseText(shipPart)}</span>
-    </span>
-  )
+function renderVisitReward(find: Extract<DestinationFind, { kind: 'visit_reward' }>) {
+  return find.rewards.flatMap(renderReward)
 }
 
-function renderFindReward(find: DestinationFind) {
-  if (find.kind === 'ship_part') {
-    return renderShipPartReward(find.shipPart)
+function renderShipPartUse(shipPart: ShipPartKind) {
+  if (shipPart === 'medbay-rehydrator') {
+    return (
+      <span className="sector-card-detail">
+        Ready 1 <GameIcon kind="tired-person" /> before Gate.
+      </span>
+    )
   }
 
-  return find.rewards.map(renderReward)
+  return getShipPartUseText(shipPart)
 }
 
-function renderShipPartBlueprint(
+export function renderSectorCardHeaderDetail(card: Card) {
+  if (card.kind !== 'horizon' || !card.horizon) {
+    return null
+  }
+
+  if (card.horizon.find.kind === 'ship_part') {
+    return renderShipPartUse(card.horizon.find.shipPart)
+  }
+
+  return renderVisitReward(card.horizon.find)
+}
+
+function renderShipPartSector(
   card: Card,
-  find: Extract<DestinationFind, { kind: 'ship_part' }>,
   currentFuelCost: number,
   hasFuelDiscount: boolean,
   removedFuelCount: number,
 ) {
+  const need = card.horizon?.need
+
+  if (!need) {
+    return null
+  }
+
   return (
-    <>
-      <div className="blueprint-part-mark" aria-hidden="true">
-        <GameIcon kind="parts" />
-      </div>
-      <div className="blueprint-cost-row">
-        <span>Req:</span>
-        <div className="card-rule-icons">
-          {renderFuelNeed(card.horizon?.need.fuel ?? 0, currentFuelCost, `${card.id}-fuel-need`)}
-          {renderIconPips(card.horizon?.need.icons ?? [], `${card.id}-icon-need`)}
-        </div>
-      </div>
-      {hasFuelDiscount && (
-        <p className="card-rule-text blueprint-discount">
-          Next Destination discount: {removedFuelCount} Fuel scribbled out.
-        </p>
+    <SectorCardLayout
+      cost={(
+        <>
+          {renderFuelNeed(need.fuel, currentFuelCost, `${card.id}-fuel-need`)}
+          {renderIconPips(need.icons, `${card.id}-icon-need`)}
+        </>
       )}
-      <p className="card-rule-text blueprint-reward-text">{getShipPartUseText(find.shipPart)}</p>
-    </>
+      hasFuelDiscount={hasFuelDiscount}
+      removedFuelCount={removedFuelCount}
+      visual={null}
+      visualClassName="sector-card-part-mark"
+    />
+  )
+}
+
+function renderVisitRewardSector(
+  card: Card,
+  currentFuelCost: number,
+  hasFuelDiscount: boolean,
+  removedFuelCount: number,
+) {
+  const need = card.horizon?.need
+
+  if (!need) {
+    return null
+  }
+
+  return (
+    <SectorCardLayout
+      cost={(
+        <>
+          {renderFuelNeed(need.fuel, currentFuelCost, `${card.id}-fuel-need`)}
+          {renderIconPips(need.icons, `${card.id}-icon-need`)}
+        </>
+      )}
+      hasFuelDiscount={hasFuelDiscount}
+      removedFuelCount={removedFuelCount}
+      visual={null}
+      visualClassName="sector-card-visit-mark"
+    />
   )
 }
 
@@ -254,32 +295,10 @@ export function renderGameplayCardContent(card: Card, fuelDiscount: number, stre
     const find = card.horizon.find
 
     if (find.kind === 'ship_part') {
-      return renderShipPartBlueprint(card, find, currentFuelCost, hasFuelDiscount, removedFuelCount)
+      return renderShipPartSector(card, currentFuelCost, hasFuelDiscount, removedFuelCount)
     }
 
-    return (
-      <>
-        <p className="card-kicker">{card.title}</p>
-        <div className="card-find-panel is-visit-reward">
-          <span className="card-find-label">Immediate Benefit</span>
-          <div className="card-rule-icons card-find-reward">
-            {renderFindReward(find)}
-          </div>
-        </div>
-        <div className="card-rule-row">
-          <span>Cost</span>
-          <div className="card-rule-icons">
-            {renderFuelNeed(card.horizon.need.fuel, currentFuelCost, `${card.id}-fuel-need`)}
-            {renderIconPips(card.horizon.need.icons, `${card.id}-icon-need`)}
-          </div>
-        </div>
-        {hasFuelDiscount && (
-          <p className="card-rule-text">
-            Next Destination discount: {removedFuelCount} Fuel scribbled out.
-          </p>
-        )}
-      </>
-    )
+    return renderVisitRewardSector(card, currentFuelCost, hasFuelDiscount, removedFuelCount)
   }
 
   if (card.kind === 'gate' && card.gate) {

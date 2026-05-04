@@ -76,21 +76,21 @@ No Destination gives both an immediate benefit and a Ship Part. In the current d
 
 | Destination | Find | Cost | Result |
 | --- | --- | --- | --- |
-| Dust Garden | Medbay Rehydrator | Life, Nav | Ship Part: Ready 1 Tired crew before Gate payment. |
-| Life Orchard | Biogel Cache | Fuel 1, Life, Engine | Immediate Benefit: Ready 1 Tired crew. |
-| Cryo Choir | Cryo Access Codes | Fuel 2, Life, Science | Immediate Benefit: Wake 1 crew, then Ready 1 Tired crew. |
-| Sleeper Arklet | Dormant Crew Roster | Fuel 2, Life, Life, Nav | Immediate Benefit: Wake 1 crew, then Ready 1 Tired crew. |
+| Dust Garden | Medbay Rehydrator | Life, Nav | Ship Part: Ready 1 Tired crew before Gate. |
+| Life Orchard | Biogel Cache | Fuel 1, Life, Engine | Immediate Benefit: Ready 1 crew. |
+| Cryo Choir | Cryo Access Codes | Fuel 2, Life, Science | Immediate Benefit: Wake 1 crew into Tired and Ready 1 crew. |
+| Sleeper Arklet | Dormant Crew Roster | Fuel 2, Life, Life, Nav | Immediate Benefit: Wake 1 crew into Tired and Ready 1 crew. |
 | Iron Wake | Service Drone Bay | Fuel 1, Engine, Engine | Ship Part: Fill 1 Gate crew slot. It provides no icon. |
-| Red Salvage | Fuel Cell Cache | Fuel 1, Engine, Science | Immediate Benefit: Fuel +1. |
-| Broken Atlas | Survey Archive | Science, Science | Immediate Benefit: Scout 2. |
-| Gravity Sling | Slingshot Trajectory | Fuel 2, Nav, Engine | Immediate Benefit: Next Destination costs -1 Fuel. |
+| Red Salvage | Fuel Cell Cache | Fuel 1, Engine, Science | Immediate Benefit: Collect 1 Fuel. |
+| Broken Atlas | Survey Archive | Science, Science | Immediate Benefit: Peek at top 2 stops, keep 1. |
+| Gravity Sling | Slingshot Trajectory | Fuel 2, Nav, Engine | Immediate Benefit: Next stop -1 Fuel. |
 | Quiet Relay | Adaptive Control Console | Fuel 1, Science, Nav | Ship Part: Cover 1 missing Gate icon. It fills no crew slot. |
 
 Ship Parts are used only at the Gate. Each Ship Part can be spent once. Spent Ship Parts stay visible on their traveled Destination cards. Unspent Ship Parts expire after the sector Gate resolves.
 
 | Ship Part | Gate Use |
 | --- | --- |
-| Medbay Rehydrator | Ready 1 Tired crew before Gate payment. |
+| Medbay Rehydrator | Ready 1 Tired crew before Gate. |
 | Service Drone Bay | Fill 1 Gate crew slot. It provides no icon. |
 | Adaptive Control Console | Cover 1 missing Gate icon. It fills no crew slot. |
 
@@ -114,7 +114,7 @@ Important: crew-made water for Fuel payment requires exactly one Ready Engineer 
 
 ## Immediate Benefits
 
-Fuel +1 draws 1 Fuel Cell from the Fuel Deck into play. It stacks onto the existing Fuel Supply if one is in play, otherwise it appears at the Fuel Supply setup position.
+Collect 1 Fuel draws 1 Fuel Cell from the Fuel Deck into play. It stacks onto the existing Fuel Supply if one is in play, otherwise it appears at the Fuel Supply setup position.
 
 Wake 1 reveals up to 2 cards from the Cryo Deck. Choose 1 to recruit into Tired, then Ready 1 Tired crew from the front of the Tired row; unchosen Cryo crew go to the bottom of the Cryo Deck.
 
@@ -122,7 +122,7 @@ Scout N looks at the top N Sector Deck cards. Choose the card you like to keep o
 
 Ready 1 moves the front Tired crew card back to the Crew area.
 
-Next Destination costs -1 Fuel creates a pending -1 Fuel discount for the next Destination completion in the current sector. It expires at Gate transition if unused.
+Next stop -1 Fuel creates a pending -1 Fuel discount for the next Destination completion in the current sector. It expires at Gate transition if unused.
 
 ## Gate Cards
 

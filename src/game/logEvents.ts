@@ -25,25 +25,27 @@ function describeVisitRewards(rewards: readonly VisitReward[]) {
   return rewards
     .map((reward) => {
       if (reward.kind === 'resource') {
-        return `${reward.resource} +${reward.count}`
+        return reward.count === 1
+          ? `Collect ${reward.resource}`
+          : `Collect ${reward.count} ${reward.resource}`
       }
       if (reward.kind === 'crew') {
         if (reward.label === 'Wake') {
-          return 'Choose 1 of 2 Cryo crew, then Ready 1 Tired crew'
+          return 'Wake 1 crew into Tired and Ready 1 crew'
         }
 
         return `${reward.label} ${reward.count}`
       }
       if (reward.kind === 'scout') {
-        return `Scout ${reward.count}`
+        return `Peek at top ${reward.count} stops, keep 1`
       }
       if (reward.kind === 'next_stop_fuel_discount') {
-        return `Next Destination costs -${reward.amount} Fuel`
+        return `Next stop -${reward.amount} Fuel`
       }
       if (reward.kind === 'ready') {
         return reward.count === 1
-          ? 'Ready 1 crew that was already Tired before this Destination'
-          : `Ready ${reward.count} crew that were already Tired before this Destination`
+          ? 'Ready 1 crew'
+          : `Ready ${reward.count} crew`
       }
       return ''
     })

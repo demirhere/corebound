@@ -6,7 +6,7 @@ import {
 import type { Card } from '../game/types'
 import { DeckIcon } from './DeckIcon'
 import { GameIcon } from './GameIcon'
-import { renderGameplayCardContent } from './GameplayCardContent'
+import { renderGameplayCardContent, renderSectorCardHeaderDetail } from './GameplayCardContent'
 import { pickCardIcons, pickCardNote } from './gameIcons'
 
 export type CardView = Card
@@ -71,11 +71,13 @@ export function CardShell({
   const noteLines = pickCardNote(`${card.id}:${card.title}`)
   const gameplayContent = renderGameplayCardContent(card, fuelDiscount, stressCount)
   const resourceClass = card.kind === 'resource' && card.resource ? `card-resource-${card.resource}` : ''
-  const isShipPartDestination = card.kind === 'horizon' && card.horizon?.find.kind === 'ship_part'
-  const horizonFindClass = card.kind === 'horizon' && card.horizon
-    ? card.horizon.find.kind === 'ship_part' ? 'card-find-ship-part' : 'card-find-visit-reward'
+  const horizonDetails = card.kind === 'horizon' ? card.horizon : undefined
+  const horizonFindClass = horizonDetails
+    ? horizonDetails.find.kind === 'ship_part' ? 'card-find-ship-part' : 'card-find-visit-reward'
     : ''
-  const headerTitle = card.kind === 'horizon' && card.horizon ? card.horizon.find.itemName : card.title
+  const horizonBadge = horizonDetails?.find.kind === 'ship_part' ? 'Ship Part' : 'Resources'
+  const headerTitle = horizonDetails ? horizonDetails.find.itemName : card.title
+  const horizonHeaderDetail = horizonDetails ? renderSectorCardHeaderDetail(card) : null
 
   return (
     <div
@@ -101,10 +103,13 @@ export function CardShell({
         <article className="card-face card-front">
           {!isCrewCard && (
             <header className="card-header">
-              {isShipPartDestination && card.kind === 'horizon' && card.horizon ? (
+              {horizonDetails ? (
                 <>
-                  <span className="card-destination-title">{card.title}</span>
-                  <span className="card-title">{card.horizon.find.itemName}</span>
+                  <span className="card-destination-title">{horizonBadge}</span>
+                  <span className="card-title">{horizonDetails.find.itemName}</span>
+                  {horizonHeaderDetail && (
+                    <span className="card-rule-text sector-card-header-detail">{horizonHeaderDetail}</span>
+                  )}
                 </>
               ) : (
                 <span className="card-title">{headerTitle}</span>

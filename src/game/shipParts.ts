@@ -30,7 +30,7 @@ export function getShipPartLabel(shipPart: ShipPartKind) {
 
 export function getShipPartUseText(shipPart: ShipPartKind) {
   if (shipPart === 'medbay-rehydrator') {
-    return 'Ready 1 Tired crew before Gate payment.'
+    return 'Ready 1 Tired crew before Gate.'
   }
 
   if (shipPart === 'service-drone-bay') {
