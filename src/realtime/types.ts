@@ -72,5 +72,5 @@ export type ServerRealtimeMessage =
   | {
       type: 'presence'
       connections: number
-      players: RealtimePlayer[]
+      players?: RealtimePlayer[]
     }

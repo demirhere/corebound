@@ -1,4 +1,4 @@
-import { createInitialBoardSetup } from './setup'
+import { SOLO_PLAYER, createInitialBoardSetup } from './setup'
 import type { BoardState, GamePlayer } from './types'
 import {
   appendPlaytestEvents,
@@ -100,9 +100,64 @@ function resolveBoardUpdate(result: BoardUpdateResult) {
     : { board: result, events: [] }
 }
 
+function migrateBoardState(board: BoardState): BoardState {
+  const legacyBoard = board as BoardState & Partial<BoardState>
+  const players = Array.isArray(legacyBoard.players) && legacyBoard.players.length > 0
+    ? legacyBoard.players
+    : [SOLO_PLAYER]
+  const currentPlayerId = legacyBoard.currentPlayerId ?? players[legacyBoard.turnPlayerIndex ?? 0]?.id ?? players[0]?.id ?? null
+  const crewOwnerIds = legacyBoard.crewOwnerIds ?? Object.fromEntries(
+    Object.values(legacyBoard.cards ?? {}).flatMap((card) => (
+      card.kind === 'crew' ? [[card.id, players[0]?.id ?? SOLO_PLAYER.id]] : []
+    )),
+  )
+
+  return {
+    ...board,
+    players,
+    crewOwnerIds,
+    turnPlayerIndex: legacyBoard.turnPlayerIndex ?? Math.max(
+      0,
+      players.findIndex((player) => player.id === currentPlayerId),
+    ),
+    currentPlayerId,
+    sectorDrawnThisTurn: legacyBoard.sectorDrawnThisTurn ?? false,
+    traveledThisTurn: legacyBoard.traveledThisTurn ?? false,
+    shipPartSlots: (legacyBoard.shipPartSlots ?? []).map((slot) => ({
+      ...slot,
+      ownerId: slot.ownerId ?? null,
+    })),
+    completedStarSummaries: (legacyBoard.completedStarSummaries ?? []).map((summary) => ({
+      ...summary,
+      playerId: summary.playerId ?? null,
+    })),
+    pendingWakeChoice: legacyBoard.pendingWakeChoice
+      ? {
+          ...legacyBoard.pendingWakeChoice,
+          playerId: legacyBoard.pendingWakeChoice.playerId ?? currentPlayerId,
+        }
+      : null,
+  }
+}
+
+function migrateGameState(state: GameState): GameState {
+  return {
+    ...state,
+    board: migrateBoardState(state.board),
+    playtestLog: state.playtestLog ?? [],
+    previousPlaytestLogSessions: state.previousPlaytestLogSessions ?? [],
+    pendingSetupDeal: state.pendingSetupDeal
+      ? {
+          ...state.pendingSetupDeal,
+          board: migrateBoardState(state.pendingSetupDeal.board),
+        }
+      : null,
+  }
+}
+
 export function gameReducer(state: GameState, action: GameAction): GameState {
   if (action.type === 'hydrate-game') {
-    return action.state
+    return migrateGameState(action.state)
   }
 
   if (action.type === 'reset-game') {

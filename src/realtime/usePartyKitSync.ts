@@ -181,8 +181,8 @@ export function usePartyKitSync({
       clearRemoteDrag()
       isApplyingRemoteSnapshotRef.current = true
       dispatchGame({ type: 'hydrate-game', state: snapshot.game })
-      setIsHowToPlayOpen(snapshot.ui.isHowToPlayOpen)
-      setIsGameStarted(snapshot.ui.isGameStarted)
+      setIsHowToPlayOpen(snapshot.ui.isHowToPlayOpen === true)
+      setIsGameStarted(snapshot.ui.isGameStarted === true)
     }
 
     function handleMessage(event: MessageEvent) {
@@ -194,7 +194,7 @@ export function usePartyKitSync({
 
       if (message.type === 'presence') {
         setConnectionCount(message.connections)
-        setPlayers(message.players)
+        setPlayers(Array.isArray(message.players) ? message.players : [])
         return
       }
 
