@@ -1,5 +1,6 @@
 import {
   CRYO_DECK_ID,
+  FUEL_DECK_ID,
   HORIZON_DECK_ID,
   MOTHER_DECK_ID,
   canManuallyDrawDeck,
@@ -59,11 +60,13 @@ import {
   sectorRevealedEvent,
   shipPartAvailableEvent,
   shipPartSpentEvent,
+  stackActionCompletedEvent,
   stackSplitEvent,
   starsCompletedSummaryEvent,
   stopMovedToRouteEvent,
   stressAddedEvent,
   stressThresholdActiveEvent,
+  turnEndedEvent,
   wakeCrewRecruitedEvent,
 } from '../game/logEvents'
 import type { PlaytestLogEvent } from '../game/playtestLog'
@@ -83,9 +86,12 @@ import {
   withoutCards,
   type MotherCoveredIcon,
 } from '../game/rules'
+import {
+  canStackForPotentialAction,
+  getStackActions,
+} from '../game/stackActions'
 import { withPlaytestEvents, type BoardUpdater } from '../game/state'
 import {
-  canTravelToAnyHorizon,
   getDeckCardCount,
   getReadyCrewCardIds,
 } from '../game/boardQueries'
@@ -386,12 +392,6 @@ function getSectorGateCard(current: BoardState) {
   return getSectorGateStack(current)?.gateCard ?? null
 }
 
-function completeReadySectorGateStack(current: BoardState) {
-  const gateStack = getSectorGateStack(current)
-
-  return gateStack ? completeReadyGateStack(current, gateStack.stack.id) : { board: current, events: [] }
-}
-
 function canCompleteSectorGate(current: BoardState) {
   const gateCard = getSectorGateCard(current)
 
@@ -429,7 +429,6 @@ function resolveLoss(current: BoardState, reason: GameLossReason) {
       lossReason: reason,
       pendingWakeChoice: null,
       pendingScoutChoice: null,
-      pendingMapRefreshAfterScout: false,
       dropTargetStackId: null,
       dropTargetDeckId: null,
     },
@@ -482,7 +481,8 @@ function resolveSectorStrandedLossIfNeeded(current: BoardState) {
     current.pendingWakeChoice ||
     current.pendingScoutChoice ||
     isSectorHorizonFinished(current) ||
-    canTravelToAnyHorizon(current, visibleHorizonCardIds)
+    visibleHorizonCardIds.length > 0 ||
+    getDeckCardCount(current, HORIZON_DECK_ID) > 0
   ) {
     return { board: current, events: [] }
   }
@@ -672,7 +672,6 @@ function drawNextMapChoices(current: BoardState) {
     ...current,
     topZ: nextTopZ,
     nextCardId,
-    pendingMapRefreshAfterScout: false,
     mapSlots: Array.from({ length: MAP_SLOT_COUNT }, (_, index) => drawnMapCards[index]?.id ?? null),
     cards: {
       ...withoutCards(current.cards, discardedMapCardIds),
@@ -724,7 +723,6 @@ function clearRemainingStopsForGate(current: BoardState) {
     board: {
       ...current,
       mapSlots: createEmptyMapSlots(),
-      pendingMapRefreshAfterScout: false,
       cards: withoutCards(current.cards, mapCardIds),
       stacks: removeCardIdsFromStacks(current.stacks, mapCardIds),
       decks: current.decks.map((deck) =>
@@ -739,6 +737,22 @@ function clearRemainingStopsForGate(current: BoardState) {
         : []),
       ...thresholdEvents,
     ],
+  }
+}
+
+function clearVisibleMapChoices(current: BoardState) {
+  const mapCardIds = getVisibleHorizonCardIds(current)
+
+  return {
+    board: {
+      ...current,
+      mapSlots: createEmptyMapSlots(),
+      cards: withoutCards(current.cards, mapCardIds),
+      stacks: removeCardIdsFromStacks(current.stacks, mapCardIds),
+    },
+    events: mapCardIds.length > 0
+      ? [cardsDiscardedEvent(mapCardIds, current.cards, 'unchosen Map Destinations')]
+      : [],
   }
 }
 
@@ -901,7 +915,7 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
       ]
     : current.shipPartSlots
   const routeFilledAfterCompletion = isRouteFilled(nextRouteSlots)
-  const shouldScoutBeforeMapDraw = scoutCount > 0 && !routeFilledAfterCompletion
+  const shouldScoutAfterVisit = scoutCount > 0 && !routeFilledAfterCompletion
 
   if (wakeCount > 0) {
     const wakeDraw = drawWakeChoiceCards(nextDecks, nextCards, nextCardId, wakeCount, nextZ)
@@ -912,7 +926,7 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
     pendingWakeChoice = wakeDraw.pendingWakeChoice
   }
 
-  if (shouldScoutBeforeMapDraw) {
+  if (shouldScoutAfterVisit) {
     const scoutDraw = drawScoutChoiceCards(nextDecks, nextCards, nextCardId, scoutCount, nextZ)
 
     nextCards = scoutDraw.cards
@@ -1010,7 +1024,6 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
     ],
     pendingWakeChoice,
     pendingScoutChoice,
-    pendingMapRefreshAfterScout: shouldScoutBeforeMapDraw,
     stressCount: current.stressCount + spentMotherCardIds.length,
     pendingEffects: [
       ...consumeNextStopFuelDiscount(current.pendingEffects),
@@ -1028,9 +1041,7 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
   ]
   const progressed = routeFilledAfterCompletion
     ? clearRemainingStopsForGate(nextBoard)
-    : shouldScoutBeforeMapDraw
-      ? { board: nextBoard, events: [] as PlaytestLogEvent[] }
-      : drawNextMapChoices(nextBoard)
+    : clearVisibleMapChoices(nextBoard)
   const returnedMother = returnMotherCardsToDeck(
     progressed.board,
     returnedMotherCardIds,
@@ -1039,7 +1050,7 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
   )
   const followUpLoss = routeFilledAfterCompletion
     ? resolveGateLossIfNeeded(returnedMother.board)
-    : resolveSectorStrandedLossIfNeeded(returnedMother.board)
+    : { board: returnedMother.board, events: [] as PlaytestLogEvent[] }
   const readyRewardEvents = readyCrewResult.readiedCrewCardIds.length > 0
     ? [readyRewardAppliedEvent(horizonCard, readyCrewResult.readiedCrewCardIds, current.cards)]
     : []
@@ -1217,7 +1228,6 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
       : [...current.archivedRouteCardIds, ...routeCardIds],
     handCardIds: readyCrewResult.handCardIds,
     tiredCardIds: readyCrewResult.tiredCardIds,
-    pendingMapRefreshAfterScout: false,
     stressCount: nextStressCount,
     cards: nextCards,
     stacks: [
@@ -1319,52 +1329,175 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
   }
 }
 
-export function spendRouteShipPartUpdate(shipPartSlotIndex: number): BoardUpdater {
+function completeDrawFuelStackAction(
+  current: BoardState,
+  sourceStack: Stack,
+  metrics: BoardMetrics,
+  actionLabel: string,
+) {
+  const fuelDeck = current.decks.find((deck) => deck.id === FUEL_DECK_ID)
+  const fuelBlueprint = fuelDeck?.cards[0]
+
+  if (!fuelDeck || !fuelBlueprint) {
+    return current
+  }
+
+  const spentCrewCardIds = getSpentCrewCardIds(sourceStack, current.cards)
+
+  if (spentCrewCardIds.length !== sourceStack.cardIds.length || spentCrewCardIds.length === 0) {
+    return current
+  }
+
+  const nextZ = current.topZ + 1
+  const fuelCard = createCardFromBlueprint(fuelBlueprint, `fuel-action-${current.nextCardId}`)
+  const nextCards = {
+    ...current.cards,
+    [fuelCard.id]: fuelCard,
+  }
+  const stacksWithFuel = placeFuelCardsInSupplyStack(
+    current.stacks.filter((stack) => stack.id !== sourceStack.id),
+    nextCards,
+    [fuelCard],
+    nextZ,
+    metrics,
+  )
+  const fuelTargetStack = stacksWithFuel.find((stack) => stack.cardIds.includes(fuelCard.id))
+
+  return withPlaytestEvents({
+    ...current,
+    topZ: nextZ,
+    nextCardId: current.nextCardId + 1,
+    dropTargetStackId: null,
+    dropTargetDeckId: null,
+    handCardIds: current.handCardIds.filter((cardId) => !spentCrewCardIds.includes(cardId)),
+    tiredCardIds: [
+      ...current.tiredCardIds.filter((cardId) => !spentCrewCardIds.includes(cardId)),
+      ...spentCrewCardIds,
+    ],
+    cards: nextCards,
+    stacks: stacksWithFuel,
+    decks: current.decks.map((deck) =>
+      deck.id === fuelDeck.id
+        ? { ...deck, cards: deck.cards.slice(1), z: nextZ }
+        : deck,
+    ),
+  }, [
+    stackActionCompletedEvent(actionLabel, sourceStack, current.cards),
+    cardDrawnEvent(
+      fuelCard,
+      fuelDeck,
+      fuelTargetStack?.id ?? FUEL_SUPPLY_STACK_ID,
+      fuelTargetStack?.x ?? FUEL_SUPPLY_STACK_POSITION.x,
+      fuelTargetStack?.y ?? FUEL_SUPPLY_STACK_POSITION.y,
+    ),
+  ])
+}
+
+function completeShipPartStackAction(
+  current: BoardState,
+  sourceStack: Stack,
+  shipPartSlotIndex: number,
+) {
+  const shipPartSlot = current.shipPartSlots[shipPartSlotIndex]
+  const routeCard = shipPartSlot ? current.cards[shipPartSlot.cardId] : null
+
+  if (
+    !shipPartSlot ||
+    shipPartSlot.status !== 'available' ||
+    !routeCard ||
+    !sourceStack.cardIds.includes(shipPartSlot.cardId) ||
+    !isSectorHorizonFinished(current)
+  ) {
+    return current
+  }
+
+  if (shipPartSlot.shipPart === 'medbay-rehydrator' && current.tiredCardIds.length === 0) {
+    return current
+  }
+
+  const nextZ = current.topZ + 1
+  const readyResult = shipPartSlot.shipPart === 'medbay-rehydrator'
+    ? readyTiredCrew(current.handCardIds, current.tiredCardIds, 1)
+    : null
+  const routePosition = getRouteStackPosition(shipPartSlot.routeSlotIndex)
+  const nextShipPartSlots = current.shipPartSlots.map((slot, index) => (
+    index === shipPartSlotIndex
+      ? { ...slot, status: 'spent' as const, spentSector: current.currentSector }
+      : slot
+  ))
+  const stacksWithoutShipPart = current.stacks.flatMap((stack) => {
+    if (stack.id !== sourceStack.id) {
+      return [stack]
+    }
+
+    const keptCardIds = stack.cardIds.filter((cardId) => cardId !== shipPartSlot.cardId)
+
+    return keptCardIds.length > 0
+      ? [{ ...stack, cardIds: keptCardIds, z: nextZ }]
+      : []
+  })
+  const returnedStackId = getDrawnRouteStackId(
+    stacksWithoutShipPart,
+    shipPartSlot.routeSlotIndex,
+    shipPartSlot.cardId,
+  )
+
+  return withPlaytestEvents({
+    ...current,
+    topZ: nextZ,
+    dropTargetStackId: null,
+    dropTargetDeckId: null,
+    shipPartSlots: nextShipPartSlots,
+    handCardIds: readyResult?.handCardIds ?? current.handCardIds,
+    tiredCardIds: readyResult?.tiredCardIds ?? current.tiredCardIds,
+    stacks: [
+      ...stacksWithoutShipPart,
+      {
+        id: returnedStackId,
+        cardIds: [shipPartSlot.cardId],
+        x: routePosition.x,
+        y: routePosition.y,
+        z: nextZ,
+      },
+    ],
+  }, shipPartSpentEvent(routeCard, shipPartSlot.routeSlotIndex, shipPartSlot.shipPart))
+}
+
+export function completeStackActionUpdate(
+  stackId: string,
+  actionId: string,
+  metrics: BoardMetrics,
+): BoardUpdater {
   return (current) => {
-    const shipPartSlot = current.shipPartSlots[shipPartSlotIndex]
-    const routeCard = shipPartSlot ? current.cards[shipPartSlot.cardId] : null
+    const sourceStack = current.stacks.find((stack) => stack.id === stackId)
 
-    if (
-      !shipPartSlot ||
-      shipPartSlot.status !== 'available' ||
-      !routeCard ||
-      current.hasArrived ||
-      current.lossReason ||
-      current.pendingWakeChoice ||
-      current.pendingScoutChoice ||
-      !isSectorHorizonFinished(current)
-    ) {
+    if (!sourceStack) {
       return current
     }
 
-    if (shipPartSlot.shipPart === 'medbay-rehydrator' && current.tiredCardIds.length === 0) {
+    const action = getStackActions(current, sourceStack).find((candidate) => candidate.id === actionId)
+
+    if (!action) {
       return current
     }
 
-    const readyResult = shipPartSlot.shipPart === 'medbay-rehydrator'
-      ? readyTiredCrew(current.handCardIds, current.tiredCardIds, 1)
-      : null
-    const nextShipPartSlots = current.shipPartSlots.map((slot, index) => (
-      index === shipPartSlotIndex
-        ? { ...slot, status: 'spent' as const, spentSector: current.currentSector }
-        : slot
-    ))
-    const nextBoard = {
-      ...current,
-      dropTargetStackId: null,
-      dropTargetDeckId: null,
-      shipPartSlots: nextShipPartSlots,
-      handCardIds: readyResult?.handCardIds ?? current.handCardIds,
-      tiredCardIds: readyResult?.tiredCardIds ?? current.tiredCardIds,
+    if (action.kind === 'draw-fuel') {
+      return completeDrawFuelStackAction(current, sourceStack, metrics, action.label)
     }
-    const completedGate = completeReadySectorGateStack(nextBoard)
-    const gateLoss = resolveGateLossIfNeeded(completedGate.board)
 
-    return withPlaytestEvents(gateLoss.board, [
-      shipPartSpentEvent(routeCard, shipPartSlot.routeSlotIndex, shipPartSlot.shipPart),
-      ...completedGate.events,
-      ...gateLoss.events,
-    ])
+    if (action.kind === 'travel') {
+      return completeReadyHorizonStack(current, stackId, metrics)
+    }
+
+    if (action.kind === 'pass-gate') {
+      return completeReadyGateStack(current, stackId)
+    }
+
+    if (action.kind === 'use-ship-part' && action.shipPartSlotIndex !== undefined) {
+      return completeShipPartStackAction(current, sourceStack, action.shipPartSlotIndex)
+    }
+
+    return current
   }
 }
 
@@ -1372,6 +1505,32 @@ export function clearBoardDropTargetUpdate(current: BoardState) {
   return current.dropTargetStackId || current.dropTargetDeckId
     ? { ...current, dropTargetStackId: null, dropTargetDeckId: null }
     : current
+}
+
+export function endTurnUpdate(current: BoardState) {
+  if (
+    current.hasArrived ||
+    current.lossReason ||
+    current.pendingWakeChoice ||
+    current.pendingScoutChoice
+  ) {
+    return current
+  }
+
+  const nextTurnNumber = current.turnNumber + 1
+  const nextBoard = {
+    ...current,
+    turnNumber: nextTurnNumber,
+    sectorDrawnThisTurn: false,
+    dropTargetStackId: null,
+    dropTargetDeckId: null,
+  }
+  const loss = resolveSectorStrandedLossIfNeeded(nextBoard)
+
+  return withPlaytestEvents(loss.board, [
+    turnEndedEvent(current.turnNumber, nextTurnNumber),
+    ...loss.events,
+  ])
 }
 
 export function activateStackDragUpdate({
@@ -1507,11 +1666,15 @@ export function drawFromDeckUpdate(deckId: string, metrics: BoardMetrics): Board
     }
 
     if (deck.id === HORIZON_DECK_ID) {
-      if (getVisibleHorizonCardIds(current).length > 0 || isSectorHorizonFinished(current)) {
+      if (
+        current.sectorDrawnThisTurn ||
+        getVisibleHorizonCardIds(current).length > 0 ||
+        isSectorHorizonFinished(current)
+      ) {
         return current
       }
 
-      const mapDraw = drawNextMapChoices(current)
+      const mapDraw = drawNextMapChoices({ ...current, sectorDrawnThisTurn: true })
       const loss = resolveSectorStrandedLossIfNeeded(mapDraw.board)
 
       return withPlaytestEvents(loss.board, [...mapDraw.events, ...loss.events])
@@ -1767,10 +1930,7 @@ export function confirmScoutChoiceUpdate(current: BoardState) {
         : deck,
     ),
   }
-  const refill = !current.pendingMapRefreshAfterScout
-    ? { board: scoutBoard, events: [] as PlaytestLogEvent[] }
-    : drawNextMapChoices(scoutBoard)
-  const strandedLoss = resolveSectorStrandedLossIfNeeded(refill.board)
+  const strandedLoss = resolveSectorStrandedLossIfNeeded(scoutBoard)
 
   return withPlaytestEvents(strandedLoss.board, [
     scoutUsedEvent(
@@ -1779,7 +1939,6 @@ export function confirmScoutChoiceUpdate(current: BoardState) {
       bottomedCardIds,
       current.cards,
     ),
-    ...refill.events,
     ...strandedLoss.events,
   ])
 }
@@ -2017,7 +2176,6 @@ export function addStackToHandUpdate(
 export function stackOnDropTargetUpdate(
   sourceStackId: string,
   dropTarget: DropTarget,
-  metrics: BoardMetrics,
 ): BoardUpdater {
   return (current) => {
     const sourceStack = current.stacks.find((stack) => stack.id === sourceStackId)
@@ -2079,7 +2237,10 @@ export function stackOnDropTargetUpdate(
     const sourceIsRouteOnly = stackContainsOnlyRouteCards(sourceStack, current.routeSlots, current.shipPartSlots)
     const targetIsRouteOnly = stackContainsOnlyRouteCards(targetStack, current.routeSlots, current.shipPartSlots)
 
-    if (sourceIsRouteOnly && targetIsRouteOnly) {
+    if (sourceIsRouteOnly && (
+      targetIsRouteOnly ||
+      canStackForPotentialAction(current, sourceStack, targetStack)
+    )) {
       const nextZ = current.topZ + 1
 
       return withPlaytestEvents({
@@ -2182,16 +2343,8 @@ export function stackOnDropTargetUpdate(
             : stack,
         ),
     }
-    const completedStack = completeReadyHorizonStack(stackedBoard, targetStack.id, metrics)
-    const completedGateStack = completeReadyGateStack(completedStack.board, targetStack.id)
-    const completedEvents = [
-      ...completedStack.events,
-      ...completedGateStack.events,
-    ]
-
-    return withPlaytestEvents(completedGateStack.board, [
+    return withPlaytestEvents(stackedBoard, [
       cardsStackedEvent(sourceStack, targetStack, current.cards),
-      ...completedEvents,
     ])
   }
 }

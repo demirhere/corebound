@@ -280,6 +280,25 @@ export function cardsStackedEvent(
   }
 }
 
+export function stackActionCompletedEvent(
+  actionLabel: string,
+  sourceStack: Stack,
+  cards: Record<string, Card>,
+): PlaytestLogEvent {
+  return {
+    type: 'stack.action.completed',
+    message: `${actionLabel} completed from ${sourceStack.id} with ${describeCards(sourceStack.cardIds, cards)}.`,
+    details: {
+      actionLabel,
+      sourceStackId: sourceStack.id,
+      cardIds: sourceStack.cardIds,
+      cardTitles: cardTitles(sourceStack.cardIds, cards),
+      cardSummaries: cardSummaries(sourceStack.cardIds, cards),
+      cardContents: cardContents(sourceStack.cardIds, cards),
+    },
+  }
+}
+
 export function cardsReturnedToDeckEvent(
   sourceStack: Stack,
   targetDeck: Deck,
@@ -788,12 +807,23 @@ export function starsCompletedSummaryEvent(
 export function gameLostEvent(reason: GameLossReason): PlaytestLogEvent {
   const message =
     reason === 'sector-stranded'
-      ? 'No visible Map Destination can be completed.'
+      ? 'The sector cannot produce another visible Map Destination before the route is full.'
       : 'The Gate cannot be completed with available Ship Parts, Ready crew, and unused MOTHER cards.'
 
   return {
     type: 'game.lost',
     message,
     details: { reason },
+  }
+}
+
+export function turnEndedEvent(turnNumber: number, nextTurnNumber: number): PlaytestLogEvent {
+  return {
+    type: 'turn.ended',
+    message: `Turn ${turnNumber} ended. Turn ${nextTurnNumber} begins.`,
+    details: {
+      turnNumber,
+      nextTurnNumber,
+    },
   }
 }

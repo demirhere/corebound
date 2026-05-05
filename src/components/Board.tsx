@@ -14,8 +14,10 @@ import {
   InstructionsPanel,
   ShipPartsPanel,
   StressTracker,
+  TurnPanel,
 } from './BoardPanels'
 import { CardStack } from './CardStack'
+import { getStackActions } from '../game/stackActions'
 import {
   type CardKeyDownHandler,
   type CardPointerDownHandler,
@@ -58,7 +60,8 @@ type BoardProps = {
   onWakeCrewChoice: (cardId: string) => void
   onScoutCardChoice: (cardId: string) => void
   onScoutChoiceConfirm: () => void
-  onRouteShipPartUse: (shipPartSlotIndex: number) => void
+  onStackAction: (stackId: string, actionId: string) => void
+  onEndTurn: () => void
   onResetGame: () => void
 }
 
@@ -85,7 +88,8 @@ export function Board({
   onWakeCrewChoice,
   onScoutCardChoice,
   onScoutChoiceConfirm,
-  onRouteShipPartUse,
+  onStackAction,
+  onEndTurn,
   onResetGame,
 }: BoardProps) {
   const isGameOver = board.hasArrived || Boolean(board.lossReason)
@@ -106,12 +110,13 @@ export function Board({
     >
       <InstructionsPanel totalSectors={board.totalSectors} />
       <div className="board-status-area" aria-label="Board status">
-        <StressTracker stressCount={board.stressCount} />
-        <ShipPartsPanel
+        <TurnPanel
           board={board}
           canInteract={canInteract}
-          onRouteShipPartUse={onRouteShipPartUse}
+          onEndTurn={onEndTurn}
         />
+        <StressTracker stressCount={board.stressCount} />
+        <ShipPartsPanel board={board} />
       </div>
       {board.decks
         .filter((deck) => deck.cards.length > 0)
@@ -149,6 +154,8 @@ export function Board({
           fuelDiscount={fuelDiscount}
           stressCount={board.stressCount}
           traveledStopCardIds={traveledStopCardIds}
+          actions={canInteract ? getStackActions(board, stack) : []}
+          onStackAction={onStackAction}
           onCardPointerDown={onCardPointerDown}
           onCardKeyDown={onCardKeyDown}
         />

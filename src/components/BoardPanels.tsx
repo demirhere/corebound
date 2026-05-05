@@ -1,4 +1,4 @@
-import type { BoardState, ShipPartSlot } from '../game/types'
+import type { BoardState } from '../game/types'
 import {
   getShipPartLabel,
   getShipPartUseText,
@@ -6,37 +6,19 @@ import {
 
 type BoardView = BoardState
 
-function isGateActive(board: BoardView) {
-  return board.routeSlots.every(Boolean) && !board.pendingWakeChoice && !board.pendingScoutChoice
-}
-
-function canUseRouteShipPart(board: BoardView, shipPartSlot: ShipPartSlot | null) {
-  if (
-    !shipPartSlot ||
-    shipPartSlot.status !== 'available' ||
-    board.hasArrived ||
-    board.lossReason ||
-    !isGateActive(board)
-  ) {
-    return false
-  }
-
-  return shipPartSlot.shipPart !== 'medbay-rehydrator' || board.tiredCardIds.length > 0
-}
-
 export function InstructionsPanel({ totalSectors }: { totalSectors: number }) {
   return (
     <aside className="board-notes" aria-label="Quick play instructions" style={{ fontSize: 18 }}>
       <h2>Instructions</h2>
       <ol>
-        <li>Click the Sector Deck to draw 3 Map Destinations</li>
-        <li>Pick 1 of 3 Map Destinations</li>
-        <li>Pay its Fuel and icons with Ready crew</li>
-        <li>Use MOTHER to cover missing icons; each use adds Stress and makes the Gate harder</li>
+        <li>Click the Sector Deck once per turn when the Map is empty</li>
+        <li>Stack cards to make actions appear</li>
+        <li>Engineer + Scientist can Draw fuel</li>
+        <li>Pay a Destination, then click Travel</li>
         <li>Used crew move to Tired</li>
         <li>Immediate Benefit resolves now; Ship Part waits for the Gate</li>
-        <li>Discard the other Map Destinations, then draw 3 new</li>
-        <li>After 3 Destinations, pass the Gate with crew, Ship Parts, and MOTHER</li>
+        <li>Discard the other Map Destinations, then end turn</li>
+        <li>After 3 Destinations, stack Ship Parts, crew, and MOTHER on the Gate</li>
         <li>Clear Sector {totalSectors} to win</li>
       </ol>
     </aside>
@@ -45,19 +27,16 @@ export function InstructionsPanel({ totalSectors }: { totalSectors: number }) {
 
 type ShipPartsPanelProps = {
   board: BoardView
-  canInteract: boolean
-  onRouteShipPartUse: (shipPartSlotIndex: number) => void
 }
 
-export function ShipPartsPanel({ board, canInteract, onRouteShipPartUse }: ShipPartsPanelProps) {
-  const shipPartEntries = board.shipPartSlots.flatMap((shipPartSlot, index) => {
+export function ShipPartsPanel({ board }: ShipPartsPanelProps) {
+  const shipPartEntries = board.shipPartSlots.flatMap((shipPartSlot) => {
     const card = board.cards[shipPartSlot.cardId]
 
     return card
       ? [
           {
             shipPartSlot,
-            shipPartSlotIndex: index,
             card,
             shipPart: shipPartSlot.shipPart,
             shipPartStatus: shipPartSlot.status,
@@ -71,32 +50,51 @@ export function ShipPartsPanel({ board, canInteract, onRouteShipPartUse }: ShipP
     <section className="ship-parts-area" aria-label="Ship Parts" style={{ fontSize: 18 }}>
       <h2>Ship Parts</h2>
       <div className="ship-part-list">
-        {shipPartEntries.map(({ shipPartSlot, shipPartSlotIndex, card, shipPart, shipPartStatus, shipPartLabel }) => {
-          const canUseShipPart = canInteract && canUseRouteShipPart(board, shipPartSlot)
-
-          return (
-            <article className={`ship-part-item is-${shipPartStatus}`} key={shipPartSlot.cardId}>
-              <p>
-                <span>{shipPartLabel}</span>
-                <em style={{ fontSize: 18 }}>{shipPartStatus}</em>
-              </p>
-              <strong style={{ fontSize: 18 }}>{card.title}</strong>
-              <small style={{ fontSize: 18 }}>{getShipPartUseText(shipPart)}</small>
-              <button
-                type="button"
-                disabled={!canUseShipPart}
-                aria-label={`Use ${shipPartLabel} from ${card.title}`}
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={() => onRouteShipPartUse(shipPartSlotIndex)}
-                style={{ fontSize: 18 }}
-              >
-                {shipPartStatus === 'spent' ? 'Spent' : 'Use Part'}
-              </button>
-            </article>
-          )
-        })}
+        {shipPartEntries.map(({ shipPartSlot, card, shipPart, shipPartStatus, shipPartLabel }) => (
+          <article className={`ship-part-item is-${shipPartStatus}`} key={shipPartSlot.cardId}>
+            <p>
+              <span>{shipPartLabel}</span>
+              <em style={{ fontSize: 18 }}>{shipPartStatus}</em>
+            </p>
+            <strong style={{ fontSize: 18 }}>{card.title}</strong>
+            <small style={{ fontSize: 18 }}>{getShipPartUseText(shipPart)}</small>
+          </article>
+        ))}
       </div>
     </section>
+  )
+}
+
+type TurnPanelProps = {
+  board: BoardView
+  canInteract: boolean
+  onEndTurn: () => void
+}
+
+export function TurnPanel({ board, canInteract, onEndTurn }: TurnPanelProps) {
+  const canEndTurn = canInteract &&
+    !board.hasArrived &&
+    !board.lossReason &&
+    !board.pendingWakeChoice &&
+    !board.pendingScoutChoice
+  const sectorDrawText = board.sectorDrawnThisTurn ? 'Sector draw used' : 'Sector draw ready'
+
+  return (
+    <aside className="turn-area" aria-label="Turn" style={{ fontSize: 18 }}>
+      <p>
+        <span>Turn {board.turnNumber}</span>
+        <em>{sectorDrawText}</em>
+      </p>
+      <button
+        type="button"
+        disabled={!canEndTurn}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={onEndTurn}
+        style={{ fontSize: 18 }}
+      >
+        End turn
+      </button>
+    </aside>
   )
 }
 

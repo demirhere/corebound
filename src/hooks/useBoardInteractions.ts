@@ -21,15 +21,16 @@ import {
   clearBoardDropTargetUpdate,
   commitDeckDragPositionUpdate,
   commitStackDragPositionUpdate,
+  completeStackActionUpdate,
   confirmScoutChoiceUpdate,
   deckOnDropTargetUpdate,
   discardHandCardUpdate,
   discardStackUpdate,
   drawFromDeckUpdate,
   dropHandCardToBoardUpdate,
+  endTurnUpdate,
   promoteHandCardToStackUpdate,
   reorderHandCardUpdate,
-  spendRouteShipPartUpdate,
   stackOnDropTargetUpdate,
 } from '../board/boardUpdaters'
 import {
@@ -909,8 +910,12 @@ export function useBoardInteractions({
     setBoard(confirmScoutChoiceUpdate)
   }
 
-  function spendRouteShipPart(shipPartSlotIndex: number) {
-    setBoard(spendRouteShipPartUpdate(shipPartSlotIndex))
+  function completeStackAction(stackId: string, actionId: string) {
+    setBoard(completeStackActionUpdate(stackId, actionId, readBoardMetrics()))
+  }
+
+  function endTurn() {
+    setBoard(endTurnUpdate)
   }
 
   function getBoardDropPosition(clientX: number, clientY: number, placeAboveHand = false) {
@@ -1328,7 +1333,7 @@ export function useBoardInteractions({
   }
 
   function stackOnDropTarget(sourceStackId: string, dropTarget: DropTarget) {
-    setBoard(stackOnDropTargetUpdate(sourceStackId, dropTarget, readBoardMetrics()))
+    setBoard(stackOnDropTargetUpdate(sourceStackId, dropTarget))
   }
 
   function deckOnDropTarget(sourceDeckId: string, targetDeckId: string) {
@@ -1609,7 +1614,8 @@ export function useBoardInteractions({
     onWakeCrewChoice: chooseWakeCrew,
     onScoutCardChoice: chooseScoutCard,
     onScoutChoiceConfirm: confirmScoutChoice,
-    onRouteShipPartUse: spendRouteShipPart,
+    onStackAction: completeStackAction,
+    onEndTurn: endTurn,
     resetInteractions,
   }
 }

@@ -17,7 +17,7 @@ function lossContent(reason: GameLossReason) {
   if (reason === 'sector-stranded') {
     return {
       title: 'Stranded in the Reach.',
-      body: 'No visible Map Destination can be completed.',
+      body: 'The sector cannot produce another visible Map Destination before the route is full.',
     }
   }
 
@@ -200,11 +200,11 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: {
           <section className="how-to-play-wide-section">
             <h3>Core Loop</h3>
             <ol>
-              <li>Click the Sector Deck to reveal 3 Map Destinations.</li>
+              <li>Click the Sector Deck once per turn to reveal 3 Map Destinations.</li>
               <li>Pick 1 Destination and drag payment onto it.</li>
               <li>Match all printed <GameIcon kind="fuel" /> and crew-icon requirements.</li>
-              <li>Completion is automatic. Used crew become <GameIcon kind="tired-person" />.</li>
-              <li>Resolve the find, clear the other Map cards, and repeat until the Gate appears.</li>
+              <li>Click the stack action button. Used crew become <GameIcon kind="tired-person" />.</li>
+              <li>Resolve the find, clear the other Map cards, then end turn before drawing again.</li>
             </ol>
           </section>
 
@@ -239,7 +239,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: {
             <h3>Critical Reminders</h3>
             <p>
               MOTHER never pays <GameIcon kind="fuel" /> and never fills <GameIcon kind="person" /> slots.
-              You lose if no visible Map Destination can be completed, or if the Gate cannot be passed
+              You lose if the sector cannot produce another visible Map Destination, or if the Gate cannot be passed
               with Ready crew, Ship Parts, and unused MOTHER.
             </p>
           </section>

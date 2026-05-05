@@ -104,7 +104,8 @@ function App() {
         onWakeCrewChoice={canControlBoard ? interactions.onWakeCrewChoice : noop}
         onScoutCardChoice={canControlBoard ? interactions.onScoutCardChoice : noop}
         onScoutChoiceConfirm={canControlBoard ? interactions.onScoutChoiceConfirm : noop}
-        onRouteShipPartUse={canControlBoard ? interactions.onRouteShipPartUse : noop}
+        onStackAction={canControlBoard ? interactions.onStackAction : noop}
+        onEndTurn={canControlBoard ? interactions.onEndTurn : noop}
         onResetGame={resetGame}
       />
       <PlaytestLog

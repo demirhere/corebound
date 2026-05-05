@@ -1,5 +1,6 @@
 import { type CSSProperties } from 'react'
 import type { Stack } from '../game/types'
+import type { StackAction } from '../game/stackActions'
 import {
   BoardCard,
   type CardKeyDownHandler,
@@ -20,6 +21,8 @@ type CardStackProps = {
   fuelDiscount: number
   stressCount: number
   traveledStopCardIds: ReadonlySet<string>
+  actions: readonly StackAction[]
+  onStackAction: (stackId: string, actionId: string) => void
   onCardPointerDown: CardPointerDownHandler
   onCardKeyDown: CardKeyDownHandler
 }
@@ -35,6 +38,8 @@ export function CardStack({
   fuelDiscount,
   stressCount,
   traveledStopCardIds,
+  actions,
+  onStackAction,
   onCardPointerDown,
   onCardKeyDown,
 }: CardStackProps) {
@@ -61,6 +66,21 @@ export function CardStack({
         } as CSSProperties
       }
     >
+      {actions.length > 0 && !isActive && !isSharedActive && (
+        <div className="stack-action-bar" aria-label="Available stack actions">
+          {actions.map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              className="stack-action-button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={() => onStackAction(stack.id, action.id)}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      )}
       {stack.cardIds.map((cardId, index) => {
         const card = cards[cardId]
 

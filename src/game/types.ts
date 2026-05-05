@@ -211,7 +211,8 @@ export type BoardState = {
     bottomedCardIds: string[]
   } | null
   pendingEffects: BoardEffect[]
-  pendingMapRefreshAfterScout: boolean
+  turnNumber: number
+  sectorDrawnThisTurn: boolean
   stressCount: number
   currentSector: number
   totalSectors: number
