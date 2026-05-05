@@ -21,8 +21,11 @@ type HandProps = {
   cards: Record<string, CardView>
   activeCardIds: readonly string[]
   insertPreview: HandInsertPreview | null
+  endTurnAttentionKey: number
   handRef: Ref<HTMLElement>
   canInteract: boolean
+  canEndTurn: boolean
+  onEndTurn: () => void
   onCardPointerDown: HandPointerDownHandler
   onCardKeyDown: HandKeyDownHandler
 }
@@ -33,12 +36,22 @@ export function Hand({
   cards,
   activeCardIds,
   insertPreview,
+  endTurnAttentionKey,
   handRef,
   canInteract,
+  canEndTurn,
+  onEndTurn,
   onCardPointerDown,
   onCardKeyDown,
 }: HandProps) {
   const activeCardIdSet = new Set(activeCardIds)
+  let attentionClass = ''
+
+  if (endTurnAttentionKey > 0) {
+    attentionClass = endTurnAttentionKey % 2 === 0
+      ? ' is-draw-attention-even'
+      : ' is-draw-attention-odd'
+  }
 
   return (
     <section ref={handRef} className="hand" data-hand aria-label="Crew and tired hands">
@@ -65,6 +78,17 @@ export function Hand({
         onCardPointerDown={onCardPointerDown}
         onCardKeyDown={onCardKeyDown}
       />
+      <div className="hand-end-turn-slot" aria-label="Turn controls">
+        <button
+          type="button"
+          className={`hand-end-turn-button${attentionClass}`}
+          disabled={!canEndTurn}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={onEndTurn}
+        >
+          End turn
+        </button>
+      </div>
     </section>
   )
 }

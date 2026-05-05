@@ -20,6 +20,8 @@ type CardStackProps = {
   stackOffsetRatio: number
   fuelDiscount: number
   stressCount: number
+  gateCrewSlotDiscount: number
+  gateIconDiscount: number
   traveledStopCardIds: ReadonlySet<string>
   actions: readonly StackAction[]
   onStackAction: (stackId: string, actionId: string) => void
@@ -37,6 +39,8 @@ export function CardStack({
   stackOffsetRatio,
   fuelDiscount,
   stressCount,
+  gateCrewSlotDiscount,
+  gateIconDiscount,
   traveledStopCardIds,
   actions,
   onStackAction,
@@ -66,7 +70,7 @@ export function CardStack({
         } as CSSProperties
       }
     >
-      {actions.length > 0 && !isActive && !isSharedActive && (
+      {actions.length > 0 && (
         <div className="stack-action-bar" aria-label="Available stack actions">
           {actions.map((action) => (
             <button
@@ -99,6 +103,8 @@ export function CardStack({
             stackOffsetRatio={stackOffsetRatio}
             fuelDiscount={fuelDiscount}
             stressCount={stressCount}
+            gateCrewSlotDiscount={gateCrewSlotDiscount}
+            gateIconDiscount={gateIconDiscount}
             isTraveledStop={traveledStopCardIds.has(card.id)}
             onPointerDown={onCardPointerDown}
             onKeyDown={onCardKeyDown}

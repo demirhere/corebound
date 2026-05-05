@@ -47,6 +47,10 @@ export const MOTHER_SUPPLY_STACK_POSITION = {
   x: 15,
   y: 40,
 }
+export const SECTOR_GATE_STACK_POSITION = {
+  x: 85,
+  y: 40,
+}
 
 type DeckArt = {
   icon: CardIconKind
@@ -239,11 +243,11 @@ function shuffleCards<T>(cards: readonly T[]) {
   return shuffled
 }
 
-function createBoardCards(prefix: string, blueprints: readonly CardBlueprint[]) {
+function createBoardCards(prefix: string, blueprints: readonly CardBlueprint[], faceUp = true) {
   return blueprints.map<Card>((blueprint, index) => ({
     ...blueprint,
     id: `${prefix}-${index + 1}`,
-    faceUp: true,
+    faceUp,
   }))
 }
 
@@ -293,18 +297,16 @@ function setupCrewDealtEvent(card: Card, handIndex: number): PlaytestLogEvent {
   }
 }
 
-function setupGateRevealedEvent(card: Card, stackId: string): PlaytestLogEvent {
-  const rulesText = cardRulesText(card)
-
+function setupGatePlacedEvent(card: Card, stackId: string): PlaytestLogEvent {
   return {
-    type: 'setup.gate.revealed',
-    message: `${card.title} (${card.id})${rulesText ? ` [${rulesText}]` : ''} revealed as this sector's Gate.`,
+    type: 'setup.gate.placed_face_down',
+    message: `Sector Gate (${card.id}) placed face down. Click it to reveal or hide it.`,
     details: {
       cardId: card.id,
-      cardTitle: card.title,
-      cardSummary: `${card.title} (${card.id})${rulesText ? ` [${rulesText}]` : ''}`,
-      cardContent: cardContent(card),
+      cardTitle: 'Sector Gate',
+      cardSummary: `Sector Gate (${card.id}) face down`,
       stackId,
+      faceUp: card.faceUp,
     },
   }
 }
@@ -392,7 +394,7 @@ export function getSectorGateBlueprint(sector: number) {
 }
 
 export function getSectorDeckTitle(sector: number) {
-  return `Sector ${sector} Deck`
+  return `Sector ${sector} Stops`
 }
 
 export function getSectorDeckArt(sector: number) {
@@ -413,7 +415,7 @@ export function createInitialBoardSetup(): InitialBoardSetup {
   // const initialHullCards = createBoardCards('hull-start', hullDeck.slice(0, 4))
   const handCards = createBoardCards('crew-hand', startingCrewCards)
   const sectorGate = getSectorGateBlueprint(1)
-  const [gateCard] = createBoardCards('gate', sectorGate ? [sectorGate] : [])
+  const [gateCard] = createBoardCards('gate', sectorGate ? [sectorGate] : [], false)
   const fuelDeckCards = fuelDeck.slice(2)
   // const hullDeckCards = hullDeck.slice(4)
   const horizonDeckCards = createSectorHorizonDeckCards()
@@ -440,8 +442,8 @@ export function createInitialBoardSetup(): InitialBoardSetup {
             {
               id: 'stack-sector-gate',
               cardIds: [gateCard.id],
-              x: 43,
-              y: 40,
+              x: SECTOR_GATE_STACK_POSITION.x,
+              y: SECTOR_GATE_STACK_POSITION.y,
               z: 1016,
             },
           ]
@@ -556,7 +558,7 @@ export function createInitialBoardSetup(): InitialBoardSetup {
       // setupDeckCreatedEvent('hull-deck', 'Hull Deck', hullDeckCards),
       setupDeckCreatedEvent(HORIZON_DECK_ID, getSectorDeckTitle(1), horizonDeckCards),
       setupDeckCreatedEvent(CRYO_DECK_ID, 'Cryo Deck', cryoDeckCards),
-      ...(gateCard ? [setupGateRevealedEvent(gateCard, 'stack-sector-gate')] : []),
+      ...(gateCard ? [setupGatePlacedEvent(gateCard, 'stack-sector-gate')] : []),
       ...initialFuelCards.map((card, index) => setupResourceDrawnEvent(card, 'Fuel Deck', index + 1)),
       // ...initialHullCards.map((card, index) => setupResourceDrawnEvent(card, 'Hull Deck', index + 1)),
       ...handCards.map((card, index) => setupCrewDealtEvent(card, index + 1)),

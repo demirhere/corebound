@@ -4,7 +4,6 @@ import {
   getGateStackCompletion,
   getHorizonStackCompletion,
 } from './rules'
-import { getShipPartLabel } from './shipParts'
 import type {
   BoardState,
   Card,
@@ -18,14 +17,12 @@ export type StackActionKind =
   | 'draw-fuel'
   | 'travel'
   | 'pass-gate'
-  | 'use-ship-part'
 
 export type StackAction = {
   id: string
   kind: StackActionKind
   label: string
   stackId: string
-  shipPartSlotIndex?: number
 }
 
 type WaterPairCrewRole = 'engineer' | 'scientist'
@@ -79,24 +76,6 @@ function hasFuelDrawWaterPair(stack: Stack, cards: Record<string, Card>) {
   const roles = stack.cardIds.map((cardId) => getWaterPairCrewRole(cards[cardId]))
 
   return roles.includes('engineer') && roles.includes('scientist')
-}
-
-function stackHasGate(stack: Stack, cards: Record<string, Card>) {
-  return stack.cardIds.some((cardId) => {
-    const card = cards[cardId]
-
-    return card?.kind === 'gate' && Boolean(card.gate)
-  })
-}
-
-function getAvailableShipPartSlotEntries(current: BoardState, stack: Stack) {
-  const stackCardIds = new Set(stack.cardIds)
-
-  return current.shipPartSlots.flatMap((slot, index) => (
-    slot.status === 'available' && stackCardIds.has(slot.cardId)
-      ? [{ slot, index }]
-      : []
-  ))
 }
 
 function getDrawFuelAction(current: BoardState, stack: Stack): StackAction[] {
@@ -158,30 +137,6 @@ function getPassGateAction(current: BoardState, stack: Stack): StackAction[] {
     : []
 }
 
-function getShipPartActions(current: BoardState, stack: Stack): StackAction[] {
-  if (!isSectorHorizonFinished(current) || !stackHasGate(stack, current.cards)) {
-    return []
-  }
-
-  return getAvailableShipPartSlotEntries(current, stack).flatMap(({ slot, index }) => {
-    if (slot.shipPart === 'medbay-rehydrator' && current.tiredCardIds.length === 0) {
-      return []
-    }
-
-    const label = `Use ${getShipPartLabel(slot.shipPart)}`
-
-    return [
-      {
-        id: `use-ship-part:${index}:${slot.cardId}`,
-        kind: 'use-ship-part' as const,
-        label,
-        stackId: stack.id,
-        shipPartSlotIndex: index,
-      },
-    ]
-  })
-}
-
 export function getStackActions(current: BoardState, stack: Stack): StackAction[] {
   if (isBoardActionBlocked(current)) {
     return []
@@ -190,28 +145,6 @@ export function getStackActions(current: BoardState, stack: Stack): StackAction[
   return [
     ...getDrawFuelAction(current, stack),
     ...getTravelAction(current, stack),
-    ...getShipPartActions(current, stack),
     ...getPassGateAction(current, stack),
   ]
-}
-
-export function canStackForPotentialAction(
-  current: BoardState,
-  sourceStack: Stack,
-  targetStack: Stack,
-) {
-  if (
-    isBoardActionBlocked(current) ||
-    !isSectorHorizonFinished(current) ||
-    !stackHasGate(targetStack, current.cards)
-  ) {
-    return false
-  }
-
-  const availableSourceSlots = getAvailableShipPartSlotEntries(current, sourceStack)
-
-  return (
-    availableSourceSlots.length > 0 &&
-    availableSourceSlots.length === sourceStack.cardIds.length
-  )
 }

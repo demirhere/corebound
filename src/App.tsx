@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useState } from 'react'
+import { BeginDialog } from './components/BeginDialog'
 import { Board } from './components/Board'
 import { HowToPlayDialog } from './components/BoardDialogs'
 import { PlaytestLog } from './components/PlaytestLog'
@@ -20,6 +21,7 @@ function noop() {}
 function App() {
   const [realtimeConfig] = useState(() => readRealtimeConfig())
   const [game, dispatchGame] = useReducer(gameReducer, undefined, createInitialGameState)
+  const [isGameStarted, setIsGameStarted] = useState(false)
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
   const { board, pendingSetupDeal, playtestLog, previousPlaytestLogSessions } = game
   const resetConsoleLog = usePlaytestLogConsole(playtestLog)
@@ -54,7 +56,7 @@ function App() {
   useCardMovementAnimations({ board, boardRef: interactions.boardRef })
 
   useEffect(() => {
-    if (!canControlBoard || !pendingSetupDealKey) {
+    if (!isGameStarted || !canControlBoard || !pendingSetupDealKey) {
       return
     }
 
@@ -67,7 +69,7 @@ function App() {
     })
 
     return () => window.cancelAnimationFrame(frameId)
-  }, [canControlBoard, pendingSetupDealKey])
+  }, [canControlBoard, isGameStarted, pendingSetupDealKey])
 
   function resetGame() {
     if (!canControlBoard) {
@@ -81,52 +83,59 @@ function App() {
 
   return (
     <main className="app" aria-label="Corebound board prototype">
-      <Board
-        board={board}
-        boardRef={interactions.boardRef}
-        handRef={interactions.handRef}
-        activeStackIds={interactions.activeStackIds}
-        activeDeckIds={interactions.activeDeckIds}
-        activeHandCardIds={interactions.activeHandCardIds}
-        handInsertPreview={interactions.handInsertPreview}
-        sharedDrag={canControlBoard ? null : realtime.remoteDrag}
-        canInteract={canControlBoard}
-        stackOffsetRatio={interactions.stackOffsetRatio}
-        onPointerMove={canControlBoard ? interactions.onPointerMove : noop}
-        onPointerUp={canControlBoard ? interactions.onPointerUp : noop}
-        onPointerCancel={canControlBoard ? interactions.onPointerCancel : noop}
-        onDeckPointerDown={canControlBoard ? interactions.onDeckPointerDown : noop}
-        onDeckKeyDown={canControlBoard ? interactions.onDeckKeyDown : noop}
-        onCardPointerDown={canControlBoard ? interactions.onCardPointerDown : noop}
-        onCardKeyDown={canControlBoard ? interactions.onCardKeyDown : noop}
-        onHandCardPointerDown={canControlBoard ? interactions.onHandCardPointerDown : noop}
-        onHandCardKeyDown={canControlBoard ? interactions.onHandCardKeyDown : noop}
-        onWakeCrewChoice={canControlBoard ? interactions.onWakeCrewChoice : noop}
-        onScoutCardChoice={canControlBoard ? interactions.onScoutCardChoice : noop}
-        onScoutChoiceConfirm={canControlBoard ? interactions.onScoutChoiceConfirm : noop}
-        onStackAction={canControlBoard ? interactions.onStackAction : noop}
-        onEndTurn={canControlBoard ? interactions.onEndTurn : noop}
-        onResetGame={resetGame}
-      />
-      <PlaytestLog
-        entries={playtestLog}
-        previousSessions={previousPlaytestLogSessions}
-        canControl={canControlBoard}
-        onShowHowToPlay={() => setIsHowToPlayOpen(true)}
-        onResetGame={resetGame}
-      />
-      {realtimeConfig.enabled ? (
-        <RealtimePanel
-          config={realtimeConfig}
-          status={realtime.status}
-          connectionCount={realtime.connectionCount}
-        />
-      ) : null}
-      <HowToPlayDialog
-        isOpen={isHowToPlayOpen}
-        onClose={canControlBoard ? () => setIsHowToPlayOpen(false) : noop}
-        canClose={canControlBoard}
-      />
+      {isGameStarted ? (
+        <>
+          <Board
+            board={board}
+            boardRef={interactions.boardRef}
+            handRef={interactions.handRef}
+            activeStackIds={interactions.activeStackIds}
+            activeDeckIds={interactions.activeDeckIds}
+            activeHandCardIds={interactions.activeHandCardIds}
+            handInsertPreview={interactions.handInsertPreview}
+            endTurnAttentionKey={interactions.endTurnAttentionKey}
+            sharedDrag={canControlBoard ? null : realtime.remoteDrag}
+            canInteract={canControlBoard}
+            stackOffsetRatio={interactions.stackOffsetRatio}
+            onPointerMove={canControlBoard ? interactions.onPointerMove : noop}
+            onPointerUp={canControlBoard ? interactions.onPointerUp : noop}
+            onPointerCancel={canControlBoard ? interactions.onPointerCancel : noop}
+            onDeckPointerDown={canControlBoard ? interactions.onDeckPointerDown : noop}
+            onDeckKeyDown={canControlBoard ? interactions.onDeckKeyDown : noop}
+            onCardPointerDown={canControlBoard ? interactions.onCardPointerDown : noop}
+            onCardKeyDown={canControlBoard ? interactions.onCardKeyDown : noop}
+            onHandCardPointerDown={canControlBoard ? interactions.onHandCardPointerDown : noop}
+            onHandCardKeyDown={canControlBoard ? interactions.onHandCardKeyDown : noop}
+            onWakeCrewChoice={canControlBoard ? interactions.onWakeCrewChoice : noop}
+            onScoutCardChoice={canControlBoard ? interactions.onScoutCardChoice : noop}
+            onScoutChoiceConfirm={canControlBoard ? interactions.onScoutChoiceConfirm : noop}
+            onStackAction={canControlBoard ? interactions.onStackAction : noop}
+            onEndTurn={canControlBoard ? interactions.onEndTurn : noop}
+            onResetGame={resetGame}
+          />
+          <PlaytestLog
+            entries={playtestLog}
+            previousSessions={previousPlaytestLogSessions}
+            canControl={canControlBoard}
+            networkControl={realtimeConfig.enabled ? (
+              <RealtimePanel
+                config={realtimeConfig}
+                status={realtime.status}
+                connectionCount={realtime.connectionCount}
+              />
+            ) : null}
+            onShowHowToPlay={() => setIsHowToPlayOpen(true)}
+            onResetGame={resetGame}
+          />
+          <HowToPlayDialog
+            isOpen={isHowToPlayOpen}
+            onClose={canControlBoard ? () => setIsHowToPlayOpen(false) : noop}
+            canClose={canControlBoard}
+          />
+        </>
+      ) : (
+        <BeginDialog onBegin={() => setIsGameStarted(true)} />
+      )}
     </main>
   )
 }

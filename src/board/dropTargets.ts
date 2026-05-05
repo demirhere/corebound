@@ -10,7 +10,6 @@ import {
   canStackCards,
   isFaceDownStack,
 } from '../game/rules'
-import { canStackForPotentialAction } from '../game/stackActions'
 import { getNextStopFuelDiscount } from '../game/effects'
 import {
   countSpentShipParts,
@@ -78,7 +77,7 @@ export function getNearestDropTarget(
     const targetIsRouteOnly = stackContainsOnlyRouteCards(targetStack.cardIds, routeCardIds)
 
     if (sourceIsRouteOnly) {
-      if (!targetIsRouteOnly && !canStackForPotentialAction(board, sourceStack, targetStack)) {
+      if (!targetIsRouteOnly) {
         continue
       }
 
@@ -142,9 +141,7 @@ export function getStackDropTargetIds(
     const targetIsRouteOnly = stackContainsOnlyRouteCards(targetStack.cardIds, routeCardIds)
 
     if (sourceIsRouteOnly) {
-      return targetIsRouteOnly || canStackForPotentialAction(board, sourceStack, targetStack)
-        ? [targetStack.id]
-        : []
+      return targetIsRouteOnly ? [targetStack.id] : []
     }
 
     if (targetHasRouteCard) {

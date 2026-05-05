@@ -919,7 +919,7 @@ export function getGateStackCompletion(
   const gateCardId = stack.cardIds[gateCardIndex]
   const gateCard = gateCardId ? cards[gateCardId] : undefined
 
-  if (!gateCard?.gate || !gateCardId) {
+  if (!gateCard?.gate || !gateCardId || !gateCard.faceUp) {
     return null
   }
 

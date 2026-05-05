@@ -36,6 +36,7 @@ import {
 } from './routeState'
 import {
   cardDrawnEvent,
+  cardFlippedEvent,
   cardsDiscardedEvent,
   cardsMovedToHandEvent,
   cardsReturnedToDeckEvent,
@@ -87,7 +88,6 @@ import {
   type MotherCoveredIcon,
 } from '../game/rules'
 import {
-  canStackForPotentialAction,
   getStackActions,
 } from '../game/stackActions'
 import { withPlaytestEvents, type BoardUpdater } from '../game/state'
@@ -101,6 +101,7 @@ import {
   MAP_SLOT_COUNT,
   MOTHER_SUPPLY_STACK_ID,
   MOTHER_SUPPLY_STACK_POSITION,
+  SECTOR_GATE_STACK_POSITION,
   createSectorHorizonDeckCards,
   getSectorDeckArt,
   getSectorDeckTitle,
@@ -115,6 +116,7 @@ import type {
   DropTarget,
   GameLossReason,
   HandZone,
+  ShipPartKind,
   Stack,
 } from '../game/types'
 import {
@@ -130,11 +132,11 @@ type Position = {
   y: number
 }
 
-function createCardFromBlueprint(blueprint: CardBlueprint, id: string): Card {
+function createCardFromBlueprint(blueprint: CardBlueprint, id: string, faceUp = true): Card {
   return {
     ...blueprint,
     id,
-    faceUp: true,
+    faceUp,
   }
 }
 
@@ -395,7 +397,7 @@ function getSectorGateCard(current: BoardState) {
 function canCompleteSectorGate(current: BoardState) {
   const gateCard = getSectorGateCard(current)
 
-  if (!gateCard?.gate) {
+  if (!gateCard?.gate || !gateCard.faceUp) {
     return false
   }
 
@@ -441,13 +443,16 @@ function isSectorHorizonFinished(current: BoardState) {
 }
 
 function resolveGateLossIfNeeded(current: BoardState) {
+  const gateCard = getSectorGateCard(current)
+
   if (
     current.hasArrived ||
     current.lossReason ||
     current.pendingWakeChoice ||
     current.pendingScoutChoice ||
     !isSectorHorizonFinished(current) ||
-    !getSectorGateCard(current) ||
+    !gateCard ||
+    !gateCard.faceUp ||
     canCompleteSectorGate(current)
   ) {
     return { board: current, events: [] }
@@ -504,8 +509,93 @@ function readyTiredCrew(
   }
 }
 
+function getAvailableShipPartSlotIndices(current: BoardState, shipPart: ShipPartKind) {
+  return current.shipPartSlots.flatMap((slot, index) => (
+    slot.shipPart === shipPart && slot.status === 'available'
+      ? [index]
+      : []
+  ))
+}
+
+function applyAutomaticGateShipParts(current: BoardState) {
+  const gateCard = getSectorGateCard(current)
+
+  if (
+    !gateCard?.gate ||
+    !isSectorHorizonFinished(current) ||
+    current.pendingWakeChoice ||
+    current.pendingScoutChoice
+  ) {
+    return { board: current, events: [] as PlaytestLogEvent[] }
+  }
+
+  const requiredCrewSlots = gateCard.gate.need.crew + (
+    current.stressCount >= gateCard.gate.motherPenalty.threshold
+      ? gateCard.gate.motherPenalty.extraHumanCrew
+      : 0
+  )
+  const medbaySlotIndices = getAvailableShipPartSlotIndices(current, 'medbay-rehydrator')
+    .slice(0, current.tiredCardIds.length)
+  const serviceDroneSlotIndices = getAvailableShipPartSlotIndices(current, 'service-drone-bay')
+    .slice(0, Math.max(
+      0,
+      requiredCrewSlots - countSpentShipParts(
+        current.shipPartSlots,
+        'service-drone-bay',
+        current.currentSector,
+      ),
+    ))
+  const controlConsoleSlotIndices = getAvailableShipPartSlotIndices(current, 'adaptive-control-console')
+    .slice(0, Math.max(
+      0,
+      gateCard.gate.need.icons.length - countSpentShipParts(
+        current.shipPartSlots,
+        'adaptive-control-console',
+        current.currentSector,
+      ),
+    ))
+  const spentSlotIndexSet = new Set([
+    ...medbaySlotIndices,
+    ...serviceDroneSlotIndices,
+    ...controlConsoleSlotIndices,
+  ])
+
+  if (spentSlotIndexSet.size === 0) {
+    return { board: current, events: [] as PlaytestLogEvent[] }
+  }
+
+  const readyResult = medbaySlotIndices.length > 0
+    ? readyTiredCrew(current.handCardIds, current.tiredCardIds, medbaySlotIndices.length)
+    : null
+
+  return {
+    board: {
+      ...current,
+      shipPartSlots: current.shipPartSlots.map((slot, index) => (
+        spentSlotIndexSet.has(index)
+          ? { ...slot, status: 'spent' as const, spentSector: current.currentSector }
+          : slot
+      )),
+      handCardIds: readyResult?.handCardIds ?? current.handCardIds,
+      tiredCardIds: readyResult?.tiredCardIds ?? current.tiredCardIds,
+    },
+    events: Array.from(spentSlotIndexSet).flatMap((index) => {
+      const shipPartSlot = current.shipPartSlots[index]
+      const routeCard = shipPartSlot ? current.cards[shipPartSlot.cardId] : null
+
+      return shipPartSlot && routeCard
+        ? [shipPartSpentEvent(routeCard, shipPartSlot.routeSlotIndex, shipPartSlot.shipPart)]
+        : []
+    }),
+  }
+}
+
 function isFuelResourceCard(card: Card | undefined) {
   return card?.kind === 'resource' && card.resource === 'fuel'
+}
+
+function canManuallyFlipCard(card: Card | undefined) {
+  return card?.kind === 'gate' && Boolean(card.gate)
 }
 
 function findFuelSupplyStack(stacks: readonly Stack[], cards: Record<string, Card>) {
@@ -718,24 +808,27 @@ function clearRemainingStopsForGate(current: BoardState) {
   const thresholdEvents = gateCard?.gate && current.stressCount >= gateCard.gate.motherPenalty.threshold
     ? [stressThresholdActiveEvent(gateCard, current.stressCount, gateCard.gate.motherPenalty.extraHumanCrew)]
     : []
+  const clearedBoard = {
+    ...current,
+    mapSlots: createEmptyMapSlots(),
+    cards: withoutCards(current.cards, mapCardIds),
+    stacks: removeCardIdsFromStacks(current.stacks, mapCardIds),
+    decks: current.decks.map((deck) =>
+      deck.id === HORIZON_DECK_ID
+        ? { ...deck, cards: [] }
+        : deck,
+    ),
+  }
+  const automaticShipParts = applyAutomaticGateShipParts(clearedBoard)
 
   return {
-    board: {
-      ...current,
-      mapSlots: createEmptyMapSlots(),
-      cards: withoutCards(current.cards, mapCardIds),
-      stacks: removeCardIdsFromStacks(current.stacks, mapCardIds),
-      decks: current.decks.map((deck) =>
-        deck.id === HORIZON_DECK_ID
-          ? { ...deck, cards: [] }
-          : deck,
-      ),
-    },
+    board: automaticShipParts.board,
     events: [
       ...(mapCardIdSet.size > 0
         ? [cardsDiscardedEvent(mapCardIds, current.cards, 'unchosen Map Destinations')]
         : []),
       ...thresholdEvents,
+      ...automaticShipParts.events,
     ],
   }
 }
@@ -1145,7 +1238,7 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
   const nextSector = current.currentSector + 1
   const nextGateBlueprint = isFinalGate ? null : getSectorGateBlueprint(nextSector)
   const nextGateCard = nextGateBlueprint
-    ? createCardFromBlueprint(nextGateBlueprint, `gate-${nextSector}-${current.nextCardId}`)
+    ? createCardFromBlueprint(nextGateBlueprint, `gate-${nextSector}-${current.nextCardId}`, false)
     : null
   const nextSectorHorizonCards = nextGateCard ? createSectorHorizonDeckCards() : []
   const nextStopDeckCards = nextSectorHorizonCards
@@ -1237,8 +1330,8 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
             {
               id: `stack-sector-gate-${nextSector}`,
               cardIds: [nextGateCard.id],
-              x: 43,
-              y: 40,
+              x: SECTOR_GATE_STACK_POSITION.x,
+              y: SECTOR_GATE_STACK_POSITION.y,
               z: nextZ,
             },
           ]
@@ -1393,76 +1486,6 @@ function completeDrawFuelStackAction(
   ])
 }
 
-function completeShipPartStackAction(
-  current: BoardState,
-  sourceStack: Stack,
-  shipPartSlotIndex: number,
-) {
-  const shipPartSlot = current.shipPartSlots[shipPartSlotIndex]
-  const routeCard = shipPartSlot ? current.cards[shipPartSlot.cardId] : null
-
-  if (
-    !shipPartSlot ||
-    shipPartSlot.status !== 'available' ||
-    !routeCard ||
-    !sourceStack.cardIds.includes(shipPartSlot.cardId) ||
-    !isSectorHorizonFinished(current)
-  ) {
-    return current
-  }
-
-  if (shipPartSlot.shipPart === 'medbay-rehydrator' && current.tiredCardIds.length === 0) {
-    return current
-  }
-
-  const nextZ = current.topZ + 1
-  const readyResult = shipPartSlot.shipPart === 'medbay-rehydrator'
-    ? readyTiredCrew(current.handCardIds, current.tiredCardIds, 1)
-    : null
-  const routePosition = getRouteStackPosition(shipPartSlot.routeSlotIndex)
-  const nextShipPartSlots = current.shipPartSlots.map((slot, index) => (
-    index === shipPartSlotIndex
-      ? { ...slot, status: 'spent' as const, spentSector: current.currentSector }
-      : slot
-  ))
-  const stacksWithoutShipPart = current.stacks.flatMap((stack) => {
-    if (stack.id !== sourceStack.id) {
-      return [stack]
-    }
-
-    const keptCardIds = stack.cardIds.filter((cardId) => cardId !== shipPartSlot.cardId)
-
-    return keptCardIds.length > 0
-      ? [{ ...stack, cardIds: keptCardIds, z: nextZ }]
-      : []
-  })
-  const returnedStackId = getDrawnRouteStackId(
-    stacksWithoutShipPart,
-    shipPartSlot.routeSlotIndex,
-    shipPartSlot.cardId,
-  )
-
-  return withPlaytestEvents({
-    ...current,
-    topZ: nextZ,
-    dropTargetStackId: null,
-    dropTargetDeckId: null,
-    shipPartSlots: nextShipPartSlots,
-    handCardIds: readyResult?.handCardIds ?? current.handCardIds,
-    tiredCardIds: readyResult?.tiredCardIds ?? current.tiredCardIds,
-    stacks: [
-      ...stacksWithoutShipPart,
-      {
-        id: returnedStackId,
-        cardIds: [shipPartSlot.cardId],
-        x: routePosition.x,
-        y: routePosition.y,
-        z: nextZ,
-      },
-    ],
-  }, shipPartSpentEvent(routeCard, shipPartSlot.routeSlotIndex, shipPartSlot.shipPart))
-}
-
 export function completeStackActionUpdate(
   stackId: string,
   actionId: string,
@@ -1491,10 +1514,6 @@ export function completeStackActionUpdate(
 
     if (action.kind === 'pass-gate') {
       return completeReadyGateStack(current, stackId)
-    }
-
-    if (action.kind === 'use-ship-part' && action.shipPartSlotIndex !== undefined) {
-      return completeShipPartStackAction(current, sourceStack, action.shipPartSlotIndex)
     }
 
     return current
@@ -1589,6 +1608,43 @@ export function activateStackDragUpdate({
       nextBoard,
       stackSplitEvent(sourceStack.id, activeId, movingCardIds, current.cards),
     )
+  }
+}
+
+export function toggleCardFaceUpdate(stackId: string, cardId: string): BoardUpdater {
+  return (current) => {
+    if (
+      current.hasArrived ||
+      current.lossReason ||
+      current.pendingWakeChoice ||
+      current.pendingScoutChoice
+    ) {
+      return current
+    }
+
+    const stack = current.stacks.find((candidate) => candidate.id === stackId)
+    const card = current.cards[cardId]
+
+    if (!stack || !stack.cardIds.includes(cardId) || !canManuallyFlipCard(card)) {
+      return current
+    }
+
+    const nextCard = { ...card, faceUp: !card.faceUp }
+
+    const nextBoard = {
+      ...current,
+      dropTargetStackId: null,
+      dropTargetDeckId: null,
+      cards: {
+        ...current.cards,
+        [cardId]: nextCard,
+      },
+    }
+    const loss = nextCard.faceUp
+      ? resolveGateLossIfNeeded(nextBoard)
+      : { board: nextBoard, events: [] }
+
+    return withPlaytestEvents(loss.board, [cardFlippedEvent(nextCard, stack.id), ...loss.events])
   }
 }
 
@@ -1856,12 +1912,16 @@ export function chooseWakeCrewUpdate(cardId: string): BoardUpdater {
       cards: nextCards,
       decks: nextDecks,
     }
-    const followUpLoss = isSectorHorizonFinished(nextBoard)
-      ? resolveGateLossIfNeeded(nextBoard)
-      : resolveSectorStrandedLossIfNeeded(nextBoard)
+    const automaticShipParts = isSectorHorizonFinished(nextBoard)
+      ? applyAutomaticGateShipParts(nextBoard)
+      : { board: nextBoard, events: [] as PlaytestLogEvent[] }
+    const followUpLoss = isSectorHorizonFinished(automaticShipParts.board)
+      ? resolveGateLossIfNeeded(automaticShipParts.board)
+      : resolveSectorStrandedLossIfNeeded(automaticShipParts.board)
 
     return withPlaytestEvents(followUpLoss.board, [
       wakeCrewRecruitedEvent(chosenCard, unchosenCardIds, current.cards, wakeReadyResult.readiedCrewCardIds),
+      ...automaticShipParts.events,
       ...followUpLoss.events,
     ])
   }
@@ -1930,16 +1990,22 @@ export function confirmScoutChoiceUpdate(current: BoardState) {
         : deck,
     ),
   }
-  const strandedLoss = resolveSectorStrandedLossIfNeeded(scoutBoard)
+  const automaticShipParts = isSectorHorizonFinished(scoutBoard)
+    ? applyAutomaticGateShipParts(scoutBoard)
+    : { board: scoutBoard, events: [] as PlaytestLogEvent[] }
+  const followUpLoss = isSectorHorizonFinished(automaticShipParts.board)
+    ? resolveGateLossIfNeeded(automaticShipParts.board)
+    : resolveSectorStrandedLossIfNeeded(automaticShipParts.board)
 
-  return withPlaytestEvents(strandedLoss.board, [
+  return withPlaytestEvents(followUpLoss.board, [
     scoutUsedEvent(
       pendingScoutChoice.choiceCardIds,
       keptCardId,
       bottomedCardIds,
       current.cards,
     ),
-    ...strandedLoss.events,
+    ...automaticShipParts.events,
+    ...followUpLoss.events,
   ])
 }
 
@@ -2237,10 +2303,7 @@ export function stackOnDropTargetUpdate(
     const sourceIsRouteOnly = stackContainsOnlyRouteCards(sourceStack, current.routeSlots, current.shipPartSlots)
     const targetIsRouteOnly = stackContainsOnlyRouteCards(targetStack, current.routeSlots, current.shipPartSlots)
 
-    if (sourceIsRouteOnly && (
-      targetIsRouteOnly ||
-      canStackForPotentialAction(current, sourceStack, targetStack)
-    )) {
+    if (sourceIsRouteOnly && targetIsRouteOnly) {
       const nextZ = current.topZ + 1
 
       return withPlaytestEvents({

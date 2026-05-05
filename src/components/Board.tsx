@@ -3,7 +3,7 @@ import {
   type Ref,
 } from 'react'
 import { getNextStopFuelDiscount } from '../game/effects'
-import type { BoardState } from '../game/types'
+import type { BoardState, ShipPartKind } from '../game/types'
 import {
   ArrivalDialog,
   LossDialog,
@@ -14,7 +14,6 @@ import {
   InstructionsPanel,
   ShipPartsPanel,
   StressTracker,
-  TurnPanel,
 } from './BoardPanels'
 import { CardStack } from './CardStack'
 import { getStackActions } from '../game/stackActions'
@@ -37,6 +36,14 @@ import type { SharedDragPreview } from '../realtime/types'
 
 type BoardView = BoardState
 
+function countSpentShipParts(board: BoardView, shipPart: ShipPartKind) {
+  return board.shipPartSlots.reduce((count, slot) => (
+    slot.shipPart === shipPart && slot.status === 'spent' && slot.spentSector === board.currentSector
+      ? count + 1
+      : count
+  ), 0)
+}
+
 type BoardProps = {
   board: BoardView
   boardRef: Ref<HTMLDivElement>
@@ -45,6 +52,7 @@ type BoardProps = {
   activeDeckIds: readonly string[]
   activeHandCardIds: readonly string[]
   handInsertPreview: HandInsertPreview | null
+  endTurnAttentionKey: number
   sharedDrag: SharedDragPreview | null
   canInteract: boolean
   stackOffsetRatio: number
@@ -73,6 +81,7 @@ export function Board({
   activeDeckIds,
   activeHandCardIds,
   handInsertPreview,
+  endTurnAttentionKey,
   sharedDrag,
   canInteract,
   stackOffsetRatio,
@@ -93,7 +102,14 @@ export function Board({
   onResetGame,
 }: BoardProps) {
   const isGameOver = board.hasArrived || Boolean(board.lossReason)
+  const canEndTurn = canInteract &&
+    !board.hasArrived &&
+    !board.lossReason &&
+    !board.pendingWakeChoice &&
+    !board.pendingScoutChoice
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
+  const gateCrewSlotDiscount = countSpentShipParts(board, 'service-drone-bay')
+  const gateIconDiscount = countSpentShipParts(board, 'adaptive-control-console')
   const traveledStopCardIds = new Set([
     ...board.routeSlots.flatMap((routeSlot) => routeSlot ? [routeSlot.cardId] : []),
     ...board.shipPartSlots.map((slot) => slot.cardId),
@@ -110,11 +126,6 @@ export function Board({
     >
       <InstructionsPanel totalSectors={board.totalSectors} />
       <div className="board-status-area" aria-label="Board status">
-        <TurnPanel
-          board={board}
-          canInteract={canInteract}
-          onEndTurn={onEndTurn}
-        />
         <StressTracker stressCount={board.stressCount} />
         <ShipPartsPanel board={board} />
       </div>
@@ -153,6 +164,8 @@ export function Board({
           stackOffsetRatio={stackOffsetRatio}
           fuelDiscount={fuelDiscount}
           stressCount={board.stressCount}
+          gateCrewSlotDiscount={gateCrewSlotDiscount}
+          gateIconDiscount={gateIconDiscount}
           traveledStopCardIds={traveledStopCardIds}
           actions={canInteract ? getStackActions(board, stack) : []}
           onStackAction={onStackAction}
@@ -168,7 +181,10 @@ export function Board({
         cards={board.cards}
         activeCardIds={activeHandCardIds}
         insertPreview={handInsertPreview}
+        endTurnAttentionKey={endTurnAttentionKey}
         canInteract={canInteract}
+        canEndTurn={canEndTurn}
+        onEndTurn={onEndTurn}
         onCardPointerDown={onHandCardPointerDown}
         onCardKeyDown={onHandCardKeyDown}
       />

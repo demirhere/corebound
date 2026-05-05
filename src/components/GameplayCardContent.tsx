@@ -28,6 +28,21 @@ function renderIconPips(
   return icons.map((icon, index) => <GameIcon key={`${keyPrefix}-${icon}-${index}`} kind={icon} />)
 }
 
+function renderRemovedNeedIcon(
+  icon: RequirementIconKind | ResourceKind | 'person',
+  key: string,
+  title: string,
+) {
+  return (
+    <span key={key} className="removed-need-icon" title={title}>
+      <GameIcon kind={icon} />
+      <svg className="removed-need-scribble" viewBox="0 0 44 30" focusable="false" aria-hidden="true">
+        <path d="M3.8 17c5.2-4.4 9.8 3.7 15.3-.3 5.5-4.1 10.4 3.3 16.1-.6 2.7-1.9 4.7-2.1 6.5-.7" />
+      </svg>
+    </span>
+  )
+}
+
 function renderFuelNeed(printedFuel: number, currentFuelCost: number, keyPrefix: string) {
   const removedFuelCount = printedFuel - currentFuelCost
 
@@ -36,12 +51,7 @@ function renderFuelNeed(printedFuel: number, currentFuelCost: number, keyPrefix:
       <GameIcon key={`${keyPrefix}-fuel-${index}`} kind="fuel" />
     )),
     ...Array.from({ length: removedFuelCount }, (_, index) => (
-      <span key={`${keyPrefix}-removed-fuel-${index}`} className="removed-need-icon" title="Fuel removed by Destination effect">
-        <GameIcon kind="fuel" />
-        <svg className="removed-need-scribble" viewBox="0 0 44 30" focusable="false" aria-hidden="true">
-          <path d="M3.8 17c5.2-4.4 9.8 3.7 15.3-.3 5.5-4.1 10.4 3.3 16.1-.6 2.7-1.9 4.7-2.1 6.5-.7" />
-        </svg>
-      </span>
+      renderRemovedNeedIcon('fuel', `${keyPrefix}-removed-fuel-${index}`, 'Fuel removed by Destination effect')
     )),
   ]
 }
@@ -221,6 +231,44 @@ function renderCrewNeed(count: number, keyPrefix: string, className = '') {
   ))
 }
 
+function renderGateCrewNeed(
+  baseCrewCount: number,
+  stressCrewCount: number,
+  coveredCrewSlots: number,
+  keyPrefix: string,
+) {
+  const totalCrewCount = baseCrewCount + stressCrewCount
+  const removedCrewCount = Math.min(Math.max(0, coveredCrewSlots), totalCrewCount)
+  const activeCrewCount = totalCrewCount - removedCrewCount
+  const activeBaseCrewCount = Math.min(baseCrewCount, activeCrewCount)
+  const activeStressCrewCount = Math.max(0, activeCrewCount - activeBaseCrewCount)
+
+  return [
+    ...renderCrewNeed(activeBaseCrewCount, `${keyPrefix}-base`),
+    ...renderCrewNeed(activeStressCrewCount, `${keyPrefix}-stress`, 'gate-extra-crew-icon'),
+    ...Array.from({ length: removedCrewCount }, (_, index) => (
+      renderRemovedNeedIcon('person', `${keyPrefix}-removed-${index}`, 'Crew slot filled by Service Drone Bay')
+    )),
+  ]
+}
+
+function renderGateIconNeed(
+  icons: readonly RequirementIconKind[],
+  coveredIconCount: number,
+  keyPrefix: string,
+) {
+  const removedIconCount = Math.min(Math.max(0, coveredIconCount), icons.length)
+  const activeIcons = icons.slice(0, icons.length - removedIconCount)
+  const removedIcons = icons.slice(activeIcons.length)
+
+  return [
+    ...renderIconPips(activeIcons, `${keyPrefix}-active`),
+    ...removedIcons.map((icon, index) => (
+      renderRemovedNeedIcon(icon, `${keyPrefix}-removed-${icon}-${index}`, 'Icon covered by Adaptive Control Console')
+    )),
+  ]
+}
+
 function renderFuelCellContent(card: Card) {
   return (
     <>
@@ -264,7 +312,13 @@ function renderGatePenalty(gate: GateDetails, stressCount: number) {
   )
 }
 
-export function renderGameplayCardContent(card: Card, fuelDiscount: number, stressCount: number) {
+export function renderGameplayCardContent(
+  card: Card,
+  fuelDiscount: number,
+  stressCount: number,
+  gateCrewSlotDiscount = 0,
+  gateIconDiscount = 0,
+) {
   if (card.kind === 'resource' && card.resource) {
     if (card.resource === 'fuel') {
       return renderFuelCellContent(card)
@@ -315,27 +369,35 @@ export function renderGameplayCardContent(card: Card, fuelDiscount: number, stre
   }
 
   if (card.kind === 'gate' && card.gate) {
+    const stressCrewCount = stressCount >= card.gate.motherPenalty.threshold
+      ? card.gate.motherPenalty.extraHumanCrew
+      : 0
+    const hasShipPartDiscount = gateCrewSlotDiscount > 0 || gateIconDiscount > 0
+
     return (
       <>
         <p className="card-kicker">{card.gate.label}</p>
         <div className="card-rule-row card-gate-section">
           <span>Crew slots</span>
           <div className="card-rule-icons">
-            {renderCrewNeed(card.gate.need.crew, `${card.id}-gate-crew-need`)}
-            {stressCount >= card.gate.motherPenalty.threshold && renderCrewNeed(
-              card.gate.motherPenalty.extraHumanCrew,
-              `${card.id}-gate-stress-crew-need`,
-              'gate-extra-crew-icon',
+            {renderGateCrewNeed(
+              card.gate.need.crew,
+              stressCrewCount,
+              gateCrewSlotDiscount,
+              `${card.id}-gate-crew-need`,
             )}
           </div>
         </div>
         <div className="card-rule-row card-gate-section">
           <span>Icons needed</span>
           <div className="card-rule-icons">
-            {renderIconPips(card.gate.need.icons, `${card.id}-gate-icon-need`)}
+            {renderGateIconNeed(card.gate.need.icons, gateIconDiscount, `${card.id}-gate-icon-need`)}
           </div>
         </div>
         {renderGatePenalty(card.gate, stressCount)}
+        {hasShipPartDiscount && (
+          <p className="card-rule-text sector-card-discount">Ship Parts auto-scribble Gate needs.</p>
+        )}
         <p className="card-rule-text">Finish after 3 traveled Destinations. MOTHER and Adaptive Control Consoles cover icons only.</p>
       </>
     )

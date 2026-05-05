@@ -608,13 +608,13 @@ export function sectorRevealedEvent(
 
   return {
     type: 'sector.revealed',
-    message: `Sector ${sector} revealed: ${describeCard(gateCard, gateCard.id)}; Sector Deck reset with ${horizonCards.length} Destinations.`,
+    message: `Sector ${sector} prepared: Sector Gate placed face down; Sector ${sector} Stops reset with ${horizonCards.length} Destinations.`,
     details: {
       sector,
       gateCardId: gateCard.id,
-      gateTitle: gateCard.title,
-      gateSummary: describeCard(gateCard, gateCard.id),
-      gateContent: cardContent(gateCard),
+      gateTitle: 'Sector Gate',
+      gateSummary: `Sector Gate (${gateCard.id}) face down`,
+      gateFaceUp: gateCard.faceUp,
       horizonCardCount: horizonCards.length,
       horizonSummaries,
       horizonContents: horizonCards.map(cardContent),
@@ -639,7 +639,7 @@ export function scoutUsedEvent(
     message: [
       'scout.used:',
       `looked at: ${lookedAtTitles.join(', ') || 'none'}`,
-      `kept on top of Sector Deck: ${keptOnTopTitle}`,
+      `kept on top of Sector Stops: ${keptOnTopTitle}`,
       `bottomed: ${bottomedTitles.join(', ') || 'none'}`,
     ].join('\n'),
     details: {

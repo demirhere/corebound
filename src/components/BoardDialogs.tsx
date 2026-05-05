@@ -200,7 +200,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: {
           <section className="how-to-play-wide-section">
             <h3>Core Loop</h3>
             <ol>
-              <li>Click the Sector Deck once per turn to reveal 3 Map Destinations.</li>
+              <li>Click Sector Stops once per turn to reveal 3 Map Destinations.</li>
               <li>Pick 1 Destination and drag payment onto it.</li>
               <li>Match all printed <GameIcon kind="fuel" /> and crew-icon requirements.</li>
               <li>Click the stack action button. Used crew become <GameIcon kind="tired-person" />.</li>
@@ -222,7 +222,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: {
             <h3>Finds</h3>
             <div className="how-to-play-find-types">
               <p><strong>Immediate Benefit</strong> resolves now.</p>
-              <p><strong>Ship Part</strong> stays for a Gate. Parts can ready crew, fill a crew slot, or cover an icon.</p>
+              <p><strong>Ship Part</strong> stays for a Gate. Parts automatically ready crew, fill a crew slot, or cover an icon.</p>
             </div>
           </section>
 
@@ -393,7 +393,7 @@ function isScoutChoiceComplete(scoutChoice: NonNullable<BoardView['pendingScoutC
 
 function getScoutInstruction(scoutChoice: NonNullable<BoardView['pendingScoutChoice']>) {
   if (scoutChoice.choiceCardIds.length === 1) {
-    return 'Only 1 card is available. Confirm to leave it on top of the Sector Deck.'
+    return 'Only 1 card is available. Confirm to leave it on top of Sector Stops.'
   }
 
   if (isScoutChoiceComplete(scoutChoice)) {
@@ -448,7 +448,7 @@ export function ScoutChoiceDialog({
         aria-labelledby="scout-choice-title"
       >
         <p className="arrival-kicker">Scout</p>
-        <h2 id="scout-choice-title">Set the Sector Deck</h2>
+        <h2 id="scout-choice-title">Set Sector Stops</h2>
         <p>{getScoutInstruction(scoutChoice)}</p>
         <div className="scout-choice-cards">
           {scoutChoiceCards.map((card, index) => {

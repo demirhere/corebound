@@ -33,6 +33,8 @@ type BoardCardProps = {
   stackOffsetRatio: number
   fuelDiscount: number
   stressCount: number
+  gateCrewSlotDiscount: number
+  gateIconDiscount: number
   isTraveledStop?: boolean
   onPointerDown: CardPointerDownHandler
   onKeyDown: CardKeyDownHandler
@@ -45,6 +47,8 @@ type CardShellProps = {
   isActive?: boolean
   fuelDiscount?: number
   stressCount?: number
+  gateCrewSlotDiscount?: number
+  gateIconDiscount?: number
   isTraveledStop?: boolean
   ariaLabel: string
   motionCardId?: string
@@ -61,6 +65,8 @@ export function CardShell({
   isActive = false,
   fuelDiscount = 0,
   stressCount = 0,
+  gateCrewSlotDiscount = 0,
+  gateIconDiscount = 0,
   isTraveledStop = false,
   ariaLabel,
   motionCardId,
@@ -72,7 +78,13 @@ export function CardShell({
   const isCrewCard = card.kind === 'crew'
   const sampledIcons = pickCardIcons(`${card.id}:${card.title}`)
   const noteLines = pickCardNote(`${card.id}:${card.title}`)
-  const gameplayContent = renderGameplayCardContent(card, fuelDiscount, stressCount)
+  const gameplayContent = renderGameplayCardContent(
+    card,
+    fuelDiscount,
+    stressCount,
+    gateCrewSlotDiscount,
+    gateIconDiscount,
+  )
   const resourceClass = card.kind === 'resource' && card.resource ? `card-resource-${card.resource}` : ''
   const horizonDetails = card.kind === 'horizon' ? card.horizon : undefined
   const horizonFindClass = horizonDetails
@@ -81,6 +93,7 @@ export function CardShell({
   const horizonBadge = horizonDetails?.find.kind === 'ship_part' ? 'Ship Part' : 'Resources'
   const headerTitle = horizonDetails ? horizonDetails.find.itemName : card.title
   const horizonHeaderDetail = horizonDetails ? renderSectorCardHeaderDetail(card) : null
+  const isGateCard = card.kind === 'gate'
 
   return (
     <div
@@ -147,7 +160,14 @@ export function CardShell({
         </article>
 
         <article className="card-face card-back" aria-hidden="true">
-          <DeckIcon kind={card.icon} className="back-mark" />
+          {isGateCard ? (
+            <span className="deck-title-lockup sector-gate-back-lockup">
+              <DeckIcon kind={card.icon} className="deck-mark-icon" />
+              <span className="deck-title">Sector Gate</span>
+            </span>
+          ) : (
+            <DeckIcon kind={card.icon} className="back-mark" />
+          )}
         </article>
       </div>
     </div>
@@ -163,16 +183,22 @@ export function BoardCard({
   stackOffsetRatio,
   fuelDiscount,
   stressCount,
+  gateCrewSlotDiscount,
+  gateIconDiscount,
   isTraveledStop = false,
   onPointerDown,
   onKeyDown,
 }: BoardCardProps) {
   const cardLabel = card.kind === 'horizon' && card.horizon
     ? `${card.horizon.find.itemName} at ${card.title}`
-    : card.title
+    : card.kind === 'gate' && !card.faceUp
+      ? 'Sector Gate'
+      : card.title
   const ariaLabel = isTraveledStop
     ? `${cardLabel}. Traveled destination in the route area. Drag to organize traveled destinations.`
-    : `${cardLabel}. Drag to move this part of the stack.`
+    : card.kind === 'gate'
+      ? `${cardLabel}. Click to flip ${card.faceUp ? 'face down' : 'face up'}, or drag to move this part of the stack.`
+      : `${cardLabel}. Drag to move this part of the stack.`
 
   return (
     <CardShell
@@ -181,6 +207,8 @@ export function BoardCard({
       canInteract={canInteract}
       fuelDiscount={fuelDiscount}
       stressCount={stressCount}
+      gateCrewSlotDiscount={gateCrewSlotDiscount}
+      gateIconDiscount={gateIconDiscount}
       isTraveledStop={isTraveledStop}
       motionCardId={card.id}
       style={

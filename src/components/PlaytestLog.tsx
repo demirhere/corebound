@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   formatPlaytestLog,
   type PlaytestLogEntry,
@@ -11,6 +11,7 @@ type PlaytestLogProps = {
   entries: readonly PlaytestLogEntry[]
   previousSessions: readonly PlaytestLogSession[]
   canControl: boolean
+  networkControl?: ReactNode
   onShowHowToPlay: () => void
   onResetGame: () => void
 }
@@ -33,6 +34,7 @@ export function PlaytestLog({
   entries,
   previousSessions,
   canControl,
+  networkControl,
   onShowHowToPlay,
   onResetGame,
 }: PlaytestLogProps) {
@@ -123,6 +125,7 @@ export function PlaytestLog({
         >
           Log
         </button>
+        {networkControl}
       </div>
 
       {isOpen ? (

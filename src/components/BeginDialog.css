@@ -1,0 +1,34 @@
+.begin-dialog {
+  display: grid;
+  place-items: center;
+}
+
+.begin-dialog .begin-dialog-button {
+  z-index: 2;
+  gap: clamp(10px, 1.2vw, 18px);
+  font-size: clamp(30px, 4.8vw, 72px);
+  transform: rotate(-2.2deg);
+}
+
+.begin-dialog .begin-dialog-button::before,
+.begin-dialog .begin-dialog-button::after {
+  display: none;
+}
+
+.begin-dialog-rocket {
+  width: clamp(44px, 5.2vw, 82px);
+  height: clamp(44px, 5.2vw, 82px);
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.7;
+  filter: drop-shadow(0 0 10px rgba(77, 111, 194, 0.62));
+  transform: rotate(-8deg);
+}
+
+.begin-dialog .begin-dialog-button:hover,
+.begin-dialog .begin-dialog-button:focus-visible {
+  transform: translateY(-3px) rotate(-2.2deg);
+}

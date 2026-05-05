@@ -32,6 +32,7 @@ import {
   promoteHandCardToStackUpdate,
   reorderHandCardUpdate,
   stackOnDropTargetUpdate,
+  toggleCardFaceUpdate,
 } from '../board/boardUpdaters'
 import {
   animateHandDragTransformToSlot,
@@ -61,6 +62,12 @@ import {
   getCardHandZone,
   getHandCardIds,
 } from '../board/handState'
+import { isRouteFilled } from '../board/routeState'
+import { getVisibleHorizonCards } from '../game/boardQueries'
+import {
+  canManuallyDrawDeck,
+  HORIZON_DECK_ID,
+} from '../game/decks'
 import {
   clamp,
 } from '../game/geometry'
@@ -99,6 +106,7 @@ export function useBoardInteractions({
   const [activeDeckIds, setActiveDeckIds] = useState<string[]>([])
   const [activeHandCardIds, setActiveHandCardIds] = useState<string[]>([])
   const [handInsertPreview, setHandInsertPreview] = useState<HandInsertPreview | null>(null)
+  const [endTurnAttentionKey, setEndTurnAttentionKey] = useState(0)
 
   function resetInteractions() {
     if (dragFrameRef.current !== null) {
@@ -142,6 +150,7 @@ export function useBoardInteractions({
     setActiveDeckIds([])
     setActiveHandCardIds([])
     setHandInsertPreview(null)
+    setEndTurnAttentionKey(0)
   }
 
   useLayoutEffect(() => {
@@ -895,7 +904,28 @@ export function useBoardInteractions({
   }
 
   function drawFromDeck(deckId: string) {
+    if (shouldPromptEndTurnForSectorDraw(deckId)) {
+      setEndTurnAttentionKey((key) => key + 1)
+    }
+
     setBoard(drawFromDeckUpdate(deckId, readBoardMetrics()))
+  }
+
+  function shouldPromptEndTurnForSectorDraw(deckId: string) {
+    const current = boardStateRef.current
+    const deck = current.decks.find((candidate) => candidate.id === deckId)
+
+    return (
+      deckId === HORIZON_DECK_ID &&
+      !current.hasArrived &&
+      !current.lossReason &&
+      !current.pendingWakeChoice &&
+      !current.pendingScoutChoice &&
+      Boolean(deck && canManuallyDrawDeck(deck) && deck.cards.length > 0) &&
+      current.sectorDrawnThisTurn &&
+      getVisibleHorizonCards(current).length === 0 &&
+      !isRouteFilled(current.routeSlots)
+    )
   }
 
   function chooseWakeCrew(cardId: string) {
@@ -1016,6 +1046,10 @@ export function useBoardInteractions({
 
   function addStackToHand(sourceStackId: string, zone: HandZone, insertIndex: number | null) {
     setBoard(addStackToHandUpdate(sourceStackId, zone, insertIndex))
+  }
+
+  function toggleCardFace(stackId: string, cardId: string) {
+    setBoard(toggleCardFaceUpdate(stackId, cardId))
   }
 
   function beginStackDrag(
@@ -1363,6 +1397,7 @@ export function useBoardInteractions({
       }
 
       if (preparation === 'idle') {
+        toggleCardFace(drag.stackId, drag.cardId)
         return
       }
 
@@ -1545,10 +1580,18 @@ export function useBoardInteractions({
     clearDropTarget()
   }
 
-  function handleCardKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
-    if (event.key === ' ') {
-      event.preventDefault()
+  function handleCardKeyDown(event: ReactKeyboardEvent<HTMLDivElement>, stackId: string, cardId: string) {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return
     }
+
+    event.preventDefault()
+
+    if (boardStateRef.current.pendingWakeChoice || boardStateRef.current.pendingScoutChoice) {
+      return
+    }
+
+    toggleCardFace(stackId, cardId)
   }
 
   function handleDeckKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, deckId: string) {
@@ -1601,6 +1644,7 @@ export function useBoardInteractions({
     activeDeckIds,
     activeHandCardIds,
     handInsertPreview,
+    endTurnAttentionKey,
     stackOffsetRatio: STACK_OFFSET_RATIO,
     onPointerMove: moveActiveDrag,
     onPointerUp: finishActiveDrag,

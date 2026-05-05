@@ -11,14 +11,14 @@ export function InstructionsPanel({ totalSectors }: { totalSectors: number }) {
     <aside className="board-notes" aria-label="Quick play instructions" style={{ fontSize: 18 }}>
       <h2>Instructions</h2>
       <ol>
-        <li>Click the Sector Deck once per turn when the Map is empty</li>
+        <li>Click Sector Stops once per turn when the Map is empty</li>
         <li>Stack cards to make actions appear</li>
         <li>Engineer + Scientist can Draw fuel</li>
         <li>Pay a Destination, then click Travel</li>
         <li>Used crew move to Tired</li>
         <li>Immediate Benefit resolves now; Ship Part waits for the Gate</li>
         <li>Discard the other Map Destinations, then end turn</li>
-        <li>After 3 Destinations, stack Ship Parts, crew, and MOTHER on the Gate</li>
+        <li>After 3 Destinations, Ship Parts apply automatically, then stack crew and MOTHER on the Gate</li>
         <li>Clear Sector {totalSectors} to win</li>
       </ol>
     </aside>
@@ -62,39 +62,6 @@ export function ShipPartsPanel({ board }: ShipPartsPanelProps) {
         ))}
       </div>
     </section>
-  )
-}
-
-type TurnPanelProps = {
-  board: BoardView
-  canInteract: boolean
-  onEndTurn: () => void
-}
-
-export function TurnPanel({ board, canInteract, onEndTurn }: TurnPanelProps) {
-  const canEndTurn = canInteract &&
-    !board.hasArrived &&
-    !board.lossReason &&
-    !board.pendingWakeChoice &&
-    !board.pendingScoutChoice
-  const sectorDrawText = board.sectorDrawnThisTurn ? 'Sector draw used' : 'Sector draw ready'
-
-  return (
-    <aside className="turn-area" aria-label="Turn" style={{ fontSize: 18 }}>
-      <p>
-        <span>Turn {board.turnNumber}</span>
-        <em>{sectorDrawText}</em>
-      </p>
-      <button
-        type="button"
-        disabled={!canEndTurn}
-        onPointerDown={(event) => event.stopPropagation()}
-        onClick={onEndTurn}
-        style={{ fontSize: 18 }}
-      >
-        End turn
-      </button>
-    </aside>
   )
 }
 
