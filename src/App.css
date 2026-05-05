@@ -919,6 +919,12 @@
   }
 }
 
+.card-shell[aria-disabled='true'],
+.deck-card[aria-disabled='true'] {
+  pointer-events: none;
+  cursor: default;
+}
+
 .scout-choice-panel {
   width: min(760px, calc(100vw - 32px));
   max-height: min(86svh, 780px);
@@ -1021,10 +1027,102 @@
   cursor: pointer;
 }
 
+.playtest-log-toggle:disabled,
+.playtest-log-reset:disabled,
+.playtest-log-copy:disabled,
+.playtest-log-download:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.75);
+  opacity: 0.48;
+}
+
 .playtest-log-controls {
   display: flex;
   gap: 8px;
   pointer-events: auto;
+}
+
+.realtime-panel {
+  position: fixed;
+  right: clamp(10px, 1.6vw, 18px);
+  bottom: clamp(10px, 1.6vw, 18px);
+  z-index: 1400;
+  display: grid;
+  gap: 8px;
+  min-width: 190px;
+  padding: 10px;
+  border: 1px solid rgba(246, 241, 223, 0.2);
+  border-radius: 18px;
+  color: #fff8e8;
+  background:
+    linear-gradient(180deg, rgba(15, 20, 42, 0.91), rgba(5, 7, 19, 0.94)),
+    radial-gradient(circle at 14% 0%, rgba(115, 255, 214, 0.16), transparent 42%);
+  box-shadow:
+    0 18px 34px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.realtime-status-row,
+.realtime-room-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.realtime-role,
+.realtime-status,
+.realtime-room-row span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+}
+
+.realtime-role,
+.realtime-status {
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.realtime-role {
+  border: 1px solid rgba(246, 241, 223, 0.22);
+  color: rgba(255, 248, 232, 0.76);
+}
+
+.realtime-status {
+  color: #071024;
+  background: #ffcf8a;
+}
+
+.realtime-status-connected {
+  background: #73ffd6;
+}
+
+.realtime-status-error {
+  background: #ff8a9b;
+}
+
+.realtime-room-row {
+  color: rgba(255, 248, 232, 0.74);
+  letter-spacing: 0.03em;
+  text-transform: none;
+}
+
+.realtime-share {
+  justify-self: stretch;
+  padding: 8px 10px;
+  border: 1px solid rgba(115, 255, 214, 0.4);
+  border-radius: 999px;
+  color: #fff8e8;
+  background: rgba(115, 255, 214, 0.12);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
 }
 
 .playtest-log-toggle {

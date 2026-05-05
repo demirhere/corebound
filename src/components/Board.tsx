@@ -31,6 +31,7 @@ import {
   type HandKeyDownHandler,
   type HandPointerDownHandler,
 } from './Hand'
+import type { SharedDragPreview } from '../realtime/types'
 
 type BoardView = BoardState
 
@@ -42,6 +43,8 @@ type BoardProps = {
   activeDeckIds: readonly string[]
   activeHandCardIds: readonly string[]
   handInsertPreview: HandInsertPreview | null
+  sharedDrag: SharedDragPreview | null
+  canInteract: boolean
   stackOffsetRatio: number
   onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void
   onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void
@@ -67,6 +70,8 @@ export function Board({
   activeDeckIds,
   activeHandCardIds,
   handInsertPreview,
+  sharedDrag,
+  canInteract,
   stackOffsetRatio,
   onPointerMove,
   onPointerUp,
@@ -104,6 +109,7 @@ export function Board({
         <StressTracker stressCount={board.stressCount} />
         <ShipPartsPanel
           board={board}
+          canInteract={canInteract}
           onRouteShipPartUse={onRouteShipPartUse}
         />
       </div>
@@ -115,6 +121,12 @@ export function Board({
             deck={deck}
             isActive={activeDeckIds.includes(deck.id)}
             isDropTarget={board.dropTargetDeckId === deck.id}
+            canInteract={canInteract}
+            sharedPosition={
+              sharedDrag?.kind === 'deck' && sharedDrag.deckId === deck.id
+                ? { x: sharedDrag.x, y: sharedDrag.y }
+                : null
+            }
             onPointerDown={onDeckPointerDown}
             onKeyDown={onDeckKeyDown}
           />
@@ -127,6 +139,12 @@ export function Board({
           cards={board.cards}
           isDropTarget={board.dropTargetStackId === stack.id}
           isActive={activeStackIds.includes(stack.id)}
+          canInteract={canInteract}
+          sharedPosition={
+            sharedDrag?.kind === 'stack' && sharedDrag.stackId === stack.id
+              ? { x: sharedDrag.x, y: sharedDrag.y }
+              : null
+          }
           stackOffsetRatio={stackOffsetRatio}
           fuelDiscount={fuelDiscount}
           stressCount={board.stressCount}
@@ -143,20 +161,27 @@ export function Board({
         cards={board.cards}
         activeCardIds={activeHandCardIds}
         insertPreview={handInsertPreview}
+        canInteract={canInteract}
         onCardPointerDown={onHandCardPointerDown}
         onCardKeyDown={onHandCardKeyDown}
       />
 
-      <ArrivalDialog hasArrived={board.hasArrived} onResetGame={onResetGame} />
-      <LossDialog board={board} onResetGame={onResetGame} />
+      <ArrivalDialog
+        hasArrived={board.hasArrived}
+        onResetGame={onResetGame}
+        canReset={canInteract}
+      />
+      <LossDialog board={board} onResetGame={onResetGame} canReset={canInteract} />
       <WakeChoiceDialog
         board={board}
         isGameOver={isGameOver}
+        canInteract={canInteract}
         onWakeCrewChoice={onWakeCrewChoice}
       />
       <ScoutChoiceDialog
         board={board}
         isGameOver={isGameOver}
+        canInteract={canInteract}
         onScoutCardChoice={onScoutCardChoice}
         onScoutChoiceConfirm={onScoutChoiceConfirm}
       />

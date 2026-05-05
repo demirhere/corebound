@@ -115,9 +115,10 @@ function HowToPlayChip({ icon, label }: { icon: GameIconKind; label: string }) {
   )
 }
 
-export function HowToPlayDialog({ isOpen, onClose }: {
+export function HowToPlayDialog({ isOpen, onClose, canClose }: {
   isOpen: boolean
   onClose: () => void
+  canClose: boolean
 }) {
   useEffect(() => {
     if (!isOpen) {
@@ -125,7 +126,7 @@ export function HowToPlayDialog({ isOpen, onClose }: {
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
+      if (canClose && event.key === 'Escape') {
         onClose()
       }
     }
@@ -133,7 +134,7 @@ export function HowToPlayDialog({ isOpen, onClose }: {
     window.addEventListener('keydown', handleKeyDown)
 
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, onClose])
+  }, [canClose, isOpen, onClose])
 
   if (!isOpen) {
     return null
@@ -143,7 +144,7 @@ export function HowToPlayDialog({ isOpen, onClose }: {
     <div
       className="dialog-overlay how-to-play-overlay"
       onPointerDown={(event) => {
-        if (event.target === event.currentTarget) {
+        if (canClose && event.target === event.currentTarget) {
           onClose()
         }
       }}
@@ -244,7 +245,7 @@ export function HowToPlayDialog({ isOpen, onClose }: {
           </section>
         </div>
 
-        <button type="button" autoFocus onClick={onClose}>
+        <button type="button" autoFocus onClick={onClose} disabled={!canClose}>
           Close Manual
         </button>
       </section>
@@ -252,9 +253,10 @@ export function HowToPlayDialog({ isOpen, onClose }: {
   )
 }
 
-export function ArrivalDialog({ hasArrived, onResetGame }: {
+export function ArrivalDialog({ hasArrived, onResetGame, canReset }: {
   hasArrived: boolean
   onResetGame: () => void
+  canReset: boolean
 }) {
   if (!hasArrived) {
     return null
@@ -266,7 +268,7 @@ export function ArrivalDialog({ hasArrived, onResetGame }: {
         <p className="arrival-kicker">Gate cleared</p>
         <h2>You arrived beyond the Dark Threshold.</h2>
         <p>Two-sector prototype complete. Restart to reshuffle both sectors and run it again.</p>
-        <button type="button" onClick={onResetGame}>
+        <button type="button" onClick={onResetGame} disabled={!canReset}>
           Restart and reshuffle
         </button>
       </section>
@@ -274,9 +276,10 @@ export function ArrivalDialog({ hasArrived, onResetGame }: {
   )
 }
 
-export function LossDialog({ board, onResetGame }: {
+export function LossDialog({ board, onResetGame, canReset }: {
   board: BoardView
   onResetGame: () => void
+  canReset: boolean
 }) {
   const loss = board.lossReason ? lossContent(board.lossReason) : null
 
@@ -307,7 +310,7 @@ export function LossDialog({ board, onResetGame }: {
             </div>
           ))}
         </dl>
-        <button type="button" onClick={onResetGame}>
+        <button type="button" onClick={onResetGame} disabled={!canReset}>
           New Run
         </button>
       </section>
@@ -323,9 +326,10 @@ function getWakeChoiceCards(board: BoardView) {
   }) ?? []
 }
 
-export function WakeChoiceDialog({ board, isGameOver, onWakeCrewChoice }: {
+export function WakeChoiceDialog({ board, isGameOver, canInteract, onWakeCrewChoice }: {
   board: BoardView
   isGameOver: boolean
+  canInteract: boolean
   onWakeCrewChoice: (cardId: string) => void
 }) {
   const wakeChoiceCards = getWakeChoiceCards(board)
@@ -351,6 +355,7 @@ export function WakeChoiceDialog({ board, isGameOver, onWakeCrewChoice }: {
               card={card}
               className="wake-choice-card"
               motionCardId={card.id}
+              canInteract={canInteract}
               ariaLabel={`Choose ${card.title}`}
               onPointerDown={(event) => {
                 event.preventDefault()
@@ -415,11 +420,13 @@ function getScoutFanStyle(cardIndex: number, cardCount: number) {
 export function ScoutChoiceDialog({
   board,
   isGameOver,
+  canInteract,
   onScoutCardChoice,
   onScoutChoiceConfirm,
 }: {
   board: BoardView
   isGameOver: boolean
+  canInteract: boolean
   onScoutCardChoice: (cardId: string) => void
   onScoutChoiceConfirm: () => void
 }) {
@@ -463,6 +470,7 @@ export function ScoutChoiceDialog({
                   card={card}
                   className={`wake-choice-card scout-choice-card ${isSelected ? 'is-scout-selected' : ''}`}
                   motionCardId={card.id}
+                  canInteract={canInteract}
                   ariaLabel={`${card.title}. ${ariaSelectionLabel}`}
                   onPointerDown={(event) => {
                     event.preventDefault()
@@ -484,7 +492,11 @@ export function ScoutChoiceDialog({
           })}
         </div>
         <div className="scout-choice-actions">
-          <button type="button" onClick={onScoutChoiceConfirm} disabled={!scoutChoiceComplete}>
+          <button
+            type="button"
+            onClick={onScoutChoiceConfirm}
+            disabled={!scoutChoiceComplete || !canInteract}
+          >
             Use Scout
           </button>
         </div>

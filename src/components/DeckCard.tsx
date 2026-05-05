@@ -13,6 +13,8 @@ type DeckCardProps = {
   deck: DeckCardView
   isActive: boolean
   isDropTarget: boolean
+  canInteract: boolean
+  sharedPosition: { x: number; y: number } | null
   onPointerDown: DeckPointerDownHandler
   onKeyDown: DeckKeyDownHandler
 }
@@ -31,10 +33,15 @@ export function DeckCard({
   deck,
   isActive,
   isDropTarget,
+  canInteract,
+  sharedPosition,
   onPointerDown,
   onKeyDown,
 }: DeckCardProps) {
   const canDraw = canManuallyDrawDeck(deck)
+  const isSharedActive = sharedPosition !== null
+  const displayX = sharedPosition?.x ?? deck.x
+  const displayY = sharedPosition?.y ?? deck.y
   const displayTitle = getDeckDisplayTitle(deck.title)
   const actionLabel = canDraw
     ? 'Click to draw or drag to move.'
@@ -44,7 +51,7 @@ export function DeckCard({
     <button
       type="button"
       className={`deck-card ${canDraw ? 'is-manual-draw' : 'is-automatic-reward'} ${
-        isActive ? 'is-being-dragged' : ''
+        isActive || isSharedActive ? 'is-being-dragged' : ''
       } ${
         isDropTarget ? 'is-drop-target' : ''
       }`}
@@ -53,13 +60,23 @@ export function DeckCard({
         {
           '--card-hue': String(deck.hue),
           '--card-accent': deck.accent,
-          left: `${deck.x}%`,
-          top: `${deck.y}%`,
-          zIndex: isActive ? 1101 : deck.z,
+          left: `${displayX}%`,
+          top: `${displayY}%`,
+          zIndex: isActive || isSharedActive ? 1101 : deck.z,
         } as CSSProperties
       }
-      onPointerDown={(event) => onPointerDown(event, deck.id)}
-      onKeyDown={(event) => onKeyDown(event, deck.id)}
+      tabIndex={canInteract ? 0 : -1}
+      aria-disabled={!canInteract}
+      onPointerDown={(event) => {
+        if (canInteract) {
+          onPointerDown(event, deck.id)
+        }
+      }}
+      onKeyDown={(event) => {
+        if (canInteract) {
+          onKeyDown(event, deck.id)
+        }
+      }}
       aria-label={`${displayTitle}. ${deck.cards.length} cards left. ${actionLabel}`}
     >
       <span className="deck-badge" aria-hidden="true">

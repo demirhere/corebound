@@ -32,6 +32,7 @@ type HandZoneAreaProps = {
   cards: Record<string, CardView>
   activeCardIds: ReadonlySet<string>
   insertPreview: HandInsertPreview | null
+  canInteract: boolean
   onCardPointerDown: HandPointerDownHandler
   onCardKeyDown: HandKeyDownHandler
   subtitle?: string
@@ -90,6 +91,7 @@ export function HandZoneArea({
   cards,
   activeCardIds,
   insertPreview,
+  canInteract,
   onCardPointerDown,
   onCardKeyDown,
   subtitle,
@@ -153,6 +155,7 @@ export function HandZoneArea({
                   card={card}
                   className="hand-card-shell"
                   isActive={isActive}
+                  canInteract={canInteract && zone === 'crew'}
                   ariaLabel={
                     zone === 'crew'
                       ? `${card.title}. Click to drop to the board or drag within Crew and to the board.`

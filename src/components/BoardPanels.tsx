@@ -45,10 +45,11 @@ export function InstructionsPanel({ totalSectors }: { totalSectors: number }) {
 
 type ShipPartsPanelProps = {
   board: BoardView
+  canInteract: boolean
   onRouteShipPartUse: (shipPartSlotIndex: number) => void
 }
 
-export function ShipPartsPanel({ board, onRouteShipPartUse }: ShipPartsPanelProps) {
+export function ShipPartsPanel({ board, canInteract, onRouteShipPartUse }: ShipPartsPanelProps) {
   const shipPartEntries = board.shipPartSlots.flatMap((shipPartSlot, index) => {
     const card = board.cards[shipPartSlot.cardId]
 
@@ -71,7 +72,7 @@ export function ShipPartsPanel({ board, onRouteShipPartUse }: ShipPartsPanelProp
       <h2>Ship Parts</h2>
       <div className="ship-part-list">
         {shipPartEntries.map(({ shipPartSlot, shipPartSlotIndex, card, shipPart, shipPartStatus, shipPartLabel }) => {
-          const canUseShipPart = canUseRouteShipPart(board, shipPartSlot)
+          const canUseShipPart = canInteract && canUseRouteShipPart(board, shipPartSlot)
 
           return (
             <article className={`ship-part-item is-${shipPartStatus}`} key={shipPartSlot.cardId}>

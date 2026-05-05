@@ -70,13 +70,19 @@ import type {
   DropTarget,
   HandZone,
 } from '../game/types'
+import type { SharedDragPreview } from '../realtime/types'
 
 type UseBoardInteractionsArgs = {
   board: BoardState
   setBoard: (update: BoardUpdater) => void
+  onSharedDragChange?: (drag: SharedDragPreview | null) => void
 }
 
-export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsArgs) {
+export function useBoardInteractions({
+  board,
+  setBoard,
+  onSharedDragChange,
+}: UseBoardInteractionsArgs) {
   const boardRef = useRef<HTMLDivElement>(null)
   const handRef = useRef<HTMLElement>(null)
   const dragsRef = useRef<Map<number, DragState>>(new Map())
@@ -643,6 +649,10 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
 
   function clearDropTarget() {
     setBoard(clearBoardDropTargetUpdate)
+  }
+
+  function shareDrag(drag: SharedDragPreview | null) {
+    onSharedDragChange?.(drag)
   }
 
   function activateStackDrag(drag: StackDragState) {
@@ -1235,6 +1245,15 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
 
     applyStackDragTransform(drag)
     updateStackDropTarget(drag)
+
+    if (drag.activeStackId) {
+      shareDrag({
+        kind: 'stack',
+        stackId: drag.activeStackId,
+        x: drag.latestX,
+        y: drag.latestY,
+      })
+    }
   }
 
   function moveDeckDrag(clientX: number, clientY: number, drag: DeckDragState) {
@@ -1253,6 +1272,12 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
 
     applyDeckDragTransform(drag)
     updateDeckDropTarget(drag)
+    shareDrag({
+      kind: 'deck',
+      deckId: drag.deckId,
+      x: drag.latestX,
+      y: drag.latestY,
+    })
   }
 
   function moveHandDrag(clientX: number, clientY: number, drag: HandDragState) {
@@ -1274,6 +1299,14 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
 
       if (stackDrag) {
         updateStackDropTarget(stackDrag)
+        if (stackDrag.activeStackId) {
+          shareDrag({
+            kind: 'stack',
+            stackId: stackDrag.activeStackId,
+            x: stackDrag.latestX,
+            y: stackDrag.latestY,
+          })
+        }
       }
 
       return
@@ -1320,6 +1353,7 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
       if (preparation === 'stale') {
         clearDropTarget()
         clearHandInsertPreview()
+        shareDrag(null)
         return
       }
 
@@ -1344,12 +1378,14 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
         if (dropTarget.discard) {
           clearDragTransform(drag.activeElement)
           discardStack(drag.activeStackId)
+          shareDrag(null)
           return
         }
 
         if (dropTarget.handZone) {
           clearDragTransform(drag.activeElement)
           addStackToHand(drag.activeStackId, dropTarget.handZone, dropTarget.handInsertIndex)
+          shareDrag(null)
           return
         }
 
@@ -1358,11 +1394,13 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
           commitStackDragPosition(drag)
         })
         stackOnDropTarget(drag.activeStackId, dropTarget)
+        shareDrag(null)
         return
       }
 
       clearDropTarget()
       clearHandInsertPreview()
+      shareDrag(null)
       return
     }
 
@@ -1373,6 +1411,7 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
         removeActiveHandCardId(drag.cardId)
         clearDragTransform(drag.element)
         clearHandDragDropTarget(drag)
+        shareDrag(null)
         return
       }
 
@@ -1390,6 +1429,7 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
         removeActiveHandCardId(drag.cardId)
         clearDragTransform(drag.element)
         discardHandCard(drag.cardId)
+        shareDrag(null)
         return
       }
 
@@ -1407,6 +1447,7 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
           reorderHandCard(drag.cardId, targetHandZone, insertIndex)
         })
         animateHandDragTransformToSlot(drag.cardId, drag.element, previousRect, removeActiveHandCardId)
+        shareDrag(null)
       } else if (isPointInHand(event.clientX, event.clientY)) {
         const previousRect = drag.element?.getBoundingClientRect() ?? null
 
@@ -1414,11 +1455,13 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
           clearHandDragDropTarget(drag)
         })
         animateHandDragTransformToSlot(drag.cardId, drag.element, previousRect, removeActiveHandCardId)
+        shareDrag(null)
       } else {
         removeActiveHandCardId(drag.cardId)
         clearDragTransform(drag.element)
         dropHandCardToBoard(drag.cardId, getBoardDropPosition(event.clientX, event.clientY, true))
         clearHandInsertPreview()
+        shareDrag(null)
       }
 
       return
@@ -1428,6 +1471,7 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
 
     if (preparation === 'stale') {
       clearDropTarget()
+      shareDrag(null)
       return
     }
 
@@ -1452,6 +1496,7 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
         clearDropTarget()
       }
     })
+    shareDrag(null)
   }
 
   function cancelActiveDrag(event: ReactPointerEvent<HTMLDivElement>) {
@@ -1472,12 +1517,14 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
         removeActiveStackId(drag.activeStackId)
         commitStackDragPosition(drag)
         clearDragTransform(drag.activeElement)
+        shareDrag(null)
       }
     } else if (drag.kind === 'hand') {
       if (drag.hasMoved) {
         clearHandDragDropTarget(drag)
         removeActiveHandCardId(drag.cardId)
         clearDragTransform(drag.element)
+        shareDrag(null)
       }
     } else if (drag.hasMoved) {
       clearDeckDragDropTarget(drag)
@@ -1487,6 +1534,7 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
         commitDeckDragPosition(drag)
         clearDropTarget()
       })
+      shareDrag(null)
     }
 
     clearDropTarget()

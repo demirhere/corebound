@@ -2,6 +2,7 @@ import { useEffect, useReducer, useState } from 'react'
 import { Board } from './components/Board'
 import { HowToPlayDialog } from './components/BoardDialogs'
 import { PlaytestLog } from './components/PlaytestLog'
+import { RealtimePanel } from './components/RealtimePanel'
 import {
   createInitialGameState,
   gameReducer,
@@ -10,16 +11,33 @@ import {
 import { useBoardInteractions } from './hooks/useBoardInteractions'
 import { useCardMovementAnimations } from './hooks/useCardMovementAnimations'
 import { usePlaytestLogConsole } from './hooks/usePlaytestLogConsole'
+import { readRealtimeConfig } from './realtime/config'
+import { usePartyKitSync } from './realtime/usePartyKitSync'
 import './App.css'
 
+function noop() {}
+
 function App() {
+  const [realtimeConfig] = useState(() => readRealtimeConfig())
   const [game, dispatchGame] = useReducer(gameReducer, undefined, createInitialGameState)
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
   const { board, pendingSetupDeal, playtestLog, previousPlaytestLogSessions } = game
   const resetConsoleLog = usePlaytestLogConsole(playtestLog)
   const pendingSetupDealKey = pendingSetupDeal?.key ?? null
+  const realtime = usePartyKitSync({
+    config: realtimeConfig,
+    game,
+    isHowToPlayOpen,
+    dispatchGame,
+    setIsHowToPlayOpen,
+  })
+  const canControlBoard = !realtimeConfig.enabled || realtimeConfig.role === 'host'
 
   function setBoard(update: BoardUpdater) {
+    if (!canControlBoard) {
+      return
+    }
+
     dispatchGame({
       type: 'apply-board-update',
       update,
@@ -27,12 +45,16 @@ function App() {
     })
   }
 
-  const interactions = useBoardInteractions({ board, setBoard })
+  const interactions = useBoardInteractions({
+    board,
+    setBoard,
+    onSharedDragChange: realtime.sendSharedDrag,
+  })
 
   useCardMovementAnimations({ board, boardRef: interactions.boardRef })
 
   useEffect(() => {
-    if (!pendingSetupDealKey) {
+    if (!canControlBoard || !pendingSetupDealKey) {
       return
     }
 
@@ -45,9 +67,13 @@ function App() {
     })
 
     return () => window.cancelAnimationFrame(frameId)
-  }, [pendingSetupDealKey])
+  }, [canControlBoard, pendingSetupDealKey])
 
   function resetGame() {
+    if (!canControlBoard) {
+      return
+    }
+
     interactions.resetInteractions()
     resetConsoleLog()
     dispatchGame({ type: 'reset-game', occurredAt: new Date().toISOString() })
@@ -63,31 +89,42 @@ function App() {
         activeDeckIds={interactions.activeDeckIds}
         activeHandCardIds={interactions.activeHandCardIds}
         handInsertPreview={interactions.handInsertPreview}
+        sharedDrag={canControlBoard ? null : realtime.remoteDrag}
+        canInteract={canControlBoard}
         stackOffsetRatio={interactions.stackOffsetRatio}
-        onPointerMove={interactions.onPointerMove}
-        onPointerUp={interactions.onPointerUp}
-        onPointerCancel={interactions.onPointerCancel}
-        onDeckPointerDown={interactions.onDeckPointerDown}
-        onDeckKeyDown={interactions.onDeckKeyDown}
-        onCardPointerDown={interactions.onCardPointerDown}
-        onCardKeyDown={interactions.onCardKeyDown}
-        onHandCardPointerDown={interactions.onHandCardPointerDown}
-        onHandCardKeyDown={interactions.onHandCardKeyDown}
-        onWakeCrewChoice={interactions.onWakeCrewChoice}
-        onScoutCardChoice={interactions.onScoutCardChoice}
-        onScoutChoiceConfirm={interactions.onScoutChoiceConfirm}
-        onRouteShipPartUse={interactions.onRouteShipPartUse}
+        onPointerMove={canControlBoard ? interactions.onPointerMove : noop}
+        onPointerUp={canControlBoard ? interactions.onPointerUp : noop}
+        onPointerCancel={canControlBoard ? interactions.onPointerCancel : noop}
+        onDeckPointerDown={canControlBoard ? interactions.onDeckPointerDown : noop}
+        onDeckKeyDown={canControlBoard ? interactions.onDeckKeyDown : noop}
+        onCardPointerDown={canControlBoard ? interactions.onCardPointerDown : noop}
+        onCardKeyDown={canControlBoard ? interactions.onCardKeyDown : noop}
+        onHandCardPointerDown={canControlBoard ? interactions.onHandCardPointerDown : noop}
+        onHandCardKeyDown={canControlBoard ? interactions.onHandCardKeyDown : noop}
+        onWakeCrewChoice={canControlBoard ? interactions.onWakeCrewChoice : noop}
+        onScoutCardChoice={canControlBoard ? interactions.onScoutCardChoice : noop}
+        onScoutChoiceConfirm={canControlBoard ? interactions.onScoutChoiceConfirm : noop}
+        onRouteShipPartUse={canControlBoard ? interactions.onRouteShipPartUse : noop}
         onResetGame={resetGame}
       />
       <PlaytestLog
         entries={playtestLog}
         previousSessions={previousPlaytestLogSessions}
+        canControl={canControlBoard}
         onShowHowToPlay={() => setIsHowToPlayOpen(true)}
         onResetGame={resetGame}
       />
+      {realtimeConfig.enabled ? (
+        <RealtimePanel
+          config={realtimeConfig}
+          status={realtime.status}
+          connectionCount={realtime.connectionCount}
+        />
+      ) : null}
       <HowToPlayDialog
         isOpen={isHowToPlayOpen}
-        onClose={() => setIsHowToPlayOpen(false)}
+        onClose={canControlBoard ? () => setIsHowToPlayOpen(false) : noop}
+        canClose={canControlBoard}
       />
     </main>
   )

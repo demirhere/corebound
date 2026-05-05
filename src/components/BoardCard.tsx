@@ -29,6 +29,7 @@ type BoardCardProps = {
   stackId: string
   cardIndex: number
   isStackActive: boolean
+  canInteract: boolean
   stackOffsetRatio: number
   fuelDiscount: number
   stressCount: number
@@ -48,6 +49,7 @@ type CardShellProps = {
   ariaLabel: string
   motionCardId?: string
   dataHandCardId?: string
+  canInteract?: boolean
   onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void
   onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void
 }
@@ -63,6 +65,7 @@ export function CardShell({
   ariaLabel,
   motionCardId,
   dataHandCardId,
+  canInteract = true,
   onPointerDown,
   onKeyDown,
 }: CardShellProps) {
@@ -94,10 +97,19 @@ export function CardShell({
         } as CSSProperties
       }
       role="button"
-      tabIndex={0}
+      tabIndex={canInteract ? 0 : -1}
       aria-label={ariaLabel}
-      onPointerDown={onPointerDown}
-      onKeyDown={onKeyDown}
+      aria-disabled={!canInteract}
+      onPointerDown={(event) => {
+        if (canInteract) {
+          onPointerDown(event)
+        }
+      }}
+      onKeyDown={(event) => {
+        if (canInteract) {
+          onKeyDown(event)
+        }
+      }}
     >
       <div className="card-inner">
         <article className="card-face card-front">
@@ -147,6 +159,7 @@ export function BoardCard({
   stackId,
   cardIndex,
   isStackActive,
+  canInteract,
   stackOffsetRatio,
   fuelDiscount,
   stressCount,
@@ -165,6 +178,7 @@ export function BoardCard({
     <CardShell
       card={card}
       isActive={isStackActive}
+      canInteract={canInteract}
       fuelDiscount={fuelDiscount}
       stressCount={stressCount}
       isTraveledStop={isTraveledStop}

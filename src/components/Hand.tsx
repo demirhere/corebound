@@ -22,6 +22,7 @@ type HandProps = {
   activeCardIds: readonly string[]
   insertPreview: HandInsertPreview | null
   handRef: Ref<HTMLElement>
+  canInteract: boolean
   onCardPointerDown: HandPointerDownHandler
   onCardKeyDown: HandKeyDownHandler
 }
@@ -33,6 +34,7 @@ export function Hand({
   activeCardIds,
   insertPreview,
   handRef,
+  canInteract,
   onCardPointerDown,
   onCardKeyDown,
 }: HandProps) {
@@ -47,6 +49,7 @@ export function Hand({
         cards={cards}
         activeCardIds={activeCardIdSet}
         insertPreview={insertPreview}
+        canInteract={canInteract}
         onCardPointerDown={onCardPointerDown}
         onCardKeyDown={onCardKeyDown}
       />
@@ -58,6 +61,7 @@ export function Hand({
         cards={cards}
         activeCardIds={activeCardIdSet}
         insertPreview={insertPreview}
+        canInteract={canInteract}
         onCardPointerDown={onCardPointerDown}
         onCardKeyDown={onCardKeyDown}
       />

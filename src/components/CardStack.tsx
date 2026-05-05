@@ -14,6 +14,8 @@ type CardStackProps = {
   cards: Record<string, CardView>
   isDropTarget: boolean
   isActive: boolean
+  canInteract: boolean
+  sharedPosition: { x: number; y: number } | null
   stackOffsetRatio: number
   fuelDiscount: number
   stressCount: number
@@ -27,6 +29,8 @@ export function CardStack({
   cards,
   isDropTarget,
   isActive,
+  canInteract,
+  sharedPosition,
   stackOffsetRatio,
   fuelDiscount,
   stressCount,
@@ -35,18 +39,21 @@ export function CardStack({
   onCardKeyDown,
 }: CardStackProps) {
   const firstCard = cards[stack.cardIds[0]]
+  const isSharedActive = sharedPosition !== null
+  const displayX = sharedPosition?.x ?? stack.x
+  const displayY = sharedPosition?.y ?? stack.y
 
   return (
     <div
       className={`card-stack ${isDropTarget ? 'is-drop-target' : ''} ${
-        isActive ? 'is-active-stack' : ''
+        isActive || isSharedActive ? 'is-active-stack' : ''
       }`}
       data-stack-id={stack.id}
       style={
         {
-          left: `${stack.x}%`,
-          top: `${stack.y}%`,
-          zIndex: isActive ? 1101 : stack.z,
+          left: `${displayX}%`,
+          top: `${displayY}%`,
+          zIndex: isActive || isSharedActive ? 1101 : stack.z,
           '--stack-accent': firstCard?.accent ?? '#73ffd6',
           '--stack-height': `${
             100 + Math.max(0, stack.cardIds.length - 1) * stackOffsetRatio * 100
@@ -67,7 +74,8 @@ export function CardStack({
             card={card}
             stackId={stack.id}
             cardIndex={index}
-            isStackActive={isActive}
+            isStackActive={isActive || isSharedActive}
+            canInteract={canInteract}
             stackOffsetRatio={stackOffsetRatio}
             fuelDiscount={fuelDiscount}
             stressCount={stressCount}

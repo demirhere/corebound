@@ -10,6 +10,7 @@ const CURRENT_LOG_KEY = 'current'
 type PlaytestLogProps = {
   entries: readonly PlaytestLogEntry[]
   previousSessions: readonly PlaytestLogSession[]
+  canControl: boolean
   onShowHowToPlay: () => void
   onResetGame: () => void
 }
@@ -28,7 +29,13 @@ function formatLogFilename(logKey: string) {
   return `corebound-playtest-log-${logKey}-${timestamp}.txt`
 }
 
-export function PlaytestLog({ entries, previousSessions, onShowHowToPlay, onResetGame }: PlaytestLogProps) {
+export function PlaytestLog({
+  entries,
+  previousSessions,
+  canControl,
+  onShowHowToPlay,
+  onResetGame,
+}: PlaytestLogProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedLogKey, setSelectedLogKey] = useState(CURRENT_LOG_KEY)
   const [copiedLog, setCopiedLog] = useState<{ key: string; entryCount: number } | null>(null)
@@ -72,6 +79,10 @@ export function PlaytestLog({ entries, previousSessions, onShowHowToPlay, onRese
   }
 
   function resetGame() {
+    if (!canControl) {
+      return
+    }
+
     setSelectedLogKey(CURRENT_LOG_KEY)
     setCopiedLog(null)
     setCopyFailed(false)
@@ -85,6 +96,7 @@ export function PlaytestLog({ entries, previousSessions, onShowHowToPlay, onRese
           type="button"
           className="playtest-log-toggle how-to-play-toggle"
           aria-haspopup="dialog"
+          disabled={!canControl}
           onClick={onShowHowToPlay}
         >
           How to Play
@@ -94,6 +106,7 @@ export function PlaytestLog({ entries, previousSessions, onShowHowToPlay, onRese
           className="playtest-log-reset"
           aria-label="Reset board and archive log"
           title="Reset board and archive log"
+          disabled={!canControl}
           onClick={resetGame}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">

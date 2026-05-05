@@ -218,6 +218,27 @@ Resolve Wake and Scout choice panels before taking more board actions.
 
 Use Restart and reshuffle to start a fresh random run.
 
+## Realtime Observation
+
+The prototype can run with a PartyKit room so other browsers can watch a host's table in realtime. Start the Vite app and PartyKit dev server together:
+
+```text
+pnpm dev
+pnpm party:dev
+```
+
+The first browser is a host by default. Host URLs use the `room` query parameter, defaulting to `corebound-table`. Observers join the same room with `role=observer`, for example:
+
+```text
+http://localhost:5173/?room=corebound-table&role=observer
+```
+
+Use the host's Copy observer link control when sharing across browsers; it includes the resolved PartyKit host.
+
+On the Netlify deployment, the app expects the PartyKit server at `corebound.demirhere.partykit.dev`. If using a different PartyKit project host, open the host page with `partyHost=your-project.your-name.partykit.dev`; the copied observer link will keep that override.
+
+Observers are read-only. They receive the host's card and deck positions, active stack/deck drag previews, Wake and Scout dialogs, How to Play dialog state, win/loss screens, and playtest log state.
+
 ## Win And Loss Summary
 
 Win by completing Dark Threshold after 3 Sector 2 Destinations are traveled.

@@ -34,6 +34,10 @@ export type GameState = {
 
 export type GameAction =
   | {
+      type: 'hydrate-game'
+      state: GameState
+    }
+  | {
       type: 'apply-board-update'
       update: BoardUpdater
       occurredAt: string
@@ -91,6 +95,10 @@ function resolveBoardUpdate(result: BoardUpdateResult) {
 }
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
+  if (action.type === 'hydrate-game') {
+    return action.state
+  }
+
   if (action.type === 'reset-game') {
     const previousPlaytestLogSessions = state.playtestLog.length > 0
       ? [
