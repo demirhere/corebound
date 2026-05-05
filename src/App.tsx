@@ -1,7 +1,7 @@
 import { useEffect, useReducer, useState } from 'react'
 import { BeginDialog } from './components/BeginDialog'
 import { Board } from './components/Board'
-import { HowToPlayDialog } from './components/BoardDialogs'
+import { HowToPlayDialog } from './components/HowToPlayDialog'
 import { PlaytestLog } from './components/PlaytestLog'
 import { RealtimePanel } from './components/RealtimePanel'
 import {

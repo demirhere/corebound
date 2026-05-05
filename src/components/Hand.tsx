@@ -21,6 +21,7 @@ type HandProps = {
   cards: Record<string, CardView>
   activeCardIds: readonly string[]
   insertPreview: HandInsertPreview | null
+  stressCount: number
   endTurnAttentionKey: number
   handRef: Ref<HTMLElement>
   canInteract: boolean
@@ -37,6 +38,7 @@ export function Hand({
   cards,
   activeCardIds,
   insertPreview,
+  stressCount,
   endTurnAttentionKey,
   handRef,
   canInteract,
@@ -56,7 +58,12 @@ export function Hand({
   }
 
   return (
-    <section ref={handRef} className="hand" data-hand aria-label="Crew and tired hands">
+    <section
+      ref={handRef}
+      className={`hand${activeCardIdSet.size > 0 ? ' is-dragging-card' : ''}`}
+      data-hand
+      aria-label="Crew and tired hands"
+    >
       <HandZoneArea
         zone="crew"
         label="Crew"
@@ -76,6 +83,7 @@ export function Hand({
         cards={cards}
         activeCardIds={activeCardIdSet}
         insertPreview={insertPreview}
+        stressCount={stressCount}
         canInteract={canInteract}
         onCardPointerDown={onCardPointerDown}
         onCardKeyDown={onCardKeyDown}

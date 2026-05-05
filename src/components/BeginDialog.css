@@ -1,9 +1,17 @@
 .begin-dialog {
   display: grid;
-  align-content: center;
+  grid-template-rows: 1fr auto;
+  align-items: center;
   justify-items: center;
   gap: clamp(18px, 3vw, 34px);
   padding: clamp(18px, 5vw, 58px);
+}
+
+.begin-dialog-center {
+  display: grid;
+  justify-items: center;
+  gap: clamp(18px, 3vw, 34px);
+  align-self: center;
 }
 
 .begin-dialog .begin-dialog-button {
@@ -58,9 +66,9 @@
   z-index: 2;
   display: grid;
   justify-items: center;
-  gap: clamp(8px, 1.2vw, 14px);
-  min-width: min(310px, calc(100vw - 36px));
-  padding: clamp(14px, 2vw, 20px) clamp(18px, 2.8vw, 28px);
+  gap: clamp(6px, 0.8vw, 10px);
+  min-width: min(260px, calc(100vw - 36px));
+  padding: clamp(10px, 1.4vw, 14px) clamp(14px, 2vw, 22px);
   border: 2px solid rgba(246, 241, 223, 0.24);
   border-radius: 8px;
   color: #fff8e8;
@@ -85,9 +93,9 @@
 
 .lobby-invite-code {
   color: #fff;
-  font-size: clamp(34px, 5vw, 62px);
+  font-size: clamp(20px, 2.4vw, 32px);
   font-weight: 650;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   line-height: 0.94;
   text-shadow:
     0 0 1px rgba(255, 255, 255, 0.94),
@@ -96,15 +104,15 @@
 }
 
 .lobby-invite-copy {
-  min-width: 132px;
-  padding: 9px 14px;
+  min-width: 110px;
+  padding: 7px 12px;
   border: 1px solid rgba(115, 255, 214, 0.48);
   border-radius: 999px;
   color: #fff8e8;
   background: rgba(115, 255, 214, 0.12);
   cursor: pointer;
   font: inherit;
-  font-size: clamp(12px, 1.1vw, 15px);
+  font-size: clamp(11px, 1vw, 14px);
   font-weight: 850;
   letter-spacing: 0.04em;
   line-height: 1;

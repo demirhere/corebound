@@ -14,7 +14,7 @@ Visit 3 Map Destinations in Sector 1, pass Narrow Crossing, then visit 3 Map Des
 
 Solo: you win when Dark Threshold is completed after 3 Sector 2 Destinations are traveled.
 
-Multiplayer: everyone is trying to keep the ship alive, but only the ship's survival creates a score. If Dark Threshold fails, everyone loses. If Dark Threshold succeeds, count each player's owned surviving crew; the player with the most crew leads the new world.
+Multiplayer: everyone is trying to keep the ship alive, but only the ship's survival creates a score. If the ship is stranded or any Gate cannot be passed, everyone loses. If Dark Threshold succeeds, count each player's owned surviving crew; the player with the most crew leads the new world.
 
 Multiplayer tie-breakers:
 
@@ -22,7 +22,7 @@ Multiplayer tie-breakers:
 2. Most Ready crew.
 3. Shared victory.
 
-You lose if the sector cannot produce another visible Map Destination before 3 Destinations are traveled, or if the current Gate cannot be completed with available Ship Parts, Ready crew, and unused MOTHER cards.
+You lose if the sector has no reachable Map Destination before 3 Destinations are traveled, or if the current Gate cannot be completed with available Ship Parts, Ready crew, and unused MOTHER cards.
 
 ## Starting Setup
 
@@ -41,7 +41,7 @@ On load or restart, setup is staged as an animated deal instead of cards snappin
 | Gate | 1 Gate card | Place the Sector Gate face down below Sector 1 Stops. Click it to reveal or hide Narrow Crossing as needed. |
 | MOTHER Deck | 6 MOTHER cards | Place as a manual draw deck. Draws 1 card at a time. |
 | Stress | 0 Stress | Spent MOTHER adds Stress. |
-| Cryo Deck | 7 Cryo crew | Shuffle and keep as a reward-only deck. Wake rewards draw from here. |
+| Cryo Deck | Up to 7 Cryo crew | Shuffle and keep as a reward-only deck. In solo, all 7 Cryo crew start here. In multiplayer, any Cryo crew needed to finish the even starting deal are removed first, so Wake rewards draw from the remaining Cryo deck. |
 
 ## Crew Icons
 
@@ -71,7 +71,7 @@ The visible crew icon formerly called Star is now called Nav. Science uses a bea
 
 Destinations are shuffled into Sector Stops. A sector begins with an empty Map; draw from Sector Stops to reveal exactly 3 face-up Map Destinations side by side. Completing a Destination marks it traveled. Ship Part Destination cards move to the route area and remain on the board after sector completion; Immediate Benefit Destination cards clear with the other visible Map Destinations. The next 3 Destinations are not drawn automatically. End the turn, then draw from Sector Stops on a later turn if the Map is empty.
 
-Every Destination card shows the Destination name in small text, the item found there as the main title, that item's effect, and the completion cost. The destination type is not shown on the card.
+Every visible Destination card uses the found item as the main title, labels the find as Ship Part or Resources, shows that item's effect, and shows the completion cost. The physical Destination name is used in logs, accessibility labels, and the manual table below. The destination terrain type is not shown as a rule on the card.
 
 Each traveled Destination gives exactly one find:
 
@@ -94,7 +94,7 @@ No Destination gives both an immediate benefit and a Ship Part. In the current d
 | Gravity Sling | Slingshot Trajectory | Fuel 2, Nav, Engine | Immediate Benefit: Next stop -1 Fuel. |
 | Quiet Relay | Adaptive Control Console | Fuel 1, Science, Nav | Ship Part: Cover 1 missing Gate icon. It fills no crew slot. |
 
-Ship Parts apply automatically at Gates when they can help. Each Ship Part can be spent once. Spent Ship Parts stay visible on their traveled Destination cards and cannot be reused. Unspent Ship Parts remain visible and available after the sector Gate resolves, so they can be carried forward to a later Gate.
+Ship Parts are controlled by the app at Gates. Medbay Rehydrator spends only if there is a Tired crew to ready. Service Drone Bay and Adaptive Control Console are spent automatically at the next Gate, up to that Gate's crew-slot and icon capacity, so plan as though they will be used at that Gate rather than saved by choice. Each Ship Part can be spent once. Spent Ship Parts stay visible on their traveled Destination cards and cannot be reused. Unspent Ship Parts remain visible and available after the sector Gate resolves, so they can be carried forward to a later Gate.
 
 In multiplayer, Ship Part Blueprints are credited to the Mission Lead who traveled to that Destination for tie-break scoring, but their effects help everyone.
 
@@ -131,9 +131,9 @@ Important: crew-made water for Fuel payment requires exactly one Ready Engineer 
 
 Collect 1 Fuel draws 1 Fuel Cell from the Fuel Deck into play. It stacks onto the existing Fuel Supply if one is in play, otherwise it appears at the Fuel Supply setup position. Fuel rewards help the shared ship.
 
-Wake 1 reveals up to 2 cards from the Cryo Deck. Choose 1 to recruit into Tired, then Ready 1 Tired crew from the front of the Tired row; unchosen Cryo crew go to the bottom of the Cryo Deck. In multiplayer, the recruited crew belongs to the Mission Lead.
+Wake 1 reveals up to 2 cards from the Cryo Deck. Choose 1 to recruit into the back of Tired, then Ready 1 crew from the front of the Tired row. Unchosen Cryo crew go to the bottom of the Cryo Deck. In multiplayer, the recruited crew belongs to the Mission Lead.
 
-Scout N looks at the top N Sector Stops cards. Choose the card you like to keep on top of Sector Stops. The others are sent to the back in their revealed order. If Scout resolves after a Destination, complete the Scout choice before the turn continues; it does not draw the next 3-card Map offer automatically.
+Scout N looks at the top N Sector Stops cards. Choose the card you like to keep on top of Sector Stops. The others are sent to the back in their revealed order. If Scout resolves after a Destination, complete the Scout choice before the turn continues; it does not draw the next 3-card Map offer automatically. Scout is skipped if it is earned by the third Destination in a sector, because the Gate begins instead of preparing another stop.
 
 Ready 1 moves the front Tired crew card back to the Crew area. Ready rewards help the shared ship.
 
@@ -148,7 +148,7 @@ Gate requirements are two separate checks: crew slots and required icons.
 | Narrow Crossing | After 3 Sector 1 Destinations | 3 | Engine, Life, Nav, Science | If Stress is 3+, add 1 red crew slot. |
 | Dark Threshold | After 3 Sector 2 Destinations | 4 | Engine, Life, Nav, Science | If Stress is 3+, add 1 red crew slot. |
 
-Gate resolution is also confirmed from stack actions. Click a face-down Sector Gate to reveal it before completing it; click it again to hide it if needed. Available Ship Parts apply automatically when the Gate begins: Medbay Rehydrators ready Tired crew, Service Drone Bays scribble out crew slots, and Adaptive Control Consoles scribble out required icons. Then stack Ready crew and usable MOTHER onto the Gate and click Pass Gate when the requirements are satisfied.
+Gate resolution is also confirmed from stack actions. Click a face-down Sector Gate to reveal it before completing it; click it again to hide it if needed. Available Ship Parts apply automatically when the Gate begins, usually right after the third Destination and after resolving any pending Wake choice from that Destination: Medbay Rehydrators ready Tired crew, Service Drone Bays scribble out crew slots, and Adaptive Control Consoles scribble out required icons. Then stack Ready crew and usable MOTHER onto the Gate and click Pass Gate when the requirements are satisfied.
 
 Gate resolution order:
 
@@ -157,7 +157,7 @@ Gate resolution order:
 3. Apply any Service Drone Bays automatically to fill crew slots.
 4. Commit Ready crew to fill all remaining crew slots.
 5. Check required icons shown by committed crew.
-6. Apply any Adaptive Control Consoles automatically to cover Gate icons.
+6. Count already-applied Adaptive Control Consoles against missing Gate icons.
 7. Spend MOTHER only for remaining missing non-Fuel icons.
 8. If all crew slots are filled and all icons are shown or covered, the Gate is completed.
 9. If not, the ship fails at the Gate.
@@ -210,7 +210,7 @@ The current stack actions are:
 
 After Gate 1 succeeds:
 
-1. The Sector 1 route progress resets, and non-Ship Part traveled Destinations are archived to history.
+1. The Sector 1 route progress resets. Immediate Benefit traveled Destinations leave the board; Ship Part Destination cards remain visible.
 2. Ship Part Destination cards stay on the board. Unspent Ship Parts remain available; spent Ship Parts remain spent.
 3. All Tired crew become Ready.
 4. Fuel carries forward.
@@ -233,7 +233,7 @@ Drag Ready crew from the Crew area onto the board. Tired crew cannot be dragged 
 
 Drag a card stack onto a highlighted valid target to combine it into a Destination, Gate, Ship Part blueprint prep pile, or temporary support stack of Ready crew, Fuel Cells, Engineer + Scientist water pairs, and usable MOTHER cards. Dragging from a card inside a stack splits that card and every card above it into a new moving stack. When a stack has an available action, click the button above it to confirm.
 
-Drag visible traveled Ship Part Destination cards onto each other to stack them and organize board space. During the Gate, available Ship Parts apply automatically when they can be spent; no Gate stacking is required. Ship Part cards cannot be discarded.
+Drag visible traveled Ship Part Destination cards onto each other to stack them and organize board space. During the Gate, the app applies available Ship Parts automatically; no Gate stacking is required. Ship Part cards cannot be discarded.
 
 Use the End turn button to start the next turn and refresh the once-per-turn Sector Stops draw permission.
 
@@ -277,14 +277,14 @@ Solo: win by completing Dark Threshold after 3 Sector 2 Destinations are travele
 Multiplayer scoring happens only if the ship survives:
 
 ```text
-If Dark Threshold fails: everyone loses.
+If the ship is stranded or any Gate fails: everyone loses.
 If Dark Threshold succeeds: count each player's owned crew.
 Most crew wins.
 ```
 
 Count both Ready and Tired crew. They survived. If crew totals tie, compare Blueprints built, then Ready crew. If still tied, the victory is shared.
 
-Lose as Stranded in the Reach if the sector cannot produce another visible Map Destination before 3 Destinations are traveled.
+Lose as Stranded in the Reach if the sector has no reachable Map Destination before 3 Destinations are traveled. This can happen when the Map is empty and Sector Stops has no cards left, or when visible Map Destinations exist but none can be completed with available Fuel, Ready crew, crew-made water, and unused MOTHER.
 
 Lose as The Gate cannot be passed if the current Gate cannot be completed with available Ship Parts, Ready crew cards, and unused MOTHER cards for missing icons. Available Ship Parts include unspent parts carried from an earlier sector. Unused MOTHER includes usable MOTHER cards in play plus cards still in the MOTHER Deck.
 
@@ -327,7 +327,7 @@ At 3+ Stress, Gates add 1 crew slot.
 
 STUCK?
 
-If Sector Stops cannot produce another visible Map Destination before the route is full, you lose as Stranded in the Reach.
+If the sector has no reachable Map Destination before the route is full, you lose as Stranded in the Reach.
 
 MULTIPLAYER
 
@@ -336,5 +336,5 @@ Other players may only add or remove their own crew by click or drag.
 Shared rewards help the ship.
 Crew rewards join the Mission Lead.
 Blueprints help everyone, but score for the Mission Lead who found them.
-Dark Threshold failure means everyone loses.
+Any ship loss means everyone loses; only Dark Threshold success scores crew.
 ```

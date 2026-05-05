@@ -807,7 +807,7 @@ export function starsCompletedSummaryEvent(
 export function gameLostEvent(reason: GameLossReason): PlaytestLogEvent {
   const message =
     reason === 'sector-stranded'
-      ? 'The sector cannot produce another visible Map Destination before the route is full.'
+      ? 'The sector has no reachable Map Destination before the route is full.'
       : 'The Gate cannot be completed with available Ship Parts, Ready crew, and unused MOTHER cards.'
 
   return {

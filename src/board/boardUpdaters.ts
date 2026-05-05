@@ -92,6 +92,7 @@ import {
 } from '../game/stackActions'
 import { withPlaytestEvents, type BoardUpdater } from '../game/state'
 import {
+  canTravelToAnyVisibleHorizon,
   getDeckCardCount,
   getReadyCrewCardIds,
 } from '../game/boardQueries'
@@ -481,6 +482,10 @@ function getVisibleHorizonCardIds(current: BoardState) {
 
 function resolveSectorStrandedLossIfNeeded(current: BoardState) {
   const visibleHorizonCardIds = getVisibleHorizonCardIds(current)
+  const hasVisibleHorizon = visibleHorizonCardIds.length > 0
+  const canProduceOrVisitHorizon = hasVisibleHorizon
+    ? canTravelToAnyVisibleHorizon(current)
+    : getDeckCardCount(current, HORIZON_DECK_ID) > 0
 
   if (
     current.hasArrived ||
@@ -488,8 +493,7 @@ function resolveSectorStrandedLossIfNeeded(current: BoardState) {
     current.pendingWakeChoice ||
     current.pendingScoutChoice ||
     isSectorHorizonFinished(current) ||
-    visibleHorizonCardIds.length > 0 ||
-    getDeckCardCount(current, HORIZON_DECK_ID) > 0
+    canProduceOrVisitHorizon
   ) {
     return { board: current, events: [] }
   }

@@ -11,9 +11,7 @@ import {
   WakeChoiceDialog,
 } from './BoardDialogs'
 import {
-  InstructionsPanel,
   PlayerCrewPanel,
-  StressTracker,
 } from './BoardPanels'
 import {
   getPlayerCrewStats,
@@ -155,17 +153,15 @@ export function Board({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
     >
-      <InstructionsPanel totalSectors={board.totalSectors} />
-      <div className="board-status-area" aria-label="Board status">
-        <StressTracker stressCount={board.stressCount} />
-        {isMultiplayer ? (
+      {isMultiplayer ? (
+        <div className="board-status-area" aria-label="Board status">
           <PlayerCrewPanel
             players={playerStats}
             currentPlayerId={board.currentPlayerId}
             localPlayerId={localPlayerId}
           />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
       {board.decks
         .filter((deck) => deck.cards.length > 0)
         .map((deck) => (
@@ -218,6 +214,7 @@ export function Board({
         cards={board.cards}
         activeCardIds={activeHandCardIds}
         insertPreview={handInsertPreview}
+        stressCount={board.stressCount}
         endTurnAttentionKey={endTurnAttentionKey}
         canInteract={canUseOwnCrew}
         canEndTurn={canEndTurn}
