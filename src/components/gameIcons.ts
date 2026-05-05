@@ -45,7 +45,7 @@ const CARD_NOTE_LINES = [
   ['Compass needle jitters.'],
 ] as const
 
-function hashString(value: string) {
+export function hashString(value: string) {
   let hash = 2166136261
 
   for (const character of value) {

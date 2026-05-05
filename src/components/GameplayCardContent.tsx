@@ -11,7 +11,11 @@ import type {
 import { getShipPartUseText } from '../game/shipParts'
 import { renderCrewCardContent } from './CrewCard'
 import { GameIcon } from './GameIcon'
-import { SectorCardLayout } from './SectorCardLayout'
+import { hashString } from './gameIcons'
+import { SectorCardArt, SectorCardLayout } from './SectorCardLayout'
+
+const BLUEPRINT_ART_GRID_SIZE = 4
+const ROUTE_ART_GRID_SIZE = 4
 
 function titleCase(value: string) {
   return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`
@@ -156,6 +160,9 @@ function renderShipPartSector(
     return null
   }
 
+  const blueprintIndex = hashString(`${card.id}:blueprint`) % (BLUEPRINT_ART_GRID_SIZE * BLUEPRINT_ART_GRID_SIZE)
+  const routeIndex = hashString(`${card.id}:route`) % (ROUTE_ART_GRID_SIZE * ROUTE_ART_GRID_SIZE)
+
   return (
     <SectorCardLayout
       cost={(
@@ -168,6 +175,12 @@ function renderShipPartSector(
       removedFuelCount={removedFuelCount}
       visual={null}
       visualClassName="sector-card-part-mark"
+      art={(
+        <>
+          <SectorCardArt variant="blueprint" index={blueprintIndex} gridSize={BLUEPRINT_ART_GRID_SIZE} />
+          <SectorCardArt variant="route" index={routeIndex} gridSize={ROUTE_ART_GRID_SIZE} />
+        </>
+      )}
     />
   )
 }

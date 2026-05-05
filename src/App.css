@@ -1580,7 +1580,7 @@
   overflow: hidden;
   color: #101112;
   font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 500;
   letter-spacing: -0.025em;
   line-height: 1;
@@ -1872,7 +1872,7 @@
     padding-right: 4px;
     padding-bottom: 2px;
     overflow: visible;
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 500;
     letter-spacing: -0.025em;
     line-height: 1;
@@ -2165,8 +2165,8 @@
   --blueprint-text: #f4ead4;
   --blueprint-paper: var(--blueprint-text);
   --blueprint-ink: var(--blueprint-text);
-  --blueprint-grid: rgba(149, 210, 238, 0.18);
-  --blueprint-grid-strong: rgba(180, 228, 247, 0.28);
+  --blueprint-grid: rgba(149, 210, 238, 0.08);
+  --blueprint-grid-strong: rgba(180, 228, 247, 0.14);
 
   .card-face {
     border-color: #0a1c2f;
@@ -2247,6 +2247,34 @@
 
   .sector-card-part-mark .game-icon {
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .sector-card-art-layer.is-blueprint {
+    background-color: #ffffff;
+    -webkit-mask-image: url('/assets/blueprint-images.png');
+            mask-image: url('/assets/blueprint-images.png');
+    -webkit-mask-size: var(--sector-card-art-size) var(--sector-card-art-size);
+            mask-size: var(--sector-card-art-size) var(--sector-card-art-size);
+    -webkit-mask-position: var(--sector-card-art-x) var(--sector-card-art-y);
+            mask-position: var(--sector-card-art-x) var(--sector-card-art-y);
+    -webkit-mask-repeat: no-repeat;
+            mask-repeat: no-repeat;
+    -webkit-mask-source-type: luminance;
+            mask-mode: luminance;
+  }
+
+  .sector-card-art-layer.is-route {
+    background-color: #ffffff;
+    -webkit-mask-image: url('/assets/route-traces.png');
+            mask-image: url('/assets/route-traces.png');
+    -webkit-mask-size: var(--sector-card-art-size) var(--sector-card-art-size);
+            mask-size: var(--sector-card-art-size) var(--sector-card-art-size);
+    -webkit-mask-position: var(--sector-card-art-x) var(--sector-card-art-y);
+            mask-position: var(--sector-card-art-x) var(--sector-card-art-y);
+    -webkit-mask-repeat: no-repeat;
+            mask-repeat: no-repeat;
+    -webkit-mask-source-type: luminance;
+            mask-mode: luminance;
   }
 }
 
@@ -2350,6 +2378,23 @@
 
 .sector-card-visit-mark .sector-card-visit-icon {
   width: clamp(38px, 4.4vw, 58px);
+}
+
+.sector-card-art-layer {
+  position: absolute;
+  z-index: 0;
+  aspect-ratio: 1;
+  pointer-events: none;
+}
+
+.sector-card-art-layer.is-blueprint {
+  inset: auto 3% 24% auto;
+  width: 58%;
+}
+
+.sector-card-art-layer.is-route {
+  inset: auto auto 46% 5%;
+  width: 40%;
 }
 
 .sector-card-cost-row {
