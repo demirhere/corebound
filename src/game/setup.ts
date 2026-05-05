@@ -19,7 +19,7 @@ import {
   automaticRewardDeckDraw,
   manualDeckDraw,
 } from './decks'
-import { cardContent, cardRulesText, mapInitializedEvent } from './logEvents'
+import { cardContent, cardRulesText } from './logEvents'
 import type { PlaytestLogEvent } from './playtestLog'
 
 const RESOURCE_DECK_SIZE = 12
@@ -417,13 +417,10 @@ export function createInitialBoardSetup(): InitialBoardSetup {
   const fuelDeckCards = fuelDeck.slice(2)
   // const hullDeckCards = hullDeck.slice(4)
   const horizonDeckCards = createSectorHorizonDeckCards()
-  const mapStopCards = createBoardCards('map-1', horizonDeckCards.slice(0, MAP_SLOT_COUNT))
-  const remainingHorizonDeckCards = horizonDeckCards.slice(MAP_SLOT_COUNT)
   const initialCards = [
     ...initialFuelCards,
     ...handCards,
     ...(gateCard ? [gateCard] : []),
-    ...mapStopCards,
   ]
   const cryoDeckCards = shuffleCards(cryoCrewDeck)
   const initialSectorDeckArt = getSectorDeckArt(1)
@@ -449,17 +446,6 @@ export function createInitialBoardSetup(): InitialBoardSetup {
             },
           ]
         : []),
-      ...mapStopCards.map((card, index) => {
-        const position = MAP_SLOT_POSITIONS[index] ?? MAP_SLOT_POSITIONS[0]
-
-        return {
-          id: `stack-map-${index + 1}`,
-          cardIds: [card.id],
-          x: position.x,
-          y: position.y,
-          z: 1017 + index,
-        }
-      }),
     ],
     decks: [
       {
@@ -484,10 +470,11 @@ export function createInitialBoardSetup(): InitialBoardSetup {
         y: 8,
         z: 1014,
         draw: {
-          ...automaticRewardDeckDraw,
+          ...manualDeckDraw,
+          count: MAP_SLOT_COUNT,
           placement: 'nearby',
         },
-        cards: remainingHorizonDeckCards,
+        cards: horizonDeckCards,
       },
       {
         id: MOTHER_DECK_ID,
@@ -514,7 +501,7 @@ export function createInitialBoardSetup(): InitialBoardSetup {
         cards: cryoDeckCards,
       },
     ],
-    mapSlots: mapStopCards.map((card) => card.id),
+    mapSlots: Array.from({ length: MAP_SLOT_COUNT }, () => null),
     routeSlots: Array.from({ length: ROUTE_SLOT_COUNT }, () => null),
     shipPartSlots: [],
     archivedRouteCardIds: [],
@@ -530,7 +517,7 @@ export function createInitialBoardSetup(): InitialBoardSetup {
     totalSectors: TOTAL_SECTORS,
     hasArrived: false,
     lossReason: null,
-    topZ: 1016 + mapStopCards.length,
+    topZ: 1016,
     nextCardId: 1,
     dropTargetStackId: null,
     dropTargetDeckId: null,
@@ -569,7 +556,6 @@ export function createInitialBoardSetup(): InitialBoardSetup {
       setupDeckCreatedEvent(HORIZON_DECK_ID, getSectorDeckTitle(1), horizonDeckCards),
       setupDeckCreatedEvent(CRYO_DECK_ID, 'Cryo Deck', cryoDeckCards),
       ...(gateCard ? [setupGateRevealedEvent(gateCard, 'stack-sector-gate')] : []),
-      mapInitializedEvent(1, mapStopCards),
       ...initialFuelCards.map((card, index) => setupResourceDrawnEvent(card, 'Fuel Deck', index + 1)),
       // ...initialHullCards.map((card, index) => setupResourceDrawnEvent(card, 'Hull Deck', index + 1)),
       ...handCards.map((card, index) => setupCrewDealtEvent(card, index + 1)),

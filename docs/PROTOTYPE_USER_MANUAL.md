@@ -20,7 +20,7 @@ You lose if no visible Map Destination can be completed, or if the current Gate 
 
 The prototype uses two sectors, one active Sector Deck at a time, one Fuel deck, one MOTHER deck, one Cryo deck, a 3-slot Map, a Gate, a Stress area, and two crew areas: Crew and Tired.
 
-On load or restart, setup is staged as an animated deal instead of cards snapping into place. After that animation, the playable counts match the table below.
+On load or restart, setup is staged as an animated deal instead of cards snapping into place. After that animation, the Map is empty; click the Sector Deck to deal the first 3-card Map offer.
 
 | Area | Cards | Setup |
 | --- | ---: | --- |
@@ -28,8 +28,8 @@ On load or restart, setup is staged as an animated deal instead of cards snappin
 | Fuel Deck | 10 Fuel Cell cards | The remaining Fuel Cells stay in the Fuel Deck. Fuel rewards draw from here. |
 | Starting Crew | 5 crew | Deal all starting crew to the Crew area as Ready crew. |
 | Tired Crew | 0 crew | Starts empty. Crew used on Destinations or Gates move here. |
-| Sector Deck | 9 Destinations | Shuffle all 9 Destinations for the sector. Deal 3 face up side by side into the Map and leave the rest in the Sector Deck for later 3-card Map offers. |
-| Map | 3 Destinations | These are the current visible Destinations. Complete 1, keep its card on the board only if it found a Ship Part, clear Immediate Benefit Destinations with the other visible Destinations, then draw 3 new side-by-side Destinations after the first and second traveled Destination. |
+| Sector Deck | 9 Destinations | Shuffle all 9 Destinations for the sector and place them as a manual draw deck. Do not deal Map Destinations during setup; the player draws the first 3-card Map offer from here. |
+| Map | 0 Destinations before the first draw | Starts empty. After the player draws from the Sector Deck, these are the current visible Destinations. Complete 1, keep its card on the board only if it found a Ship Part, clear Immediate Benefit Destinations with the other visible Destinations, then draw 3 new side-by-side Destinations after the first and second traveled Destination. |
 | Gate | 1 Gate card | Reveal Narrow Crossing face up at setup. |
 | MOTHER Deck | 6 MOTHER cards | Place as a manual draw deck. Draws 1 card at a time. |
 | Stress | 0 Stress | Spent MOTHER adds Stress. |
@@ -61,7 +61,7 @@ The visible crew icon formerly called Star is now called Nav. Science uses a bea
 
 ## Destinations And Finds
 
-Destinations are shuffled into the Sector Deck. A sector begins with exactly 3 face-up Map Destinations dealt side by side. Completing a Destination marks it traveled. Ship Part Destination cards move to the route area and remain on the board after sector completion; Immediate Benefit Destination cards clear with the other visible Map Destinations. The next 3 Destinations are drawn side by side as a fresh Map offer after the first and second traveled Destination.
+Destinations are shuffled into the Sector Deck. A sector begins with an empty Map; draw from the Sector Deck to reveal exactly 3 face-up Map Destinations side by side. Completing a Destination marks it traveled. Ship Part Destination cards move to the route area and remain on the board after sector completion; Immediate Benefit Destination cards clear with the other visible Map Destinations. The next 3 Destinations are drawn side by side as a fresh Map offer after the first and second traveled Destination.
 
 Every Destination card shows the Destination name in small text, the item found there as the main title, that item's effect, and the completion cost. The destination type is not shown on the card.
 
@@ -96,7 +96,7 @@ Ship Parts are used only at Gates. Each Ship Part can be spent once. Spent Ship 
 
 ## Map Loop
 
-On each turn while fewer than 3 Destinations have been traveled this sector:
+At the start of each sector, click the Sector Deck to draw the first 3 Map Destinations. Then, on each turn while fewer than 3 Destinations have been traveled this sector:
 
 1. Choose 1 face-up Destination from the Map.
 2. Pay its Fuel and icon requirements with Ready crew, Fuel Cells, Engineer + Scientist water pairs, and usable MOTHER.
@@ -190,15 +190,15 @@ After Gate 1 succeeds:
 3. All Tired crew become Ready.
 4. Fuel carries forward.
 5. Stress carries forward.
-6. The 9 Destinations are reshuffled for Sector 2.
+6. The 9 Destinations are reshuffled for Sector 2 and placed in the Sector Deck.
 7. Dark Threshold is revealed.
-8. Deal 3 Destinations side by side into the Sector 2 Map.
+8. The Sector 2 Map starts empty; click the Sector Deck to draw 3 Destinations side by side.
 
 After Gate 2 succeeds, the player wins.
 
 ## Prototype Controls
 
-Click a manual deck, or press Enter or Space while it is focused, to draw from it. The MOTHER Deck draws 1 card, stacking onto an existing usable MOTHER stack if one is in play or dealing next to the MOTHER Deck setup position otherwise. The Sector Deck automatically draws 3 cards for each Map offer; Scout can set the top card before the next offer.
+Click a manual deck, or press Enter or Space while it is focused, to draw from it. The Sector Deck draws the first 3-card Map offer when a sector begins with an empty Map. The MOTHER Deck draws 1 card, stacking onto an existing usable MOTHER stack if one is in play or dealing next to the MOTHER Deck setup position otherwise. Later Map offers after traveled Destinations are drawn from the Sector Deck automatically; Scout can set the top card before the next offer.
 
 Drag decks to reposition them. A deck can merge only with another deck containing the same card family, such as Fuel with Fuel or MOTHER with MOTHER.
 
@@ -232,6 +232,8 @@ There is no active Hull, health, damage, sector field, score track, market, reli
 
 ```text
 CORE LOOP
+
+Start each sector: click the Sector Deck to draw 3 Map Destinations.
 
 1. Choose 1 of 3 Map Destinations.
 2. Pay Fuel + icons.

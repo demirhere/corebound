@@ -1,5 +1,6 @@
-import { useEffect, useReducer } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import { Board } from './components/Board'
+import { HowToPlayDialog } from './components/BoardDialogs'
 import { PlaytestLog } from './components/PlaytestLog'
 import {
   createInitialGameState,
@@ -13,6 +14,7 @@ import './App.css'
 
 function App() {
   const [game, dispatchGame] = useReducer(gameReducer, undefined, createInitialGameState)
+  const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
   const { board, pendingSetupDeal, playtestLog, previousPlaytestLogSessions } = game
   const resetConsoleLog = usePlaytestLogConsole(playtestLog)
   const pendingSetupDealKey = pendingSetupDeal?.key ?? null
@@ -80,7 +82,12 @@ function App() {
       <PlaytestLog
         entries={playtestLog}
         previousSessions={previousPlaytestLogSessions}
+        onShowHowToPlay={() => setIsHowToPlayOpen(true)}
         onResetGame={resetGame}
+      />
+      <HowToPlayDialog
+        isOpen={isHowToPlayOpen}
+        onClose={() => setIsHowToPlayOpen(false)}
       />
     </main>
   )

@@ -29,6 +29,7 @@ export function InstructionsPanel({ totalSectors }: { totalSectors: number }) {
     <aside className="board-notes" aria-label="Quick play instructions" style={{ fontSize: 18 }}>
       <h2>Instructions</h2>
       <ol>
+        <li>Click the Sector Deck to draw 3 Map Destinations</li>
         <li>Pick 1 of 3 Map Destinations</li>
         <li>Pay its Fuel and icons with Ready crew</li>
         <li>Use MOTHER to cover missing icons; each use adds Stress and makes the Gate harder</li>

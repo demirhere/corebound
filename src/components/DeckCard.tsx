@@ -38,7 +38,7 @@ export function DeckCard({
   const displayTitle = getDeckDisplayTitle(deck.title)
   const actionLabel = canDraw
     ? 'Click to draw or drag to move.'
-    : 'Automatic Map draw or rewards only; drag to move.'
+    : 'Reward-only draw; drag to move.'
 
   return (
     <button

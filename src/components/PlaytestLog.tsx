@@ -10,6 +10,7 @@ const CURRENT_LOG_KEY = 'current'
 type PlaytestLogProps = {
   entries: readonly PlaytestLogEntry[]
   previousSessions: readonly PlaytestLogSession[]
+  onShowHowToPlay: () => void
   onResetGame: () => void
 }
 
@@ -27,7 +28,7 @@ function formatLogFilename(logKey: string) {
   return `corebound-playtest-log-${logKey}-${timestamp}.txt`
 }
 
-export function PlaytestLog({ entries, previousSessions, onResetGame }: PlaytestLogProps) {
+export function PlaytestLog({ entries, previousSessions, onShowHowToPlay, onResetGame }: PlaytestLogProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedLogKey, setSelectedLogKey] = useState(CURRENT_LOG_KEY)
   const [copiedLog, setCopiedLog] = useState<{ key: string; entryCount: number } | null>(null)
@@ -78,8 +79,16 @@ export function PlaytestLog({ entries, previousSessions, onResetGame }: Playtest
   }
 
   return (
-    <aside className="playtest-log" aria-label="Playtest log controls">
+    <aside className="playtest-log" aria-label="Board and playtest controls">
       <div className="playtest-log-controls">
+        <button
+          type="button"
+          className="playtest-log-toggle how-to-play-toggle"
+          aria-haspopup="dialog"
+          onClick={onShowHowToPlay}
+        >
+          How to Play
+        </button>
         <button
           type="button"
           className="playtest-log-reset"

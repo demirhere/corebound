@@ -1,7 +1,8 @@
-import { type CSSProperties } from 'react'
+import { useEffect, type CSSProperties } from 'react'
 import type { BoardState, GameLossReason } from '../game/types'
 import { CardShell } from './BoardCard'
 import { GameIcon } from './GameIcon'
+import { GAME_ICON_LABELS, type GameIconKind } from './gameIcons'
 
 type BoardView = BoardState
 
@@ -67,6 +68,187 @@ function FailureFlameIcon() {
         <circle className="flame-icon-dot" cx="101" cy="91" r="4.8" />
       </svg>
     </figure>
+  )
+}
+
+type HowToPlayMiniCardTone = 'destination' | 'gate'
+
+function iconListLabel(icons: readonly GameIconKind[]) {
+  return icons.map((icon) => GAME_ICON_LABELS[icon]).join(', ')
+}
+
+function HowToPlayIconStrip({ icons }: { icons: readonly GameIconKind[] }) {
+  return (
+    <span className="how-to-play-icon-strip" aria-label={iconListLabel(icons)}>
+      {icons.map((icon, index) => (
+        <GameIcon key={`${icon}-${index}`} kind={icon} />
+      ))}
+    </span>
+  )
+}
+
+function HowToPlayMiniCard({ kicker, title, icons, tone }: {
+  kicker: string
+  title: string
+  icons: readonly GameIconKind[]
+  tone: HowToPlayMiniCardTone
+}) {
+  return (
+    <article
+      className="how-to-play-mini-card"
+      data-tone={tone}
+      aria-label={`${kicker}: ${title}. ${iconListLabel(icons)}`}
+    >
+      <span className="how-to-play-card-kicker">{kicker}</span>
+      <strong>{title}</strong>
+      <HowToPlayIconStrip icons={icons} />
+    </article>
+  )
+}
+
+function HowToPlayChip({ icon, label }: { icon: GameIconKind; label: string }) {
+  return (
+    <span className="how-to-play-chip">
+      <GameIcon kind={icon} />
+      <span>{label}</span>
+    </span>
+  )
+}
+
+export function HowToPlayDialog({ isOpen, onClose }: {
+  isOpen: boolean
+  onClose: () => void
+}) {
+  useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
+  if (!isOpen) {
+    return null
+  }
+
+  return (
+    <div
+      className="dialog-overlay how-to-play-overlay"
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose()
+        }
+      }}
+    >
+      <section
+        className="arrival-panel how-to-play-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="how-to-play-title"
+      >
+        <p className="arrival-kicker">Corebound Rulebook</p>
+        <h2 id="how-to-play-title">How To Play</h2>
+        <p className="how-to-play-summary">
+          Win by clearing 2 sectors. Each sector is 3 Destinations, then 1 Gate.
+        </p>
+
+        <div className="how-to-play-flow" aria-label="Sector route summary">
+          <HowToPlayMiniCard
+            kicker="Choose"
+            title="Destination"
+            icons={['fuel', 'life', 'star']}
+            tone="destination"
+          />
+          <HowToPlayMiniCard
+            kicker="Complete"
+            title="Destination"
+            icons={['fuel', 'engine', 'signal']}
+            tone="destination"
+          />
+          <HowToPlayMiniCard
+            kicker="Complete"
+            title="Destination"
+            icons={['fuel', 'life', 'engine']}
+            tone="destination"
+          />
+          <HowToPlayMiniCard
+            kicker="Then pass"
+            title="Gate"
+            icons={['person', 'person', 'person', 'engine', 'life', 'star', 'signal']}
+            tone="gate"
+          />
+        </div>
+
+        <div className="how-to-play-icon-key" aria-label="Important icon key">
+          <HowToPlayChip icon="fuel" label="Fuel" />
+          <HowToPlayChip icon="person" label="Ready crew" />
+          <HowToPlayChip icon="tired-person" label="Tired crew" />
+          <HowToPlayChip icon="mother" label="MOTHER" />
+          <HowToPlayChip icon="parts" label="Ship Part" />
+        </div>
+
+        <div className="how-to-play-rulebook">
+          <section className="how-to-play-wide-section">
+            <h3>Core Loop</h3>
+            <ol>
+              <li>Click the Sector Deck to reveal 3 Map Destinations.</li>
+              <li>Pick 1 Destination and drag payment onto it.</li>
+              <li>Match all printed <GameIcon kind="fuel" /> and crew-icon requirements.</li>
+              <li>Completion is automatic. Used crew become <GameIcon kind="tired-person" />.</li>
+              <li>Resolve the find, clear the other Map cards, and repeat until the Gate appears.</li>
+            </ol>
+          </section>
+
+          <section>
+            <h3>Paying Costs</h3>
+            <div className="how-to-play-equations">
+              <p><HowToPlayChip icon="fuel" label="Fuel Cell" /> pays Fuel.</p>
+              <p><HowToPlayChip icon="person" label="Ready crew" /> pays matching icons.</p>
+              <p><HowToPlayIconStrip icons={['engine', 'signal']} /> Engineer + Scientist can make 1 <GameIcon kind="fuel" />.</p>
+              <p><HowToPlayChip icon="mother" label="MOTHER" /> covers 1 missing non-Fuel icon and adds Stress.</p>
+            </div>
+          </section>
+
+          <section>
+            <h3>Finds</h3>
+            <div className="how-to-play-find-types">
+              <p><strong>Immediate Benefit</strong> resolves now.</p>
+              <p><strong>Ship Part</strong> stays for a Gate. Parts can ready crew, fill a crew slot, or cover an icon.</p>
+            </div>
+          </section>
+
+          <section>
+            <h3>Gates</h3>
+            <p>
+              After 3 Destinations, fill every <GameIcon kind="person" /> slot and cover every icon:
+              {' '}<HowToPlayIconStrip icons={['engine', 'life', 'star', 'signal']} />. At 3+ Stress,
+              add 1 extra crew slot.
+            </p>
+          </section>
+
+          <section className="how-to-play-wide-section how-to-play-warning-section">
+            <h3>Critical Reminders</h3>
+            <p>
+              MOTHER never pays <GameIcon kind="fuel" /> and never fills <GameIcon kind="person" /> slots.
+              You lose if no visible Map Destination can be completed, or if the Gate cannot be passed
+              with Ready crew, Ship Parts, and unused MOTHER.
+            </p>
+          </section>
+        </div>
+
+        <button type="button" autoFocus onClick={onClose}>
+          Close Manual
+        </button>
+      </section>
+    </div>
   )
 }
 

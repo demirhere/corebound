@@ -2,7 +2,6 @@ import {
   CRYO_DECK_ID,
   HORIZON_DECK_ID,
   MOTHER_DECK_ID,
-  automaticRewardDeckDraw,
   canManuallyDrawDeck,
   manualDeckDraw,
 } from '../game/decks'
@@ -94,7 +93,6 @@ import {
   FUEL_SUPPLY_STACK_ID,
   FUEL_SUPPLY_STACK_POSITION,
   MAP_SLOT_COUNT,
-  MAP_SLOT_POSITIONS,
   MOTHER_SUPPLY_STACK_ID,
   MOTHER_SUPPLY_STACK_POSITION,
   createSectorHorizonDeckCards,
@@ -655,6 +653,7 @@ function drawNextMapChoices(current: BoardState) {
   const horizonDeck = current.decks.find((deck) => deck.id === HORIZON_DECK_ID)
   const blueprints = horizonDeck?.cards.slice(0, MAP_SLOT_COUNT) ?? []
   const discardedMapCardIds = getVisibleHorizonCardIds(current)
+  const isInitialMapOffer = discardedMapCardIds.length === 0 && current.routeSlots.every((slot) => slot === null)
   const baseStacks = removeCardIdsFromStacks(current.stacks, discardedMapCardIds)
   const drawnMapCards: Card[] = []
   let nextCardId = current.nextCardId
@@ -706,7 +705,9 @@ function drawNextMapChoices(current: BoardState) {
       ...(discardedMapCardIds.length > 0
         ? [cardsDiscardedEvent(discardedMapCardIds, current.cards, 'unchosen Map Destinations')]
         : []),
-      mapRefilledEvent(current.currentSector, drawnMapCards),
+      isInitialMapOffer
+        ? mapInitializedEvent(current.currentSector, drawnMapCards)
+        : mapRefilledEvent(current.currentSector, drawnMapCards),
     ],
   }
 }
@@ -1136,15 +1137,7 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
     ? createCardFromBlueprint(nextGateBlueprint, `gate-${nextSector}-${current.nextCardId}`)
     : null
   const nextSectorHorizonCards = nextGateCard ? createSectorHorizonDeckCards() : []
-  const nextMapStopCards = nextGateCard
-    ? nextSectorHorizonCards
-        .slice(0, MAP_SLOT_COUNT)
-        .map((blueprint, index) => createCardFromBlueprint(
-          blueprint,
-          `map-${nextSector}-${index + 1}-${current.nextCardId + index + 1}`,
-        ))
-    : []
-  const nextStopDeckCards = nextGateCard ? nextSectorHorizonCards.slice(MAP_SLOT_COUNT) : []
+  const nextStopDeckCards = nextSectorHorizonCards
   const nextSectorDeckArt = getSectorDeckArt(nextSector)
   const nextZ = current.topZ + 1
   const cardsWithSpentMother = markMotherCardsSpent(current.cards, spentMotherCardIds)
@@ -1163,10 +1156,6 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
     }
 
     nextCards[nextGateCard.id] = nextGateCard
-
-    for (const mapStopCard of nextMapStopCards) {
-      nextCards[mapStopCard.id] = mapStopCard
-    }
   }
 
   const handCardIdsWithoutSpentCrew = current.handCardIds.filter(
@@ -1214,13 +1203,13 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
   })
   const nextBoard = {
     ...current,
-    topZ: nextZ + nextMapStopCards.length,
-    nextCardId: nextGateCard ? current.nextCardId + 1 + nextMapStopCards.length : current.nextCardId,
+    topZ: nextZ,
+    nextCardId: nextGateCard ? current.nextCardId + 1 : current.nextCardId,
     currentSector: isFinalGate ? current.currentSector : nextSector,
     hasArrived: isFinalGate,
     dropTargetStackId: null,
     dropTargetDeckId: null,
-    mapSlots: nextGateCard ? nextMapStopCards.map((card) => card.id) : current.mapSlots,
+    mapSlots: nextGateCard ? createEmptyMapSlots() : current.mapSlots,
     routeSlots: isFinalGate ? current.routeSlots : createEmptyRouteSlots(),
     shipPartSlots: current.shipPartSlots,
     archivedRouteCardIds: isFinalGate
@@ -1244,17 +1233,6 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
             },
           ]
         : []),
-      ...nextMapStopCards.map((card, index) => {
-        const position = MAP_SLOT_POSITIONS[index] ?? MAP_SLOT_POSITIONS[0]
-
-        return {
-          id: getMapStackId(index),
-          cardIds: [card.id],
-          x: position.x,
-          y: position.y,
-          z: nextZ + index + 1,
-        }
-      }),
     ],
     decks: current.decks.map((deck) =>
       nextGateCard && deck.id === HORIZON_DECK_ID
@@ -1266,7 +1244,8 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
             accent: nextSectorDeckArt.accent,
             z: nextZ,
             draw: {
-              ...automaticRewardDeckDraw,
+              ...manualDeckDraw,
+              count: MAP_SLOT_COUNT,
               placement: 'nearby' as const,
             },
             cards: nextStopDeckCards,
@@ -1333,7 +1312,6 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
       ...(nextGateCard
         ? [
             sectorRevealedEvent(nextSector, nextGateCard, nextSectorHorizonCards),
-            mapInitializedEvent(nextSector, nextMapStopCards),
           ]
         : []),
       ...returnedMother.events,
@@ -1526,6 +1504,17 @@ export function drawFromDeckUpdate(deckId: string, metrics: BoardMetrics): Board
       !canManuallyDrawDeck(deck)
     ) {
       return current
+    }
+
+    if (deck.id === HORIZON_DECK_ID) {
+      if (getVisibleHorizonCardIds(current).length > 0 || isSectorHorizonFinished(current)) {
+        return current
+      }
+
+      const mapDraw = drawNextMapChoices(current)
+      const loss = resolveSectorStrandedLossIfNeeded(mapDraw.board)
+
+      return withPlaytestEvents(loss.board, [...mapDraw.events, ...loss.events])
     }
 
     const drawCount = getPendingDrawCount(deck, current.pendingEffects)
