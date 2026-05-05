@@ -15,7 +15,7 @@ type CardStackProps = {
   cards: Record<string, CardView>
   isDropTarget: boolean
   isActive: boolean
-  canInteract: boolean
+  canInteractWithCard: (cardId: string) => boolean
   sharedPosition: { x: number; y: number } | null
   stackOffsetRatio: number
   fuelDiscount: number
@@ -34,7 +34,7 @@ export function CardStack({
   cards,
   isDropTarget,
   isActive,
-  canInteract,
+  canInteractWithCard,
   sharedPosition,
   stackOffsetRatio,
   fuelDiscount,
@@ -99,7 +99,7 @@ export function CardStack({
             stackId={stack.id}
             cardIndex={index}
             isStackActive={isActive || isSharedActive}
-            canInteract={canInteract}
+            canInteract={canInteractWithCard(card.id)}
             stackOffsetRatio={stackOffsetRatio}
             fuelDiscount={fuelDiscount}
             stressCount={stressCount}

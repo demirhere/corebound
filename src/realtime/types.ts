@@ -1,8 +1,13 @@
 import type { GameState } from '../game/state'
+import type { GamePlayer } from '../game/types'
 
-export type RealtimeRole = 'host' | 'observer'
+export type RealtimeRole = 'host' | 'player' | 'observer'
 
 export type RealtimeStatus = 'connecting' | 'connected' | 'disconnected' | 'error'
+
+export type RealtimePlayer = GamePlayer & {
+  isConnected: boolean
+}
 
 export type SharedDragPreview =
   | {
@@ -22,18 +27,32 @@ export type RealtimeSnapshot = {
   game: GameState
   ui: {
     isHowToPlayOpen: boolean
+    isGameStarted: boolean
   }
   updatedAt: string
-  hostId: string
+  hostId?: string
+  playerId: string
 }
 
 export type ClientRealtimeMessage =
+  | {
+      type: 'client-hello'
+      role: RealtimeRole
+    }
   | {
       type: 'host-snapshot'
       snapshot: RealtimeSnapshot
     }
   | {
+      type: 'player-snapshot'
+      snapshot: RealtimeSnapshot
+    }
+  | {
       type: 'host-drag'
+      drag: SharedDragPreview | null
+    }
+  | {
+      type: 'player-drag'
       drag: SharedDragPreview | null
     }
 
@@ -53,4 +72,5 @@ export type ServerRealtimeMessage =
   | {
       type: 'presence'
       connections: number
+      players: RealtimePlayer[]
     }

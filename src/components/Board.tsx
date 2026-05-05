@@ -12,9 +12,15 @@ import {
 } from './BoardDialogs'
 import {
   InstructionsPanel,
-  ShipPartsPanel,
+  PlayerCrewPanel,
   StressTracker,
 } from './BoardPanels'
+import {
+  getPlayerCrewStats,
+  getVisibleHandCardIds,
+  getVisibleTiredCardIds,
+  isMultiplayerBoard,
+} from '../game/players'
 import { CardStack } from './CardStack'
 import { getStackActions } from '../game/stackActions'
 import {
@@ -54,7 +60,10 @@ type BoardProps = {
   handInsertPreview: HandInsertPreview | null
   endTurnAttentionKey: number
   sharedDrag: SharedDragPreview | null
-  canInteract: boolean
+  localPlayerId: string | null
+  canMoveBoardFreely: boolean
+  canUseOwnCrew: boolean
+  isLocalTurn: boolean
   stackOffsetRatio: number
   onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void
   onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void
@@ -83,7 +92,10 @@ export function Board({
   handInsertPreview,
   endTurnAttentionKey,
   sharedDrag,
-  canInteract,
+  localPlayerId,
+  canMoveBoardFreely,
+  canUseOwnCrew,
+  isLocalTurn,
   stackOffsetRatio,
   onPointerMove,
   onPointerUp,
@@ -102,11 +114,16 @@ export function Board({
   onResetGame,
 }: BoardProps) {
   const isGameOver = board.hasArrived || Boolean(board.lossReason)
-  const canEndTurn = canInteract &&
+  const canEndTurn = canMoveBoardFreely &&
     !board.hasArrived &&
     !board.lossReason &&
     !board.pendingWakeChoice &&
     !board.pendingScoutChoice
+  const playerStats = getPlayerCrewStats(board)
+  const isMultiplayer = isMultiplayerBoard(board)
+  const visibleHandCardIds = getVisibleHandCardIds(board, localPlayerId)
+  const visibleTiredCardIds = getVisibleTiredCardIds(board, localPlayerId)
+  const endTurnLabel = isLocalTurn ? 'End turn' : 'Waiting for other player'
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
   const gateCrewSlotDiscount = countSpentShipParts(board, 'service-drone-bay')
   const gateIconDiscount = countSpentShipParts(board, 'adaptive-control-console')
@@ -114,6 +131,20 @@ export function Board({
     ...board.routeSlots.flatMap((routeSlot) => routeSlot ? [routeSlot.cardId] : []),
     ...board.shipPartSlots.map((slot) => slot.cardId),
   ])
+
+  function canInteractWithStackCard(cardId: string) {
+    const card = board.cards[cardId]
+
+    return Boolean(
+      canMoveBoardFreely ||
+        (
+          canUseOwnCrew &&
+          localPlayerId &&
+          card?.kind === 'crew' &&
+          board.crewOwnerIds[cardId] === localPlayerId
+        ),
+    )
+  }
 
   return (
     <section
@@ -127,7 +158,13 @@ export function Board({
       <InstructionsPanel totalSectors={board.totalSectors} />
       <div className="board-status-area" aria-label="Board status">
         <StressTracker stressCount={board.stressCount} />
-        <ShipPartsPanel board={board} />
+        {isMultiplayer ? (
+          <PlayerCrewPanel
+            players={playerStats}
+            currentPlayerId={board.currentPlayerId}
+            localPlayerId={localPlayerId}
+          />
+        ) : null}
       </div>
       {board.decks
         .filter((deck) => deck.cards.length > 0)
@@ -137,7 +174,7 @@ export function Board({
             deck={deck}
             isActive={activeDeckIds.includes(deck.id)}
             isDropTarget={board.dropTargetDeckId === deck.id}
-            canInteract={canInteract}
+            canInteract={canMoveBoardFreely}
             sharedPosition={
               sharedDrag?.kind === 'deck' && sharedDrag.deckId === deck.id
                 ? { x: sharedDrag.x, y: sharedDrag.y }
@@ -155,7 +192,7 @@ export function Board({
           cards={board.cards}
           isDropTarget={board.dropTargetStackId === stack.id}
           isActive={activeStackIds.includes(stack.id)}
-          canInteract={canInteract}
+          canInteractWithCard={canInteractWithStackCard}
           sharedPosition={
             sharedDrag?.kind === 'stack' && sharedDrag.stackId === stack.id
               ? { x: sharedDrag.x, y: sharedDrag.y }
@@ -167,7 +204,7 @@ export function Board({
           gateCrewSlotDiscount={gateCrewSlotDiscount}
           gateIconDiscount={gateIconDiscount}
           traveledStopCardIds={traveledStopCardIds}
-          actions={canInteract ? getStackActions(board, stack) : []}
+          actions={canMoveBoardFreely ? getStackActions(board, stack) : []}
           onStackAction={onStackAction}
           onCardPointerDown={onCardPointerDown}
           onCardKeyDown={onCardKeyDown}
@@ -176,14 +213,15 @@ export function Board({
 
       <Hand
         handRef={handRef}
-        crewCardIds={board.handCardIds}
-        tiredCardIds={board.tiredCardIds}
+        crewCardIds={visibleHandCardIds}
+        tiredCardIds={visibleTiredCardIds}
         cards={board.cards}
         activeCardIds={activeHandCardIds}
         insertPreview={handInsertPreview}
         endTurnAttentionKey={endTurnAttentionKey}
-        canInteract={canInteract}
+        canInteract={canUseOwnCrew}
         canEndTurn={canEndTurn}
+        endTurnLabel={endTurnLabel}
         onEndTurn={onEndTurn}
         onCardPointerDown={onHandCardPointerDown}
         onCardKeyDown={onHandCardKeyDown}
@@ -191,20 +229,21 @@ export function Board({
 
       <ArrivalDialog
         hasArrived={board.hasArrived}
+        board={board}
         onResetGame={onResetGame}
-        canReset={canInteract}
+        canReset={canUseOwnCrew}
       />
-      <LossDialog board={board} onResetGame={onResetGame} canReset={canInteract} />
+      <LossDialog board={board} onResetGame={onResetGame} canReset={canUseOwnCrew} />
       <WakeChoiceDialog
         board={board}
         isGameOver={isGameOver}
-        canInteract={canInteract}
+        canInteract={canMoveBoardFreely}
         onWakeCrewChoice={onWakeCrewChoice}
       />
       <ScoutChoiceDialog
         board={board}
         isGameOver={isGameOver}
-        canInteract={canInteract}
+        canInteract={canMoveBoardFreely}
         onScoutCardChoice={onScoutCardChoice}
         onScoutChoiceConfirm={onScoutChoiceConfirm}
       />

@@ -1,5 +1,5 @@
 import { createInitialBoardSetup } from './setup'
-import type { BoardState } from './types'
+import type { BoardState, GamePlayer } from './types'
 import {
   appendPlaytestEvents,
   type PlaytestLogEntry,
@@ -47,6 +47,11 @@ export type GameAction =
       occurredAt: string
     }
   | {
+      type: 'start-game'
+      players: readonly GamePlayer[]
+      occurredAt: string
+    }
+  | {
       type: 'complete-setup-deal'
       setupKey: string
       occurredAt: string
@@ -54,10 +59,11 @@ export type GameAction =
 
 function createGameState(
   startedAt: string,
+  players?: readonly GamePlayer[],
   previousPlaytestLogSessions: PlaytestLogSession[] = [],
   nextPlaytestLogSessionId = 1,
 ): GameState {
-  const setup = createInitialBoardSetup()
+  const setup = createInitialBoardSetup(players)
 
   return {
     board: setup.predealBoard,
@@ -114,9 +120,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     return createGameState(
       action.occurredAt,
+      state.board.players,
       previousPlaytestLogSessions,
       state.nextPlaytestLogSessionId + (state.playtestLog.length > 0 ? 1 : 0),
     )
+  }
+
+  if (action.type === 'start-game') {
+    return createGameState(action.occurredAt, action.players)
   }
 
   if (action.type === 'complete-setup-deal') {

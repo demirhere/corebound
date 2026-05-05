@@ -9,6 +9,8 @@ import {
   gameReducer,
   type BoardUpdater,
 } from './game/state'
+import { isMultiplayerBoard } from './game/players'
+import type { GamePlayer } from './game/types'
 import { useBoardInteractions } from './hooks/useBoardInteractions'
 import { useCardMovementAnimations } from './hooks/useCardMovementAnimations'
 import { usePlaytestLogConsole } from './hooks/usePlaytestLogConsole'
@@ -30,13 +32,36 @@ function App() {
     config: realtimeConfig,
     game,
     isHowToPlayOpen,
+    isGameStarted,
     dispatchGame,
     setIsHowToPlayOpen,
+    setIsGameStarted,
   })
-  const canControlBoard = !realtimeConfig.enabled || realtimeConfig.role === 'host'
+  const isRealtimeObserver = realtimeConfig.enabled && realtimeConfig.role === 'observer'
+  const localPlayerId = realtimeConfig.enabled
+    ? (isRealtimeObserver ? null : realtime.clientId)
+    : board.currentPlayerId
+  const isMultiplayer = isMultiplayerBoard(board)
+  const isLocalPlayerInGame = !realtimeConfig.enabled ||
+    Boolean(localPlayerId && board.players.some((player) => player.id === localPlayerId))
+  const isLocalTurn = !isMultiplayer || board.currentPlayerId === localPlayerId
+  const canApplyGameUpdates = !isRealtimeObserver && isLocalPlayerInGame
+  const canMoveBoardFreely = canApplyGameUpdates && isLocalTurn
+  const canUseOwnCrew = canApplyGameUpdates
+  const canResetGame = canApplyGameUpdates
+
+  function getLaunchPlayers(): GamePlayer[] {
+    if (!realtimeConfig.enabled || isRealtimeObserver) {
+      return board.players
+    }
+
+    return realtime.players.length > 0
+      ? realtime.players.map(({ id, name }) => ({ id, name }))
+      : [{ id: realtime.clientId, name: 'Player 1' }]
+  }
 
   function setBoard(update: BoardUpdater) {
-    if (!canControlBoard) {
+    if (!canApplyGameUpdates) {
       return
     }
 
@@ -50,13 +75,16 @@ function App() {
   const interactions = useBoardInteractions({
     board,
     setBoard,
-    onSharedDragChange: realtime.sendSharedDrag,
+    localPlayerId,
+    canMoveBoardFreely,
+    canUseOwnCrew,
+    onSharedDragChange: canApplyGameUpdates ? realtime.sendSharedDrag : undefined,
   })
 
   useCardMovementAnimations({ board, boardRef: interactions.boardRef })
 
   useEffect(() => {
-    if (!isGameStarted || !canControlBoard || !pendingSetupDealKey) {
+    if (!isGameStarted || !canMoveBoardFreely || !pendingSetupDealKey) {
       return
     }
 
@@ -69,16 +97,31 @@ function App() {
     })
 
     return () => window.cancelAnimationFrame(frameId)
-  }, [canControlBoard, isGameStarted, pendingSetupDealKey])
+  }, [canMoveBoardFreely, isGameStarted, pendingSetupDealKey])
 
   function resetGame() {
-    if (!canControlBoard) {
+    if (!canResetGame) {
       return
     }
 
     interactions.resetInteractions()
     resetConsoleLog()
     dispatchGame({ type: 'reset-game', occurredAt: new Date().toISOString() })
+  }
+
+  function beginGame() {
+    if (isRealtimeObserver) {
+      return
+    }
+
+    interactions.resetInteractions()
+    resetConsoleLog()
+    dispatchGame({
+      type: 'start-game',
+      players: getLaunchPlayers(),
+      occurredAt: new Date().toISOString(),
+    })
+    setIsGameStarted(true)
   }
 
   return (
@@ -94,47 +137,67 @@ function App() {
             activeHandCardIds={interactions.activeHandCardIds}
             handInsertPreview={interactions.handInsertPreview}
             endTurnAttentionKey={interactions.endTurnAttentionKey}
-            sharedDrag={canControlBoard ? null : realtime.remoteDrag}
-            canInteract={canControlBoard}
+            sharedDrag={realtime.remoteDrag}
+            localPlayerId={localPlayerId}
+            canMoveBoardFreely={canMoveBoardFreely}
+            canUseOwnCrew={canUseOwnCrew}
+            isLocalTurn={isLocalTurn}
             stackOffsetRatio={interactions.stackOffsetRatio}
-            onPointerMove={canControlBoard ? interactions.onPointerMove : noop}
-            onPointerUp={canControlBoard ? interactions.onPointerUp : noop}
-            onPointerCancel={canControlBoard ? interactions.onPointerCancel : noop}
-            onDeckPointerDown={canControlBoard ? interactions.onDeckPointerDown : noop}
-            onDeckKeyDown={canControlBoard ? interactions.onDeckKeyDown : noop}
-            onCardPointerDown={canControlBoard ? interactions.onCardPointerDown : noop}
-            onCardKeyDown={canControlBoard ? interactions.onCardKeyDown : noop}
-            onHandCardPointerDown={canControlBoard ? interactions.onHandCardPointerDown : noop}
-            onHandCardKeyDown={canControlBoard ? interactions.onHandCardKeyDown : noop}
-            onWakeCrewChoice={canControlBoard ? interactions.onWakeCrewChoice : noop}
-            onScoutCardChoice={canControlBoard ? interactions.onScoutCardChoice : noop}
-            onScoutChoiceConfirm={canControlBoard ? interactions.onScoutChoiceConfirm : noop}
-            onStackAction={canControlBoard ? interactions.onStackAction : noop}
-            onEndTurn={canControlBoard ? interactions.onEndTurn : noop}
+            onPointerMove={canUseOwnCrew ? interactions.onPointerMove : noop}
+            onPointerUp={canUseOwnCrew ? interactions.onPointerUp : noop}
+            onPointerCancel={canUseOwnCrew ? interactions.onPointerCancel : noop}
+            onDeckPointerDown={canMoveBoardFreely ? interactions.onDeckPointerDown : noop}
+            onDeckKeyDown={canMoveBoardFreely ? interactions.onDeckKeyDown : noop}
+            onCardPointerDown={canUseOwnCrew ? interactions.onCardPointerDown : noop}
+            onCardKeyDown={canUseOwnCrew ? interactions.onCardKeyDown : noop}
+            onHandCardPointerDown={canUseOwnCrew ? interactions.onHandCardPointerDown : noop}
+            onHandCardKeyDown={canUseOwnCrew ? interactions.onHandCardKeyDown : noop}
+            onWakeCrewChoice={canMoveBoardFreely ? interactions.onWakeCrewChoice : noop}
+            onScoutCardChoice={canMoveBoardFreely ? interactions.onScoutCardChoice : noop}
+            onScoutChoiceConfirm={canMoveBoardFreely ? interactions.onScoutChoiceConfirm : noop}
+            onStackAction={canMoveBoardFreely ? interactions.onStackAction : noop}
+            onEndTurn={canMoveBoardFreely ? interactions.onEndTurn : noop}
             onResetGame={resetGame}
           />
           <PlaytestLog
             entries={playtestLog}
             previousSessions={previousPlaytestLogSessions}
-            canControl={canControlBoard}
+            canControl={canResetGame}
             networkControl={realtimeConfig.enabled ? (
               <RealtimePanel
                 config={realtimeConfig}
                 status={realtime.status}
                 connectionCount={realtime.connectionCount}
+                players={realtime.players}
               />
             ) : null}
-            onShowHowToPlay={() => setIsHowToPlayOpen(true)}
+            onShowHowToPlay={() => {
+              if (canApplyGameUpdates) {
+                setIsHowToPlayOpen(true)
+              }
+            }}
             onResetGame={resetGame}
           />
           <HowToPlayDialog
             isOpen={isHowToPlayOpen}
-            onClose={canControlBoard ? () => setIsHowToPlayOpen(false) : noop}
-            canClose={canControlBoard}
+            onClose={canApplyGameUpdates ? () => setIsHowToPlayOpen(false) : noop}
+            canClose={canApplyGameUpdates}
           />
         </>
       ) : (
-        <BeginDialog onBegin={() => setIsGameStarted(true)} />
+        <BeginDialog
+          players={realtimeConfig.enabled ? realtime.players : []}
+          canBegin={!isRealtimeObserver}
+          invite={
+            realtimeConfig.enabled && realtimeConfig.role === 'host'
+              ? {
+                  roomCode: realtimeConfig.room.toUpperCase(),
+                  playerUrl: realtimeConfig.playerUrl,
+                }
+              : null
+          }
+          onBegin={beginGame}
+        />
       )}
     </main>
   )

@@ -5,6 +5,7 @@ import type { RealtimeConfig } from './config'
 import type {
   ClientRealtimeMessage,
   RealtimeSnapshot,
+  RealtimePlayer,
   RealtimeStatus,
   ServerRealtimeMessage,
   SharedDragPreview,
@@ -14,12 +15,24 @@ type UsePartyKitSyncArgs = {
   config: RealtimeConfig
   game: GameState
   isHowToPlayOpen: boolean
+  isGameStarted: boolean
   dispatchGame: Dispatch<GameAction>
   setIsHowToPlayOpen: (isOpen: boolean) => void
+  setIsGameStarted: (isStarted: boolean) => void
 }
 
-function createClientId() {
-  return globalThis.crypto?.randomUUID?.() ?? `client-${Math.random().toString(36).slice(2)}`
+function createClientId(room: string) {
+  const storageKey = `corebound:client-id:${room}`
+  const storedClientId = window.sessionStorage.getItem(storageKey)
+
+  if (storedClientId) {
+    return storedClientId
+  }
+
+  const clientId = globalThis.crypto?.randomUUID?.() ?? `client-${Math.random().toString(36).slice(2)}`
+
+  window.sessionStorage.setItem(storageKey, clientId)
+  return clientId
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -52,18 +65,23 @@ export function usePartyKitSync({
   config,
   game,
   isHowToPlayOpen,
+  isGameStarted,
   dispatchGame,
   setIsHowToPlayOpen,
+  setIsGameStarted,
 }: UsePartyKitSyncArgs) {
-  const [clientId] = useState(() => createClientId())
+  const [clientId] = useState(() => createClientId(config.room))
   const socketRef = useRef<PartySocket | null>(null)
   const latestGameRef = useRef(game)
   const latestHowToPlayRef = useRef(isHowToPlayOpen)
+  const latestIsGameStartedRef = useRef(isGameStarted)
+  const isApplyingRemoteSnapshotRef = useRef(false)
   const remoteDragClearTimeoutRef = useRef<number | null>(null)
   const [status, setStatus] = useState<RealtimeStatus>(
     config.enabled ? 'connecting' : 'disconnected',
   )
   const [connectionCount, setConnectionCount] = useState(1)
+  const [players, setPlayers] = useState<RealtimePlayer[]>([])
   const [remoteDrag, setRemoteDrag] = useState<SharedDragPreview | null>(null)
 
   useEffect(() => {
@@ -74,24 +92,30 @@ export function usePartyKitSync({
     latestHowToPlayRef.current = isHowToPlayOpen
   }, [isHowToPlayOpen])
 
+  useEffect(() => {
+    latestIsGameStartedRef.current = isGameStarted
+  }, [isGameStarted])
+
   const createSnapshot = useCallback((): RealtimeSnapshot => ({
     game: latestGameRef.current,
     ui: {
       isHowToPlayOpen: latestHowToPlayRef.current,
+      isGameStarted: latestIsGameStartedRef.current,
     },
     updatedAt: new Date().toISOString(),
     hostId: clientId,
+    playerId: clientId,
   }), [clientId])
 
   const sendSnapshot = useCallback(() => {
     const socket = socketRef.current
 
-    if (!socket || config.role !== 'host') {
+    if (!socket || config.role === 'observer') {
       return
     }
 
     sendMessage(socket, {
-      type: 'host-snapshot',
+      type: config.role === 'host' ? 'host-snapshot' : 'player-snapshot',
       snapshot: createSnapshot(),
     })
   }, [config.role, createSnapshot])
@@ -135,6 +159,11 @@ export function usePartyKitSync({
     function handleOpen() {
       setStatus('connected')
 
+      sendMessage(socket, {
+        type: 'client-hello',
+        role: config.role,
+      })
+
       if (config.role === 'host') {
         sendSnapshot()
       }
@@ -149,13 +178,11 @@ export function usePartyKitSync({
     }
 
     function applySnapshot(snapshot: RealtimeSnapshot) {
-      if (config.role !== 'observer') {
-        return
-      }
-
       clearRemoteDrag()
+      isApplyingRemoteSnapshotRef.current = true
       dispatchGame({ type: 'hydrate-game', state: snapshot.game })
       setIsHowToPlayOpen(snapshot.ui.isHowToPlayOpen)
+      setIsGameStarted(snapshot.ui.isGameStarted)
     }
 
     function handleMessage(event: MessageEvent) {
@@ -167,6 +194,7 @@ export function usePartyKitSync({
 
       if (message.type === 'presence') {
         setConnectionCount(message.connections)
+        setPlayers(message.players)
         return
       }
 
@@ -182,7 +210,7 @@ export function usePartyKitSync({
         return
       }
 
-      if (message.type === 'drag' && config.role === 'observer') {
+      if (message.type === 'drag') {
         if (message.drag) {
           if (remoteDragClearTimeoutRef.current !== null) {
             window.clearTimeout(remoteDragClearTimeoutRef.current)
@@ -222,15 +250,21 @@ export function usePartyKitSync({
     scheduleRemoteDragClear,
     sendSnapshot,
     setIsHowToPlayOpen,
+    setIsGameStarted,
   ])
 
   useEffect(() => {
-    if (!config.enabled || config.role !== 'host') {
+    if (!config.enabled || config.role === 'observer') {
+      return
+    }
+
+    if (isApplyingRemoteSnapshotRef.current) {
+      isApplyingRemoteSnapshotRef.current = false
       return
     }
 
     sendSnapshot()
-  }, [config.enabled, config.role, game, isHowToPlayOpen, sendSnapshot])
+  }, [config.enabled, config.role, game, isGameStarted, isHowToPlayOpen, sendSnapshot])
 
   useEffect(() => {
     return () => {
@@ -243,12 +277,12 @@ export function usePartyKitSync({
   const sendSharedDrag = useCallback((drag: SharedDragPreview | null) => {
     const socket = socketRef.current
 
-    if (!socket || !config.enabled || config.role !== 'host') {
+    if (!socket || !config.enabled || config.role === 'observer') {
       return
     }
 
     sendMessage(socket, {
-      type: 'host-drag',
+      type: config.role === 'host' ? 'host-drag' : 'player-drag',
       drag,
     })
   }, [config.enabled, config.role])
@@ -256,6 +290,8 @@ export function usePartyKitSync({
   return {
     status,
     connectionCount,
+    clientId,
+    players,
     remoteDrag,
     sendSharedDrag,
   }

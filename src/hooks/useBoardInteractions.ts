@@ -31,6 +31,7 @@ import {
   endTurnUpdate,
   promoteHandCardToStackUpdate,
   reorderHandCardUpdate,
+  returnOwnedCrewCardToHandUpdate,
   stackOnDropTargetUpdate,
   toggleCardFaceUpdate,
 } from '../board/boardUpdaters'
@@ -83,12 +84,18 @@ import type { SharedDragPreview } from '../realtime/types'
 type UseBoardInteractionsArgs = {
   board: BoardState
   setBoard: (update: BoardUpdater) => void
+  localPlayerId: string | null
+  canMoveBoardFreely: boolean
+  canUseOwnCrew: boolean
   onSharedDragChange?: (drag: SharedDragPreview | null) => void
 }
 
 export function useBoardInteractions({
   board,
   setBoard,
+  localPlayerId,
+  canMoveBoardFreely,
+  canUseOwnCrew,
   onSharedDragChange,
 }: UseBoardInteractionsArgs) {
   const boardRef = useRef<HTMLDivElement>(null)
@@ -215,6 +222,22 @@ export function useBoardInteractions({
 
   function getHandCardElement(cardId: string) {
     return handRef.current?.querySelector<HTMLElement>(`[data-hand-card-id="${cardId}"]`) ?? null
+  }
+
+  function isOwnCrewCard(cardId: string) {
+    const current = boardStateRef.current
+    const card = current.cards[cardId]
+
+    return Boolean(
+      canUseOwnCrew &&
+        localPlayerId &&
+        card?.kind === 'crew' &&
+        current.crewOwnerIds[cardId] === localPlayerId,
+    )
+  }
+
+  function canClickStackCard(cardId: string) {
+    return canMoveBoardFreely || isOwnCrewCard(cardId)
   }
 
   function isPointInDiscard(clientX: number, clientY: number) {
@@ -666,6 +689,10 @@ export function useBoardInteractions({
   }
 
   function activateStackDrag(drag: StackDragState) {
+    if (!canMoveBoardFreely && !isOwnCrewCard(drag.cardId)) {
+      return false
+    }
+
     const currentSourceStack = boardStateRef.current.stacks.find((stack) => stack.id === drag.stackId)
 
     if (!currentSourceStack || currentSourceStack.cardIds[drag.cardIndex] !== drag.cardId) {
@@ -681,6 +708,15 @@ export function useBoardInteractions({
     drag.dropTargetHandZone = null
     drag.dropTargetDiscard = false
     drag.handInsertIndex = null
+
+    if (!canMoveBoardFreely) {
+      flushSync(() => {
+        addActiveStackId(activeId)
+      })
+
+      drag.activeElement = drag.sourceElement ?? getStackElement(activeId)
+      return true
+    }
 
     flushSync(() => {
       addActiveStackId(activeId)
@@ -700,6 +736,10 @@ export function useBoardInteractions({
   }
 
   function activateDeckDrag(drag: DeckDragState) {
+    if (!canMoveBoardFreely) {
+      return false
+    }
+
     if (!boardStateRef.current.decks.some((deck) => deck.id === drag.deckId)) {
       return false
     }
@@ -717,6 +757,21 @@ export function useBoardInteractions({
   }
 
   function activateHandDrag(drag: HandDragState) {
+    if (!canMoveBoardFreely && !isOwnCrewCard(drag.cardId)) {
+      return false
+    }
+
+    if (!canMoveBoardFreely) {
+      drag.hasMoved = true
+
+      flushSync(() => {
+        addActiveHandCardId(drag.cardId)
+      })
+
+      drag.element = getHandCardElement(drag.cardId) ?? drag.element
+      return true
+    }
+
     const sourceHandZone = getCardHandZone(boardStateRef.current, drag.cardId)
 
     if (!sourceHandZone || !canUseManualHandZone(sourceHandZone)) {
@@ -929,22 +984,42 @@ export function useBoardInteractions({
   }
 
   function chooseWakeCrew(cardId: string) {
+    if (!canMoveBoardFreely) {
+      return
+    }
+
     setBoard(chooseWakeCrewUpdate(cardId))
   }
 
   function chooseScoutCard(cardId: string) {
+    if (!canMoveBoardFreely) {
+      return
+    }
+
     setBoard(chooseScoutCardUpdate(cardId))
   }
 
   function confirmScoutChoice() {
+    if (!canMoveBoardFreely) {
+      return
+    }
+
     setBoard(confirmScoutChoiceUpdate)
   }
 
   function completeStackAction(stackId: string, actionId: string) {
+    if (!canMoveBoardFreely) {
+      return
+    }
+
     setBoard(completeStackActionUpdate(stackId, actionId, readBoardMetrics()))
   }
 
   function endTurn() {
+    if (!canMoveBoardFreely) {
+      return
+    }
+
     setBoard(endTurnUpdate)
   }
 
@@ -1052,6 +1127,15 @@ export function useBoardInteractions({
     setBoard(toggleCardFaceUpdate(stackId, cardId))
   }
 
+  function returnOwnedCrewCardToHand(stackId: string, cardId: string) {
+    if (!isOwnCrewCard(cardId)) {
+      return false
+    }
+
+    setBoard(returnOwnedCrewCardToHandUpdate(stackId, cardId, localPlayerId))
+    return true
+  }
+
   function beginStackDrag(
     event: ReactPointerEvent<HTMLDivElement>,
     stackId: string,
@@ -1064,7 +1148,8 @@ export function useBoardInteractions({
       board.pendingWakeChoice ||
       board.pendingScoutChoice ||
       event.button !== 0 ||
-      dragsRef.current.has(event.pointerId)
+      dragsRef.current.has(event.pointerId) ||
+      !canClickStackCard(cardId)
     ) {
       return
     }
@@ -1131,7 +1216,8 @@ export function useBoardInteractions({
       board.pendingWakeChoice ||
       board.pendingScoutChoice ||
       event.button !== 0 ||
-      dragsRef.current.has(event.pointerId)
+      dragsRef.current.has(event.pointerId) ||
+      !canMoveBoardFreely
     ) {
       return
     }
@@ -1180,7 +1266,8 @@ export function useBoardInteractions({
       board.pendingWakeChoice ||
       board.pendingScoutChoice ||
       event.button !== 0 ||
-      dragsRef.current.has(event.pointerId)
+      dragsRef.current.has(event.pointerId) ||
+      !canUseOwnCrew
     ) {
       return
     }
@@ -1231,6 +1318,10 @@ export function useBoardInteractions({
       return 'idle'
     }
 
+    if (!canMoveBoardFreely && !isOwnCrewCard(drag.cardId)) {
+      return 'stale'
+    }
+
     updateStackDragPosition(clientX, clientY, drag)
 
     if (!drag.hasMoved && !activateStackDrag(drag)) {
@@ -1259,6 +1350,10 @@ export function useBoardInteractions({
       return 'idle'
     }
 
+    if (!canMoveBoardFreely && !isOwnCrewCard(drag.cardId)) {
+      return 'stale'
+    }
+
     updateHandDragPosition(clientX, clientY, drag)
 
     if (!drag.hasMoved && !activateHandDrag(drag)) {
@@ -1279,6 +1374,26 @@ export function useBoardInteractions({
     }
 
     if (preparation !== 'active') {
+      return
+    }
+
+    if (!canMoveBoardFreely) {
+      applyStackDragTransform(drag)
+      const handZone = getHandZoneAtPoint(clientX, clientY)
+
+      toggleHandDropTarget(drag.dropTargetHandZone, false)
+      drag.dropTargetHandZone = handZone === 'crew' ? handZone : null
+      toggleHandDropTarget(drag.dropTargetHandZone, true)
+
+      if (drag.activeStackId) {
+        shareDrag({
+          kind: 'stack',
+          stackId: drag.activeStackId,
+          x: drag.latestX,
+          y: drag.latestY,
+        })
+      }
+
       return
     }
 
@@ -1330,6 +1445,12 @@ export function useBoardInteractions({
     }
 
     if (preparation !== 'active') {
+      return
+    }
+
+    if (!canMoveBoardFreely) {
+      applyHandDragTransform(drag)
+      clearHandDragDropTarget(drag)
       return
     }
 
@@ -1389,6 +1510,31 @@ export function useBoardInteractions({
     if (drag.kind === 'stack') {
       const preparation = prepareStackDrag(event.clientX, event.clientY, drag)
 
+      if (!canMoveBoardFreely) {
+        if (preparation === 'idle') {
+          returnOwnedCrewCardToHand(drag.stackId, drag.cardId)
+          shareDrag(null)
+          return
+        }
+
+        if (drag.dropTargetHandZone) {
+          toggleHandDropTarget(drag.dropTargetHandZone, false)
+          drag.dropTargetHandZone = null
+        }
+
+        removeActiveStackId(drag.activeStackId)
+        clearDragTransform(drag.activeElement)
+
+        if (preparation === 'active' && isPointInHand(event.clientX, event.clientY)) {
+          returnOwnedCrewCardToHand(drag.stackId, drag.cardId)
+        }
+
+        clearDropTarget()
+        clearHandInsertPreview()
+        shareDrag(null)
+        return
+      }
+
       if (preparation === 'stale') {
         clearDropTarget()
         clearHandInsertPreview()
@@ -1397,7 +1543,9 @@ export function useBoardInteractions({
       }
 
       if (preparation === 'idle') {
-        toggleCardFace(drag.stackId, drag.cardId)
+        if (!returnOwnedCrewCardToHand(drag.stackId, drag.cardId) && canMoveBoardFreely) {
+          toggleCardFace(drag.stackId, drag.cardId)
+        }
         return
       }
 
@@ -1458,6 +1606,25 @@ export function useBoardInteractions({
       if (preparation === 'idle') {
         clearHandInsertPreview()
         dropHandCardToBoard(drag.cardId, getBoardDropPosition(event.clientX, event.clientY, true))
+        return
+      }
+
+      if (!canMoveBoardFreely) {
+        if (isPointInHand(event.clientX, event.clientY)) {
+          const previousRect = drag.element?.getBoundingClientRect() ?? null
+
+          flushSync(() => {
+            clearHandDragDropTarget(drag)
+          })
+          animateHandDragTransformToSlot(drag.cardId, drag.element, previousRect, removeActiveHandCardId)
+        } else {
+          removeActiveHandCardId(drag.cardId)
+          clearDragTransform(drag.element)
+          clearHandDragDropTarget(drag)
+          dropHandCardToBoard(drag.cardId, getBoardDropPosition(event.clientX, event.clientY, true))
+        }
+
+        shareDrag(null)
         return
       }
 
@@ -1553,9 +1720,17 @@ export function useBoardInteractions({
 
     if (drag.kind === 'stack') {
       if (drag.hasMoved && drag.activeStackId) {
-        clearStackDragDropTarget(drag)
         removeActiveStackId(drag.activeStackId)
-        commitStackDragPosition(drag)
+        if (canMoveBoardFreely) {
+          clearStackDragDropTarget(drag)
+          commitStackDragPosition(drag)
+        } else {
+          if (drag.dropTargetHandZone) {
+            toggleHandDropTarget(drag.dropTargetHandZone, false)
+            drag.dropTargetHandZone = null
+          }
+          clearHandInsertPreview()
+        }
         clearDragTransform(drag.activeElement)
         shareDrag(null)
       }
@@ -1591,7 +1766,9 @@ export function useBoardInteractions({
       return
     }
 
-    toggleCardFace(stackId, cardId)
+    if (!returnOwnedCrewCardToHand(stackId, cardId) && canMoveBoardFreely) {
+      toggleCardFace(stackId, cardId)
+    }
   }
 
   function handleDeckKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, deckId: string) {
@@ -1605,7 +1782,9 @@ export function useBoardInteractions({
       return
     }
 
-    drawFromDeck(deckId)
+    if (canMoveBoardFreely) {
+      drawFromDeck(deckId)
+    }
   }
 
   function handleHandKeyDown(event: ReactKeyboardEvent<HTMLDivElement>, cardId: string) {
@@ -1615,7 +1794,11 @@ export function useBoardInteractions({
 
     event.preventDefault()
 
-    if (boardStateRef.current.pendingWakeChoice || boardStateRef.current.pendingScoutChoice) {
+    if (
+      !canUseOwnCrew ||
+      boardStateRef.current.pendingWakeChoice ||
+      boardStateRef.current.pendingScoutChoice
+    ) {
       return
     }
 

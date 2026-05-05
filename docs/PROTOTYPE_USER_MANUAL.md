@@ -1,6 +1,6 @@
 # Corebound Prototype User Manual
 
-This manual describes the current two-sector solo Corebound board prototype. The app sets up the board automatically on load or restart, but the rules below are written so a playtester can understand the physical table loop.
+This manual describes the current two-sector Corebound board prototype. It supports solo play and PartyKit multiplayer. The app sets up the board automatically when the run launches or restarts, but the rules below are written so a playtester can understand the physical table loop.
 
 Player-facing teach:
 
@@ -12,7 +12,15 @@ Visit 3 Destinations. Find ship parts or immediate benefits. Ship Parts, crew, a
 
 Visit 3 Map Destinations in Sector 1, pass Narrow Crossing, then visit 3 Map Destinations in Sector 2 and pass Dark Threshold.
 
-You win when Dark Threshold is completed after 3 Sector 2 Destinations are traveled.
+Solo: you win when Dark Threshold is completed after 3 Sector 2 Destinations are traveled.
+
+Multiplayer: everyone is trying to keep the ship alive, but only the ship's survival creates a score. If Dark Threshold fails, everyone loses. If Dark Threshold succeeds, count each player's owned surviving crew; the player with the most crew leads the new world.
+
+Multiplayer tie-breakers:
+
+1. Most Blueprints built.
+2. Most Ready crew.
+3. Shared victory.
 
 You lose if the sector cannot produce another visible Map Destination before 3 Destinations are traveled, or if the current Gate cannot be completed with available Ship Parts, Ready crew, and unused MOTHER cards.
 
@@ -26,7 +34,7 @@ On load or restart, setup is staged as an animated deal instead of cards snappin
 | --- | ---: | --- |
 | Fuel Supply | 2 Fuel Cell cards | Shuffle 12 Fuel Cells, deal the top 2 face up as the starting Fuel Supply. |
 | Fuel Deck | 10 Fuel Cell cards | The remaining Fuel Cells stay in the Fuel Deck. Fuel rewards draw from here. |
-| Starting Crew | 5 crew | Deal all starting crew to the Crew area as Ready crew. |
+| Starting Crew | 5 crew in solo, even hands in multiplayer | Deal all starting crew as Ready crew. In multiplayer, every launched player starts with the same number of Ready crew; if the 5-card starting set does not divide evenly, draw enough extra crew from the shuffled Cryo deck to finish the even deal. |
 | Tired Crew | 0 crew | Starts empty. Crew used on Destinations or Gates move here. |
 | Sector Stops | 9 Destinations | Shuffle all 9 Destinations for the sector and place them as a manual draw deck. Do not deal Map Destinations during setup; the player draws the first 3-card Map offer from here. |
 | Map | 0 Destinations before the first draw | Starts empty. After the player draws from Sector Stops, these are the current visible Destinations. Complete 1, keep its card on the board only if it found a Ship Part, and clear Immediate Benefit Destinations with the other visible Destinations. New Map offers are drawn manually from Sector Stops, at most once per turn. |
@@ -88,6 +96,8 @@ No Destination gives both an immediate benefit and a Ship Part. In the current d
 
 Ship Parts apply automatically at Gates when they can help. Each Ship Part can be spent once. Spent Ship Parts stay visible on their traveled Destination cards and cannot be reused. Unspent Ship Parts remain visible and available after the sector Gate resolves, so they can be carried forward to a later Gate.
 
+In multiplayer, Ship Part Blueprints are credited to the Mission Lead who traveled to that Destination for tie-break scoring, but their effects help everyone.
+
 | Ship Part | Gate Effect |
 | --- | --- |
 | Medbay Rehydrator | Ready 1 Tired crew before Gate. |
@@ -96,9 +106,9 @@ Ship Parts apply automatically at Gates when they can help. Each Ship Part can b
 
 ## Map Loop
 
-At the start of each sector, click Sector Stops to draw the first 3 Map Destinations. Sector Stops can produce a new 3-card Map offer only once per turn, and only if the Map is empty. Visible Map Destinations can remain on the table across turns if you choose not to visit one.
+At the start of each sector, click Sector Stops to draw the first 3 Map Destinations. Sector Stops can produce a new 3-card Map offer only once per turn, only if the Map is empty, and never after a Destination has already been traveled that turn. Visible Map Destinations can remain on the table across turns if the Mission Lead chooses not to visit one.
 
-On your turn, take as many board actions as needed. You may draw Fuel with an Engineer + Scientist stack, draw MOTHER, organize stacks, prepare a Destination, let Ship Parts apply automatically during the Gate, or visit no Destination. While fewer than 3 Destinations have been traveled this sector:
+On your turn, take as many board actions as needed. You may draw Fuel with an Engineer + Scientist stack, draw MOTHER, organize stacks, prepare a Destination, let Ship Parts apply automatically during the Gate, or visit no Destination. You may travel to only one Destination per turn. While fewer than 3 Destinations have been traveled this sector:
 
 1. Choose 1 face-up Destination from the Map.
 2. Stack its Fuel and icon payment with Ready crew, Fuel Cells, Engineer + Scientist water pairs, and usable MOTHER.
@@ -111,19 +121,21 @@ On your turn, take as many board actions as needed. You may draw Fuel with an En
 9. If fewer than 3 Destinations have been traveled, end the turn before drawing a new Map offer.
 10. If the third Destination was just traveled, do not draw again. Clear any undealt Sector Stops cards, then attempt the Gate.
 
+In multiplayer, the current turn player is the Mission Lead. Only the Mission Lead can draw decks, move table cards freely, trigger stack actions, choose Wake or Scout rewards, pass Gates, and end the turn. Other players can still commit their own Ready crew by clicking or dragging a card out of their Crew area, and can remove their own committed crew from the board by clicking it or dragging it back to their Crew area.
+
 Important: a Ship Part cannot help complete the Destination that created it. Ship Parts are available only after that Destination's completion fully resolves.
 
 Important: crew-made water for Fuel payment requires exactly one Ready Engineer plus one Ready Scientist per Fuel. Those two crew cannot also satisfy Destination icons for that same completion, and they move to Tired with the other used crew.
 
 ## Immediate Benefits
 
-Collect 1 Fuel draws 1 Fuel Cell from the Fuel Deck into play. It stacks onto the existing Fuel Supply if one is in play, otherwise it appears at the Fuel Supply setup position.
+Collect 1 Fuel draws 1 Fuel Cell from the Fuel Deck into play. It stacks onto the existing Fuel Supply if one is in play, otherwise it appears at the Fuel Supply setup position. Fuel rewards help the shared ship.
 
-Wake 1 reveals up to 2 cards from the Cryo Deck. Choose 1 to recruit into Tired, then Ready 1 Tired crew from the front of the Tired row; unchosen Cryo crew go to the bottom of the Cryo Deck.
+Wake 1 reveals up to 2 cards from the Cryo Deck. Choose 1 to recruit into Tired, then Ready 1 Tired crew from the front of the Tired row; unchosen Cryo crew go to the bottom of the Cryo Deck. In multiplayer, the recruited crew belongs to the Mission Lead.
 
 Scout N looks at the top N Sector Stops cards. Choose the card you like to keep on top of Sector Stops. The others are sent to the back in their revealed order. If Scout resolves after a Destination, complete the Scout choice before the turn continues; it does not draw the next 3-card Map offer automatically.
 
-Ready 1 moves the front Tired crew card back to the Crew area.
+Ready 1 moves the front Tired crew card back to the Crew area. Ready rewards help the shared ship.
 
 Next stop -1 Fuel creates a pending -1 Fuel discount for the next Destination completion in the current sector. It expires at Gate transition if unused.
 
@@ -213,6 +225,8 @@ After Gate 2 succeeds, the player wins.
 
 Click a manual deck, or press Enter or Space while it is focused, to draw from it. Sector Stops draws one 3-card Map offer per turn when the Map is empty. The MOTHER Deck draws 1 card, stacking onto an existing usable MOTHER stack if one is in play or dealing next to the MOTHER Deck setup position otherwise. Scout can set the top card before a future Sector Stops draw.
 
+In multiplayer, you see only your own Crew and Tired hand areas. You can see each other player's total crew count plus Ready and Tired counts in the player panel.
+
 Drag decks to reposition them. A deck can merge only with another deck containing the same card family, such as Fuel with Fuel or MOTHER with MOTHER.
 
 Drag Ready crew from the Crew area onto the board. Tired crew cannot be dragged manually unless an Immediate Benefit or Medbay Rehydrator readies them first.
@@ -225,36 +239,50 @@ Use the End turn button to start the next turn and refresh the once-per-turn Sec
 
 Drag an all-crew stack back to the Crew area to return those Ready crew to hand.
 
+Off-turn multiplayer players cannot freely drag stacks, draw decks, use stack actions, or end the turn. They can click or drag one of their own Ready crew cards to add it to the board, and click or drag one of their own crew cards on the board to return it to their Crew area.
+
 Drag a stack or Ready crew card to the discard zone to discard it. Gates, active Map Destinations, and visible traveled Ship Part Destinations cannot be discarded.
 
 Resolve Wake and Scout choice panels before taking more board actions.
 
 Use Restart and reshuffle to start a fresh random run.
 
-## Realtime Observation
+## Realtime Multiplayer
 
-The prototype can run with a PartyKit room so other browsers can watch a host's table in realtime. Start the Vite app and PartyKit dev server together:
+The prototype can run with a PartyKit room so other browsers can join the same table in realtime. Start the Vite app and PartyKit dev server together:
 
 ```text
 pnpm dev
 pnpm party:dev
 ```
 
-The first browser is a host by default. Host URLs use the `room` query parameter, defaulting to `corebound-table`. Observers join the same room with `role=observer`, for example:
+The first browser is a host by default. When the host opens the root table without a `room` query parameter, the launch screen creates a four-letter table code and updates the URL with that room. Other players join the same room with `role=player`, for example:
 
 ```text
-http://localhost:5173/?room=corebound-table&role=observer
+http://localhost:5173/?room=corebound-table&role=player
 ```
 
-Use the host's Copy observer link control when sharing across browsers; it includes the resolved PartyKit host.
+Use the launch screen's Copy link control or the Network panel's Copy player link control when sharing across browsers; both include the resolved PartyKit host.
 
-On the Netlify deployment, the app expects the PartyKit server at `corebound.demirhere.partykit.dev`. If using a different PartyKit project host, open the host page with `partyHost=your-project.your-name.partykit.dev`; the copied observer link will keep that override.
+On the Netlify deployment, the app expects the PartyKit server at `corebound.demirhere.partykit.dev`. If using a different PartyKit project host, open the host page with `partyHost=your-project.your-name.partykit.dev`; the copied player link will keep that override.
 
-Observers are read-only. They receive the host's card and deck positions, active stack/deck drag previews, Wake and Scout dialogs, How to Play dialog state, win/loss screens, and playtest log state.
+Players who are connected on the start screen become the player roster when Launch is pressed. Late joiners after launch receive the current table state but are not added to the scoring roster for that run.
+
+The app still accepts `role=observer` for a read-only view. Observers receive card and deck positions, active stack/deck drag previews, Wake and Scout dialogs, How to Play dialog state, win/loss screens, and playtest log state.
 
 ## Win And Loss Summary
 
-Win by completing Dark Threshold after 3 Sector 2 Destinations are traveled.
+Solo: win by completing Dark Threshold after 3 Sector 2 Destinations are traveled.
+
+Multiplayer scoring happens only if the ship survives:
+
+```text
+If Dark Threshold fails: everyone loses.
+If Dark Threshold succeeds: count each player's owned crew.
+Most crew wins.
+```
+
+Count both Ready and Tired crew. They survived. If crew totals tie, compare Blueprints built, then Ready crew. If still tied, the victory is shared.
 
 Lose as Stranded in the Reach if the sector cannot produce another visible Map Destination before 3 Destinations are traveled.
 
@@ -300,4 +328,13 @@ At 3+ Stress, Gates add 1 crew slot.
 STUCK?
 
 If Sector Stops cannot produce another visible Map Destination before the route is full, you lose as Stranded in the Reach.
+
+MULTIPLAYER
+
+Mission Lead takes the full turn.
+Other players may only add or remove their own crew by click or drag.
+Shared rewards help the ship.
+Crew rewards join the Mission Lead.
+Blueprints help everyone, but score for the Mission Lead who found them.
+Dark Threshold failure means everyone loses.
 ```

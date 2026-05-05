@@ -1,5 +1,12 @@
 import { useEffect, type CSSProperties } from 'react'
 import type { BoardState, GameLossReason } from '../game/types'
+import {
+  getPlayerCrewStats,
+  getPlayerStandings,
+  isMultiplayerBoard,
+  type PlayerCrewStats,
+  type PlayerStanding,
+} from '../game/players'
 import { CardShell } from './BoardCard'
 import { GameIcon } from './GameIcon'
 import { GAME_ICON_LABELS, type GameIconKind } from './gameIcons'
@@ -54,6 +61,94 @@ function getLossStats(board: BoardView): LossStat[] {
       value: String(board.stressCount),
     },
   ]
+}
+
+function PlayerStatsRows({ stats }: { stats: readonly PlayerCrewStats[] }) {
+  return (
+    <div className="player-result-list" aria-label="Player stats">
+      {stats.map((stat) => (
+        <article className="player-result-item" key={stat.player.id}>
+          <h3>{stat.player.name}</h3>
+          <dl>
+            <div>
+              <dt>Crew</dt>
+              <dd>{stat.crew}</dd>
+            </div>
+            <div>
+              <dt>Ready</dt>
+              <dd>{stat.ready}</dd>
+            </div>
+            <div>
+              <dt>Tired</dt>
+              <dd>{stat.tired}</dd>
+            </div>
+            <div>
+              <dt>Blueprints</dt>
+              <dd>{stat.blueprints}</dd>
+            </div>
+            <div>
+              <dt>Led</dt>
+              <dd>{stat.destinationsLed}</dd>
+            </div>
+          </dl>
+        </article>
+      ))}
+    </div>
+  )
+}
+
+function PlayerStandingsRows({ standings }: { standings: readonly PlayerStanding[] }) {
+  return (
+    <div className="player-result-list" aria-label="Player standings">
+      {standings.map((standing) => (
+        <article
+          className={`player-result-item ${standing.isWinner ? 'is-winner' : ''}`}
+          key={standing.player.id}
+        >
+          <h3>
+            <span>{standing.rank}. {standing.player.name}</span>
+            {standing.isWinner ? <em>Winner</em> : null}
+          </h3>
+          <dl>
+            <div>
+              <dt>Crew</dt>
+              <dd>{standing.crew}</dd>
+            </div>
+            <div>
+              <dt>Blueprints</dt>
+              <dd>{standing.blueprints}</dd>
+            </div>
+            <div>
+              <dt>Ready</dt>
+              <dd>{standing.ready}</dd>
+            </div>
+            <div>
+              <dt>Tired</dt>
+              <dd>{standing.tired}</dd>
+            </div>
+            <div>
+              <dt>Led</dt>
+              <dd>{standing.destinationsLed}</dd>
+            </div>
+          </dl>
+        </article>
+      ))}
+    </div>
+  )
+}
+
+function getArrivalTitle(standings: readonly PlayerStanding[]) {
+  const winners = standings.filter((standing) => standing.isWinner)
+
+  if (winners.length === 0) {
+    return 'You arrived beyond the Dark Threshold.'
+  }
+
+  if (winners.length > 1) {
+    return `${winners.map((winner) => winner.player.name).join(' and ')} share the new world.`
+  }
+
+  return `${winners[0]?.player.name} leads the new world.`
 }
 
 function FailureFlameIcon() {
@@ -253,8 +348,9 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: {
   )
 }
 
-export function ArrivalDialog({ hasArrived, onResetGame, canReset }: {
+export function ArrivalDialog({ hasArrived, board, onResetGame, canReset }: {
   hasArrived: boolean
+  board: BoardView
   onResetGame: () => void
   canReset: boolean
 }) {
@@ -262,12 +358,20 @@ export function ArrivalDialog({ hasArrived, onResetGame, canReset }: {
     return null
   }
 
+  const isMultiplayer = isMultiplayerBoard(board)
+  const standings = getPlayerStandings(board)
+
   return (
     <div className="dialog-overlay">
       <section className="arrival-panel" role="status" aria-live="polite">
         <p className="arrival-kicker">Gate cleared</p>
-        <h2>You arrived beyond the Dark Threshold.</h2>
-        <p>Two-sector prototype complete. Restart to reshuffle both sectors and run it again.</p>
+        <h2>{isMultiplayer ? getArrivalTitle(standings) : 'You arrived beyond the Dark Threshold.'}</h2>
+        <p>
+          {isMultiplayer
+            ? 'Dark Threshold passed. Crew count scores first, then Blueprints built, then Ready crew. If still tied, victory is shared.'
+            : 'Two-sector prototype complete. Restart to reshuffle both sectors and run it again.'}
+        </p>
+        {isMultiplayer ? <PlayerStandingsRows standings={standings} /> : null}
         <button type="button" onClick={onResetGame} disabled={!canReset}>
           Restart and reshuffle
         </button>
@@ -287,6 +391,8 @@ export function LossDialog({ board, onResetGame, canReset }: {
     return null
   }
 
+  const isMultiplayer = isMultiplayerBoard(board)
+
   return (
     <div className="dialog-overlay failure-overlay">
       <FailureFlameIcon />
@@ -298,18 +404,22 @@ export function LossDialog({ board, onResetGame, canReset }: {
       >
         <p className="arrival-kicker">Ship failed</p>
         <h2 id="loss-title">{loss.title}</h2>
-        <p>{loss.body}</p>
-        <dl className="loss-stats" aria-label="Failed run stats">
-          {getLossStats(board).map((stat) => (
-            <div className="loss-stat" key={stat.label}>
-              <dt>{stat.label}</dt>
-              <dd aria-label={stat.iconLabel ?? stat.value}>
-                {stat.iconKind && <GameIcon kind={stat.iconKind} />}
-                <span>{stat.value}</span>
-              </dd>
-            </div>
-          ))}
-        </dl>
+        <p>{isMultiplayer ? `${loss.body} Everyone loses, and no score is awarded.` : loss.body}</p>
+        {isMultiplayer ? (
+          <PlayerStatsRows stats={getPlayerCrewStats(board)} />
+        ) : (
+          <dl className="loss-stats" aria-label="Failed run stats">
+            {getLossStats(board).map((stat) => (
+              <div className="loss-stat" key={stat.label}>
+                <dt>{stat.label}</dt>
+                <dd aria-label={stat.iconLabel ?? stat.value}>
+                  {stat.iconKind && <GameIcon kind={stat.iconKind} />}
+                  <span>{stat.value}</span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
         <button type="button" onClick={onResetGame} disabled={!canReset}>
           New Run
         </button>

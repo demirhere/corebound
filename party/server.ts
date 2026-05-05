@@ -1,6 +1,8 @@
 import type * as Party from 'partykit/server'
 import type {
   ClientRealtimeMessage,
+  RealtimePlayer,
+  RealtimeRole,
   RealtimeSnapshot,
   ServerRealtimeMessage,
 } from '../src/realtime/types'
@@ -35,6 +37,9 @@ export default class CoreboundRoom implements Party.Server {
   }
 
   private latestSnapshot: RealtimeSnapshot | null = null
+  private readonly playerIds: string[] = []
+  private readonly playerNames = new Map<string, string>()
+  private readonly connectedPlayerIds = new Set<string>()
   private readonly room: Party.Room
 
   constructor(room: Party.Room) {
@@ -49,11 +54,23 @@ export default class CoreboundRoom implements Party.Server {
     this.broadcastPresence()
   }
 
-  onClose() {
+  onClose(connection: Party.Connection) {
+    this.connectedPlayerIds.delete(connection.id)
+
+    if (!this.isRosterLocked()) {
+      this.removePlayer(connection.id)
+    }
+
     this.broadcastPresence()
   }
 
-  onError() {
+  onError(connection: Party.Connection) {
+    this.connectedPlayerIds.delete(connection.id)
+
+    if (!this.isRosterLocked()) {
+      this.removePlayer(connection.id)
+    }
+
     this.broadcastPresence()
   }
 
@@ -64,7 +81,13 @@ export default class CoreboundRoom implements Party.Server {
       return
     }
 
-    if (parsed.type === 'host-snapshot') {
+    if (parsed.type === 'client-hello') {
+      this.updatePlayerRoster(sender.id, parsed.role)
+      this.broadcastPresence()
+      return
+    }
+
+    if (parsed.type === 'host-snapshot' || parsed.type === 'player-snapshot') {
       this.latestSnapshot = parsed.snapshot
       this.room.broadcast(serialize({
         type: 'snapshot',
@@ -73,7 +96,7 @@ export default class CoreboundRoom implements Party.Server {
       return
     }
 
-    if (parsed.type === 'host-drag') {
+    if (parsed.type === 'host-drag' || parsed.type === 'player-drag') {
       this.room.broadcast(serialize({
         type: 'drag',
         drag: parsed.drag,
@@ -87,6 +110,7 @@ export default class CoreboundRoom implements Party.Server {
       connections: this.getConnectionCount(),
       hasSnapshot: this.latestSnapshot !== null,
       updatedAt: this.latestSnapshot?.updatedAt ?? null,
+      players: this.getPlayers(),
     }), {
       headers: {
         'content-type': 'application/json;charset=utf-8',
@@ -98,10 +122,54 @@ export default class CoreboundRoom implements Party.Server {
     return Array.from(this.room.getConnections()).length
   }
 
+  private isRosterLocked() {
+    return this.latestSnapshot?.ui.isGameStarted === true
+  }
+
+  private updatePlayerRoster(connectionId: string, role: RealtimeRole) {
+    if (role === 'observer') {
+      this.connectedPlayerIds.delete(connectionId)
+      return
+    }
+
+    const existingPlayer = this.playerIds.includes(connectionId)
+
+    if (!existingPlayer && this.isRosterLocked()) {
+      return
+    }
+
+    if (!existingPlayer) {
+      this.playerIds.push(connectionId)
+      this.playerNames.set(connectionId, `Player ${this.playerIds.length}`)
+    }
+
+    this.connectedPlayerIds.add(connectionId)
+  }
+
+  private removePlayer(connectionId: string) {
+    const playerIndex = this.playerIds.indexOf(connectionId)
+
+    if (playerIndex === -1) {
+      return
+    }
+
+    this.playerIds.splice(playerIndex, 1)
+    this.playerNames.delete(connectionId)
+  }
+
+  private getPlayers(): RealtimePlayer[] {
+    return this.playerIds.map((id, index) => ({
+      id,
+      name: this.playerNames.get(id) ?? `Player ${index + 1}`,
+      isConnected: this.connectedPlayerIds.has(id),
+    }))
+  }
+
   private broadcastPresence() {
     this.room.broadcast(serialize({
       type: 'presence',
       connections: this.getConnectionCount(),
+      players: this.getPlayers(),
     }))
   }
 }

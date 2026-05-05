@@ -281,6 +281,7 @@ function drawWakeChoiceCards(
   nextCardId: number,
   remaining: number,
   deckZ: number,
+  playerId: string | null,
 ) {
   const cryoDeck = decks.find((deck) => deck.id === CRYO_DECK_ID)
   const choiceBlueprints = cryoDeck?.cards.slice(0, Math.min(2, cryoDeck.cards.length)) ?? []
@@ -321,6 +322,7 @@ function drawWakeChoiceCards(
     pendingWakeChoice: {
       remaining,
       choiceCardIds,
+      playerId,
     },
   }
 }
@@ -852,7 +854,7 @@ function clearVisibleMapChoices(current: BoardState) {
 function completeReadyHorizonStack(current: BoardState, stackId: string, metrics: BoardMetrics) {
   const sourceStack = current.stacks.find((stack) => stack.id === stackId)
 
-  if (!sourceStack || current.pendingWakeChoice || current.pendingScoutChoice) {
+  if (!sourceStack || current.pendingWakeChoice || current.pendingScoutChoice || current.traveledThisTurn) {
     return { board: current, events: [] }
   }
 
@@ -877,6 +879,7 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
 
   const nextZ = current.topZ + 1
   const find = horizonCard.horizon.find
+  const missionLeadId = current.currentPlayerId
   const rewards = find.kind === 'visit_reward' ? find.rewards : []
   const shipPartFind = find.kind === 'ship_part' ? find : null
   const keepsCompletedCardOnRoute = shipPartFind !== null
@@ -1004,6 +1007,7 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
           itemName: shipPartFind.itemName,
           shipPart: shipPartFind.shipPart,
           status: 'available' as const,
+          ownerId: missionLeadId,
         },
       ]
     : current.shipPartSlots
@@ -1011,7 +1015,7 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
   const shouldScoutAfterVisit = scoutCount > 0 && !routeFilledAfterCompletion
 
   if (wakeCount > 0) {
-    const wakeDraw = drawWakeChoiceCards(nextDecks, nextCards, nextCardId, wakeCount, nextZ)
+    const wakeDraw = drawWakeChoiceCards(nextDecks, nextCards, nextCardId, wakeCount, nextZ, missionLeadId)
 
     nextCards = wakeDraw.cards
     nextDecks = wakeDraw.decks
@@ -1096,6 +1100,7 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
     ...current,
     topZ: nextZ,
     nextCardId,
+    traveledThisTurn: true,
     dropTargetStackId: null,
     dropTargetDeckId: null,
     mapSlots: current.mapSlots.map((cardId, index) => index === mapSlotIndex ? null : cardId),
@@ -1109,6 +1114,7 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
         sector: current.currentSector,
         cardId: horizonCard.id,
         cardTitle: horizonCard.title,
+        playerId: missionLeadId,
         crewCardIds: spentCrewCardIds,
         crewTitles: spentCrewCardIds.map((cardId) => current.cards[cardId]?.title ?? cardId),
         fuelSpent: spentFuelCount,
@@ -1123,6 +1129,14 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
       ...createBoardEffectsForVisitRewards(rewards),
     ],
     cards: resolvedCards,
+    crewOwnerIds: {
+      ...current.crewOwnerIds,
+      ...Object.fromEntries(
+        rewardCards
+          .filter((card) => card.kind === 'crew' && missionLeadId)
+          .map((card) => [card.id, missionLeadId as string]),
+      ),
+    },
     stacks: resolvedStacks,
     decks: nextDecks,
   }
@@ -1311,6 +1325,7 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
     nextCardId: nextGateCard ? current.nextCardId + 1 : current.nextCardId,
     currentSector: isFinalGate ? current.currentSector : nextSector,
     hasArrived: isFinalGate,
+    traveledThisTurn: true,
     dropTargetStackId: null,
     dropTargetDeckId: null,
     mapSlots: nextGateCard ? createEmptyMapSlots() : current.mapSlots,
@@ -1537,10 +1552,17 @@ export function endTurnUpdate(current: BoardState) {
   }
 
   const nextTurnNumber = current.turnNumber + 1
+  const playerCount = current.players.length
+  const nextTurnPlayerIndex = playerCount > 0
+    ? (current.turnPlayerIndex + 1) % playerCount
+    : 0
   const nextBoard = {
     ...current,
     turnNumber: nextTurnNumber,
+    turnPlayerIndex: nextTurnPlayerIndex,
+    currentPlayerId: current.players[nextTurnPlayerIndex]?.id ?? null,
     sectorDrawnThisTurn: false,
+    traveledThisTurn: false,
     dropTargetStackId: null,
     dropTargetDeckId: null,
   }
@@ -1724,6 +1746,7 @@ export function drawFromDeckUpdate(deckId: string, metrics: BoardMetrics): Board
     if (deck.id === HORIZON_DECK_ID) {
       if (
         current.sectorDrawnThisTurn ||
+        current.traveledThisTurn ||
         getVisibleHorizonCardIds(current).length > 0 ||
         isSectorHorizonFinished(current)
       ) {
@@ -1882,6 +1905,7 @@ export function chooseWakeCrewUpdate(cardId: string): BoardUpdater {
         nextCardId,
         pendingWakeChoice.remaining - 1,
         current.topZ + 1,
+        pendingWakeChoice.playerId,
       )
 
       nextCards = wakeDraw.cards
@@ -1910,6 +1934,12 @@ export function chooseWakeCrewUpdate(cardId: string): BoardUpdater {
       tiredCardIds: wakeReadyResult.tiredCardIds,
       pendingWakeChoice: nextPendingWakeChoice,
       cards: nextCards,
+      crewOwnerIds: pendingWakeChoice.playerId
+        ? {
+            ...current.crewOwnerIds,
+            [cardId]: pendingWakeChoice.playerId,
+          }
+        : current.crewOwnerIds,
       decks: nextDecks,
     }
     const automaticShipParts = isSectorHorizonFinished(nextBoard)
@@ -2120,6 +2150,56 @@ export function discardHandCardUpdate(cardId: string): BoardUpdater {
 
     return withPlaytestEvents(gateLoss.board, [
       cardsDiscardedEvent([cardId], current.cards, sourceHandZone),
+      ...gateLoss.events,
+    ])
+  }
+}
+
+export function returnOwnedCrewCardToHandUpdate(
+  stackId: string,
+  cardId: string,
+  playerId: string | null,
+): BoardUpdater {
+  return (current) => {
+    const stack = current.stacks.find((candidate) => candidate.id === stackId)
+    const card = current.cards[cardId]
+
+    if (
+      current.hasArrived ||
+      current.lossReason ||
+      !playerId ||
+      !stack ||
+      !stack.cardIds.includes(cardId) ||
+      card?.kind !== 'crew' ||
+      current.crewOwnerIds[cardId] !== playerId
+    ) {
+      return current
+    }
+
+    const nextStackCardIds = stack.cardIds.filter((candidateId) => candidateId !== cardId)
+    const returnedStack = { ...stack, cardIds: [cardId] }
+    const nextBoard = {
+      ...current,
+      dropTargetStackId: null,
+      dropTargetDeckId: null,
+      handCardIds: current.handCardIds.includes(cardId)
+        ? current.handCardIds
+        : [...current.handCardIds, cardId],
+      tiredCardIds: current.tiredCardIds.filter((candidateId) => candidateId !== cardId),
+      stacks: current.stacks.flatMap((candidate) => {
+        if (candidate.id !== stack.id) {
+          return [candidate]
+        }
+
+        return nextStackCardIds.length > 0
+          ? [{ ...candidate, cardIds: nextStackCardIds }]
+          : []
+      }),
+    }
+    const gateLoss = resolveGateLossIfNeeded(nextBoard)
+
+    return withPlaytestEvents(gateLoss.board, [
+      cardsMovedToHandEvent(returnedStack, current.cards),
       ...gateLoss.events,
     ])
   }

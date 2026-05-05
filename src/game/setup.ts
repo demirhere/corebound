@@ -5,6 +5,7 @@ import type {
   CardIconKind,
   CrewSpecialization,
   DestinationFind,
+  GamePlayer,
   HorizonKind,
   RequirementIconKind,
   ResourceKind,
@@ -25,6 +26,11 @@ import type { PlaytestLogEvent } from './playtestLog'
 const RESOURCE_DECK_SIZE = 12
 const MOTHER_DECK_SIZE = 6
 export const TOTAL_SECTORS = 2
+export const SOLO_PLAYER_ID = 'solo'
+export const SOLO_PLAYER: GamePlayer = {
+  id: SOLO_PLAYER_ID,
+  name: 'Solo',
+}
 export const MAP_SLOT_COUNT = 3
 export const ROUTE_SLOT_COUNT = 3
 export const MAP_SLOT_POSITIONS = [
@@ -281,18 +287,21 @@ function setupResourceDrawnEvent(card: Card, deckTitle: string, drawIndex: numbe
   }
 }
 
-function setupCrewDealtEvent(card: Card, handIndex: number): PlaytestLogEvent {
+function setupCrewDealtEvent(card: Card, handIndex: number, owner: GamePlayer | null): PlaytestLogEvent {
   const rulesText = cardRulesText(card)
+  const ownerText = owner ? ` to ${owner.name}` : ''
 
   return {
     type: 'setup.crew.dealt',
-    message: `${card.title} (${card.id})${rulesText ? ` [${rulesText}]` : ''} dealt to starting crew.`,
+    message: `${card.title} (${card.id})${rulesText ? ` [${rulesText}]` : ''} dealt${ownerText} as starting crew.`,
     details: {
       cardId: card.id,
       cardTitle: card.title,
       cardSummary: `${card.title} (${card.id})${rulesText ? ` [${rulesText}]` : ''}`,
       cardContent: cardContent(card),
       handIndex,
+      ownerId: owner?.id ?? null,
+      ownerName: owner?.name ?? null,
     },
   }
 }
@@ -407,13 +416,63 @@ export type InitialBoardSetup = {
   events: PlaytestLogEvent[]
 }
 
-export function createInitialBoardSetup(): InitialBoardSetup {
+function normalizeSetupPlayers(players: readonly GamePlayer[] | undefined) {
+  const uniquePlayers: GamePlayer[] = []
+  const seenPlayerIds = new Set<string>()
+
+  for (const player of players ?? []) {
+    const id = player.id.trim()
+
+    if (!id || seenPlayerIds.has(id)) {
+      continue
+    }
+
+    seenPlayerIds.add(id)
+    uniquePlayers.push({
+      id,
+      name: player.name.trim() || `Player ${uniquePlayers.length + 1}`,
+    })
+  }
+
+  return uniquePlayers.length > 0 ? uniquePlayers : [SOLO_PLAYER]
+}
+
+function createStartingCrewDeal(players: readonly GamePlayer[], shuffledCryoCrewDeck: readonly CardBlueprint[]) {
+  if (players.length <= 1) {
+    return {
+      startingCrewBlueprints: startingCrewCards,
+      cryoDeckCards: [...shuffledCryoCrewDeck],
+    }
+  }
+
+  const cardsPerPlayer = Math.ceil(startingCrewCards.length / players.length)
+  const totalStartingCrewCount = cardsPerPlayer * players.length
+  const extraCrewCount = Math.max(0, totalStartingCrewCount - startingCrewCards.length)
+
+  return {
+    startingCrewBlueprints: [
+      ...startingCrewCards,
+      ...shuffledCryoCrewDeck.slice(0, extraCrewCount),
+    ],
+    cryoDeckCards: shuffledCryoCrewDeck.slice(extraCrewCount),
+  }
+}
+
+export function createInitialBoardSetup(players?: readonly GamePlayer[]): InitialBoardSetup {
+  const setupPlayers = normalizeSetupPlayers(players)
   const fuelDeck = shuffleCards(createResourceDeck('fuel', RESOURCE_DECK_SIZE))
   const motherDeckCards = createMotherDeck(MOTHER_DECK_SIZE)
+  const shuffledCryoCrewDeck = shuffleCards(cryoCrewDeck)
+  const startingCrewDeal = createStartingCrewDeal(setupPlayers, shuffledCryoCrewDeck)
   // const hullDeck = shuffleCards(createResourceDeck('hull', RESOURCE_DECK_SIZE))
   const initialFuelCards = createBoardCards('fuel-start', fuelDeck.slice(0, 2))
   // const initialHullCards = createBoardCards('hull-start', hullDeck.slice(0, 4))
-  const handCards = createBoardCards('crew-hand', startingCrewCards)
+  const handCards = createBoardCards('crew-hand', startingCrewDeal.startingCrewBlueprints)
+  const crewOwnerEntries = handCards.map((card, index) => {
+    const owner = setupPlayers[index % setupPlayers.length] ?? setupPlayers[0]
+
+    return [card.id, owner?.id ?? SOLO_PLAYER_ID] as const
+  })
   const sectorGate = getSectorGateBlueprint(1)
   const [gateCard] = createBoardCards('gate', sectorGate ? [sectorGate] : [], false)
   const fuelDeckCards = fuelDeck.slice(2)
@@ -424,7 +483,7 @@ export function createInitialBoardSetup(): InitialBoardSetup {
     ...handCards,
     ...(gateCard ? [gateCard] : []),
   ]
-  const cryoDeckCards = shuffleCards(cryoCrewDeck)
+  const cryoDeckCards = startingCrewDeal.cryoDeckCards
   const initialSectorDeckArt = getSectorDeckArt(1)
 
   const board: BoardState = {
@@ -514,7 +573,10 @@ export function createInitialBoardSetup(): InitialBoardSetup {
     pendingScoutChoice: null,
     pendingEffects: [],
     turnNumber: 1,
+    turnPlayerIndex: 0,
+    currentPlayerId: setupPlayers[0]?.id ?? null,
     sectorDrawnThisTurn: false,
+    traveledThisTurn: false,
     stressCount: 0,
     currentSector: 1,
     totalSectors: TOTAL_SECTORS,
@@ -524,6 +586,8 @@ export function createInitialBoardSetup(): InitialBoardSetup {
     nextCardId: 1,
     dropTargetStackId: null,
     dropTargetDeckId: null,
+    players: setupPlayers,
+    crewOwnerIds: Object.fromEntries(crewOwnerEntries),
   }
   const predealBoard: BoardState = {
     ...board,
@@ -539,7 +603,7 @@ export function createInitialBoardSetup(): InitialBoardSetup {
       }
 
       if (deck.id === CRYO_DECK_ID) {
-        return { ...deck, cards: [...startingCrewCards, ...cryoDeckCards] }
+        return { ...deck, cards: [...startingCrewDeal.startingCrewBlueprints, ...cryoDeckCards] }
       }
 
       return deck
@@ -561,7 +625,13 @@ export function createInitialBoardSetup(): InitialBoardSetup {
       ...(gateCard ? [setupGatePlacedEvent(gateCard, 'stack-sector-gate')] : []),
       ...initialFuelCards.map((card, index) => setupResourceDrawnEvent(card, 'Fuel Deck', index + 1)),
       // ...initialHullCards.map((card, index) => setupResourceDrawnEvent(card, 'Hull Deck', index + 1)),
-      ...handCards.map((card, index) => setupCrewDealtEvent(card, index + 1)),
+      ...handCards.map((card, index) => (
+        setupCrewDealtEvent(
+          card,
+          index + 1,
+          setupPlayers.find((player) => player.id === crewOwnerEntries[index]?.[1]) ?? null,
+        )
+      )),
     ],
   }
 }

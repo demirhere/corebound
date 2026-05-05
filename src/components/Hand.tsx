@@ -25,6 +25,7 @@ type HandProps = {
   handRef: Ref<HTMLElement>
   canInteract: boolean
   canEndTurn: boolean
+  endTurnLabel: string
   onEndTurn: () => void
   onCardPointerDown: HandPointerDownHandler
   onCardKeyDown: HandKeyDownHandler
@@ -40,6 +41,7 @@ export function Hand({
   handRef,
   canInteract,
   canEndTurn,
+  endTurnLabel,
   onEndTurn,
   onCardPointerDown,
   onCardKeyDown,
@@ -86,7 +88,7 @@ export function Hand({
           onPointerDown={(event) => event.stopPropagation()}
           onClick={onEndTurn}
         >
-          End turn
+          {endTurnLabel}
         </button>
       </div>
     </section>

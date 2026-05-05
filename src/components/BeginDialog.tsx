@@ -1,16 +1,30 @@
+import type { RealtimePlayer } from '../realtime/types'
+import { LobbyInvitePanel } from './LobbyInvitePanel'
 import './BeginDialog.css'
 
 type BeginDialogProps = {
+  players: readonly RealtimePlayer[]
+  canBegin: boolean
+  invite: {
+    roomCode: string
+    playerUrl: string
+  } | null
   onBegin: () => void
 }
 
-export function BeginDialog({ onBegin }: BeginDialogProps) {
+const multiplayerLaunchText = 'Take turns leading missions. Everyone must keep the ship alive, but rescued crew join the Mission Lead. If the final Gate is passed, the player with the most crew becomes the leader of the new world'
+
+export function BeginDialog({ players, canBegin, invite, onBegin }: BeginDialogProps) {
+  const playerCount = players.length
+  const hasMultiplePlayers = playerCount > 1
+
   return (
     <section className="board begin-dialog" role="dialog" aria-modal="true" aria-label="Begin game">
       <button
         type="button"
         className="hand-end-turn-button begin-dialog-button"
         autoFocus
+        disabled={!canBegin}
         onClick={onBegin}
       >
         <svg className="begin-dialog-rocket" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
@@ -23,6 +37,10 @@ export function BeginDialog({ onBegin }: BeginDialogProps) {
         </svg>
         Launch
       </button>
+      {hasMultiplePlayers ? (
+        <p className="begin-dialog-multiplayer-copy">{multiplayerLaunchText}</p>
+      ) : null}
+      {invite ? <LobbyInvitePanel roomCode={invite.roomCode} playerUrl={invite.playerUrl} /> : null}
     </section>
   )
 }

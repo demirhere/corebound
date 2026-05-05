@@ -37,6 +37,11 @@ export type ShipPartKind = 'medbay-rehydrator' | 'service-drone-bay' | 'adaptive
 
 export type ShipPartStatus = 'available' | 'spent'
 
+export type GamePlayer = {
+  id: string
+  name: string
+}
+
 export type VisitReward =
   | {
       kind: 'resource'
@@ -158,6 +163,7 @@ export type ShipPartSlot = {
   itemName: string
   shipPart: ShipPartKind
   status: ShipPartStatus
+  ownerId: string | null
   spentSector?: number
 }
 
@@ -184,6 +190,7 @@ export type CompletedStarSummary = {
   sector: number
   cardId: string
   cardTitle: string
+  playerId: string | null
   crewCardIds: string[]
   crewTitles: string[]
   fuelSpent: number
@@ -204,6 +211,7 @@ export type BoardState = {
   pendingWakeChoice: {
     remaining: number
     choiceCardIds: string[]
+    playerId: string | null
   } | null
   pendingScoutChoice: {
     choiceCardIds: string[]
@@ -212,7 +220,10 @@ export type BoardState = {
   } | null
   pendingEffects: BoardEffect[]
   turnNumber: number
+  turnPlayerIndex: number
+  currentPlayerId: string | null
   sectorDrawnThisTurn: boolean
+  traveledThisTurn: boolean
   stressCount: number
   currentSector: number
   totalSectors: number
@@ -222,6 +233,8 @@ export type BoardState = {
   nextCardId: number
   dropTargetStackId: string | null
   dropTargetDeckId: string | null
+  players: GamePlayer[]
+  crewOwnerIds: Record<string, string>
 }
 
 export type BoardMetrics = {

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { RealtimeConfig } from '../realtime/config'
-import type { RealtimeStatus } from '../realtime/types'
+import type { RealtimePlayer, RealtimeStatus } from '../realtime/types'
 
 type RealtimePanelProps = {
   config: RealtimeConfig
   status: RealtimeStatus
   connectionCount: number
+  players: readonly RealtimePlayer[]
 }
 
 function getStatusLabel(status: RealtimeStatus) {
@@ -24,10 +25,22 @@ function getStatusLabel(status: RealtimeStatus) {
   return 'Offline'
 }
 
-export function RealtimePanel({ config, status, connectionCount }: RealtimePanelProps) {
+function getRoleLabel(config: RealtimeConfig) {
+  if (config.role === 'observer') {
+    return 'Observer'
+  }
+
+  if (config.role === 'host') {
+    return 'Host'
+  }
+
+  return 'Player'
+}
+
+export function RealtimePanel({ config, status, connectionCount, players }: RealtimePanelProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
-  const isHost = config.role === 'host'
+  const canSharePlayerLink = config.role !== 'observer'
 
   useEffect(() => {
     if (copyState === 'idle') {
@@ -39,9 +52,9 @@ export function RealtimePanel({ config, status, connectionCount }: RealtimePanel
     return () => window.clearTimeout(timeoutId)
   }, [copyState])
 
-  async function copyObserverUrl() {
+  async function copyPlayerUrl() {
     try {
-      await navigator.clipboard.writeText(config.observerUrl)
+      await navigator.clipboard.writeText(config.playerUrl)
       setCopyState('copied')
     } catch {
       setCopyState('failed')
@@ -62,7 +75,7 @@ export function RealtimePanel({ config, status, connectionCount }: RealtimePanel
       {isOpen ? (
         <aside id="realtime-panel" className="realtime-panel" aria-label="Realtime room status">
           <div className="realtime-status-row">
-            <span className="realtime-role">{isHost ? 'Host' : 'Observer'}</span>
+            <span className="realtime-role">{getRoleLabel(config)}</span>
             <span className={`realtime-status realtime-status-${status}`}>
               {getStatusLabel(status)}
             </span>
@@ -71,18 +84,27 @@ export function RealtimePanel({ config, status, connectionCount }: RealtimePanel
             <span>{config.room}</span>
             <span>{connectionCount}</span>
           </div>
-          {isHost ? (
+          {players.length > 0 ? (
+            <div className="realtime-players" aria-label="Players in room">
+              {players.map((player) => (
+                <span className={player.isConnected ? 'is-connected' : 'is-disconnected'} key={player.id}>
+                  {player.name}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {canSharePlayerLink ? (
             <button
               type="button"
               className="realtime-share"
-              onClick={copyObserverUrl}
-              aria-label="Copy observer link"
+              onClick={copyPlayerUrl}
+              aria-label="Copy player link"
             >
               {copyState === 'copied'
                 ? 'Copied'
                 : copyState === 'failed'
                   ? 'Copy failed'
-                  : 'Copy observer link'}
+                  : 'Copy player link'}
             </button>
           ) : null}
         </aside>

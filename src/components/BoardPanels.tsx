@@ -1,10 +1,4 @@
-import type { BoardState } from '../game/types'
-import {
-  getShipPartLabel,
-  getShipPartUseText,
-} from '../game/shipParts'
-
-type BoardView = BoardState
+import type { PlayerCrewStats } from '../game/players'
 
 export function InstructionsPanel({ totalSectors }: { totalSectors: number }) {
   return (
@@ -25,43 +19,49 @@ export function InstructionsPanel({ totalSectors }: { totalSectors: number }) {
   )
 }
 
-type ShipPartsPanelProps = {
-  board: BoardView
+type PlayerCrewPanelProps = {
+  players: readonly PlayerCrewStats[]
+  currentPlayerId: string | null
+  localPlayerId: string | null
 }
 
-export function ShipPartsPanel({ board }: ShipPartsPanelProps) {
-  const shipPartEntries = board.shipPartSlots.flatMap((shipPartSlot) => {
-    const card = board.cards[shipPartSlot.cardId]
-
-    return card
-      ? [
-          {
-            shipPartSlot,
-            card,
-            shipPart: shipPartSlot.shipPart,
-            shipPartStatus: shipPartSlot.status,
-            shipPartLabel: getShipPartLabel(shipPartSlot.shipPart),
-          },
-        ]
-      : []
-  })
-
+export function PlayerCrewPanel({ players, currentPlayerId, localPlayerId }: PlayerCrewPanelProps) {
   return (
-    <section className="ship-parts-area" aria-label="Ship Parts" style={{ fontSize: 18 }}>
-      <h2>Ship Parts</h2>
-      <div className="ship-part-list">
-        {shipPartEntries.map(({ shipPartSlot, card, shipPart, shipPartStatus, shipPartLabel }) => (
-          <article className={`ship-part-item is-${shipPartStatus}`} key={shipPartSlot.cardId}>
-            <p>
-              <span>{shipPartLabel}</span>
-              <em style={{ fontSize: 18 }}>{shipPartStatus}</em>
-            </p>
-            <strong style={{ fontSize: 18 }}>{card.title}</strong>
-            <small style={{ fontSize: 18 }}>{getShipPartUseText(shipPart)}</small>
-          </article>
-        ))}
+    <aside className="player-crew-area" aria-label="Player crew counts" style={{ fontSize: 18 }}>
+      <h2>Players</h2>
+      <div className="player-crew-list">
+        {players.map(({ player, crew, ready, tired }) => {
+          const isCurrent = player.id === currentPlayerId
+          const isLocal = player.id === localPlayerId
+
+          return (
+            <article
+              className={`player-crew-item ${isCurrent ? 'is-current' : ''} ${isLocal ? 'is-local' : ''}`}
+              key={player.id}
+            >
+              <p>
+                <strong>{isLocal ? `${player.name} (You)` : player.name}</strong>
+                {isCurrent ? <em>Mission Lead</em> : null}
+              </p>
+              <dl>
+                <div>
+                  <dt>Crew</dt>
+                  <dd>{crew}</dd>
+                </div>
+                <div>
+                  <dt>Ready</dt>
+                  <dd>{ready}</dd>
+                </div>
+                <div>
+                  <dt>Tired</dt>
+                  <dd>{tired}</dd>
+                </div>
+              </dl>
+            </article>
+          )
+        })}
       </div>
-    </section>
+    </aside>
   )
 }
 

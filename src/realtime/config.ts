@@ -1,6 +1,8 @@
 import type { RealtimeRole } from './types'
 
 const DEFAULT_ROOM = 'corebound-table'
+const HOST_ROOM_CODE_STORAGE_KEY = 'corebound:host-room-code'
+const ROOM_CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
 const LOCAL_PARTYKIT_PORT = 1999
 const PRODUCTION_PARTYKIT_HOST = 'corebound.demirhere.partykit.dev'
 
@@ -9,6 +11,7 @@ export type RealtimeConfig = {
   host: string
   room: string
   role: RealtimeRole
+  playerUrl: string
   observerUrl: string
 }
 
@@ -17,11 +20,50 @@ function trimProtocol(host: string) {
 }
 
 function readRole(params: URLSearchParams): RealtimeRole {
-  return params.get('role') === 'observer' ? 'observer' : 'host'
+  const role = params.get('role')
+
+  if (role === 'observer') {
+    return 'observer'
+  }
+
+  if (role === 'player') {
+    return 'player'
+  }
+
+  return 'host'
+}
+
+function createRoomCode() {
+  return Array.from({ length: 4 }, () => (
+    ROOM_CODE_LETTERS[Math.floor(Math.random() * ROOM_CODE_LETTERS.length)] ?? 'A'
+  )).join('')
+}
+
+function readStoredRoomCode() {
+  const storedRoomCode = window.sessionStorage.getItem(HOST_ROOM_CODE_STORAGE_KEY)
+
+  return storedRoomCode && /^[A-Z]{4}$/.test(storedRoomCode)
+    ? storedRoomCode
+    : null
+}
+
+function getOrCreateRoomCode() {
+  const storedRoomCode = readStoredRoomCode()
+
+  if (storedRoomCode) {
+    return storedRoomCode
+  }
+
+  const roomCode = createRoomCode()
+
+  window.sessionStorage.setItem(HOST_ROOM_CODE_STORAGE_KEY, roomCode)
+  return roomCode
 }
 
 function readRoom(params: URLSearchParams) {
-  return (params.get('room') ?? DEFAULT_ROOM).trim() || DEFAULT_ROOM
+  const room = params.get('room')?.trim()
+
+  return room || getOrCreateRoomCode() || DEFAULT_ROOM
 }
 
 function getDefaultHost() {
@@ -45,26 +87,41 @@ function readHost(params: URLSearchParams) {
   return trimProtocol(queryHost ?? envHost ?? getDefaultHost())
 }
 
-function buildObserverUrl(room: string, partyHost: string) {
+function buildRealtimeUrl(room: string, partyHost: string, role: RealtimeRole) {
   const url = new URL(window.location.href)
 
   url.searchParams.set('room', room)
-  url.searchParams.set('role', 'observer')
+  url.searchParams.set('role', role)
   url.searchParams.set('partyHost', partyHost)
 
   return url.toString()
+}
+
+function syncGeneratedHostRoomUrl(params: URLSearchParams, room: string, role: RealtimeRole) {
+  if (role !== 'host' || params.has('room') || params.get('realtime') === 'off') {
+    return
+  }
+
+  const url = new URL(window.location.href)
+
+  url.searchParams.set('room', room)
+  window.history.replaceState(null, '', url)
 }
 
 export function readRealtimeConfig(): RealtimeConfig {
   const params = new URLSearchParams(window.location.search)
   const room = readRoom(params)
   const host = readHost(params)
+  const role = readRole(params)
+
+  syncGeneratedHostRoomUrl(params, room, role)
 
   return {
     enabled: params.get('realtime') !== 'off',
     host,
     room,
-    role: readRole(params),
-    observerUrl: buildObserverUrl(room, host),
+    role,
+    playerUrl: buildRealtimeUrl(room, host, 'player'),
+    observerUrl: buildRealtimeUrl(room, host, 'observer'),
   }
 }
