@@ -1,4 +1,4 @@
-import type { BoardState, RouteSlot } from '../game/types'
+import type { BoardState, ShipPartSlot } from '../game/types'
 import {
   getShipPartLabel,
   getShipPartUseText,
@@ -10,17 +10,18 @@ function isGateActive(board: BoardView) {
   return board.routeSlots.every(Boolean) && !board.pendingWakeChoice && !board.pendingScoutChoice
 }
 
-function canUseRouteShipPart(board: BoardView, routeSlot: RouteSlot | null) {
+function canUseRouteShipPart(board: BoardView, shipPartSlot: ShipPartSlot | null) {
   if (
-    !routeSlot ||
-    routeSlot.find.kind !== 'ship_part' ||
-    routeSlot.find.status !== 'available' ||
+    !shipPartSlot ||
+    shipPartSlot.status !== 'available' ||
+    board.hasArrived ||
+    board.lossReason ||
     !isGateActive(board)
   ) {
     return false
   }
 
-  return routeSlot.find.shipPart !== 'medbay-rehydrator' || board.tiredCardIds.length > 0
+  return shipPartSlot.shipPart !== 'medbay-rehydrator' || board.tiredCardIds.length > 0
 }
 
 export function InstructionsPanel({ totalSectors }: { totalSectors: number }) {
@@ -43,23 +44,22 @@ export function InstructionsPanel({ totalSectors }: { totalSectors: number }) {
 
 type ShipPartsPanelProps = {
   board: BoardView
-  onRouteShipPartUse: (routeSlotIndex: number) => void
+  onRouteShipPartUse: (shipPartSlotIndex: number) => void
 }
 
 export function ShipPartsPanel({ board, onRouteShipPartUse }: ShipPartsPanelProps) {
-  const shipPartEntries = board.routeSlots.flatMap((routeSlot, index) => {
-    const card = routeSlot ? board.cards[routeSlot.cardId] : null
-    const shipPartFind = routeSlot?.find.kind === 'ship_part' ? routeSlot.find : null
+  const shipPartEntries = board.shipPartSlots.flatMap((shipPartSlot, index) => {
+    const card = board.cards[shipPartSlot.cardId]
 
-    return routeSlot && shipPartFind && card
+    return card
       ? [
           {
-            routeSlot,
-            routeSlotIndex: index,
+            shipPartSlot,
+            shipPartSlotIndex: index,
             card,
-            shipPart: shipPartFind.shipPart,
-            shipPartStatus: shipPartFind.status,
-            shipPartLabel: getShipPartLabel(shipPartFind.shipPart),
+            shipPart: shipPartSlot.shipPart,
+            shipPartStatus: shipPartSlot.status,
+            shipPartLabel: getShipPartLabel(shipPartSlot.shipPart),
           },
         ]
       : []
@@ -69,11 +69,11 @@ export function ShipPartsPanel({ board, onRouteShipPartUse }: ShipPartsPanelProp
     <section className="ship-parts-area" aria-label="Ship Parts">
       <h2>Ship Parts</h2>
       <div className="ship-part-list">
-        {shipPartEntries.map(({ routeSlot, routeSlotIndex, card, shipPart, shipPartStatus, shipPartLabel }) => {
-          const canUseShipPart = canUseRouteShipPart(board, routeSlot)
+        {shipPartEntries.map(({ shipPartSlot, shipPartSlotIndex, card, shipPart, shipPartStatus, shipPartLabel }) => {
+          const canUseShipPart = canUseRouteShipPart(board, shipPartSlot)
 
           return (
-            <article className={`ship-part-item is-${shipPartStatus}`} key={routeSlot.cardId}>
+            <article className={`ship-part-item is-${shipPartStatus}`} key={shipPartSlot.cardId}>
               <p>
                 <span>{shipPartLabel}</span>
                 <em>{shipPartStatus}</em>
@@ -85,7 +85,7 @@ export function ShipPartsPanel({ board, onRouteShipPartUse }: ShipPartsPanelProp
                 disabled={!canUseShipPart}
                 aria-label={`Use ${shipPartLabel} from ${card.title}`}
                 onPointerDown={(event) => event.stopPropagation()}
-                onClick={() => onRouteShipPartUse(routeSlotIndex)}
+                onClick={() => onRouteShipPartUse(shipPartSlotIndex)}
               >
                 {shipPartStatus === 'spent' ? 'Spent' : 'Use Part'}
               </button>

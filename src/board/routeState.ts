@@ -6,6 +6,7 @@ import {
 } from '../game/setup'
 import type {
   RouteSlot,
+  ShipPartSlot,
   ShipPartStatus,
   ShipPartKind,
   Stack,
@@ -49,14 +50,33 @@ export function getRouteCardIds(routeSlots: readonly (RouteSlot | null)[]) {
   return routeSlots.flatMap((slot) => slot ? [slot.cardId] : [])
 }
 
-export function stackContainsRouteCard(stack: Stack, routeSlots: readonly (RouteSlot | null)[]) {
-  const routeCardIds = new Set(getRouteCardIds(routeSlots))
+export function getShipPartCardIds(shipPartSlots: readonly ShipPartSlot[]) {
+  return shipPartSlots.map((slot) => slot.cardId)
+}
+
+export function getProtectedRouteCardIds(
+  routeSlots: readonly (RouteSlot | null)[],
+  shipPartSlots: readonly ShipPartSlot[],
+) {
+  return [...new Set([...getRouteCardIds(routeSlots), ...getShipPartCardIds(shipPartSlots)])]
+}
+
+export function stackContainsRouteCard(
+  stack: Stack,
+  routeSlots: readonly (RouteSlot | null)[],
+  shipPartSlots: readonly ShipPartSlot[] = [],
+) {
+  const routeCardIds = new Set(getProtectedRouteCardIds(routeSlots, shipPartSlots))
 
   return stack.cardIds.some((cardId) => routeCardIds.has(cardId))
 }
 
-export function stackContainsOnlyRouteCards(stack: Stack, routeSlots: readonly (RouteSlot | null)[]) {
-  const routeCardIds = new Set(getRouteCardIds(routeSlots))
+export function stackContainsOnlyRouteCards(
+  stack: Stack,
+  routeSlots: readonly (RouteSlot | null)[],
+  shipPartSlots: readonly ShipPartSlot[] = [],
+) {
+  const routeCardIds = new Set(getProtectedRouteCardIds(routeSlots, shipPartSlots))
 
   return stack.cardIds.length > 0 && stack.cardIds.every((cardId) => routeCardIds.has(cardId))
 }
@@ -70,23 +90,40 @@ export function isRouteFilled(routeSlots: readonly (RouteSlot | null)[]) {
 }
 
 export function countShipParts(
-  routeSlots: readonly (RouteSlot | null)[],
+  shipPartSlots: readonly ShipPartSlot[],
   shipPart: ShipPartKind,
   statuses: readonly ShipPartStatus[],
 ) {
-  return routeSlots.reduce((count, slot) => (
-    slot?.find.kind === 'ship_part' &&
-      slot.find.shipPart === shipPart &&
-      statuses.includes(slot.find.status)
+  return shipPartSlots.reduce((count, slot) => (
+    slot.shipPart === shipPart && statuses.includes(slot.status)
       ? count + 1
       : count
   ), 0)
 }
 
-export function countSpentShipParts(routeSlots: readonly (RouteSlot | null)[], shipPart: ShipPartKind) {
-  return countShipParts(routeSlots, shipPart, ['spent'])
+export function countSpentShipParts(
+  shipPartSlots: readonly ShipPartSlot[],
+  shipPart: ShipPartKind,
+  currentSector: number,
+) {
+  return shipPartSlots.reduce((count, slot) => (
+    slot.shipPart === shipPart && slot.status === 'spent' && slot.spentSector === currentSector
+      ? count + 1
+      : count
+  ), 0)
 }
 
-export function countPotentialGateShipParts(routeSlots: readonly (RouteSlot | null)[], shipPart: ShipPartKind) {
-  return countShipParts(routeSlots, shipPart, ['available', 'spent'])
+export function countPotentialGateShipParts(
+  shipPartSlots: readonly ShipPartSlot[],
+  shipPart: ShipPartKind,
+  currentSector: number,
+) {
+  return shipPartSlots.reduce((count, slot) => (
+    slot.shipPart === shipPart && (
+      slot.status === 'available' ||
+      (slot.status === 'spent' && slot.spentSector === currentSector)
+    )
+      ? count + 1
+      : count
+  ), 0)
 }

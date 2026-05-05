@@ -11,21 +11,13 @@ import {
   isFaceDownStack,
 } from '../game/rules'
 import { getNextStopFuelDiscount } from '../game/effects'
-import type { BoardMetrics, BoardState, Bounds, Deck, DropTarget, RouteSlot, ShipPartKind } from '../game/types'
+import {
+  countSpentShipParts,
+  getProtectedRouteCardIds,
+} from './routeState'
+import type { BoardMetrics, BoardState, Bounds, Deck, DropTarget } from '../game/types'
 
 const DROP_TARGET_OVERLAP_RATIO = 0.28
-
-function countSpentShipParts(routeSlots: readonly (RouteSlot | null)[], shipPart: ShipPartKind) {
-  return routeSlots.reduce((count, slot) => (
-    slot?.find.kind === 'ship_part' && slot.find.shipPart === shipPart && slot.find.status === 'spent'
-      ? count + 1
-      : count
-  ), 0)
-}
-
-function getRouteCardIds(routeSlots: readonly (RouteSlot | null)[]) {
-  return routeSlots.flatMap((slot) => slot ? [slot.cardId] : [])
-}
 
 function stackContainsRouteCard(stackCardIds: readonly string[], routeCardIds: ReadonlySet<string>) {
   return stackCardIds.some((cardId) => routeCardIds.has(cardId))
@@ -42,9 +34,9 @@ export function getNearestDropTarget(
 ): DropTarget {
   const { stacks, decks, cards } = board
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
-  const spentServiceDroneBays = countSpentShipParts(board.routeSlots, 'service-drone-bay')
-  const spentControlConsoles = countSpentShipParts(board.routeSlots, 'adaptive-control-console')
-  const routeCardIds = new Set(getRouteCardIds(board.routeSlots))
+  const spentServiceDroneBays = countSpentShipParts(board.shipPartSlots, 'service-drone-bay', board.currentSector)
+  const spentControlConsoles = countSpentShipParts(board.shipPartSlots, 'adaptive-control-console', board.currentSector)
+  const routeCardIds = new Set(getProtectedRouteCardIds(board.routeSlots, board.shipPartSlots))
   const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
   const sourceHasRouteCard = sourceStack ? stackContainsRouteCard(sourceStack.cardIds, routeCardIds) : false
   const sourceIsRouteOnly = sourceStack ? stackContainsOnlyRouteCards(sourceStack.cardIds, routeCardIds) : false
@@ -129,9 +121,9 @@ export function getStackDropTargetIds(
 ) {
   const { stacks, cards } = board
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
-  const spentServiceDroneBays = countSpentShipParts(board.routeSlots, 'service-drone-bay')
-  const spentControlConsoles = countSpentShipParts(board.routeSlots, 'adaptive-control-console')
-  const routeCardIds = new Set(getRouteCardIds(board.routeSlots))
+  const spentServiceDroneBays = countSpentShipParts(board.shipPartSlots, 'service-drone-bay', board.currentSector)
+  const spentControlConsoles = countSpentShipParts(board.shipPartSlots, 'adaptive-control-console', board.currentSector)
+  const routeCardIds = new Set(getProtectedRouteCardIds(board.routeSlots, board.shipPartSlots))
   const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
   const sourceHasRouteCard = sourceStack ? stackContainsRouteCard(sourceStack.cardIds, routeCardIds) : false
   const sourceIsRouteOnly = sourceStack ? stackContainsOnlyRouteCards(sourceStack.cardIds, routeCardIds) : false

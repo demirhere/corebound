@@ -516,6 +516,7 @@ export function createInitialBoardSetup(): InitialBoardSetup {
     ],
     mapSlots: mapStopCards.map((card) => card.id),
     routeSlots: Array.from({ length: ROUTE_SLOT_COUNT }, () => null),
+    shipPartSlots: [],
     archivedRouteCardIds: [],
     handCardIds: handCards.map((card) => card.id),
     tiredCardIds: [],

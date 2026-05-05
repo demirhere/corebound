@@ -899,8 +899,8 @@ export function useBoardInteractions({ board, setBoard }: UseBoardInteractionsAr
     setBoard(confirmScoutChoiceUpdate)
   }
 
-  function spendRouteShipPart(routeSlotIndex: number) {
-    setBoard(spendRouteShipPartUpdate(routeSlotIndex))
+  function spendRouteShipPart(shipPartSlotIndex: number) {
+    setBoard(spendRouteShipPartUpdate(shipPartSlotIndex))
   }
 
   function getBoardDropPosition(clientX: number, clientY: number, placeAboveHand = false) {

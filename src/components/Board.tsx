@@ -55,7 +55,7 @@ type BoardProps = {
   onWakeCrewChoice: (cardId: string) => void
   onScoutCardChoice: (cardId: string) => void
   onScoutChoiceConfirm: () => void
-  onRouteShipPartUse: (routeSlotIndex: number) => void
+  onRouteShipPartUse: (shipPartSlotIndex: number) => void
   onResetGame: () => void
 }
 
@@ -85,7 +85,10 @@ export function Board({
 }: BoardProps) {
   const isGameOver = board.hasArrived || Boolean(board.lossReason)
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
-  const traveledStopCardIds = new Set(board.routeSlots.flatMap((routeSlot) => routeSlot ? [routeSlot.cardId] : []))
+  const traveledStopCardIds = new Set([
+    ...board.routeSlots.flatMap((routeSlot) => routeSlot ? [routeSlot.cardId] : []),
+    ...board.shipPartSlots.map((slot) => slot.cardId),
+  ])
 
   return (
     <section

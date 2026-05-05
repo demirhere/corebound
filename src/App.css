@@ -1816,6 +1816,11 @@
 }
 
 .card-kind-horizon {
+  .card-face.card-front {
+    border-width: 0;
+    border-color: transparent;
+  }
+
   .card-header {
     display: grid;
     align-content: start;

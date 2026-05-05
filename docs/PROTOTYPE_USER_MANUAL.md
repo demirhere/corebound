@@ -29,7 +29,7 @@ On load or restart, setup is staged as an animated deal instead of cards snappin
 | Starting Crew | 5 crew | Deal all starting crew to the Crew area as Ready crew. |
 | Tired Crew | 0 crew | Starts empty. Crew used on Destinations or Gates move here. |
 | Sector Deck | 9 Destinations | Shuffle all 9 Destinations for the sector. Deal 3 face up side by side into the Map and leave the rest in the Sector Deck for later 3-card Map offers. |
-| Map | 3 Destinations | These are the current visible Destinations. Complete 1, keep it in the route area only if it found a Ship Part, clear Immediate Benefit Destinations with the other visible Destinations, then draw 3 new side-by-side Destinations after the first and second traveled Destination. |
+| Map | 3 Destinations | These are the current visible Destinations. Complete 1, keep its card on the board only if it found a Ship Part, clear Immediate Benefit Destinations with the other visible Destinations, then draw 3 new side-by-side Destinations after the first and second traveled Destination. |
 | Gate | 1 Gate card | Reveal Narrow Crossing face up at setup. |
 | MOTHER Deck | 6 MOTHER cards | Place as a manual draw deck. Draws 1 card at a time. |
 | Stress | 0 Stress | Spent MOTHER adds Stress. |
@@ -61,7 +61,7 @@ The visible crew icon formerly called Star is now called Nav. Science uses a bea
 
 ## Destinations And Finds
 
-Destinations are shuffled into the Sector Deck. A sector begins with exactly 3 face-up Map Destinations dealt side by side. Completing a Destination marks it traveled. Ship Part Destination cards move to the route area; Immediate Benefit Destination cards clear with the other visible Map Destinations. The next 3 Destinations are drawn side by side as a fresh Map offer after the first and second traveled Destination.
+Destinations are shuffled into the Sector Deck. A sector begins with exactly 3 face-up Map Destinations dealt side by side. Completing a Destination marks it traveled. Ship Part Destination cards move to the route area and remain on the board after sector completion; Immediate Benefit Destination cards clear with the other visible Map Destinations. The next 3 Destinations are drawn side by side as a fresh Map offer after the first and second traveled Destination.
 
 Every Destination card shows the Destination name in small text, the item found there as the main title, that item's effect, and the completion cost. The destination type is not shown on the card.
 
@@ -69,7 +69,7 @@ Each traveled Destination gives exactly one find:
 
 ```text
 Immediate Benefit: resolve it now, mark the Destination traveled, then clear its card.
-Ship Part: make that Ship Part available for the Gate and keep its Destination card in the route area. It gives no immediate benefit.
+Ship Part: make that Ship Part available for a Gate and keep its Destination card on the board. It gives no immediate benefit.
 ```
 
 No Destination gives both an immediate benefit and a Ship Part. In the current deck, deep-space Destinations provide immediate benefits only; Ship Parts are found at physical destinations.
@@ -86,7 +86,7 @@ No Destination gives both an immediate benefit and a Ship Part. In the current d
 | Gravity Sling | Slingshot Trajectory | Fuel 2, Nav, Engine | Immediate Benefit: Next stop -1 Fuel. |
 | Quiet Relay | Adaptive Control Console | Fuel 1, Science, Nav | Ship Part: Cover 1 missing Gate icon. It fills no crew slot. |
 
-Ship Parts are used only at the Gate. Each Ship Part can be spent once. Spent Ship Parts stay visible on their traveled Destination cards. Unspent Ship Parts expire after the sector Gate resolves.
+Ship Parts are used only at Gates. Each Ship Part can be spent once. Spent Ship Parts stay visible on their traveled Destination cards and cannot be reused. Unspent Ship Parts remain visible and available after the sector Gate resolves, so they can be carried forward to a later Gate.
 
 | Ship Part | Gate Use |
 | --- | --- |
@@ -185,8 +185,8 @@ Completion happens automatically when a stack satisfies the active requirement.
 
 After Gate 1 succeeds:
 
-1. The Sector 1 traveled Destinations are archived to history.
-2. Ship Part markers are cleared.
+1. The Sector 1 route progress resets, and non-Ship Part traveled Destinations are archived to history.
+2. Ship Part Destination cards stay on the board. Unspent Ship Parts remain available; spent Ship Parts remain spent.
 3. All Tired crew become Ready.
 4. Fuel carries forward.
 5. Stress carries forward.
@@ -208,7 +208,7 @@ Drag a card stack onto a highlighted valid target to combine it into a Destinati
 
 Drag visible traveled Ship Part Destination cards onto each other to stack them and organize board space. They cannot be stacked into payment stacks or discarded.
 
-Use the Ship Part buttons during the Gate. Medbay Rehydrator readies a Tired crew. Service Drone Bay fills a crew slot. Adaptive Control Console covers a missing icon.
+Use available Ship Part buttons during the Gate, including unspent Ship Parts carried from an earlier sector. Medbay Rehydrator readies a Tired crew. Service Drone Bay fills a crew slot. Adaptive Control Console covers a missing icon.
 
 Drag an all-crew stack back to the Crew area to return those Ready crew to hand.
 
@@ -224,7 +224,7 @@ Win by completing Dark Threshold after 3 Sector 2 Destinations are traveled.
 
 Lose as Stranded in the Reach if no visible Map Destination can be completed.
 
-Lose as The Gate cannot be passed if the current Gate cannot be completed with available Ship Parts, Ready crew cards, and unused MOTHER cards for missing icons. Unused MOTHER includes usable MOTHER cards in play plus cards still in the MOTHER Deck.
+Lose as The Gate cannot be passed if the current Gate cannot be completed with available Ship Parts, Ready crew cards, and unused MOTHER cards for missing icons. Available Ship Parts include unspent parts carried from an earlier sector. Unused MOTHER includes usable MOTHER cards in play plus cards still in the MOTHER Deck.
 
 There is no active Hull, health, damage, sector field, score track, market, relic system, or character progression in this prototype.
 
@@ -239,8 +239,8 @@ CORE LOOP
 3. Move used crew to Tired.
 4. Resolve the find.
    Immediate Benefit = resolve now.
-   Ship Part = save for the Gate.
-5. Keep Ship Part Destinations in the route area; clear Immediate Benefit Destinations.
+   Ship Part = save until spent at a Gate.
+5. Keep Ship Part Destinations on the board; clear Immediate Benefit Destinations.
 6. Discard the other Map Destinations.
 7. Draw 3 new Map Destinations unless that was the 3rd Destination.
 
@@ -251,6 +251,7 @@ SHIP PARTS
 Medbay Rehydrator: ready 1 Tired crew.
 Service Drone Bay: fill 1 crew slot, no icon.
 Adaptive Control Console: cover 1 icon, no crew slot.
+Unspent Ship Parts carry forward after a Gate.
 
 MOTHER
 

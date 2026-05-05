@@ -35,7 +35,7 @@ export type HandZone = 'crew' | 'tired'
 
 export type ShipPartKind = 'medbay-rehydrator' | 'service-drone-bay' | 'adaptive-control-console'
 
-export type ShipPartStatus = 'available' | 'spent' | 'expired'
+export type ShipPartStatus = 'available' | 'spent'
 
 export type VisitReward =
   | {
@@ -139,7 +139,6 @@ export type RouteSlotFind =
       kind: 'ship_part'
       itemName: string
       shipPart: ShipPartKind
-      status: ShipPartStatus
     }
   | {
       kind: 'visit_reward'
@@ -150,6 +149,16 @@ export type RouteSlot = {
   cardId: string
   mapSlotIndex: number
   find: RouteSlotFind
+}
+
+export type ShipPartSlot = {
+  cardId: string
+  routeSlotIndex: number
+  sector: number
+  itemName: string
+  shipPart: ShipPartKind
+  status: ShipPartStatus
+  spentSector?: number
 }
 
 export type Deck = {
@@ -187,6 +196,7 @@ export type BoardState = {
   decks: Deck[]
   mapSlots: (string | null)[]
   routeSlots: (RouteSlot | null)[]
+  shipPartSlots: ShipPartSlot[]
   archivedRouteCardIds: string[]
   handCardIds: string[]
   tiredCardIds: string[]

@@ -401,7 +401,7 @@ function canCompleteSectorGate(current: BoardState) {
     return false
   }
 
-  const availableMedbayRehydrators = countShipParts(current.routeSlots, 'medbay-rehydrator', ['available'])
+  const availableMedbayRehydrators = countShipParts(current.shipPartSlots, 'medbay-rehydrator', ['available'])
   const readyCrewCardIds = getReadyCrewCardIds(current)
   const potentiallyReadiedCrewCardIds = current.tiredCardIds
     .filter((cardId) => current.cards[cardId]?.kind === 'crew')
@@ -415,8 +415,8 @@ function canCompleteSectorGate(current: BoardState) {
     gateCard.gate,
     current.stressCount,
     availableMotherCardCount,
-    countPotentialGateShipParts(current.routeSlots, 'service-drone-bay'),
-    countPotentialGateShipParts(current.routeSlots, 'adaptive-control-console'),
+    countPotentialGateShipParts(current.shipPartSlots, 'service-drone-bay', current.currentSector),
+    countPotentialGateShipParts(current.shipPartSlots, 'adaptive-control-console', current.currentSector),
   )
 }
 
@@ -637,6 +637,14 @@ function removeCardIdsFromStacks(stacks: readonly Stack[], cardIds: readonly str
 
 function getDrawnMapStackId(stacks: readonly Stack[], slotIndex: number, cardId: string) {
   const preferredStackId = getMapStackId(slotIndex)
+
+  return stacks.some((stack) => stack.id === preferredStackId)
+    ? `${preferredStackId}-${cardId}`
+    : preferredStackId
+}
+
+function getDrawnRouteStackId(stacks: readonly Stack[], slotIndex: number, cardId: string) {
+  const preferredStackId = getRouteStackId(slotIndex)
 
   return stacks.some((stack) => stack.id === preferredStackId)
     ? `${preferredStackId}-${cardId}`
@@ -870,7 +878,6 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
                 kind: 'ship_part' as const,
                 itemName: shipPartFind.itemName,
                 shipPart: shipPartFind.shipPart,
-                status: 'available' as const,
               }
             : {
                 kind: 'visit_reward' as const,
@@ -879,6 +886,19 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
         }
       : slot
   ))
+  const nextShipPartSlots = shipPartFind
+    ? [
+        ...current.shipPartSlots,
+        {
+          cardId: horizonCard.id,
+          routeSlotIndex,
+          sector: current.currentSector,
+          itemName: shipPartFind.itemName,
+          shipPart: shipPartFind.shipPart,
+          status: 'available' as const,
+        },
+      ]
+    : current.shipPartSlots
   const routeFilledAfterCompletion = isRouteFilled(nextRouteSlots)
   const shouldScoutBeforeMapDraw = scoutCount > 0 && !routeFilledAfterCompletion
 
@@ -926,7 +946,7 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
         ? [
             {
               ...sourceStack,
-              id: getRouteStackId(routeSlotIndex),
+              id: getDrawnRouteStackId(nextStacksWithoutSource, routeSlotIndex, horizonCard.id),
               cardIds: [horizonCard.id],
               x: routeStackPosition.x,
               y: routeStackPosition.y,
@@ -972,6 +992,7 @@ function completeReadyHorizonStack(current: BoardState, stackId: string, metrics
     dropTargetDeckId: null,
     mapSlots: current.mapSlots.map((cardId, index) => index === mapSlotIndex ? null : cardId),
     routeSlots: nextRouteSlots,
+    shipPartSlots: nextShipPartSlots,
     handCardIds: readyCrewResult.handCardIds,
     tiredCardIds: tiredCardIdsWithSpentCrew,
     completedStarSummaries: [
@@ -1063,8 +1084,16 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
     return { board: current, events: [] }
   }
 
-  const spentServiceDroneBayCount = countSpentShipParts(current.routeSlots, 'service-drone-bay')
-  const spentControlConsoleCount = countSpentShipParts(current.routeSlots, 'adaptive-control-console')
+  const spentServiceDroneBayCount = countSpentShipParts(
+    current.shipPartSlots,
+    'service-drone-bay',
+    current.currentSector,
+  )
+  const spentControlConsoleCount = countSpentShipParts(
+    current.shipPartSlots,
+    'adaptive-control-console',
+    current.currentSector,
+  )
   const stressCountBefore = current.stressCount
   const completion = getGateStackCompletion(
     sourceStack,
@@ -1121,13 +1150,15 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
   const cardsWithSpentMother = markMotherCardsSpent(current.cards, spentMotherCardIds)
   const nextCards = { ...cardsWithSpentMother }
   const routeCardIds = getRouteCardIds(current.routeSlots)
-  const routeCardIdSet = new Set(routeCardIds)
+  const shipPartCardIdSet = new Set(current.shipPartSlots.map((slot) => slot.cardId))
+  const archivedRouteCardIds = routeCardIds.filter((cardId) => !shipPartCardIdSet.has(cardId))
+  const archivedRouteCardIdSet = new Set(archivedRouteCardIds)
   const nextStressCount = current.stressCount + spentMotherCardIds.length
 
   if (nextGateCard) {
     delete nextCards[gateCard.id]
 
-    for (const routeCardId of routeCardIds) {
+    for (const routeCardId of archivedRouteCardIds) {
       delete nextCards[routeCardId]
     }
 
@@ -1152,8 +1183,8 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
   )
 
   const nextStacks = current.stacks.flatMap((stack) => {
-    if (nextGateCard && stack.cardIds.some((cardId) => routeCardIdSet.has(cardId))) {
-      const keptCardIds = stack.cardIds.filter((cardId) => !routeCardIdSet.has(cardId))
+    if (nextGateCard && stack.cardIds.some((cardId) => archivedRouteCardIdSet.has(cardId))) {
+      const keptCardIds = stack.cardIds.filter((cardId) => !archivedRouteCardIdSet.has(cardId))
 
       return keptCardIds.length > 0 ? [{ ...stack, cardIds: keptCardIds }] : []
     }
@@ -1190,9 +1221,8 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
     dropTargetStackId: null,
     dropTargetDeckId: null,
     mapSlots: nextGateCard ? nextMapStopCards.map((card) => card.id) : current.mapSlots,
-    routeSlots: isFinalGate
-      ? current.routeSlots.map((slot) => slot ? { ...slot, status: 'expired' as const } : slot)
-      : createEmptyRouteSlots(),
+    routeSlots: isFinalGate ? current.routeSlots : createEmptyRouteSlots(),
+    shipPartSlots: current.shipPartSlots,
     archivedRouteCardIds: isFinalGate
       ? current.archivedRouteCardIds
       : [...current.archivedRouteCardIds, ...routeCardIds],
@@ -1311,15 +1341,14 @@ function completeReadyGateStack(current: BoardState, stackId: string) {
   }
 }
 
-export function spendRouteShipPartUpdate(routeSlotIndex: number): BoardUpdater {
+export function spendRouteShipPartUpdate(shipPartSlotIndex: number): BoardUpdater {
   return (current) => {
-    const routeSlot = current.routeSlots[routeSlotIndex]
-    const routeCard = routeSlot ? current.cards[routeSlot.cardId] : null
+    const shipPartSlot = current.shipPartSlots[shipPartSlotIndex]
+    const routeCard = shipPartSlot ? current.cards[shipPartSlot.cardId] : null
 
     if (
-      !routeSlot ||
-      routeSlot.find.kind !== 'ship_part' ||
-      routeSlot.find.status !== 'available' ||
+      !shipPartSlot ||
+      shipPartSlot.status !== 'available' ||
       !routeCard ||
       current.hasArrived ||
       current.lossReason ||
@@ -1330,23 +1359,23 @@ export function spendRouteShipPartUpdate(routeSlotIndex: number): BoardUpdater {
       return current
     }
 
-    if (routeSlot.find.shipPart === 'medbay-rehydrator' && current.tiredCardIds.length === 0) {
+    if (shipPartSlot.shipPart === 'medbay-rehydrator' && current.tiredCardIds.length === 0) {
       return current
     }
 
-    const readyResult = routeSlot.find.shipPart === 'medbay-rehydrator'
+    const readyResult = shipPartSlot.shipPart === 'medbay-rehydrator'
       ? readyTiredCrew(current.handCardIds, current.tiredCardIds, 1)
       : null
-    const nextRouteSlots = current.routeSlots.map((slot, index) => (
-      index === routeSlotIndex && slot
-        ? { ...slot, find: slot.find.kind === 'ship_part' ? { ...slot.find, status: 'spent' as const } : slot.find }
+    const nextShipPartSlots = current.shipPartSlots.map((slot, index) => (
+      index === shipPartSlotIndex
+        ? { ...slot, status: 'spent' as const, spentSector: current.currentSector }
         : slot
     ))
     const nextBoard = {
       ...current,
       dropTargetStackId: null,
       dropTargetDeckId: null,
-      routeSlots: nextRouteSlots,
+      shipPartSlots: nextShipPartSlots,
       handCardIds: readyResult?.handCardIds ?? current.handCardIds,
       tiredCardIds: readyResult?.tiredCardIds ?? current.tiredCardIds,
     }
@@ -1354,7 +1383,7 @@ export function spendRouteShipPartUpdate(routeSlotIndex: number): BoardUpdater {
     const gateLoss = resolveGateLossIfNeeded(completedGate.board)
 
     return withPlaytestEvents(gateLoss.board, [
-      shipPartSpentEvent(routeCard, routeSlotIndex, routeSlot.find.shipPart),
+      shipPartSpentEvent(routeCard, shipPartSlot.routeSlotIndex, shipPartSlot.shipPart),
       ...completedGate.events,
       ...gateLoss.events,
     ])
@@ -1822,7 +1851,7 @@ export function discardStackUpdate(stackId: string): BoardUpdater {
       return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
     }
 
-    if (stackContainsRouteCard(stack, current.routeSlots)) {
+    if (stackContainsRouteCard(stack, current.routeSlots, current.shipPartSlots)) {
       return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
     }
 
@@ -2056,10 +2085,10 @@ export function stackOnDropTargetUpdate(
       return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
     }
 
-    const sourceHasRouteCard = stackContainsRouteCard(sourceStack, current.routeSlots)
-    const targetHasRouteCard = stackContainsRouteCard(targetStack, current.routeSlots)
-    const sourceIsRouteOnly = stackContainsOnlyRouteCards(sourceStack, current.routeSlots)
-    const targetIsRouteOnly = stackContainsOnlyRouteCards(targetStack, current.routeSlots)
+    const sourceHasRouteCard = stackContainsRouteCard(sourceStack, current.routeSlots, current.shipPartSlots)
+    const targetHasRouteCard = stackContainsRouteCard(targetStack, current.routeSlots, current.shipPartSlots)
+    const sourceIsRouteOnly = stackContainsOnlyRouteCards(sourceStack, current.routeSlots, current.shipPartSlots)
+    const targetIsRouteOnly = stackContainsOnlyRouteCards(targetStack, current.routeSlots, current.shipPartSlots)
 
     if (sourceIsRouteOnly && targetIsRouteOnly) {
       const nextZ = current.topZ + 1
@@ -2138,8 +2167,8 @@ export function stackOnDropTargetUpdate(
       current.cards,
       getNextStopFuelDiscount(current.pendingEffects),
       current.stressCount,
-      countSpentShipParts(current.routeSlots, 'service-drone-bay'),
-      countSpentShipParts(current.routeSlots, 'adaptive-control-console'),
+      countSpentShipParts(current.shipPartSlots, 'service-drone-bay', current.currentSector),
+      countSpentShipParts(current.shipPartSlots, 'adaptive-control-console', current.currentSector),
     )) {
       return { ...current, dropTargetStackId: null, dropTargetDeckId: null }
     }
