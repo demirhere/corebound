@@ -22,6 +22,20 @@ export function isMultiplayerBoard(board: BoardState) {
   return board.players.length > 1
 }
 
+export function getOwnedHandCardOwnerId(board: BoardState, cardId: string) {
+  const card = board.cards[cardId]
+
+  if (card?.kind === 'crew') {
+    return board.crewOwnerIds[cardId] ?? null
+  }
+
+  if (card?.kind === 'discovery') {
+    return board.discoveryOwnerIds[cardId] ?? null
+  }
+
+  return null
+}
+
 export function getPlayerReadyCrewCardIds(board: BoardState, playerId: string | null) {
   if (!playerId) {
     return board.handCardIds
@@ -57,7 +71,7 @@ export function getVisibleHandCardIds(board: BoardState, playerId: string | null
     return []
   }
 
-  return board.handCardIds.filter((cardId) => board.crewOwnerIds[cardId] === playerId)
+  return board.handCardIds.filter((cardId) => getOwnedHandCardOwnerId(board, cardId) === playerId)
 }
 
 export function getVisibleTiredCardIds(board: BoardState, playerId: string | null) {

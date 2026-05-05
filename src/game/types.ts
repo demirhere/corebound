@@ -27,7 +27,27 @@ export type HorizonKind = 'deep-space' | 'planet' | 'asteroid'
 
 export type RequirementIconKind = CrewSpecialization
 
-export type CardKind = 'resource' | 'crew' | 'horizon' | 'mother' | 'gate'
+export type DiscoveryTag = 'crew' | 'mission' | 'gate' | 'anytime'
+
+export type DiscoveryEffectKind =
+  | 'crew_nav'
+  | 'crew_engine'
+  | 'crew_life'
+  | 'crew_science'
+  | 'mission_fuel_discount'
+  | 'gate_clear_stress'
+  | 'gate_skip_hazard'
+  | 'ration_pack'
+
+export type DiscoveryDetails = {
+  tag: DiscoveryTag
+  effectKind: DiscoveryEffectKind
+  effectText: string
+  icon?: RequirementIconKind
+  amount?: number
+}
+
+export type CardKind = 'resource' | 'crew' | 'horizon' | 'mother' | 'gate' | 'discovery'
 
 export type GameLossReason = 'sector-stranded' | 'gate-failed'
 
@@ -122,6 +142,8 @@ export type CardBlueprint = {
   portraitIndex?: number
   horizon?: HorizonDetails
   gate?: GateDetails
+  discovery?: DiscoveryDetails
+  specimenIndex?: number
 }
 
 export type Card = CardBlueprint & {
@@ -235,6 +257,7 @@ export type BoardState = {
   dropTargetDeckId: string | null
   players: GamePlayer[]
   crewOwnerIds: Record<string, string>
+  discoveryOwnerIds: Record<string, string>
 }
 
 export type BoardMetrics = {

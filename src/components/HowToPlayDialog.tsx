@@ -133,7 +133,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
           <section className="how-to-play-wide-section">
             <h3>Core Loop</h3>
             <ol>
-              <li>Click Sector Stops to reveal 3 Map Destinations when the Map is empty.</li>
+              <li>Click Missions to reveal 3 Map Destinations when the Map is empty.</li>
               <li>Travel to only 1 Destination per turn. Stack its payment, then click Travel.</li>
               <li>Used crew move to Tired. Immediate Benefits resolve now; Ship Parts stay visible for a Gate.</li>
               <li>Unchosen Map Destinations clear. End turn before drawing again unless that was the 3rd Destination.</li>

@@ -94,6 +94,7 @@ export function CardShell({
   const headerTitle = horizonDetails ? horizonDetails.find.itemName : card.title
   const horizonHeaderDetail = horizonDetails ? renderSectorCardHeaderDetail(card) : null
   const isGateCard = card.kind === 'gate'
+  const gateBackTitle = isGateCard ? `${card.title} Final Gate` : null
 
   return (
     <div
@@ -163,7 +164,7 @@ export function CardShell({
           {isGateCard ? (
             <span className="deck-title-lockup sector-gate-back-lockup">
               <DeckIcon kind={card.icon} className="deck-mark-icon" />
-              <span className="deck-title">Sector Gate</span>
+              <span className="deck-title">{gateBackTitle}</span>
             </span>
           ) : (
             <DeckIcon kind={card.icon} className="back-mark" />
@@ -192,7 +193,7 @@ export function BoardCard({
   const cardLabel = card.kind === 'horizon' && card.horizon
     ? `${card.horizon.find.itemName} at ${card.title}`
     : card.kind === 'gate' && !card.faceUp
-      ? 'Sector Gate'
+      ? `${card.title} Final Gate`
       : card.title
   const ariaLabel = isTraveledStop
     ? `${cardLabel}. Traveled destination in the route area. Drag to organize traveled destinations.`

@@ -62,11 +62,11 @@ export function Hand({
       ref={handRef}
       className={`hand${activeCardIdSet.size > 0 ? ' is-dragging-card' : ''}`}
       data-hand
-      aria-label="Crew and tired hands"
+      aria-label="Player hand and tired crew"
     >
       <HandZoneArea
         zone="crew"
-        label="Crew"
+        label="Hand"
         cardIds={crewCardIds}
         cards={cards}
         activeCardIds={activeCardIdSet}

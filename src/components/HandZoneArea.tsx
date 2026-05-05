@@ -132,7 +132,7 @@ export function HandZoneArea({
     : cardCount
 
   return (
-    <div className={`hand-zone hand-zone-${zone}`} data-hand-zone={zone} aria-label={`${label} hand`}>
+    <div className={`hand-zone hand-zone-${zone}`} data-hand-zone={zone} aria-label={`${label} area`}>
       {zone === 'tired' && stressCount !== undefined ? <StressTracker stressCount={stressCount} /> : null}
       <span className="hand-zone-label">{label}</span>
       {subtitle && <span className="hand-zone-subtitle">{subtitle}</span>}
@@ -178,7 +178,7 @@ export function HandZoneArea({
                   canInteract={canInteract && zone === 'crew'}
                   ariaLabel={
                     zone === 'crew'
-                      ? `${card.title}. Click to drop to the board or drag within Crew and to the board.`
+                      ? `${card.title}. Click to drop to the board or drag within Hand and to the board.`
                       : `${card.title}. Tired crew readies after a Gate or a Sector ready reward.`
                   }
                   onPointerDown={(event) => onCardPointerDown(event, card.id, zone)}

@@ -54,6 +54,14 @@ export function getVisibleHorizonCards(current: BoardState) {
   })
 }
 
+function hasMissionDiscoverySupportInHand(current: BoardState) {
+  return current.handCardIds.some((cardId) => {
+    const card = current.cards[cardId]
+
+    return card?.kind === 'discovery' && (card.discovery?.tag === 'mission' || card.discovery?.tag === 'crew')
+  })
+}
+
 export function canTravelToHorizon(current: BoardState, horizonCard: Card) {
   if (!horizonCard.horizon) {
     return false
@@ -64,13 +72,19 @@ export function canTravelToHorizon(current: BoardState, horizonCard: Card) {
     horizonCard.horizon.need.fuel - getNextStopFuelDiscount(current.pendingEffects),
   )
 
-  return canCompleteHorizonNeedWithFuelOptions(
-    getReadyCrewCardIds(current),
+  const readyCrewCardIds = getReadyCrewCardIds(current)
+  const canTravelWithoutDiscoveries = canCompleteHorizonNeedWithFuelOptions(
+    readyCrewCardIds,
     current.cards,
     horizonCard.horizon.need.icons,
     requiredFuel,
     countFuelCardsInPlay(current),
     getAvailableMotherCardCount(current),
+  )
+
+  return canTravelWithoutDiscoveries || (
+    readyCrewCardIds.length > 0 &&
+    hasMissionDiscoverySupportInHand(current)
   )
 }
 

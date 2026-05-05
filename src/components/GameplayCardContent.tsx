@@ -1,6 +1,7 @@
 import type {
   Card,
   CrewSpecialization,
+  DiscoveryTag,
   DestinationFind,
   GateDetails,
   RequirementIconKind,
@@ -11,7 +12,7 @@ import type {
 import { getShipPartUseText } from '../game/shipParts'
 import { renderCrewCardContent } from './CrewCard'
 import { GameIcon } from './GameIcon'
-import { hashString } from './gameIcons'
+import { hashString, type GameIconKind } from './gameIcons'
 import { SectorCardArt, SectorCardLayout } from './SectorCardLayout'
 
 const BLUEPRINT_ART_GRID_SIZE = 4
@@ -19,6 +20,10 @@ const ROUTE_ART_GRID_SIZE = 4
 
 function titleCase(value: string) {
   return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`
+}
+
+function getDiscoveryTagLabel(tag: DiscoveryTag) {
+  return tag === 'anytime' ? 'Anytime' : titleCase(tag)
 }
 
 function renderIconPips(
@@ -312,6 +317,59 @@ function renderGatePenalty(gate: GateDetails, stressCount: number) {
   )
 }
 
+function getDiscoveryDisplayIcon(card: Card): GameIconKind {
+  if (card.discovery?.icon) {
+    return card.discovery.icon
+  }
+
+  if (card.discovery?.effectKind === 'mission_fuel_discount' || card.discovery?.effectKind === 'ration_pack') {
+    return 'fuel'
+  }
+
+  if (card.discovery?.effectKind === 'gate_clear_stress') {
+    return 'mother'
+  }
+
+  if (card.discovery?.effectKind === 'gate_skip_hazard') {
+    return 'person'
+  }
+
+  return 'any'
+}
+
+function renderDiscoveryContent(card: Card) {
+  if (!card.discovery) {
+    return null
+  }
+
+  const specimenNumber = ((card.specimenIndex ?? hashString(card.id)) % 8) + 1
+  const tagLabel = getDiscoveryTagLabel(card.discovery.tag)
+
+  return (
+    <div className="discovery-specimen">
+      <div className="discovery-taxonomy">
+        <span>{tagLabel} Discovery</span>
+        <span>{`DSP-${String(specimenNumber).padStart(2, '0')}`}</span>
+      </div>
+      <div className="discovery-sample-area">
+        <div className="discovery-route-trace" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className="discovery-vial">
+          <GameIcon kind={getDiscoveryDisplayIcon(card)} />
+          <span className="discovery-vial-bubbles" aria-hidden="true" />
+        </div>
+      </div>
+      <p className="discovery-effect">{card.discovery.effectText}</p>
+      <div className="discovery-barcode" aria-hidden="true">
+        <span>{card.id.toUpperCase()}</span>
+      </div>
+    </div>
+  )
+}
+
 export function renderGameplayCardContent(
   card: Card,
   fuelDiscount: number,
@@ -337,6 +395,10 @@ export function renderGameplayCardContent(
 
   if (card.kind === 'crew') {
     return renderCrewCardContent(card)
+  }
+
+  if (card.kind === 'discovery') {
+    return renderDiscoveryContent(card)
   }
 
   if (card.kind === 'mother') {

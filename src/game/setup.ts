@@ -5,6 +5,9 @@ import type {
   CardIconKind,
   CrewSpecialization,
   DestinationFind,
+  DiscoveryDetails,
+  DiscoveryEffectKind,
+  DiscoveryTag,
   GamePlayer,
   HorizonKind,
   RequirementIconKind,
@@ -14,6 +17,7 @@ import type {
 } from './types'
 import {
   CRYO_DECK_ID,
+  DISCOVERY_DECK_ID,
   FUEL_DECK_ID,
   HORIZON_DECK_ID,
   MOTHER_DECK_ID,
@@ -126,6 +130,12 @@ const crewArt: DeckArt = {
   accent: '#82d8ff',
 }
 
+const discoveryArt: DeckArt = {
+  icon: 'flower',
+  hue: 128,
+  accent: '#70c58c',
+}
+
 function createResourceDeck(resource: ResourceKind, count: number) {
   const art = resourceArt[resource]
   const title = resource === 'fuel' ? 'Fuel Cell' : 'Hull Plate'
@@ -163,6 +173,31 @@ function createCrewCard(
     kind: 'crew',
     specializations,
     portraitIndex,
+  }
+}
+
+function createDiscoveryCard(
+  title: string,
+  tag: DiscoveryTag,
+  effectKind: DiscoveryEffectKind,
+  effectText: string,
+  icon: CardIconKind,
+  specimenIndex: number,
+  options: Pick<DiscoveryDetails, 'icon' | 'amount'> = {},
+): CardBlueprint {
+  return {
+    title,
+    icon,
+    hue: discoveryArt.hue,
+    accent: discoveryArt.accent,
+    kind: 'discovery',
+    discovery: {
+      tag,
+      effectKind,
+      effectText,
+      ...options,
+    },
+    specimenIndex,
   }
 }
 
@@ -307,13 +342,15 @@ function setupCrewDealtEvent(card: Card, handIndex: number, owner: GamePlayer | 
 }
 
 function setupGatePlacedEvent(card: Card, stackId: string): PlaytestLogEvent {
+  const gateTitle = `${card.title} Final Gate`
+
   return {
     type: 'setup.gate.placed_face_down',
-    message: `Sector Gate (${card.id}) placed face down. Click it to reveal or hide it.`,
+    message: `${gateTitle} (${card.id}) placed face down. Click it to reveal or hide it.`,
     details: {
       cardId: card.id,
-      cardTitle: 'Sector Gate',
-      cardSummary: `Sector Gate (${card.id}) face down`,
+      cardTitle: gateTitle,
+      cardSummary: `${gateTitle} (${card.id}) face down`,
       stackId,
       faceUp: card.faceUp,
     },
@@ -337,6 +374,83 @@ const cryoCrewDeck = [
   createCrewCard('Oren Vale', ['signal', 'signal'], 13),
   createCrewCard('Malik Ortega', ['star', 'star'], 15),
 ]
+
+const discoveryDesigns = [
+  createDiscoveryCard(
+    'Star Chart',
+    'crew',
+    'crew_nav',
+    'This committed crew counts as Nav.',
+    'star',
+    0,
+    { icon: 'star' },
+  ),
+  createDiscoveryCard(
+    'Spare Coil',
+    'crew',
+    'crew_engine',
+    'This committed crew counts as Engine.',
+    'hex',
+    1,
+    { icon: 'engine' },
+  ),
+  createDiscoveryCard(
+    'Bio-sample',
+    'crew',
+    'crew_life',
+    'This committed crew counts as Life.',
+    'sprout',
+    2,
+    { icon: 'life' },
+  ),
+  createDiscoveryCard(
+    'Field Notes',
+    'crew',
+    'crew_science',
+    'This committed crew counts as Science.',
+    'antenna',
+    3,
+    { icon: 'signal' },
+  ),
+  createDiscoveryCard(
+    'Pressure Suit',
+    'mission',
+    'mission_fuel_discount',
+    '-1 Fuel cost on this Mission.',
+    'shield',
+    4,
+    { amount: 1 },
+  ),
+  createDiscoveryCard(
+    'Coolant Pack',
+    'gate',
+    'gate_clear_stress',
+    'Clear 1 Stress before this Gate scores.',
+    'snowflake',
+    5,
+    { amount: 1 },
+  ),
+  createDiscoveryCard(
+    'Local Allies',
+    'gate',
+    'gate_skip_hazard',
+    'Skip 1 Gate hazard crew slot. Still must Pass.',
+    'person',
+    6,
+    { amount: 1 },
+  ),
+  createDiscoveryCard(
+    'Ration Pack',
+    'anytime',
+    'ration_pack',
+    '+1 Fuel to supply, then discard.',
+    'pentagon',
+    7,
+    { amount: 1 },
+  ),
+]
+
+const discoveryDeck = discoveryDesigns.flatMap((card) => Array.from({ length: 3 }, () => card))
 
 const horizonDeck = [
   createHorizonCard('Dust Garden', 'planet', 0, ['life', 'star'], shipPartFind(
@@ -402,8 +516,12 @@ export function getSectorGateBlueprint(sector: number) {
   return sectorGates[sector - 1] ?? null
 }
 
+export function getSectorName(sector: number) {
+  return getSectorGateBlueprint(sector)?.title ?? `Sector ${sector}`
+}
+
 export function getSectorDeckTitle(sector: number) {
-  return `Sector ${sector} Stops`
+  return `${getSectorName(sector)} Missions`
 }
 
 export function getSectorDeckArt(sector: number) {
@@ -464,6 +582,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
   const motherDeckCards = createMotherDeck(MOTHER_DECK_SIZE)
   const shuffledCryoCrewDeck = shuffleCards(cryoCrewDeck)
   const startingCrewDeal = createStartingCrewDeal(setupPlayers, shuffledCryoCrewDeck)
+  const discoveryDeckCards = shuffleCards(discoveryDeck)
   // const hullDeck = shuffleCards(createResourceDeck('hull', RESOURCE_DECK_SIZE))
   const initialFuelCards = createBoardCards('fuel-start', fuelDeck.slice(0, 2))
   // const initialHullCards = createBoardCards('hull-start', hullDeck.slice(0, 4))
@@ -503,7 +622,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
               cardIds: [gateCard.id],
               x: SECTOR_GATE_STACK_POSITION.x,
               y: SECTOR_GATE_STACK_POSITION.y,
-              z: 1016,
+              z: 1017,
             },
           ]
         : []),
@@ -557,9 +676,21 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
         accent: crewArt.accent,
         x: 3,
         y: 72,
-        z: 1015,
+        z: 1016,
         draw: automaticRewardDeckDraw,
         cards: cryoDeckCards,
+      },
+      {
+        id: DISCOVERY_DECK_ID,
+        title: 'Discovery Deck',
+        icon: discoveryArt.icon,
+        hue: discoveryArt.hue,
+        accent: discoveryArt.accent,
+        x: 3,
+        y: 56,
+        z: 1015,
+        draw: automaticRewardDeckDraw,
+        cards: discoveryDeckCards,
       },
     ],
     mapSlots: Array.from({ length: MAP_SLOT_COUNT }, () => null),
@@ -582,12 +713,13 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
     totalSectors: TOTAL_SECTORS,
     hasArrived: false,
     lossReason: null,
-    topZ: 1016,
+    topZ: 1017,
     nextCardId: 1,
     dropTargetStackId: null,
     dropTargetDeckId: null,
     players: setupPlayers,
     crewOwnerIds: Object.fromEntries(crewOwnerEntries),
+    discoveryOwnerIds: {},
   }
   const predealBoard: BoardState = {
     ...board,
@@ -622,6 +754,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
       // setupDeckCreatedEvent('hull-deck', 'Hull Deck', hullDeckCards),
       setupDeckCreatedEvent(HORIZON_DECK_ID, getSectorDeckTitle(1), horizonDeckCards),
       setupDeckCreatedEvent(CRYO_DECK_ID, 'Cryo Deck', cryoDeckCards),
+      setupDeckCreatedEvent(DISCOVERY_DECK_ID, 'Discovery Deck', discoveryDeckCards),
       ...(gateCard ? [setupGatePlacedEvent(gateCard, 'stack-sector-gate')] : []),
       ...initialFuelCards.map((card, index) => setupResourceDrawnEvent(card, 'Fuel Deck', index + 1)),
       // ...initialHullCards.map((card, index) => setupResourceDrawnEvent(card, 'Hull Deck', index + 1)),

@@ -60,6 +60,14 @@ function describeFind(find: DestinationFind) {
   return `${find.itemName}: ${describeVisitRewards(find.rewards) || 'no immediate benefit'}`
 }
 
+function getDiscoveryTagLabel(tag: string) {
+  if (tag === 'anytime') {
+    return 'Anytime'
+  }
+
+  return `${tag.slice(0, 1).toUpperCase()}${tag.slice(1)}`
+}
+
 export function cardRulesText(card: Card | CardBlueprint) {
   if (card.kind === 'crew') {
     const specialties = card.specializations?.map(getRequirementIconLabel).join(', ') ?? 'none'
@@ -86,6 +94,10 @@ export function cardRulesText(card: Card | CardBlueprint) {
     const icons = card.gate.need.icons.map(getRequirementIconLabel).join(', ')
 
     return `gate crew slots: ${card.gate.need.crew}; icons needed: ${icons}; MOTHER and Adaptive Control Consoles cover icons only; ${card.gate.motherPenalty.threshold}+ Stress adds ${card.gate.motherPenalty.extraHumanCrew} crew slot`
+  }
+
+  if (card.kind === 'discovery' && card.discovery) {
+    return `${getDiscoveryTagLabel(card.discovery.tag)} Discovery: ${card.discovery.effectText}`
   }
 
   return ''
@@ -253,6 +265,44 @@ export function cardsDiscardedEvent(
       cardTitles: cardTitles(cardIds, cards),
       cardSummaries: cardSummaries(cardIds, cards),
       cardContents: cardContents(cardIds, cards),
+    },
+  }
+}
+
+export function discoveryEarnedEvent(
+  discoveryCard: Card,
+  deck: Deck,
+  playerName: string | null,
+  missionCard: Card,
+): PlaytestLogEvent {
+  const playerText = playerName ? `${playerName} earns` : 'Player earns'
+
+  return {
+    type: 'discovery.earned',
+    message: `${playerText} ${describeCard(discoveryCard, discoveryCard.id)} from ${deck.title} after ${missionCard.title}.`,
+    details: {
+      cardId: discoveryCard.id,
+      cardTitle: discoveryCard.title,
+      cardSummary: describeCard(discoveryCard, discoveryCard.id),
+      cardContent: cardContent(discoveryCard),
+      deckId: deck.id,
+      deckTitle: deck.title,
+      missionCardId: missionCard.id,
+      missionTitle: missionCard.title,
+      playerName,
+    },
+  }
+}
+
+export function discoveryMissedEvent(deck: Deck | null, missionCard: Card): PlaytestLogEvent {
+  return {
+    type: 'discovery.missed',
+    message: `${missionCard.title} completed, but no Discovery card was available to earn.`,
+    details: {
+      deckId: deck?.id ?? null,
+      deckTitle: deck?.title ?? null,
+      missionCardId: missionCard.id,
+      missionTitle: missionCard.title,
     },
   }
 }
@@ -586,6 +636,18 @@ export function stressAddedEvent(source: string, from: number, to: number): Play
   }
 }
 
+export function stressClearedEvent(source: string, from: number, to: number): PlaytestLogEvent {
+  return {
+    type: 'stress.cleared',
+    message: `${source}: Stress reduced from ${from} to ${to}.`,
+    details: {
+      source,
+      from,
+      to,
+    },
+  }
+}
+
 export function stressThresholdActiveEvent(gateCard: Card, stressCount: number, extraCrewSlots: number): PlaytestLogEvent {
   return {
     type: 'stress.threshold_active',
@@ -605,15 +667,16 @@ export function sectorRevealedEvent(
   horizonCards: readonly CardBlueprint[],
 ): PlaytestLogEvent {
   const horizonSummaries = horizonCards.map((card) => `${card.title}${cardRulesText(card) ? ` [${cardRulesText(card)}]` : ''}`)
+  const gateTitle = `${gateCard.title} Final Gate`
 
   return {
     type: 'sector.revealed',
-    message: `Sector ${sector} prepared: Sector Gate placed face down; Sector ${sector} Stops reset with ${horizonCards.length} Destinations.`,
+    message: `Sector ${sector} prepared: ${gateTitle} placed face down; Missions reset with ${horizonCards.length} cards.`,
     details: {
       sector,
       gateCardId: gateCard.id,
-      gateTitle: 'Sector Gate',
-      gateSummary: `Sector Gate (${gateCard.id}) face down`,
+      gateTitle,
+      gateSummary: `${gateTitle} (${gateCard.id}) face down`,
       gateFaceUp: gateCard.faceUp,
       horizonCardCount: horizonCards.length,
       horizonSummaries,
@@ -639,7 +702,7 @@ export function scoutUsedEvent(
     message: [
       'scout.used:',
       `looked at: ${lookedAtTitles.join(', ') || 'none'}`,
-      `kept on top of Sector Stops: ${keptOnTopTitle}`,
+      `kept on top of Missions: ${keptOnTopTitle}`,
       `bottomed: ${bottomedTitles.join(', ') || 'none'}`,
     ].join('\n'),
     details: {

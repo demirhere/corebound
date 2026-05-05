@@ -20,7 +20,11 @@ export function removeCardFromHandZones(current: BoardState, cardId: string) {
 }
 
 export function canPutCardIdsInHand(cardIds: readonly string[], cards: Record<string, Card>) {
-  return cardIds.length > 0 && cardIds.every((cardId) => cards[cardId]?.kind === 'crew')
+  return cardIds.length > 0 && cardIds.every((cardId) => {
+    const card = cards[cardId]
+
+    return card?.kind === 'crew' || card?.kind === 'discovery'
+  })
 }
 
 export function canUseManualHandZone(zone: HandZone | null) {

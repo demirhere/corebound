@@ -111,11 +111,17 @@ function migrateBoardState(board: BoardState): BoardState {
       card.kind === 'crew' ? [[card.id, players[0]?.id ?? SOLO_PLAYER.id]] : []
     )),
   )
+  const discoveryOwnerIds = legacyBoard.discoveryOwnerIds ?? Object.fromEntries(
+    Object.values(legacyBoard.cards ?? {}).flatMap((card) => (
+      card.kind === 'discovery' ? [[card.id, players[0]?.id ?? SOLO_PLAYER.id]] : []
+    )),
+  )
 
   return {
     ...board,
     players,
     crewOwnerIds,
+    discoveryOwnerIds,
     turnPlayerIndex: legacyBoard.turnPlayerIndex ?? Math.max(
       0,
       players.findIndex((player) => player.id === currentPlayerId),

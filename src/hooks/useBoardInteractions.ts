@@ -65,6 +65,7 @@ import {
 } from '../board/handState'
 import { isRouteFilled } from '../board/routeState'
 import { getVisibleHorizonCards } from '../game/boardQueries'
+import { getOwnedHandCardOwnerId } from '../game/players'
 import {
   canManuallyDrawDeck,
   HORIZON_DECK_ID,
@@ -224,20 +225,18 @@ export function useBoardInteractions({
     return handRef.current?.querySelector<HTMLElement>(`[data-hand-card-id="${cardId}"]`) ?? null
   }
 
-  function isOwnCrewCard(cardId: string) {
+  function isOwnPlayableHandCard(cardId: string) {
     const current = boardStateRef.current
-    const card = current.cards[cardId]
 
     return Boolean(
       canUseOwnCrew &&
         localPlayerId &&
-        card?.kind === 'crew' &&
-        current.crewOwnerIds[cardId] === localPlayerId,
+        getOwnedHandCardOwnerId(current, cardId) === localPlayerId,
     )
   }
 
   function canClickStackCard(cardId: string) {
-    return canMoveBoardFreely || isOwnCrewCard(cardId)
+    return canMoveBoardFreely || isOwnPlayableHandCard(cardId)
   }
 
   function isPointInDiscard(clientX: number, clientY: number) {
@@ -689,7 +688,7 @@ export function useBoardInteractions({
   }
 
   function activateStackDrag(drag: StackDragState) {
-    if (!canMoveBoardFreely && !isOwnCrewCard(drag.cardId)) {
+    if (!canMoveBoardFreely && !isOwnPlayableHandCard(drag.cardId)) {
       return false
     }
 
@@ -757,7 +756,7 @@ export function useBoardInteractions({
   }
 
   function activateHandDrag(drag: HandDragState) {
-    if (!canMoveBoardFreely && !isOwnCrewCard(drag.cardId)) {
+    if (!canMoveBoardFreely && !isOwnPlayableHandCard(drag.cardId)) {
       return false
     }
 
@@ -1127,8 +1126,8 @@ export function useBoardInteractions({
     setBoard(toggleCardFaceUpdate(stackId, cardId))
   }
 
-  function returnOwnedCrewCardToHand(stackId: string, cardId: string) {
-    if (!isOwnCrewCard(cardId)) {
+  function returnOwnedPlayableCardToHand(stackId: string, cardId: string) {
+    if (!isOwnPlayableHandCard(cardId)) {
       return false
     }
 
@@ -1283,7 +1282,7 @@ export function useBoardInteractions({
 
     if (
       !card ||
-      card.kind !== 'crew' ||
+      (card.kind !== 'crew' && card.kind !== 'discovery') ||
       sourceHandZone !== zone ||
       !canUseManualHandZone(sourceHandZone)
     ) {
@@ -1318,7 +1317,7 @@ export function useBoardInteractions({
       return 'idle'
     }
 
-    if (!canMoveBoardFreely && !isOwnCrewCard(drag.cardId)) {
+    if (!canMoveBoardFreely && !isOwnPlayableHandCard(drag.cardId)) {
       return 'stale'
     }
 
@@ -1350,7 +1349,7 @@ export function useBoardInteractions({
       return 'idle'
     }
 
-    if (!canMoveBoardFreely && !isOwnCrewCard(drag.cardId)) {
+    if (!canMoveBoardFreely && !isOwnPlayableHandCard(drag.cardId)) {
       return 'stale'
     }
 
@@ -1512,7 +1511,7 @@ export function useBoardInteractions({
 
       if (!canMoveBoardFreely) {
         if (preparation === 'idle') {
-          returnOwnedCrewCardToHand(drag.stackId, drag.cardId)
+          returnOwnedPlayableCardToHand(drag.stackId, drag.cardId)
           shareDrag(null)
           return
         }
@@ -1526,7 +1525,7 @@ export function useBoardInteractions({
         clearDragTransform(drag.activeElement)
 
         if (preparation === 'active' && isPointInHand(event.clientX, event.clientY)) {
-          returnOwnedCrewCardToHand(drag.stackId, drag.cardId)
+          returnOwnedPlayableCardToHand(drag.stackId, drag.cardId)
         }
 
         clearDropTarget()
@@ -1543,7 +1542,7 @@ export function useBoardInteractions({
       }
 
       if (preparation === 'idle') {
-        if (!returnOwnedCrewCardToHand(drag.stackId, drag.cardId) && canMoveBoardFreely) {
+        if (!returnOwnedPlayableCardToHand(drag.stackId, drag.cardId) && canMoveBoardFreely) {
           toggleCardFace(drag.stackId, drag.cardId)
         }
         return
@@ -1766,7 +1765,7 @@ export function useBoardInteractions({
       return
     }
 
-    if (!returnOwnedCrewCardToHand(stackId, cardId) && canMoveBoardFreely) {
+    if (!returnOwnedPlayableCardToHand(stackId, cardId) && canMoveBoardFreely) {
       toggleCardFace(stackId, cardId)
     }
   }

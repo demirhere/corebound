@@ -47,7 +47,7 @@ function getLossStats(board: BoardView): LossStat[] {
     },
     {
       label: 'Sectors completed',
-      value: String(sectorsCompleted),
+      value: `${sectorsCompleted}/${board.totalSectors}`,
     },
     {
       label: 'Most used resource',
@@ -320,7 +320,7 @@ function isScoutChoiceComplete(scoutChoice: NonNullable<BoardView['pendingScoutC
 
 function getScoutInstruction(scoutChoice: NonNullable<BoardView['pendingScoutChoice']>) {
   if (scoutChoice.choiceCardIds.length === 1) {
-    return 'Only 1 card is available. Confirm to leave it on top of Sector Stops.'
+    return 'Only 1 card is available. Confirm to leave it on top of Missions.'
   }
 
   if (isScoutChoiceComplete(scoutChoice)) {
@@ -375,7 +375,7 @@ export function ScoutChoiceDialog({
         aria-labelledby="scout-choice-title"
       >
         <p className="arrival-kicker">Scout</p>
-        <h2 id="scout-choice-title">Set Sector Stops</h2>
+        <h2 id="scout-choice-title">Set Missions</h2>
         <p>{getScoutInstruction(scoutChoice)}</p>
         <div className="scout-choice-cards">
           {scoutChoiceCards.map((card, index) => {

@@ -15,6 +15,7 @@ import {
 } from './BoardPanels'
 import {
   getPlayerCrewStats,
+  getOwnedHandCardOwnerId,
   getVisibleHandCardIds,
   getVisibleTiredCardIds,
   isMultiplayerBoard,
@@ -131,15 +132,12 @@ export function Board({
   ])
 
   function canInteractWithStackCard(cardId: string) {
-    const card = board.cards[cardId]
-
     return Boolean(
       canMoveBoardFreely ||
         (
           canUseOwnCrew &&
           localPlayerId &&
-          card?.kind === 'crew' &&
-          board.crewOwnerIds[cardId] === localPlayerId
+          getOwnedHandCardOwnerId(board, cardId) === localPlayerId
         ),
     )
   }

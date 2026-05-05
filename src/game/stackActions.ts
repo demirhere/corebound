@@ -3,6 +3,7 @@ import { getNextStopFuelDiscount } from './effects'
 import {
   getGateStackCompletion,
   getHorizonStackCompletion,
+  isDiscoveryEffect,
 } from './rules'
 import type {
   BoardState,
@@ -17,6 +18,7 @@ export type StackActionKind =
   | 'draw-fuel'
   | 'travel'
   | 'pass-gate'
+  | 'use-ration'
 
 export type StackAction = {
   id: string
@@ -137,12 +139,29 @@ function getPassGateAction(current: BoardState, stack: Stack): StackAction[] {
     : []
 }
 
+function getRationPackAction(current: BoardState, stack: Stack): StackAction[] {
+  const fuelDeck = current.decks.find((deck) => deck.id === FUEL_DECK_ID)
+  const card = stack.cardIds.length === 1 ? current.cards[stack.cardIds[0] ?? ''] : undefined
+
+  return fuelDeck && fuelDeck.cards.length > 0 && isDiscoveryEffect(card, 'ration_pack')
+    ? [
+        {
+          id: 'use-ration',
+          kind: 'use-ration',
+          label: 'Use ration',
+          stackId: stack.id,
+        },
+      ]
+    : []
+}
+
 export function getStackActions(current: BoardState, stack: Stack): StackAction[] {
   if (isBoardActionBlocked(current)) {
     return []
   }
 
   return [
+    ...getRationPackAction(current, stack),
     ...getDrawFuelAction(current, stack),
     ...getTravelAction(current, stack),
     ...getPassGateAction(current, stack),
