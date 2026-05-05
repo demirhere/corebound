@@ -26,16 +26,16 @@ function canUseRouteShipPart(board: BoardView, shipPartSlot: ShipPartSlot | null
 
 export function InstructionsPanel({ totalSectors }: { totalSectors: number }) {
   return (
-    <aside className="board-notes" aria-label="Quick play instructions">
+    <aside className="board-notes" aria-label="Quick play instructions" style={{ fontSize: 18 }}>
       <h2>Instructions</h2>
       <ol>
-        <li>Visit 1 Map Destination</li>
-        <li>Always send 1+ crew on the trip</li>
-        <li>Keep Ship Part Destinations on the route</li>
-        <li>Discard the other Map Destinations</li>
-        <li>Draw 3 new Destinations side by side</li>
-        <li>After 3 Destinations, face the Gate</li>
-        <li>Ship Part finds help only at the Gate</li>
+        <li>Pick 1 of 3 Map Destinations</li>
+        <li>Pay its Fuel and icons with Ready crew</li>
+        <li>Use MOTHER to cover missing icons; each use adds Stress and makes the Gate harder</li>
+        <li>Used crew move to Tired</li>
+        <li>Immediate Benefit resolves now; Ship Part waits for the Gate</li>
+        <li>Discard the other Map Destinations, then draw 3 new</li>
+        <li>After 3 Destinations, pass the Gate with crew, Ship Parts, and MOTHER</li>
         <li>Clear Sector {totalSectors} to win</li>
       </ol>
     </aside>
@@ -66,7 +66,7 @@ export function ShipPartsPanel({ board, onRouteShipPartUse }: ShipPartsPanelProp
   })
 
   return (
-    <section className="ship-parts-area" aria-label="Ship Parts">
+    <section className="ship-parts-area" aria-label="Ship Parts" style={{ fontSize: 18 }}>
       <h2>Ship Parts</h2>
       <div className="ship-part-list">
         {shipPartEntries.map(({ shipPartSlot, shipPartSlotIndex, card, shipPart, shipPartStatus, shipPartLabel }) => {
@@ -76,16 +76,17 @@ export function ShipPartsPanel({ board, onRouteShipPartUse }: ShipPartsPanelProp
             <article className={`ship-part-item is-${shipPartStatus}`} key={shipPartSlot.cardId}>
               <p>
                 <span>{shipPartLabel}</span>
-                <em>{shipPartStatus}</em>
+                <em style={{ fontSize: 18 }}>{shipPartStatus}</em>
               </p>
-              <strong>{card.title}</strong>
-              <small>{getShipPartUseText(shipPart)}</small>
+              <strong style={{ fontSize: 18 }}>{card.title}</strong>
+              <small style={{ fontSize: 18 }}>{getShipPartUseText(shipPart)}</small>
               <button
                 type="button"
                 disabled={!canUseShipPart}
                 aria-label={`Use ${shipPartLabel} from ${card.title}`}
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={() => onRouteShipPartUse(shipPartSlotIndex)}
+                style={{ fontSize: 18 }}
               >
                 {shipPartStatus === 'spent' ? 'Spent' : 'Use Part'}
               </button>
@@ -99,10 +100,10 @@ export function ShipPartsPanel({ board, onRouteShipPartUse }: ShipPartsPanelProp
 
 export function StressTracker({ stressCount }: { stressCount: number }) {
   return (
-    <aside className="stress-area" aria-label="Stress area">
+    <aside className="stress-area" aria-label="Stress area" style={{ fontSize: 18 }}>
       <p className="stress-tracker" aria-live="polite">
         <span className="stress-label">Stress</span>
-        <span className="stress-history">
+        <span className="stress-history" style={{ fontSize: 18 }}>
           {Array.from({ length: stressCount + 1 }, (_, i) => (
             <span key={i} className={i < stressCount ? 'stress-old' : 'stress-current'}>
               {i}
