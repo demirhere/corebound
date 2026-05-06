@@ -3,6 +3,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
+import { getHazardDisplayTitle } from '../game/hazards'
 import type { Card } from '../game/types'
 import { DeckIcon } from './DeckIcon'
 import { GameIcon } from './GameIcon'
@@ -32,7 +33,9 @@ type BoardCardProps = {
   canInteract: boolean
   stackOffsetRatio: number
   fuelDiscount: number
+  fuelSurcharge: number
   stressCount: number
+  gateExtraCrewCount: number
   gateCrewSlotDiscount: number
   gateIconDiscount: number
   isTraveledStop?: boolean
@@ -46,7 +49,9 @@ type CardShellProps = {
   style?: CSSProperties
   isActive?: boolean
   fuelDiscount?: number
+  fuelSurcharge?: number
   stressCount?: number
+  gateExtraCrewCount?: number
   gateCrewSlotDiscount?: number
   gateIconDiscount?: number
   isTraveledStop?: boolean
@@ -64,7 +69,9 @@ export function CardShell({
   style,
   isActive = false,
   fuelDiscount = 0,
+  fuelSurcharge = 0,
   stressCount = 0,
+  gateExtraCrewCount = 0,
   gateCrewSlotDiscount = 0,
   gateIconDiscount = 0,
   isTraveledStop = false,
@@ -76,13 +83,15 @@ export function CardShell({
   onKeyDown,
 }: CardShellProps) {
   const isCrewCard = card.kind === 'crew'
-  const usesIntegratedHeader = isCrewCard || card.kind === 'drift'
+  const usesIntegratedHeader = isCrewCard || card.kind === 'drift' || card.kind === 'hazard'
   const sampledIcons = pickCardIcons(`${card.id}:${card.title}`)
   const noteLines = pickCardNote(`${card.id}:${card.title}`)
   const gameplayContent = renderGameplayCardContent(
     card,
     fuelDiscount,
+    fuelSurcharge,
     stressCount,
+    gateExtraCrewCount,
     gateCrewSlotDiscount,
     gateIconDiscount,
   )
@@ -92,7 +101,7 @@ export function CardShell({
     ? horizonDetails.find.kind === 'ship_part' ? 'card-find-ship-part' : 'card-find-visit-reward'
     : ''
   const horizonBadge = horizonDetails?.find.kind === 'ship_part' ? 'Ship Part' : 'Resources'
-  const headerTitle = horizonDetails ? horizonDetails.find.itemName : card.title
+  const headerTitle = horizonDetails ? horizonDetails.find.itemName : getHazardDisplayTitle(card)
   const horizonHeaderDetail = horizonDetails ? renderSectorCardHeaderDetail(card) : null
   const isGateCard = card.kind === 'gate'
   const gateBackTitle = isGateCard ? `${card.title} Final Gate` : null
@@ -184,7 +193,9 @@ export function BoardCard({
   canInteract,
   stackOffsetRatio,
   fuelDiscount,
+  fuelSurcharge,
   stressCount,
+  gateExtraCrewCount,
   gateCrewSlotDiscount,
   gateIconDiscount,
   isTraveledStop = false,
@@ -195,7 +206,7 @@ export function BoardCard({
     ? `${card.horizon.find.itemName} at ${card.title}`
     : card.kind === 'gate' && !card.faceUp
       ? `${card.title} Final Gate`
-      : card.title
+      : getHazardDisplayTitle(card)
   const ariaLabel = isTraveledStop
     ? `${cardLabel}. Traveled destination in the route area. Drag to organize traveled destinations.`
     : card.kind === 'gate'
@@ -208,7 +219,9 @@ export function BoardCard({
       isActive={isStackActive}
       canInteract={canInteract}
       fuelDiscount={fuelDiscount}
+      fuelSurcharge={fuelSurcharge}
       stressCount={stressCount}
+      gateExtraCrewCount={gateExtraCrewCount}
       gateCrewSlotDiscount={gateCrewSlotDiscount}
       gateIconDiscount={gateIconDiscount}
       isTraveledStop={isTraveledStop}

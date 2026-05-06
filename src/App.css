@@ -2734,6 +2734,129 @@
   }
 }
 
+.card-shell.card-kind-hazard {
+  --hazard-paper: #ece2d2;
+  --hazard-ink: #191719;
+  --hazard-muted: rgba(25, 23, 25, 0.64);
+  --hazard-line: rgba(25, 23, 25, 0.22);
+
+  .card-face.card-front {
+    overflow: hidden;
+    border-color: rgba(25, 23, 25, 0.76);
+    color: var(--hazard-ink);
+    background:
+      linear-gradient(90deg, color-mix(in srgb, var(--card-accent) 55%, #191719) 0 8px, transparent 8px),
+      repeating-linear-gradient(135deg, rgba(25, 23, 25, 0.08) 0 2px, transparent 2px 12px),
+      radial-gradient(circle at 78% 14%, color-mix(in srgb, var(--card-accent) 25%, transparent), transparent 26%),
+      linear-gradient(155deg, #fff4de 0%, var(--hazard-paper) 58%, #c8b7a2 100%);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.42),
+      inset 0 -20px 26px rgba(25, 23, 25, 0.1);
+  }
+
+  .card-art {
+    display: block;
+    padding: clamp(9px, 0.82vw, 12px) clamp(10px, 0.92vw, 14px);
+    background:
+      linear-gradient(90deg, transparent 0 21px, rgba(25, 23, 25, 0.09) 21px 22px, transparent 22px),
+      radial-gradient(circle at 18% 82%, rgba(255, 255, 255, 0.32), transparent 22%);
+  }
+}
+
+.card-shell.card-kind-hazard.is-damage-card,
+.card-shell.card-kind-hazard:has(.hazard-card-damage) {
+  .card-face.card-front {
+    color: #f7eee2;
+    background:
+      linear-gradient(90deg, #ff4f64 0 8px, transparent 8px),
+      repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0 2px, transparent 2px 12px),
+      radial-gradient(circle at 78% 14%, rgba(255, 79, 100, 0.28), transparent 26%),
+      linear-gradient(155deg, #34242a 0%, #22181e 64%, #120f14 100%);
+  }
+}
+
+.hazard-card-content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  height: 100%;
+  min-width: 0;
+  grid-template-rows: auto auto 1fr 1fr 1fr;
+  gap: clamp(5px, 0.48vw, 7px);
+  letter-spacing: 0;
+}
+
+.hazard-card-eyebrow,
+.hazard-card-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 7px;
+  color: var(--hazard-muted);
+  font-family: ui-monospace, 'SFMono-Regular', 'Roboto Mono', 'Cascadia Mono', monospace;
+  font-size: clamp(6px, 0.54vw, 8px);
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.hazard-card-title {
+  padding-bottom: 5px;
+  border-bottom: 2px solid var(--hazard-line);
+  font-size: clamp(20px, 1.8vw, 29px);
+  font-weight: 950;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.hazard-card-panel {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+  padding: 5px 6px;
+  border: 1.5px solid var(--hazard-line);
+  background: rgba(255, 255, 255, 0.2);
+
+  > span {
+    color: var(--hazard-muted);
+    font-size: clamp(6px, 0.52vw, 8px);
+    font-weight: 900;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  > p {
+    margin: 0;
+    font-size: clamp(8px, 0.68vw, 10px);
+    font-weight: 800;
+    line-height: 1.08;
+  }
+}
+
+.hazard-card-damage {
+  grid-template-rows: auto auto 1fr auto;
+
+  .hazard-card-effect {
+    align-self: start;
+    margin: 0;
+    padding: 8px 7px;
+    border: 1.5px solid rgba(247, 238, 226, 0.28);
+    background: rgba(255, 255, 255, 0.08);
+    font-size: clamp(10px, 0.86vw, 13px);
+    font-weight: 850;
+    line-height: 1.12;
+  }
+
+  .hazard-card-eyebrow,
+  .hazard-card-footer {
+    color: rgba(247, 238, 226, 0.68);
+  }
+
+  .hazard-card-title {
+    border-bottom-color: rgba(247, 238, 226, 0.28);
+  }
+}
+
 .drift-receipt {
   position: relative;
   z-index: 1;
@@ -3652,6 +3775,16 @@
   isolation: isolate;
 }
 
+.extra-need-icon {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 2px;
+  border: 2px solid #ff4f64;
+  border-radius: 999px;
+  background: rgba(255, 79, 100, 0.16);
+}
+
 .removed-need-scribble {
   position: absolute;
   top: 50%;
@@ -4271,6 +4404,22 @@
     width: clamp(30px, 3.1vw, 46px);
     filter: none;
   }
+}
+
+.deck-card[data-deck-id='hazard-deck'] {
+  --deck-cover-light: #fff4de;
+  --deck-cover: #ece2d2;
+  --deck-cover-dark: #c8b7a2;
+  --deck-letter: #191719;
+  --deck-edge: rgba(255, 255, 255, 0.52);
+  --deck-line: rgba(25, 23, 25, 0.22);
+  --deck-ink: #191719;
+
+  border-color: rgba(25, 23, 25, 0.78);
+  background:
+    linear-gradient(90deg, #ff4f64 0 8px, transparent 8px),
+    repeating-linear-gradient(135deg, rgba(25, 23, 25, 0.09) 0 2px, transparent 2px 12px),
+    linear-gradient(155deg, var(--deck-cover-light) 0%, var(--deck-cover) 62%, var(--deck-cover-dark) 100%);
 }
 
 .deck-badge {

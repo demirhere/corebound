@@ -4,6 +4,7 @@ import type {
   DiscoveryTag,
   DestinationFind,
   GateDetails,
+  HazardDetails,
   RequirementIconKind,
   ResourceKind,
   ShipPartKind,
@@ -49,11 +50,18 @@ function renderRemovedNeedIcon(
 }
 
 function renderFuelNeed(printedFuel: number, currentFuelCost: number, keyPrefix: string) {
-  const removedFuelCount = printedFuel - currentFuelCost
+  const activePrintedFuelCount = Math.min(printedFuel, currentFuelCost)
+  const removedFuelCount = Math.max(0, printedFuel - currentFuelCost)
+  const extraFuelCount = Math.max(0, currentFuelCost - printedFuel)
 
   return [
-    ...Array.from({ length: currentFuelCost }, (_, index) => (
+    ...Array.from({ length: activePrintedFuelCount }, (_, index) => (
       <GameIcon key={`${keyPrefix}-fuel-${index}`} kind="fuel" />
+    )),
+    ...Array.from({ length: extraFuelCount }, (_, index) => (
+      <span key={`${keyPrefix}-extra-fuel-${index}`} className="extra-need-icon" title="Fuel added by Hazard or Damage">
+        <GameIcon kind="fuel" />
+      </span>
     )),
     ...Array.from({ length: removedFuelCount }, (_, index) => (
       renderRemovedNeedIcon('fuel', `${keyPrefix}-removed-fuel-${index}`, 'Fuel removed by Destination effect')
@@ -401,10 +409,64 @@ function renderDriftContent(card: Card) {
   )
 }
 
+function getHazardShortKind(hazard: HazardDetails) {
+  return hazard.kind
+    .split('-')
+    .map(titleCase)
+    .join(' ')
+}
+
+function renderHazardContent(card: Card) {
+  if (!card.hazard) {
+    return null
+  }
+
+  if (card.damage) {
+    return (
+      <div className="hazard-card-content hazard-card-damage">
+        <div className="hazard-card-eyebrow">
+          <span>Ship Damage</span>
+          <span>{getHazardShortKind(card.hazard)}</span>
+        </div>
+        <div className="hazard-card-title">{card.hazard.damageTitle}</div>
+        <p className="hazard-card-effect">{card.hazard.damageEffectText}</p>
+        <div className="hazard-card-footer">
+          <span>Permanent</span>
+          <span>{card.id.toUpperCase()}</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="hazard-card-content">
+      <div className="hazard-card-eyebrow">
+        <span>Gate Hazard</span>
+        <span>{card.hazard.flavorText}</span>
+      </div>
+      <div className="hazard-card-title">{card.title}</div>
+      <section className="hazard-card-panel">
+        <span>Effect at this Gate</span>
+        <p>{card.hazard.effectText}</p>
+      </section>
+      <section className="hazard-card-panel">
+        <span>Clear</span>
+        <p>{card.hazard.clearText}</p>
+      </section>
+      <section className="hazard-card-panel">
+        <span>Damage if not cleared</span>
+        <p>{card.hazard.damageTitle}</p>
+      </section>
+    </div>
+  )
+}
+
 export function renderGameplayCardContent(
   card: Card,
   fuelDiscount: number,
+  fuelSurcharge: number,
   stressCount: number,
+  gateExtraCrewCount = 0,
   gateCrewSlotDiscount = 0,
   gateIconDiscount = 0,
 ) {
@@ -436,6 +498,10 @@ export function renderGameplayCardContent(
     return renderDriftContent(card)
   }
 
+  if (card.kind === 'hazard') {
+    return renderHazardContent(card)
+  }
+
   if (card.kind === 'mother') {
     return (
       <>
@@ -453,7 +519,7 @@ export function renderGameplayCardContent(
   }
 
   if (card.kind === 'horizon' && card.horizon) {
-    const currentFuelCost = Math.max(0, card.horizon.need.fuel - fuelDiscount)
+    const currentFuelCost = Math.max(0, card.horizon.need.fuel + fuelSurcharge - fuelDiscount)
     const hasFuelDiscount = currentFuelCost < card.horizon.need.fuel
     const removedFuelCount = card.horizon.need.fuel - currentFuelCost
     const find = card.horizon.find
@@ -466,9 +532,7 @@ export function renderGameplayCardContent(
   }
 
   if (card.kind === 'gate' && card.gate) {
-    const stressCrewCount = stressCount >= card.gate.motherPenalty.threshold
-      ? card.gate.motherPenalty.extraHumanCrew
-      : 0
+    const stressCrewCount = gateExtraCrewCount
     const hasShipPartDiscount = gateCrewSlotDiscount > 0 || gateIconDiscount > 0
 
     return (
@@ -491,7 +555,7 @@ export function renderGameplayCardContent(
             {renderGateIconNeed(card.gate.need.icons, gateIconDiscount, `${card.id}-gate-icon-need`)}
           </div>
         </div>
-        {renderGatePenalty(card.gate, stressCount)}
+        {stressCrewCount > 0 ? renderGatePenalty(card.gate, stressCount) : null}
         {hasShipPartDiscount && (
           <p className="card-rule-text sector-card-discount">Ship Parts auto-scribble Gate needs.</p>
         )}

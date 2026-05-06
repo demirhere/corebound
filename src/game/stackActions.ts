@@ -103,6 +103,15 @@ function getTravelAction(current: BoardState, stack: Stack): StackAction[] {
     getNextStopFuelDiscount(current.pendingEffects),
   )
 
+  if (
+    completion?.isReady &&
+    current.forcedDestinationCardId &&
+    current.routeSlots.filter((slot) => slot === null).length <= 1 &&
+    completion.horizonCardId !== current.forcedDestinationCardId
+  ) {
+    return []
+  }
+
   return completion?.isReady && current.mapSlots.includes(completion.horizonCardId)
     ? [
         {

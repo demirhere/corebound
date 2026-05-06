@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react'
-import { CRYO_DECK_ID, DRIFT_DECK_ID, HORIZON_DECK_ID } from '../game/decks'
+import { CRYO_DECK_ID, DRIFT_DECK_ID, HAZARD_DECK_ID, HORIZON_DECK_ID } from '../game/decks'
 import type { BoardState, Card, CardBlueprint, Deck, HandZone } from '../game/types'
 
 const CARD_MOVE_DURATION_MS = 170
@@ -66,6 +66,7 @@ function getBlueprintSignature(card: Card | CardBlueprint) {
     specializations: card.specializations ?? null,
     horizon: card.horizon ?? null,
     gate: card.gate ?? null,
+    hazard: card.hazard ?? null,
   })
 }
 
@@ -125,6 +126,10 @@ function getKnownSourceDeckId(card: Card) {
 
   if (card.id.startsWith('drift-')) {
     return DRIFT_DECK_ID
+  }
+
+  if (card.id.startsWith('hazard-')) {
+    return HAZARD_DECK_ID
   }
 
   if (card.id.startsWith('reward-')) {

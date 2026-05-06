@@ -19,7 +19,9 @@ type CardStackProps = {
   sharedPosition: { x: number; y: number } | null
   stackOffsetRatio: number
   fuelDiscount: number
+  getFuelSurcharge: (card: CardView) => number
   stressCount: number
+  gateExtraCrewCount: number
   gateCrewSlotDiscount: number
   gateIconDiscount: number
   traveledStopCardIds: ReadonlySet<string>
@@ -38,7 +40,9 @@ export function CardStack({
   sharedPosition,
   stackOffsetRatio,
   fuelDiscount,
+  getFuelSurcharge,
   stressCount,
+  gateExtraCrewCount,
   gateCrewSlotDiscount,
   gateIconDiscount,
   traveledStopCardIds,
@@ -102,7 +106,9 @@ export function CardStack({
             canInteract={canInteractWithCard(card.id)}
             stackOffsetRatio={stackOffsetRatio}
             fuelDiscount={fuelDiscount}
+            fuelSurcharge={getFuelSurcharge(card)}
             stressCount={stressCount}
+            gateExtraCrewCount={gateExtraCrewCount}
             gateCrewSlotDiscount={gateCrewSlotDiscount}
             gateIconDiscount={gateIconDiscount}
             isTraveledStop={traveledStopCardIds.has(card.id)}

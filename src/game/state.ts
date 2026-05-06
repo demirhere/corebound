@@ -138,6 +138,7 @@ function migrateBoardState(board: BoardState): BoardState {
       ...summary,
       playerId: summary.playerId ?? null,
     })),
+    forcedDestinationCardId: legacyBoard.forcedDestinationCardId ?? null,
     pendingWakeChoice: legacyBoard.pendingWakeChoice
       ? {
           ...legacyBoard.pendingWakeChoice,

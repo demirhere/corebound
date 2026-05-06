@@ -54,7 +54,29 @@ export type DriftDetails = {
   effectText: string
 }
 
-export type CardKind = 'resource' | 'crew' | 'horizon' | 'mother' | 'gate' | 'discovery' | 'drift'
+export type HazardKind =
+  | 'ion-storm'
+  | 'dust-veil'
+  | 'cold-reach'
+  | 'echo-field'
+  | 'black-tide'
+  | 'fracture'
+  | 'silent-watch'
+  | 'hard-vacuum'
+  | 'resonance'
+  | 'ghost-signal'
+  | 'the-veil'
+
+export type HazardDetails = {
+  kind: HazardKind
+  effectText: string
+  clearText: string
+  damageTitle: string
+  damageEffectText: string
+  flavorText: string
+}
+
+export type CardKind = 'resource' | 'crew' | 'horizon' | 'mother' | 'gate' | 'discovery' | 'drift' | 'hazard'
 
 export type GameLossReason = 'sector-stranded' | 'gate-failed'
 
@@ -151,6 +173,7 @@ export type CardBlueprint = {
   gate?: GateDetails
   discovery?: DiscoveryDetails
   drift?: DriftDetails
+  hazard?: HazardDetails
   specimenIndex?: number
 }
 
@@ -158,6 +181,7 @@ export type Card = CardBlueprint & {
   id: string
   faceUp: boolean
   spentMother?: boolean
+  damage?: boolean
 }
 
 export type Stack = {
@@ -253,6 +277,7 @@ export type BoardState = {
     cardId: string
     stackId: string
   } | null
+  forcedDestinationCardId: string | null
   pendingEffects: BoardEffect[]
   turnNumber: number
   turnPlayerIndex: number

@@ -3,6 +3,7 @@ import {
   type Ref,
 } from 'react'
 import { getNextStopFuelDiscount } from '../game/effects'
+import { getBlackTideExtraCrew, getDestinationFuelSurcharge } from '../game/hazards'
 import { shouldDrawMissionsBeforeEndTurn } from '../game/boardQueries'
 import type { BoardState, ShipPartKind } from '../game/types'
 import {
@@ -134,6 +135,7 @@ export function Board({
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
   const gateCrewSlotDiscount = countSpentShipParts(board, 'service-drone-bay')
   const gateIconDiscount = countSpentShipParts(board, 'adaptive-control-console')
+  const gateExtraCrewCount = getBlackTideExtraCrew(board, 3, 1)
   const traveledStopCardIds = new Set([
     ...board.routeSlots.flatMap((routeSlot) => routeSlot ? [routeSlot.cardId] : []),
     ...board.shipPartSlots.map((slot) => slot.cardId),
@@ -202,7 +204,9 @@ export function Board({
           }
           stackOffsetRatio={stackOffsetRatio}
           fuelDiscount={fuelDiscount}
+          getFuelSurcharge={(card) => getDestinationFuelSurcharge(board.cards, card.horizon)}
           stressCount={board.stressCount}
+          gateExtraCrewCount={gateExtraCrewCount}
           gateCrewSlotDiscount={gateCrewSlotDiscount}
           gateIconDiscount={gateIconDiscount}
           traveledStopCardIds={traveledStopCardIds}

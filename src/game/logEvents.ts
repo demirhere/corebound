@@ -9,6 +9,7 @@ import type {
   Stack,
   VisitReward,
 } from './types'
+import { getHazardDisplayTitle } from './hazards'
 import type { PlaytestLogEvent } from './playtestLog'
 import type { MotherCoveredIcon } from './rules'
 import {
@@ -93,7 +94,7 @@ export function cardRulesText(card: Card | CardBlueprint) {
   if (card.kind === 'gate' && card.gate) {
     const icons = card.gate.need.icons.map(getRequirementIconLabel).join(', ')
 
-    return `gate crew slots: ${card.gate.need.crew}; icons needed: ${icons}; MOTHER and Adaptive Control Consoles cover icons only; ${card.gate.motherPenalty.threshold}+ Stress adds ${card.gate.motherPenalty.extraHumanCrew} crew slot`
+    return `gate crew slots: ${card.gate.need.crew}; icons needed: ${icons}; MOTHER and Adaptive Control Consoles cover icons only; Black Tide uses ${card.gate.motherPenalty.threshold}+ Stress to add ${card.gate.motherPenalty.extraHumanCrew} crew slot`
   }
 
   if (card.kind === 'discovery' && card.discovery) {
@@ -102,6 +103,12 @@ export function cardRulesText(card: Card | CardBlueprint) {
 
   if (card.kind === 'drift' && card.drift) {
     return `Drift: ${card.drift.effectText}`
+  }
+
+  if (card.kind === 'hazard' && card.hazard) {
+    return 'damage' in card && card.damage
+      ? `Damage: ${card.hazard.damageEffectText}`
+      : `Hazard: ${card.hazard.effectText}; Clear: ${card.hazard.clearText}; Damage: ${card.hazard.damageTitle} - ${card.hazard.damageEffectText}`
   }
 
   return ''
@@ -113,8 +120,9 @@ function describeCard(card: Card | undefined, fallbackId: string) {
   }
 
   const rulesText = cardRulesText(card)
+  const title = getHazardDisplayTitle(card)
 
-  return `${card.title} (${card.id})${rulesText ? ` [${rulesText}]` : ''}`
+  return `${title} (${card.id})${rulesText ? ` [${rulesText}]` : ''}`
 }
 
 function describeCards(cardIds: readonly string[], cards: Record<string, Card>) {
@@ -714,19 +722,25 @@ export function sectorRevealedEvent(
   sector: number,
   gateCard: Card,
   horizonCards: readonly CardBlueprint[],
+  hazardCard: Card | null = null,
 ): PlaytestLogEvent {
   const horizonSummaries = horizonCards.map((card) => `${card.title}${cardRulesText(card) ? ` [${cardRulesText(card)}]` : ''}`)
   const gateTitle = `${gateCard.title} Final Gate`
+  const hazardText = hazardCard ? ` Hazard: ${describeCard(hazardCard, hazardCard.id)}.` : ''
 
   return {
     type: 'sector.revealed',
-    message: `Sector ${sector} prepared: ${gateTitle} placed face down; Missions reset with ${horizonCards.length} cards.`,
+    message: `Sector ${sector} prepared: ${gateTitle} placed face down; Missions reset with ${horizonCards.length} cards.${hazardText}`,
     details: {
       sector,
       gateCardId: gateCard.id,
       gateTitle,
       gateSummary: `${gateTitle} (${gateCard.id}) face down`,
       gateFaceUp: gateCard.faceUp,
+      hazardCardId: hazardCard?.id ?? null,
+      hazardTitle: hazardCard?.title ?? null,
+      hazardSummary: hazardCard ? describeCard(hazardCard, hazardCard.id) : null,
+      hazardContent: hazardCard ? cardContent(hazardCard) : null,
       horizonCardCount: horizonCards.length,
       horizonSummaries,
       horizonContents: horizonCards.map(cardContent),
@@ -864,6 +878,66 @@ export function gateCompletedEvent(
   }
 }
 
+export function hazardClearedEvent(hazardCard: Card, gateCard: Card): PlaytestLogEvent {
+  return {
+    type: 'hazard.cleared',
+    message: `${describeCard(hazardCard, hazardCard.id)} cleared at ${gateCard.title}; no Damage taken.`,
+    details: {
+      hazardCardId: hazardCard.id,
+      hazardTitle: hazardCard.title,
+      hazardSummary: describeCard(hazardCard, hazardCard.id),
+      hazardContent: cardContent(hazardCard),
+      gateCardId: gateCard.id,
+      gateTitle: gateCard.title,
+    },
+  }
+}
+
+export function hazardBecameDamageEvent(hazardCard: Card, damageCard: Card, gateCard: Card): PlaytestLogEvent {
+  return {
+    type: 'hazard.damage_taken',
+    message: `${hazardCard.title} was passed but not cleared at ${gateCard.title}; ${describeCard(damageCard, damageCard.id)} stays on the ship.`,
+    details: {
+      hazardCardId: hazardCard.id,
+      hazardTitle: hazardCard.title,
+      hazardSummary: describeCard(hazardCard, hazardCard.id),
+      damageTitle: damageCard.hazard?.damageTitle ?? damageCard.title,
+      damageSummary: describeCard(damageCard, damageCard.id),
+      damageContent: cardContent(damageCard),
+      gateCardId: gateCard.id,
+      gateTitle: gateCard.title,
+    },
+  }
+}
+
+export function hazardDriftHeldEvent(hazardCard: Card): PlaytestLogEvent {
+  return {
+    type: 'hazard.drift_held',
+    message: `${hazardCard.title}: round-end Drift is held until the Gate.`,
+    details: {
+      hazardCardId: hazardCard.id,
+      hazardTitle: hazardCard.title,
+      hazardSummary: describeCard(hazardCard, hazardCard.id),
+      hazardContent: cardContent(hazardCard),
+    },
+  }
+}
+
+export function hazardSignaledDestinationEvent(hazardCard: Card, destinationCard: Card): PlaytestLogEvent {
+  return {
+    type: 'hazard.signaled_destination',
+    message: `${hazardCard.title} revealed ${describeCard(destinationCard, destinationCard.id)}; it should be one of this sector's traveled Destinations.`,
+    details: {
+      hazardCardId: hazardCard.id,
+      hazardTitle: hazardCard.title,
+      destinationCardId: destinationCard.id,
+      destinationTitle: destinationCard.title,
+      destinationSummary: describeCard(destinationCard, destinationCard.id),
+      destinationContent: cardContent(destinationCard),
+    },
+  }
+}
+
 export function routeArchivedEvent(sector: number, routeCardIds: readonly string[], cards: Record<string, Card>): PlaytestLogEvent {
   const routeTitles = cardTitles(routeCardIds, cards)
 
@@ -920,7 +994,7 @@ export function gameLostEvent(reason: GameLossReason): PlaytestLogEvent {
   const message =
     reason === 'sector-stranded'
       ? 'The sector has no reachable Map Destination before the route is full.'
-      : 'The Gate cannot be completed with available Ship Parts, Ready crew, and unused MOTHER cards.'
+      : 'The Gate cannot be completed with available Ship Parts, Ready crew, Hazard Fuel, and unused MOTHER cards.'
 
   return {
     type: 'game.lost',

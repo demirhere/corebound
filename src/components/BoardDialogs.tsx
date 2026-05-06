@@ -29,7 +29,7 @@ function lossContent(reason: GameLossReason) {
 
   return {
     title: 'The Gate cannot be passed.',
-    body: 'The Gate cannot be completed with available Ship Parts, Ready crew, and unused MOTHER cards.',
+    body: 'The Gate cannot be completed with available Ship Parts, Ready crew, Hazard Fuel, and unused MOTHER cards.',
   }
 }
 

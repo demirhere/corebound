@@ -9,6 +9,7 @@ import type {
   DiscoveryEffectKind,
   DiscoveryTag,
   GamePlayer,
+  HazardKind,
   HorizonKind,
   RequirementIconKind,
   ResourceKind,
@@ -20,12 +21,13 @@ import {
   DISCOVERY_DECK_ID,
   DRIFT_DECK_ID,
   FUEL_DECK_ID,
+  HAZARD_DECK_ID,
   HORIZON_DECK_ID,
   MOTHER_DECK_ID,
   automaticRewardDeckDraw,
   manualDeckDraw,
 } from './decks'
-import { cardContent, cardRulesText } from './logEvents'
+import { cardContent, cardRulesText, hazardSignaledDestinationEvent } from './logEvents'
 import type { PlaytestLogEvent } from './playtestLog'
 
 const RESOURCE_DECK_SIZE = 12
@@ -143,6 +145,64 @@ const driftArt: DeckArt = {
   accent: '#9bd8e8',
 }
 
+const hazardArt: Record<HazardKind, DeckArt> = {
+  'ion-storm': {
+    icon: 'zap',
+    hue: 48,
+    accent: '#ffd45d',
+  },
+  'dust-veil': {
+    icon: 'moon',
+    hue: 24,
+    accent: '#e0a56b',
+  },
+  'cold-reach': {
+    icon: 'snowflake',
+    hue: 197,
+    accent: '#9bd8e8',
+  },
+  'echo-field': {
+    icon: 'antenna',
+    hue: 309,
+    accent: '#ff8ce6',
+  },
+  'black-tide': {
+    icon: 'crescent',
+    hue: 232,
+    accent: '#8793ff',
+  },
+  fracture: {
+    icon: 'crosshair',
+    hue: 356,
+    accent: '#ff6f7d',
+  },
+  'silent-watch': {
+    icon: 'star',
+    hue: 266,
+    accent: '#b99cff',
+  },
+  'hard-vacuum': {
+    icon: 'diamond',
+    hue: 184,
+    accent: '#73ffd6',
+  },
+  resonance: {
+    icon: 'hex',
+    hue: 128,
+    accent: '#70c58c',
+  },
+  'ghost-signal': {
+    icon: 'satellite',
+    hue: 162,
+    accent: '#7cffd3',
+  },
+  'the-veil': {
+    icon: 'flower',
+    hue: 280,
+    accent: '#d98cff',
+  },
+}
+
 function createResourceDeck(resource: ResourceKind, count: number) {
   const art = resourceArt[resource]
   const title = resource === 'fuel' ? 'Fuel Cell' : 'Hull Plate'
@@ -218,6 +278,34 @@ function createDriftCard(title: string, effectKind: 'burn' | 'fatigue', effectTe
     drift: {
       effectKind,
       effectText,
+    },
+  }
+}
+
+function createHazardCard(
+  title: string,
+  kind: HazardKind,
+  effectText: string,
+  clearText: string,
+  damageTitle: string,
+  damageEffectText: string,
+  flavorText: string,
+): CardBlueprint {
+  const art = hazardArt[kind]
+
+  return {
+    title,
+    icon: art.icon,
+    hue: art.hue,
+    accent: art.accent,
+    kind: 'hazard',
+    hazard: {
+      kind,
+      effectText,
+      clearText,
+      damageTitle,
+      damageEffectText,
+      flavorText,
     },
   }
 }
@@ -378,6 +466,23 @@ function setupGatePlacedEvent(card: Card, stackId: string): PlaytestLogEvent {
   }
 }
 
+function setupHazardPlacedEvent(card: Card, stackId: string): PlaytestLogEvent {
+  const rulesText = cardRulesText(card)
+
+  return {
+    type: 'setup.hazard.placed',
+    message: `${card.title} (${card.id}) placed face up on the Gate${rulesText ? ` [${rulesText}]` : ''}.`,
+    details: {
+      cardId: card.id,
+      cardTitle: card.title,
+      cardSummary: `${card.title} (${card.id})${rulesText ? ` [${rulesText}]` : ''}`,
+      cardContent: cardContent(card),
+      stackId,
+      faceUp: card.faceUp,
+    },
+  }
+}
+
 const startingCrewCards = [
   createCrewCard('Lei Watanabe', ['life', 'star'], 2),
   createCrewCard('Mara Voss', ['engine', 'engine'], 14),
@@ -455,7 +560,7 @@ const discoveryDesigns = [
     'Local Allies',
     'gate',
     'gate_skip_hazard',
-    'Skip 1 Gate hazard crew slot. Still must Pass.',
+    'Skip 1 Black Tide crew slot. Still must Pass.',
     'person',
     6,
     { amount: 1 },
@@ -484,6 +589,108 @@ const driftDeck = [
     'fatigue',
     'Move the first Ready crew to Tired. If none, add 1 Stress.',
   )),
+]
+
+const hazardDeck = [
+  createHazardCard(
+    'Ion Storm',
+    'ion-storm',
+    'Engine icons cost +1 Fuel to commit at this Gate.',
+    'Commit 2+ Engine crew.',
+    'Fractured Engine',
+    'Destinations that require Engine cost +1 Fuel.',
+    'Electromagnetic interference',
+  ),
+  createHazardCard(
+    'Dust Veil',
+    'dust-veil',
+    'The first crew committed contributes no icon at this Gate.',
+    'Commit 2+ Science crew.',
+    'Blinded Sensors',
+    'The first crew committed at each Gate contributes no icon.',
+    'Sensors blinded',
+  ),
+  createHazardCard(
+    'Cold Reach',
+    'cold-reach',
+    'Tired crew cannot be readied during this sector.',
+    'Commit 2+ Life crew.',
+    'Cold Scarring',
+    'Tired crew cannot be readied by rewards, Drift recovery, or Medbay Rehydrator.',
+    'The cold creeps in',
+  ),
+  createHazardCard(
+    'Echo Field',
+    'echo-field',
+    'MOTHER cannot be used at this Gate.',
+    'Commit 2+ Nav crew.',
+    'Jammed Comms',
+    'At each Gate, 1 fewer MOTHER can be used.',
+    'Comm channels jammed',
+  ),
+  createHazardCard(
+    'Black Tide',
+    'black-tide',
+    'If Stress is 3+, add +1 crew slot to the Gate.',
+    'Finish the Gate with Stress 2 or less.',
+    'Flooded Corridors',
+    'If Stress is 3+, future Gates add +1 crew slot.',
+    'Existing pressure made visible',
+  ),
+  createHazardCard(
+    'Fracture',
+    'fracture',
+    'One committed crew icon is ignored at this Gate.',
+    'Commit a Mechanic crew.',
+    'Crew Injury',
+    'One committed crew icon is ignored at each Gate.',
+    'A crew member is hurt',
+  ),
+  createHazardCard(
+    'Silent Watch',
+    'silent-watch',
+    'No Drift card flips this sector; 3 Drift cards trigger when the Gate begins.',
+    'Commit 1 extra crew beyond the Gate requirement.',
+    'Bottled Entropy',
+    '1 Drift card triggers when each future Gate begins.',
+    'Bottled-up entropy',
+  ),
+  createHazardCard(
+    'Hard Vacuum',
+    'hard-vacuum',
+    'Each missed icon at the Gate costs 2 MOTHER instead of 1.',
+    'Pass the Gate without spending MOTHER.',
+    'Thin Margins',
+    'Each missed Gate icon costs +1 extra MOTHER.',
+    'Margins are thin',
+  ),
+  createHazardCard(
+    'Resonance',
+    'resonance',
+    'Each Blueprint trigger at this Gate adds 1 Stress.',
+    'Pass the Gate without triggering a Blueprint.',
+    'Resonant Hull',
+    'Each future Blueprint trigger at a Gate adds 1 Stress.',
+    'Stress for power',
+  ),
+  createHazardCard(
+    'Ghost Signal',
+    'ghost-signal',
+    'Reveal one Destination from Sector Stops; it must be one of your 3 stops.',
+    'Travel the revealed Destination before the Gate.',
+    'Unanswered Signal',
+    'Each future sector begins with a revealed Destination that should be traveled.',
+    "A distress call you can't ignore",
+  ),
+  createHazardCard(
+    'The Veil',
+    'the-veil',
+    'All Destinations in this sector cost +1 Fuel.',
+    'Commit 2+ Nav crew.',
+    'Veiled Charts',
+    'All future Destinations cost +1 Fuel.',
+    'The whole region is hard',
+  ),
 ]
 
 const horizonDeck = [
@@ -548,6 +755,10 @@ export function createSectorHorizonDeckCards() {
 
 export function createDriftDeckCards() {
   return shuffleCards(driftDeck)
+}
+
+export function createHazardDeckCards() {
+  return shuffleCards(hazardDeck)
 }
 
 export function getSectorGateBlueprint(sector: number) {
@@ -622,6 +833,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
   const startingCrewDeal = createStartingCrewDeal(setupPlayers, shuffledCryoCrewDeck)
   const discoveryDeckCards = shuffleCards(discoveryDeck)
   const driftDeckCards = createDriftDeckCards()
+  const hazardDeckCards = createHazardDeckCards()
   // const hullDeck = shuffleCards(createResourceDeck('hull', RESOURCE_DECK_SIZE))
   const initialFuelCards = createBoardCards('fuel-start', fuelDeck.slice(0, 2))
   // const initialHullCards = createBoardCards('hull-start', hullDeck.slice(0, 4))
@@ -633,13 +845,26 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
   })
   const sectorGate = getSectorGateBlueprint(1)
   const [gateCard] = createBoardCards('gate', sectorGate ? [sectorGate] : [], false)
+  const [hazardCard] = createBoardCards('hazard-1', hazardDeckCards.slice(0, 1))
+  const remainingHazardDeckCards = hazardDeckCards.slice(hazardCard ? 1 : 0)
   const fuelDeckCards = fuelDeck.slice(2)
   // const hullDeckCards = hullDeck.slice(4)
-  const horizonDeckCards = createSectorHorizonDeckCards()
+  let horizonDeckCards = createSectorHorizonDeckCards()
+  const shouldRevealSignalStop = hazardCard?.hazard?.kind === 'ghost-signal'
+  const [forcedDestinationCard] = shouldRevealSignalStop
+    ? createBoardCards('signal-1', horizonDeckCards.slice(0, 1))
+    : []
+
+  if (forcedDestinationCard) {
+    horizonDeckCards = horizonDeckCards.slice(1)
+  }
+
   const initialCards = [
     ...initialFuelCards,
     ...handCards,
     ...(gateCard ? [gateCard] : []),
+    ...(hazardCard ? [hazardCard] : []),
+    ...(forcedDestinationCard ? [forcedDestinationCard] : []),
   ]
   const cryoDeckCards = startingCrewDeal.cryoDeckCards
   const initialSectorDeckArt = getSectorDeckArt(1)
@@ -658,10 +883,24 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
         ? [
             {
               id: 'stack-sector-gate',
-              cardIds: [gateCard.id],
+              cardIds: [
+                gateCard.id,
+                ...(hazardCard ? [hazardCard.id] : []),
+              ],
               x: SECTOR_GATE_STACK_POSITION.x,
               y: SECTOR_GATE_STACK_POSITION.y,
-              z: 1017,
+              z: 1020,
+            },
+          ]
+        : []),
+      ...(forcedDestinationCard
+        ? [
+            {
+              id: 'stack-signal-1',
+              cardIds: [forcedDestinationCard.id],
+              x: MAP_SLOT_POSITIONS[0].x,
+              y: MAP_SLOT_POSITIONS[0].y,
+              z: 1021,
             },
           ]
         : []),
@@ -743,8 +982,22 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
         draw: automaticRewardDeckDraw,
         cards: driftDeckCards,
       },
+      {
+        id: HAZARD_DECK_ID,
+        title: 'Hazard Deck',
+        icon: 'crosshair',
+        hue: 356,
+        accent: '#ff6f7d',
+        x: 51,
+        y: 8,
+        z: 1019,
+        draw: automaticRewardDeckDraw,
+        cards: remainingHazardDeckCards,
+      },
     ],
-    mapSlots: Array.from({ length: MAP_SLOT_COUNT }, () => null),
+    mapSlots: Array.from({ length: MAP_SLOT_COUNT }, (_, index) => (
+      index === 0 ? forcedDestinationCard?.id ?? null : null
+    )),
     routeSlots: Array.from({ length: ROUTE_SLOT_COUNT }, () => null),
     shipPartSlots: [],
     archivedRouteCardIds: [],
@@ -755,6 +1008,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
     pendingWakeChoice: null,
     pendingScoutChoice: null,
     pendingDrift: null,
+    forcedDestinationCardId: forcedDestinationCard?.id ?? null,
     pendingEffects: [],
     turnNumber: 1,
     turnPlayerIndex: 0,
@@ -766,7 +1020,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
     totalSectors: TOTAL_SECTORS,
     hasArrived: false,
     lossReason: null,
-    topZ: 1018,
+    topZ: forcedDestinationCard ? 1021 : 1020,
     nextCardId: 1,
     dropTargetStackId: null,
     dropTargetDeckId: null,
@@ -784,18 +1038,31 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
       }
 
       if (deck.id === HORIZON_DECK_ID) {
-        return { ...deck, cards: [...(sectorGate ? [sectorGate] : []), ...horizonDeckCards] }
+        return {
+          ...deck,
+          cards: [
+            ...(sectorGate ? [sectorGate] : []),
+            ...(forcedDestinationCard ? [forcedDestinationCard] : []),
+            ...horizonDeckCards,
+          ],
+        }
       }
 
       if (deck.id === CRYO_DECK_ID) {
         return { ...deck, cards: [...startingCrewDeal.startingCrewBlueprints, ...cryoDeckCards] }
       }
 
+      if (deck.id === HAZARD_DECK_ID) {
+        return { ...deck, cards: hazardDeckCards }
+      }
+
       return deck
     }),
+    mapSlots: Array.from({ length: MAP_SLOT_COUNT }, () => null),
     handCardIds: [],
     tiredCardIds: [],
     roundStartTiredCardIds: [],
+    forcedDestinationCardId: null,
     topZ: board.decks.reduce((topZ, deck) => Math.max(topZ, deck.z), 0),
   }
 
@@ -810,7 +1077,12 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
       setupDeckCreatedEvent(CRYO_DECK_ID, 'Cryo Deck', cryoDeckCards),
       setupDeckCreatedEvent(DISCOVERY_DECK_ID, 'Discovery Deck', discoveryDeckCards),
       setupDeckCreatedEvent(DRIFT_DECK_ID, 'Drift Deck', driftDeckCards),
+      setupDeckCreatedEvent(HAZARD_DECK_ID, 'Hazard Deck', remainingHazardDeckCards),
       ...(gateCard ? [setupGatePlacedEvent(gateCard, 'stack-sector-gate')] : []),
+      ...(hazardCard ? [setupHazardPlacedEvent(hazardCard, 'stack-sector-gate')] : []),
+      ...(forcedDestinationCard && hazardCard
+        ? [hazardSignaledDestinationEvent(hazardCard, forcedDestinationCard)]
+        : []),
       ...initialFuelCards.map((card, index) => setupResourceDrawnEvent(card, 'Fuel Deck', index + 1)),
       // ...initialHullCards.map((card, index) => setupResourceDrawnEvent(card, 'Hull Deck', index + 1)),
       ...handCards.map((card, index) => (

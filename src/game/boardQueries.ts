@@ -1,5 +1,6 @@
 import { HORIZON_DECK_ID, MOTHER_DECK_ID } from './decks'
 import { getNextStopFuelDiscount } from './effects'
+import { getDestinationFuelSurcharge } from './hazards'
 import {
   canCompleteHorizonNeedWithFuelOptions,
   countUsableMotherCardsInPlay,
@@ -40,6 +41,10 @@ export function countFuelCardsInPlay(current: BoardState) {
 }
 
 export function shouldDrawMissionsBeforeEndTurn(current: BoardState) {
+  const visibleHorizonCards = getVisibleHorizonCards(current)
+  const onlyForcedDestinationVisible = visibleHorizonCards.length === 1 &&
+    visibleHorizonCards[0]?.id === current.forcedDestinationCardId
+
   return (
     !current.hasArrived &&
     !current.lossReason &&
@@ -50,7 +55,7 @@ export function shouldDrawMissionsBeforeEndTurn(current: BoardState) {
     !current.traveledThisTurn &&
     current.routeSlots.some((slot) => slot === null) &&
     countFuelCardsInPlay(current) === 0 &&
-    getVisibleHorizonCards(current).length === 0 &&
+    (visibleHorizonCards.length === 0 || onlyForcedDestinationVisible) &&
     current.decks.some((deck) => deck.id === HORIZON_DECK_ID)
   )
 }
@@ -85,7 +90,9 @@ export function canTravelToHorizon(current: BoardState, horizonCard: Card) {
 
   const requiredFuel = Math.max(
     0,
-    horizonCard.horizon.need.fuel - getNextStopFuelDiscount(current.pendingEffects),
+    horizonCard.horizon.need.fuel +
+      getDestinationFuelSurcharge(current.cards, horizonCard.horizon) -
+      getNextStopFuelDiscount(current.pendingEffects),
   )
 
   const readyCrewCardIds = getReadyCrewCardIds(current)
