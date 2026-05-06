@@ -10,15 +10,35 @@ type StressTrackerProps = {
   stressCount: number
   currentSector: number
   totalSectors: number
+  missionsCompleted: number
+  turnNumber: number
 }
 
-export function StressTracker({ stressCount, currentSector, totalSectors }: StressTrackerProps) {
+export function StressTracker({
+  stressCount,
+  currentSector,
+  totalSectors,
+  missionsCompleted,
+  turnNumber,
+}: StressTrackerProps) {
   return (
     <aside className="stress-area hand-zone-stress" aria-label="Sector and stress area" aria-live="polite">
       <p className="stress-tracker">
         <span className="stress-label">Sector</span>
         <span className="stress-history sector-history" aria-label={`Sector ${currentSector} of ${totalSectors}`}>
           <span className="stress-current">{currentSector}/{totalSectors}</span>
+        </span>
+      </p>
+      <p className="stress-tracker">
+        <span className="stress-label">Missions</span>
+        <span className="stress-history sector-history" aria-label={`${missionsCompleted} missions completed`}>
+          <span className="stress-current">{missionsCompleted}</span>
+        </span>
+      </p>
+      <p className="stress-tracker">
+        <span className="stress-label">Turns</span>
+        <span className="stress-history sector-history" aria-label={`Turn ${turnNumber}`}>
+          <span className="stress-current">{turnNumber}</span>
         </span>
       </p>
       <p className="stress-tracker">

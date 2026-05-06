@@ -30,12 +30,12 @@ export function getShipPartLabel(shipPart: ShipPartKind) {
 
 export function getShipPartUseText(shipPart: ShipPartKind) {
   if (shipPart === 'medbay-rehydrator') {
-    return 'Ready 1 Tired crew before Gate.'
+    return 'Ready +1 crew after each sector.'
   }
 
   if (shipPart === 'service-drone-bay') {
-    return 'Fill 1 Gate crew slot. No icon.'
+    return 'Reduce Sector Gate crew need by 1.'
   }
 
-  return 'Cover 1 missing Gate icon. No crew slot.'
+  return 'Reduce required Gate Fuel by 1.'
 }

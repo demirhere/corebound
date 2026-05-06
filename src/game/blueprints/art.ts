@@ -1,4 +1,4 @@
-import type { CardIconKind, HazardKind, HorizonKind, ResourceKind } from '../types'
+import type { CardIconKind, HazardKind, MissionKind, ResourceKind } from '../types'
 
 export type DeckArt = {
   icon: CardIconKind
@@ -19,7 +19,7 @@ export const resourceArt: Record<ResourceKind, DeckArt> = {
   },
 }
 
-export const horizonArt: Record<HorizonKind, DeckArt> = {
+export const missionArt: Record<MissionKind, DeckArt> = {
   'deep-space': {
     icon: 'star',
     hue: 282,
@@ -150,11 +150,6 @@ export const hazardArt: Record<HazardKind, DeckArt> = {
     icon: 'person',
     hue: 24,
     accent: '#e0a56b',
-  },
-  'mission-lead-injured': {
-    icon: 'crosshair',
-    hue: 356,
-    accent: '#ff6f7d',
   },
   'sealed-cargo': {
     icon: 'diamond',

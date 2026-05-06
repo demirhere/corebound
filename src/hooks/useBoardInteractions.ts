@@ -64,11 +64,11 @@ import {
   getHandCardIds,
 } from '../board/handState'
 import { isRouteFilled } from '../board/routeState'
-import { getVisibleHorizonCards } from '../game/boardQueries'
+import { getVisibleMissionCards } from '../game/boardQueries'
 import { getOwnedHandCardOwnerId } from '../game/players'
 import {
   canManuallyDrawDeck,
-  HORIZON_DECK_ID,
+  MISSION_DECK_ID,
 } from '../game/decks'
 import {
   clamp,
@@ -88,6 +88,7 @@ type UseBoardInteractionsArgs = {
   localPlayerId: string | null
   canMoveBoardFreely: boolean
   canUseOwnCrew: boolean
+  canEndTurn: boolean
   onSharedDragChange?: (drag: SharedDragPreview | null) => void
 }
 
@@ -97,6 +98,7 @@ export function useBoardInteractions({
   localPlayerId,
   canMoveBoardFreely,
   canUseOwnCrew,
+  canEndTurn,
   onSharedDragChange,
 }: UseBoardInteractionsArgs) {
   const boardRef = useRef<HTMLDivElement>(null)
@@ -970,7 +972,7 @@ export function useBoardInteractions({
     const deck = current.decks.find((candidate) => candidate.id === deckId)
 
     return (
-      deckId === HORIZON_DECK_ID &&
+      deckId === MISSION_DECK_ID &&
       !current.hasArrived &&
       !current.lossReason &&
       !current.pendingWakeChoice &&
@@ -978,7 +980,7 @@ export function useBoardInteractions({
       !current.pendingDrift &&
       Boolean(deck && canManuallyDrawDeck(deck) && deck.cards.length > 0) &&
       current.sectorDrawnThisTurn &&
-      getVisibleHorizonCards(current).length === 0 &&
+      getVisibleMissionCards(current).length === 0 &&
       !isRouteFilled(current.routeSlots)
     )
   }
@@ -1016,7 +1018,7 @@ export function useBoardInteractions({
   }
 
   function endTurn() {
-    if (!canMoveBoardFreely) {
+    if (!canEndTurn) {
       return
     }
 

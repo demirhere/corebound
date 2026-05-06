@@ -23,7 +23,7 @@ export type ResourceKind = 'fuel' | 'hull'
 
 export type CrewSpecialization = 'life' | 'star' | 'engine' | 'signal'
 
-export type HorizonKind = 'deep-space' | 'planet' | 'asteroid'
+export type MissionKind = 'deep-space' | 'planet' | 'asteroid'
 
 export type RequirementIconKind = CrewSpecialization
 
@@ -73,7 +73,6 @@ export type DamageKind =
   | 'sensor-loss'
   | 'hull-crack'
   | 'crew-quarters-damaged'
-  | 'mission-lead-injured'
   | 'sealed-cargo'
   | 'stress-echo'
   | 'phantom-course'
@@ -92,9 +91,9 @@ export type HazardDetails = {
   effectImplemented: boolean
 }
 
-export type CardKind = 'resource' | 'crew' | 'horizon' | 'mother' | 'gate' | 'discovery' | 'drift' | 'hazard'
+export type CardKind = 'resource' | 'crew' | 'mission' | 'mother' | 'gate' | 'discovery' | 'drift' | 'hazard'
 
-export type GameLossReason = 'sector-stranded' | 'gate-failed'
+export type GameLossReason = 'sector-stranded' | 'gate-failed' | 'fuel-depleted'
 
 export type HandZone = 'crew' | 'tired'
 
@@ -127,6 +126,10 @@ export type VisitReward =
       amount: number
     }
   | {
+      kind: 'next_gate_fuel_discount'
+      amount: number
+    }
+  | {
       kind: 'ready'
       count: number
     }
@@ -136,6 +139,7 @@ export type DestinationFind =
       kind: 'ship_part'
       itemName: string
       shipPart: ShipPartKind
+      rewards?: VisitReward[]
     }
   | {
       kind: 'visit_reward'
@@ -143,8 +147,8 @@ export type DestinationFind =
       rewards: VisitReward[]
     }
 
-export type HorizonDetails = {
-  kind: HorizonKind
+export type MissionDetails = {
+  kind: MissionKind
   need: {
     fuel: number
     icons: RequirementIconKind[]
@@ -155,38 +159,26 @@ export type HorizonDetails = {
 export type GateDetails = {
   label: string
   need: {
+    fuel: number
     icons: RequirementIconKind[]
     crew: number
   }
   effectKind:
-    | 'clean'
-    | 'first-crew-no-icons'
-    | 'engine-icons-cost-fuel'
-    | 'extra-crew-slot'
-    | 'block-discoveries'
-    | 'block-ready-tired'
+    | 'block-engine-crew'
+    | 'block-life-crew'
+    | 'block-science-crew'
+    | 'block-nav-crew'
     | 'block-mother'
-    | 'stress-extra-slot'
-    | 'blueprints-add-stress'
-    | 'block-ship-parts'
-    | 'block-mother-icons'
-    | 'hold-drift'
-    | 'leftmost-crew-ignore-icon'
-    | 'double-chosen-icon'
+    | 'block-pilot-crew'
+    | 'block-medic-crew'
+    | 'block-scientist-crew'
+    | 'block-engineer-crew'
+    | 'mother-costs-fuel'
+    | 'extra-drift'
   effectText: string
   clear: {
-    kind:
-      | 'extra-crew-beyond-minimum'
-      | 'crew-count-at-least'
-      | 'role-count-at-least'
-      | 'mother-spent-at-least'
-      | 'no-tired-crew'
-      | 'stress-zero'
-      | 'different-role-count-at-least'
-      | 'same-role-count-at-least'
-      | 'roles-committed'
-    count?: number
-    roles?: CrewRoleKind[]
+    extraFuel: number
+    extraCrew: number
   }
   clearText: string
   motherPenalty: {
@@ -198,6 +190,10 @@ export type GateDetails = {
 export type BoardEffect =
   | {
       kind: 'next_stop_fuel_discount'
+      amount: number
+    }
+  | {
+      kind: 'next_gate_fuel_discount'
       amount: number
     }
   | {
@@ -216,7 +212,7 @@ export type CardBlueprint = {
   resource?: ResourceKind
   specializations?: CrewSpecialization[]
   portraitIndex?: number
-  horizon?: HorizonDetails
+  mission?: MissionDetails
   gate?: GateDetails
   discovery?: DiscoveryDetails
   drift?: DriftDetails
@@ -336,6 +332,7 @@ export type BoardState = {
   stressCount: number
   currentSector: number
   totalSectors: number
+  isRunEnding: boolean
   hasArrived: boolean
   lossReason: GameLossReason | null
   topZ: number

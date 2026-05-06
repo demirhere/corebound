@@ -39,12 +39,12 @@ const discoveryDesigns = [
   ),
   createDiscoveryCard(
     'Pressure Suit',
-    'mission',
-    'mission_fuel_discount',
-    '-1 Fuel cost on this Mission.',
+    'crew',
+    'crew_life',
+    'This committed crew counts as Life.',
     'shield',
     4,
-    { amount: 1 },
+    { icon: 'life' },
   ),
   createDiscoveryCard(
     'Coolant Pack',

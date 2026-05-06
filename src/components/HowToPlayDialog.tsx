@@ -104,19 +104,19 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
           <HowToPlayMiniCard
             kicker="Travel"
             title="Destination"
-            icons={['fuel', 'person', 'mother']}
+            icons={['person', 'mother', 'life']}
             tone="destination"
           />
           <HowToPlayMiniCard
             kicker="Find"
             title="Benefit or Part"
-            icons={['fuel', 'tired-person', 'parts']}
+            icons={['fuel', 'parts']}
             tone="destination"
           />
           <HowToPlayMiniCard
             kicker="Then pass"
             title="Gate"
-            icons={['person', 'engine', 'life', 'star', 'signal']}
+            icons={['fuel', 'person']}
             tone="gate"
           />
         </div>
@@ -134,9 +134,11 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
             <h3>Core Loop</h3>
             <ol>
               <li>Read the face-up Gate, then click Missions to reveal Map Destinations.</li>
-              <li>Travel to only 1 Destination per turn. Stack its payment, then click Travel.</li>
-              <li>Used crew move to Tired. Immediate Benefits resolve now; Ship Parts stay visible for a Gate.</li>
-              <li>If Fuel is empty and no Map is visible, draw Missions before ending the turn.</li>
+              <li>Travel to only 1 Destination per turn. Stack its crew-icon payment, then click Travel.</li>
+              <li>Used crew move to Tired. Rewards recover Fuel, wake Cryo crew for the Mission Lead, or reveal Ship Parts.</li>
+              <li>Each Gate costs 3-5 Fuel to pass, with simple extra Fuel/Crew to clear cleanly.</li>
+              <li>After a non-final Gate succeeds, the next sector starts with an empty Map.</li>
+              <li>If Fuel is empty, recover Fuel before round end or the ship loses.</li>
               <li>Unchosen Map Destinations clear. End turn before drawing again unless that was the 3rd Destination.</li>
             </ol>
           </section>
@@ -144,39 +146,37 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
           <section>
             <h3>Paying Costs</h3>
             <div className="how-to-play-equations">
-              <p><HowToPlayChip icon="fuel" label="Fuel Cell" /> pays Fuel.</p>
-              <p><HowToPlayChip icon="person" label="Ready crew" /> pays matching Life, Nav, Engine, or Science icons.</p>
-              <p><HowToPlayIconStrip icons={['engine', 'signal']} /> Engineer + Scientist can make 1 <GameIcon kind="fuel" /> instead of paying icons.</p>
+              <p><HowToPlayChip icon="fuel" label="Fuel Cell" /> pays Gate Fuel.</p>
+              <p><HowToPlayChip icon="person" label="Ready crew" /> pays matching Destination icons or Gate crew slots.</p>
+              <p><HowToPlayIconStrip icons={['engine', 'signal']} /> Engineer + Scientist can make 1 <GameIcon kind="fuel" /> when Fuel is short.</p>
               <p><HowToPlayChip icon="mother" label="MOTHER" /> covers missing non-Fuel icons only, and only with at least 1 human crew committed.</p>
             </div>
           </section>
 
           <section>
-            <h3>Immediate Benefits</h3>
+            <h3>Finds</h3>
             <ul>
-              <li>Collect adds Fuel to the shared supply.</li>
-              <li>Ready moves the front Tired crew back to Crew.</li>
-              <li>Wake reveals up to 2 Cryo crew, recruits 1 into Tired, then readies the front Tired crew.</li>
-              <li>Scout keeps 1 top Sector Stop and sends the rest to the back. It is skipped on the 3rd Destination.</li>
-              <li>Next stop -1 Fuel discounts the next Destination in this sector.</li>
+              <li>Resource Missions recover 1-4 Fuel for the shared supply.</li>
+              <li>Wake Missions recruit 1-2 Cryo crew for the Mission Lead; new crew joins Tired.</li>
+              <li>Ship Part Missions make one Ship Part available.</li>
             </ul>
           </section>
 
           <section>
             <h3>Ship Parts</h3>
             <div className="how-to-play-find-types">
-              <p><strong>Medbay Rehydrator</strong> readies 1 Tired crew before a Gate.</p>
-              <p><strong>Service Drone Bay</strong> fills 1 Gate crew slot and gives no icon.</p>
-              <p><strong>Adaptive Control Console</strong> covers 1 Gate icon and fills no crew slot.</p>
-              <p>The app applies available Ship Parts automatically at Gates. Unspent parts carry forward.</p>
+              <p><strong>Medbay Rehydrator</strong> readies +1 Tired crew after each sector.</p>
+              <p><strong>Service Drone Bay</strong> reduces Sector Gate crew need by 1.</p>
+              <p><strong>Adaptive Control Console</strong> reduces required Gate Fuel by 1.</p>
+              <p>The app applies Medbay at sector end and other available Ship Parts automatically at Gates. Unspent parts carry forward.</p>
             </div>
           </section>
 
           <section>
             <h3>Gates And Stress</h3>
             <p>
-              Each sector draws one Gate from the shuffled Gate deck. Pass its crew slots and icons
-              to survive, then meet its clear line to avoid drawing Damage.
+              Each sector draws one Gate from the shuffled Gate deck. Pay its 3-5 Fuel and any crew
+              slots to survive, then pay its extra clean-clear Fuel/Crew to avoid drawing Damage.
             </p>
           </section>
 
@@ -200,17 +200,17 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
             <h3>Multiplayer</h3>
             <p>
               The Mission Lead takes the turn. Other players may add or remove only their own crew.
-              Wake crew and Blueprints score for the Mission Lead, but rewards and Ship Parts help everyone.
+              Blueprints and woken Cryo crew go to the Mission Lead, but Fuel rewards and Ship Parts help everyone.
             </p>
           </section>
 
           <section className="how-to-play-wide-section how-to-play-warning-section">
             <h3>Win And Loss</h3>
             <p>
-              Solo wins by passing the final Gate (10th sector). Multiplayer scores only after that success:
+              Solo wins after passing the final Gate (10th sector) and ending the round. Multiplayer scores after that final round ends:
               most crew wins, then Blueprints, then Ready crew. Any ship loss means everyone loses.
-              You lose if no reachable Mission remains and the Gate cannot be passed, or if the Gate
-              cannot be passed with available Ship Parts, Ready crew, required Gate Fuel, and unused MOTHER.
+              You lose if Fuel is empty at round end, if no reachable Mission remains and the Gate cannot be passed,
+              or if the Gate cannot be passed with available Gate Ship Parts, Ready crew, required Gate Fuel, and allowed MOTHER support.
             </p>
           </section>
         </div>

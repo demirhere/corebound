@@ -1,5 +1,6 @@
 import { SOLO_PLAYER, createInitialBoardSetup } from './setup'
 import type { BoardState, GamePlayer } from './types'
+import { FUEL_DECK_ID, FUEL_DISCARD_DECK_ID, automaticRewardDeckDraw } from './decks'
 import {
   appendPlaytestEvents,
   type PlaytestLogEntry,
@@ -102,6 +103,25 @@ function resolveBoardUpdate(result: BoardUpdateResult) {
 
 function migrateBoardState(board: BoardState): BoardState {
   const legacyBoard = board as BoardState & Partial<BoardState>
+  const legacyDecks = legacyBoard.decks ?? []
+  const fuelDeck = legacyDecks.find((deck) => deck.id === FUEL_DECK_ID)
+  const decks = legacyDecks.some((deck) => deck.id === FUEL_DISCARD_DECK_ID)
+    ? legacyDecks
+    : [
+        ...legacyDecks,
+        {
+          id: FUEL_DISCARD_DECK_ID,
+          title: 'Fuel Discard',
+          icon: fuelDeck?.icon ?? 'zap',
+          hue: fuelDeck?.hue ?? 46,
+          accent: fuelDeck?.accent ?? '#ffc84b',
+          x: 27,
+          y: 40,
+          z: fuelDeck?.z ?? 1011,
+          draw: automaticRewardDeckDraw,
+          cards: [],
+        },
+      ]
   const players = Array.isArray(legacyBoard.players) && legacyBoard.players.length > 0
     ? legacyBoard.players
     : [SOLO_PLAYER]
@@ -119,6 +139,7 @@ function migrateBoardState(board: BoardState): BoardState {
 
   return {
     ...board,
+    decks,
     players,
     crewOwnerIds,
     discoveryOwnerIds,
@@ -148,6 +169,7 @@ function migrateBoardState(board: BoardState): BoardState {
       : null,
     pendingDrift: legacyBoard.pendingDrift ?? null,
     heldDriftCount: legacyBoard.heldDriftCount ?? 0,
+    isRunEnding: legacyBoard.isRunEnding ?? false,
   }
 }
 

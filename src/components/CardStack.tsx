@@ -20,11 +20,14 @@ type CardStackProps = {
   stackOffsetRatio: number
   fuelDiscount: number
   getFuelSurcharge: (card: CardView) => number
+  getMissionAnyIconSurcharge: (card: CardView) => number
   stressCount: number
   gateExtraCrewCount: number
   gateCrewSlotDiscount: number
   gateIconDiscount: number
+  gateFuelDiscount: number
   traveledStopCardIds: ReadonlySet<string>
+  acquiredShipPartCardIds: ReadonlySet<string>
   actions: readonly StackAction[]
   onStackAction: (stackId: string, actionId: string) => void
   onCardPointerDown: CardPointerDownHandler
@@ -41,11 +44,14 @@ export function CardStack({
   stackOffsetRatio,
   fuelDiscount,
   getFuelSurcharge,
+  getMissionAnyIconSurcharge,
   stressCount,
   gateExtraCrewCount,
   gateCrewSlotDiscount,
   gateIconDiscount,
+  gateFuelDiscount,
   traveledStopCardIds,
+  acquiredShipPartCardIds,
   actions,
   onStackAction,
   onCardPointerDown,
@@ -107,11 +113,14 @@ export function CardStack({
             stackOffsetRatio={stackOffsetRatio}
             fuelDiscount={fuelDiscount}
             fuelSurcharge={getFuelSurcharge(card)}
+            missionAnyIconSurcharge={getMissionAnyIconSurcharge(card)}
             stressCount={stressCount}
             gateExtraCrewCount={gateExtraCrewCount}
             gateCrewSlotDiscount={gateCrewSlotDiscount}
             gateIconDiscount={gateIconDiscount}
+            gateFuelDiscount={gateFuelDiscount}
             isTraveledStop={traveledStopCardIds.has(card.id)}
+            isAcquiredShipPart={acquiredShipPartCardIds.has(card.id)}
             onPointerDown={onCardPointerDown}
             onKeyDown={onCardKeyDown}
           />

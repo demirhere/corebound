@@ -3,7 +3,6 @@ import type {
   CrewSpecialization,
   DiscoveryTag,
   DestinationFind,
-  GateDetails,
   HazardDetails,
   RequirementIconKind,
   ResourceKind,
@@ -18,6 +17,7 @@ import { SectorCardArt, SectorCardLayout } from './SectorCardLayout'
 
 const BLUEPRINT_ART_GRID_SIZE = 4
 const ROUTE_ART_GRID_SIZE = 4
+type NeedIconKind = RequirementIconKind | CrewSpecialization | ResourceKind | 'person' | 'any'
 
 function titleCase(value: string) {
   return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`
@@ -27,21 +27,68 @@ function getDiscoveryTagLabel(tag: DiscoveryTag) {
   return tag === 'anytime' ? 'Anytime' : titleCase(tag)
 }
 
-function renderIconPips(
-  icons: readonly (RequirementIconKind | CrewSpecialization | ResourceKind)[],
-  keyPrefix: string,
-) {
-  return icons.map((icon, index) => <GameIcon key={`${keyPrefix}-${icon}-${index}`} kind={icon} />)
+function sortNeedIconGroups<T extends { count: number }>(items: readonly T[]) {
+  return [
+    ...items.filter((item) => item.count === 1),
+    ...items.filter((item) => item.count > 1),
+  ]
+}
+
+function countNeedIcons(icons: readonly NeedIconKind[]) {
+  const counts = new Map<NeedIconKind, number>()
+  const orderedIcons: NeedIconKind[] = []
+
+  for (const icon of icons) {
+    if (!counts.has(icon)) {
+      orderedIcons.push(icon)
+    }
+
+    counts.set(icon, (counts.get(icon) ?? 0) + 1)
+  }
+
+  return sortNeedIconGroups(
+    orderedIcons.map((icon) => ({ icon, count: counts.get(icon) ?? 0 })),
+  )
+}
+
+function renderNeedIcon(icon: NeedIconKind, count: number, key: string, className = '', title?: string) {
+  if (count <= 0) {
+    return null
+  }
+
+  if (count === 1 && !className) {
+    return <GameIcon key={key} kind={icon as GameIconKind} />
+  }
+
+  const classNames = ['need-icon-count', className].filter(Boolean).join(' ')
+
+  return (
+    <span key={key} className={classNames} title={title}>
+      {count > 1 ? <span className="need-icon-count-label">{count}x</span> : null}
+      <GameIcon kind={icon as GameIconKind} />
+    </span>
+  )
+}
+
+function renderIconPips(icons: readonly NeedIconKind[], keyPrefix: string) {
+  return countNeedIcons(icons).map(({ icon, count }) => (
+    renderNeedIcon(icon, count, `${keyPrefix}-${icon}`)
+  ))
+}
+
+function renderSortedNeedItems(items: readonly { count: number, node: ReturnType<typeof renderNeedIcon> }[]) {
+  return sortNeedIconGroups(items).map(({ node }) => node)
 }
 
 function renderRemovedNeedIcon(
-  icon: RequirementIconKind | ResourceKind | 'person',
+  icon: NeedIconKind,
   key: string,
   title: string,
+  count = 1,
 ) {
   return (
     <span key={key} className="removed-need-icon" title={title}>
-      <GameIcon kind={icon} />
+      {renderNeedIcon(icon, count, `${key}-count`)}
       <svg className="removed-need-scribble" viewBox="0 0 44 30" focusable="false" aria-hidden="true">
         <path d="M3.8 17c5.2-4.4 9.8 3.7 15.3-.3 5.5-4.1 10.4 3.3 16.1-.6 2.7-1.9 4.7-2.1 6.5-.7" />
       </svg>
@@ -55,38 +102,54 @@ function renderFuelNeed(printedFuel: number, currentFuelCost: number, keyPrefix:
   const extraFuelCount = Math.max(0, currentFuelCost - printedFuel)
 
   return [
-    ...Array.from({ length: activePrintedFuelCount }, (_, index) => (
-      <GameIcon key={`${keyPrefix}-fuel-${index}`} kind="fuel" />
-    )),
-    ...Array.from({ length: extraFuelCount }, (_, index) => (
-      <span key={`${keyPrefix}-extra-fuel-${index}`} className="extra-need-icon" title="Fuel added by Gate or Damage">
-        <GameIcon kind="fuel" />
-      </span>
-    )),
-    ...Array.from({ length: removedFuelCount }, (_, index) => (
-      renderRemovedNeedIcon('fuel', `${keyPrefix}-removed-fuel-${index}`, 'Fuel removed by Destination effect')
-    )),
+    renderNeedIcon('fuel', activePrintedFuelCount, `${keyPrefix}-fuel`),
+    renderNeedIcon('fuel', extraFuelCount, `${keyPrefix}-extra-fuel`, 'extra-need-icon', 'Fuel added by Gate or Damage'),
+    removedFuelCount > 0
+      ? renderRemovedNeedIcon('fuel', `${keyPrefix}-removed-fuel`, 'Fuel removed by discount', removedFuelCount)
+      : null,
   ]
+}
+
+function renderMissionAnyIconSurcharge(count: number, keyPrefix: string) {
+  return renderNeedIcon(
+    'any',
+    count,
+    `${keyPrefix}-long-reach-any`,
+    'extra-need-icon',
+    'Long Reach adds 1 crew icon to the 3rd Mission in a sector',
+  )
+}
+
+function renderResourceReward(reward: Extract<VisitReward, { kind: 'resource' }>, index: number) {
+  return (
+    <span key={`${reward.resource}-${index}`} className="sector-card-resource-reward need-icon-count">
+      <span>Recover</span>
+      {reward.count > 1 ? <span className="need-icon-count-label">{reward.count}x</span> : null}
+      <GameIcon kind={reward.resource as GameIconKind} />
+    </span>
+  )
 }
 
 function renderReward(reward: VisitReward, index: number) {
   if (reward.kind === 'resource') {
-    return [
-      <span key={`${reward.resource}-${index}`} className="sector-card-detail">
-        Collect{' '}
-        {Array.from({ length: reward.count }, (_, rewardIndex) => (
-          <GameIcon key={`${reward.resource}-${index}-${rewardIndex}`} kind={reward.resource} />
-        ))}
-      </span>,
-    ]
+    return [renderResourceReward(reward, index)]
   }
 
   if (reward.kind === 'crew') {
     if (reward.label === 'Wake') {
+      const wakeText = reward.count === 1 ? 'Wake 1' : `Wake ${reward.count}`
+      const readyText = reward.count === 1 ? 'Ready 1' : `Ready ${reward.count}`
+
       return [
         <span key={`wake-${index}`} className="sector-card-detail">
-          Wake 1 <GameIcon kind="tired-person" /> and then Ready 1{' '}
-          <GameIcon kind="person" />
+          {wakeText}{' '}
+          {Array.from({ length: reward.count }, (_, rewardIndex) => (
+            <GameIcon key={`wake-${index}-${rewardIndex}`} kind="tired-person" />
+          ))}
+          {' and then '}{readyText}{' '}
+          {Array.from({ length: reward.count }, (_, rewardIndex) => (
+            <GameIcon key={`wake-ready-${index}-${rewardIndex}`} kind="person" />
+          ))}
         </span>,
       ]
     }
@@ -106,7 +169,7 @@ function renderReward(reward: VisitReward, index: number) {
   if (reward.kind === 'scout') {
     return [
       <span key={`scout-${index}`} className="card-rule-text">
-        Peek at top {reward.count} stops, keep 1.
+        Peek at top {reward.count} Missions, keep 1.
       </span>,
     ]
   }
@@ -114,7 +177,16 @@ function renderReward(reward: VisitReward, index: number) {
   if (reward.kind === 'next_stop_fuel_discount') {
     return [
       <span key={`next-stop-discount-${index}`} className="sector-card-detail">
-        Next stop -{reward.amount}{' '}
+        Next Mission -{reward.amount}{' '}
+        <GameIcon kind="fuel" />
+      </span>,
+    ]
+  }
+
+  if (reward.kind === 'next_gate_fuel_discount') {
+    return [
+      <span key={`next-gate-discount-${index}`} className="sector-card-detail">
+        Next Gate -{reward.amount}{' '}
         <GameIcon kind="fuel" />
       </span>,
     ]
@@ -151,7 +223,7 @@ function renderShipPartUse(shipPart: ShipPartKind) {
   if (shipPart === 'medbay-rehydrator') {
     return (
       <span className="sector-card-detail">
-        Ready 1 <GameIcon kind="tired-person" /> before Gate.
+        Ready +1 <GameIcon kind="tired-person" /> after each sector.
       </span>
     )
   }
@@ -160,15 +232,22 @@ function renderShipPartUse(shipPart: ShipPartKind) {
 }
 
 export function renderSectorCardHeaderDetail(card: Card) {
-  if (card.kind !== 'horizon' || !card.horizon) {
+  if (card.kind !== 'mission' || !card.mission) {
     return null
   }
 
-  if (card.horizon.find.kind === 'ship_part') {
-    return renderShipPartUse(card.horizon.find.shipPart)
+  if (card.mission.find.kind === 'ship_part') {
+    const rewards = card.mission.find.rewards ?? []
+
+    return (
+      <>
+        {renderShipPartUse(card.mission.find.shipPart)}
+        {rewards.length > 0 ? <> {' + '}{rewards.flatMap(renderReward)}</> : null}
+      </>
+    )
   }
 
-  return renderVisitReward(card.horizon.find)
+  return renderVisitReward(card.mission.find)
 }
 
 function renderShipPartSector(
@@ -176,8 +255,10 @@ function renderShipPartSector(
   currentFuelCost: number,
   hasFuelDiscount: boolean,
   removedFuelCount: number,
+  missionAnyIconSurcharge: number,
+  showCost: boolean,
 ) {
-  const need = card.horizon?.need
+  const need = card.mission?.need
 
   if (!need) {
     return null
@@ -192,6 +273,7 @@ function renderShipPartSector(
         <>
           {renderFuelNeed(need.fuel, currentFuelCost, `${card.id}-fuel-need`)}
           {renderIconPips(need.icons, `${card.id}-icon-need`)}
+          {renderMissionAnyIconSurcharge(missionAnyIconSurcharge, card.id)}
         </>
       )}
       hasFuelDiscount={hasFuelDiscount}
@@ -204,6 +286,7 @@ function renderShipPartSector(
           <SectorCardArt variant="route" index={routeIndex} gridSize={ROUTE_ART_GRID_SIZE} />
         </>
       )}
+      showCost={showCost}
     />
   )
 }
@@ -213,8 +296,9 @@ function renderVisitRewardSector(
   currentFuelCost: number,
   hasFuelDiscount: boolean,
   removedFuelCount: number,
+  missionAnyIconSurcharge: number,
 ) {
-  const need = card.horizon?.need
+  const need = card.mission?.need
 
   if (!need) {
     return null
@@ -226,6 +310,7 @@ function renderVisitRewardSector(
         <>
           {renderFuelNeed(need.fuel, currentFuelCost, `${card.id}-fuel-need`)}
           {renderIconPips(need.icons, `${card.id}-icon-need`)}
+          {renderMissionAnyIconSurcharge(missionAnyIconSurcharge, card.id)}
         </>
       )}
       hasFuelDiscount={hasFuelDiscount}
@@ -236,36 +321,30 @@ function renderVisitRewardSector(
   )
 }
 
-function renderCrewNeed(count: number, keyPrefix: string, className = '') {
-  return Array.from({ length: count }, (_, index) => (
-    <span key={`${keyPrefix}-crew-${index}`} className={className}>
-      <GameIcon kind="person" />
-    </span>
-  ))
-}
-
-function renderGateCrewNeed(
+function getGateCrewNeedItems(
   baseCrewCount: number,
   stressCrewCount: number,
   coveredCrewSlots: number,
   keyPrefix: string,
 ) {
-  const totalCrewCount = baseCrewCount + stressCrewCount
-  const removedCrewCount = Math.min(Math.max(0, coveredCrewSlots), totalCrewCount)
-  const activeCrewCount = totalCrewCount - removedCrewCount
-  const activeBaseCrewCount = Math.min(baseCrewCount, activeCrewCount)
-  const activeStressCrewCount = Math.max(0, activeCrewCount - activeBaseCrewCount)
+  const removedCrewCount = Math.min(Math.max(0, coveredCrewSlots), baseCrewCount)
+  const activeCrewCount = baseCrewCount - removedCrewCount + stressCrewCount
 
   return [
-    ...renderCrewNeed(activeBaseCrewCount, `${keyPrefix}-base`),
-    ...renderCrewNeed(activeStressCrewCount, `${keyPrefix}-stress`, 'gate-extra-crew-icon'),
-    ...Array.from({ length: removedCrewCount }, (_, index) => (
-      renderRemovedNeedIcon('person', `${keyPrefix}-removed-${index}`, 'Crew slot filled by Service Drone Bay')
-    )),
+    {
+      count: activeCrewCount,
+      node: renderNeedIcon('person', activeCrewCount, `${keyPrefix}-crew`),
+    },
+    {
+      count: removedCrewCount,
+      node: removedCrewCount > 0
+        ? renderRemovedNeedIcon('person', `${keyPrefix}-removed-crew`, 'Crew need reduced by Service Drone Bay', removedCrewCount)
+        : null,
+    },
   ]
 }
 
-function renderGateIconNeed(
+function getGateIconNeedItems(
   icons: readonly RequirementIconKind[],
   coveredIconCount: number,
   keyPrefix: string,
@@ -275,11 +354,57 @@ function renderGateIconNeed(
   const removedIcons = icons.slice(activeIcons.length)
 
   return [
-    ...renderIconPips(activeIcons, `${keyPrefix}-active`),
-    ...removedIcons.map((icon, index) => (
-      renderRemovedNeedIcon(icon, `${keyPrefix}-removed-${icon}-${index}`, 'Icon covered by Adaptive Control Console')
+    ...countNeedIcons(activeIcons).map(({ icon, count }) => ({
+      count,
+      node: renderNeedIcon(icon, count, `${keyPrefix}-active-${icon}`),
+    })),
+    ...countNeedIcons(removedIcons).map(({ icon, count }) => (
+      {
+        count,
+        node: renderRemovedNeedIcon(icon, `${keyPrefix}-removed-${icon}`, 'Icon covered by Adaptive Control Console', count),
+      }
     )),
   ]
+}
+
+function getGateFuelNeedItem(
+  printedFuel: number,
+  currentFuelCost: number,
+  keyPrefix: string,
+) {
+  const visibleFuelCount = currentFuelCost > 0 ? currentFuelCost : Math.max(0, printedFuel - currentFuelCost)
+
+  return {
+    count: visibleFuelCount,
+    node: (
+      <span
+        key={`${keyPrefix}-gate-fuel-cost`}
+        className="gate-fuel-cost"
+        title={`Cost: ${currentFuelCost} Fuel. Spent from Fuel Supply when the Gate is passed.`}
+      >
+        {renderFuelNeed(printedFuel, currentFuelCost, `${keyPrefix}-gate-fuel-need`)}
+      </span>
+    ),
+  }
+}
+
+function renderGateClearCost(extraFuel: number, extraCrew: number, keyPrefix: string) {
+  const items = [
+    { icon: 'fuel', count: extraFuel, label: 'Fuel' },
+    { icon: 'person', count: extraCrew, label: 'Crew' },
+  ] as const
+
+  return renderSortedNeedItems(items.map(({ icon, count, label }) => ({
+    count,
+    node: count > 0
+      ? (
+          <span key={`${keyPrefix}-${icon}`} className="need-icon-count" title={`Extra ${label} to avoid Damage`}>
+            <span className="need-icon-count-label">+{count}</span>
+            <GameIcon kind={icon} />
+          </span>
+        )
+      : null,
+  })))
 }
 
 function renderFuelCellContent(card: Card) {
@@ -297,31 +422,6 @@ function renderFuelCellContent(card: Card) {
         <span>{`FCL-${card.id.toUpperCase()}`}</span>
       </div>
     </>
-  )
-}
-
-function renderGatePenalty(gate: GateDetails, stressCount: number) {
-  if (gate.effectKind !== 'stress-extra-slot') {
-    return null
-  }
-
-  const isActive = stressCount >= 3
-
-  return (
-    <div className={`card-gate-penalty ${isActive ? 'is-active' : ''}`}>
-      <span className="card-gate-penalty-divider" aria-hidden="true" />
-      <p className="card-wake-reward card-gate-penalty-line">
-        <span className="card-gate-penalty-pair">
-          <span>+1</span>
-          <GameIcon kind="person" />
-        </span>
-        <span>at</span>
-        <span className="card-gate-penalty-pair">
-          <span>+3</span>
-          <span>Stress</span>
-        </span>
-      </p>
-    </div>
   )
 }
 
@@ -465,10 +565,13 @@ export function renderGameplayCardContent(
   card: Card,
   fuelDiscount: number,
   fuelSurcharge: number,
-  stressCount: number,
+  missionAnyIconSurcharge: number,
+  _stressCount: number,
   gateExtraCrewCount = 0,
   gateCrewSlotDiscount = 0,
   gateIconDiscount = 0,
+  gateFuelDiscount = 0,
+  isAcquiredShipPart = false,
 ) {
   if (card.kind === 'resource' && card.resource) {
     if (card.resource === 'fuel') {
@@ -518,22 +621,30 @@ export function renderGameplayCardContent(
     )
   }
 
-  if (card.kind === 'horizon' && card.horizon) {
-    const currentFuelCost = Math.max(0, card.horizon.need.fuel + fuelSurcharge - fuelDiscount)
-    const hasFuelDiscount = currentFuelCost < card.horizon.need.fuel
-    const removedFuelCount = card.horizon.need.fuel - currentFuelCost
-    const find = card.horizon.find
+  if (card.kind === 'mission' && card.mission) {
+    const currentFuelCost = Math.max(0, card.mission.need.fuel + fuelSurcharge - fuelDiscount)
+    const hasFuelDiscount = currentFuelCost < card.mission.need.fuel
+    const removedFuelCount = card.mission.need.fuel - currentFuelCost
+    const find = card.mission.find
 
     if (find.kind === 'ship_part') {
-      return renderShipPartSector(card, currentFuelCost, hasFuelDiscount, removedFuelCount)
+      return renderShipPartSector(
+        card,
+        currentFuelCost,
+        hasFuelDiscount,
+        removedFuelCount,
+        missionAnyIconSurcharge,
+        !isAcquiredShipPart,
+      )
     }
 
-    return renderVisitRewardSector(card, currentFuelCost, hasFuelDiscount, removedFuelCount)
+    return renderVisitRewardSector(card, currentFuelCost, hasFuelDiscount, removedFuelCount, missionAnyIconSurcharge)
   }
 
   if (card.kind === 'gate' && card.gate) {
     const stressCrewCount = gateExtraCrewCount
-    const hasShipPartDiscount = gateCrewSlotDiscount > 0 || gateIconDiscount > 0
+    const currentGateFuelCost = Math.max(0, card.gate.need.fuel - gateFuelDiscount)
+    const hasGateClearCost = card.gate.clear.extraFuel > 0 || card.gate.clear.extraCrew > 0
 
     return (
       <>
@@ -541,22 +652,24 @@ export function renderGameplayCardContent(
         <div className="card-rule-row card-gate-section">
           <span>Need to pass:</span>
           <div className="card-rule-icons">
-            {renderGateCrewNeed(
-              card.gate.need.crew,
-              stressCrewCount,
-              gateCrewSlotDiscount,
-              `${card.id}-gate-crew-need`,
-            )}
-            {renderGateIconNeed(card.gate.need.icons, gateIconDiscount, `${card.id}-gate-icon-need`)}
+            {renderSortedNeedItems([
+              ...getGateIconNeedItems(card.gate.need.icons, gateIconDiscount, `${card.id}-gate-icon-need`),
+              ...getGateCrewNeedItems(
+                card.gate.need.crew,
+                stressCrewCount,
+                gateCrewSlotDiscount,
+                `${card.id}-gate-crew-need`,
+              ),
+              getGateFuelNeedItem(card.gate.need.fuel, currentGateFuelCost, `${card.id}-gate-fuel-need`),
+            ])}
           </div>
         </div>
-        {stressCrewCount > 0 ? renderGatePenalty(card.gate, stressCount) : null}
-        {hasShipPartDiscount && (
-          <p className="card-rule-text sector-card-discount">Ship Parts auto-scribble Gate needs.</p>
-        )}
         <div className="card-rule-row card-gate-section">
           <span>Without damage:</span>
-          <p className="card-rule-text">{card.gate.clearText}</p>
+          <div className="card-rule-icons">
+            {renderGateClearCost(card.gate.clear.extraFuel, card.gate.clear.extraCrew, `${card.id}-gate-clear`)}
+            {!hasGateClearCost && <span className="card-rule-text">{card.gate.clearText}</span>}
+          </div>
         </div>
       </>
     )

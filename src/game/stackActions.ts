@@ -1,8 +1,10 @@
-import { FUEL_DECK_ID } from './decks'
-import { getNextStopFuelDiscount } from './effects'
+import { FUEL_DECK_ID, FUEL_DISCARD_DECK_ID } from './decks'
+import { getMissionAnyIconSurcharge } from './damage'
+import { getNextGateFuelDiscount, getNextStopFuelDiscount } from './effects'
+import { isGateClearConditionMet } from './blueprints/sectorGates'
 import {
   getGateStackCompletion,
-  getHorizonStackCompletion,
+  getMissionStackCompletion,
   isDiscoveryEffect,
 } from './rules'
 import type {
@@ -77,15 +79,24 @@ function hasFuelDrawWaterPair(stack: Stack, cards: Record<string, Card>) {
   return roles.includes('engineer') && roles.includes('scientist')
 }
 
+function getCrewCards(stack: Stack, cards: Record<string, Card>) {
+  return stack.cardIds.flatMap((cardId) => {
+    const card = cards[cardId]
+
+    return card?.kind === 'crew' ? [card] : []
+  })
+}
+
 function getDrawFuelAction(current: BoardState, stack: Stack): StackAction[] {
   const fuelDeck = current.decks.find((deck) => deck.id === FUEL_DECK_ID)
+  const fuelDiscard = current.decks.find((deck) => deck.id === FUEL_DISCARD_DECK_ID)
 
-  return fuelDeck && fuelDeck.cards.length > 0 && hasFuelDrawWaterPair(stack, current.cards)
+  return fuelDeck && (fuelDeck.cards.length > 0 || (fuelDiscard?.cards.length ?? 0) > 0) && hasFuelDrawWaterPair(stack, current.cards)
     ? [
         {
           id: 'draw-fuel',
           kind: 'draw-fuel',
-          label: 'Draw fuel',
+          label: 'Make fuel',
           stackId: stack.id,
         },
       ]
@@ -93,27 +104,28 @@ function getDrawFuelAction(current: BoardState, stack: Stack): StackAction[] {
 }
 
 function getTravelAction(current: BoardState, stack: Stack): StackAction[] {
-  const completion = getHorizonStackCompletion(
+  const completion = getMissionStackCompletion(
     stack,
     current.cards,
     getNextStopFuelDiscount(current.pendingEffects),
+    getMissionAnyIconSurcharge(current.cards, current.routeSlots),
   )
 
   if (
     completion?.isReady &&
     current.forcedDestinationCardId &&
     current.routeSlots.filter((slot) => slot === null).length <= 1 &&
-    completion.horizonCardId !== current.forcedDestinationCardId
+    completion.missionCardId !== current.forcedDestinationCardId
   ) {
     return []
   }
 
-  return completion?.isReady && current.mapSlots.includes(completion.horizonCardId)
+  return completion?.isReady && current.mapSlots.includes(completion.missionCardId)
     ? [
         {
           id: 'travel',
           kind: 'travel',
-          label: 'Travel',
+          label: 'Complete',
           stackId: stack.id,
         },
       ]
@@ -121,31 +133,55 @@ function getTravelAction(current: BoardState, stack: Stack): StackAction[] {
 }
 
 function getPassGateAction(current: BoardState, stack: Stack): StackAction[] {
+  const serviceDroneBayCount = countSpentShipParts(
+    current.shipPartSlots,
+    'service-drone-bay',
+    current.currentSector,
+  )
+  const gateFuelShipPartDiscount = countSpentShipParts(
+    current.shipPartSlots,
+    'adaptive-control-console',
+    current.currentSector,
+  )
   const completion = getGateStackCompletion(
     stack,
     current.cards,
     current.stressCount,
-    countSpentShipParts(current.shipPartSlots, 'service-drone-bay', current.currentSector),
-    countSpentShipParts(current.shipPartSlots, 'adaptive-control-console', current.currentSector),
+    serviceDroneBayCount,
+    0,
+    0,
+    getNextGateFuelDiscount(current.pendingEffects) + gateFuelShipPartDiscount,
   )
 
-  return completion?.isReady
-    ? [
-        {
-          id: 'pass-gate',
-          kind: 'pass-gate',
-          label: 'Pass gate',
-          stackId: stack.id,
-        },
-      ]
-    : []
+  if (!completion?.isReady) {
+    return []
+  }
+
+  const gateCard = current.cards[completion.gateCardId]
+  const clearsCleanly = !gateCard?.gate || isGateClearConditionMet(
+    gateCard.gate,
+    getCrewCards(stack, current.cards),
+    completion.fuelSpentCount + completion.fuelGeneratedCount,
+    completion.requiredFuelCount,
+    serviceDroneBayCount,
+  )
+
+  return [
+    {
+      id: 'pass-gate',
+      kind: 'pass-gate',
+      label: clearsCleanly ? 'Complete sector' : 'Complete sector with damage',
+      stackId: stack.id,
+    },
+  ]
 }
 
 function getRationPackAction(current: BoardState, stack: Stack): StackAction[] {
   const fuelDeck = current.decks.find((deck) => deck.id === FUEL_DECK_ID)
+  const fuelDiscard = current.decks.find((deck) => deck.id === FUEL_DISCARD_DECK_ID)
   const card = stack.cardIds.length === 1 ? current.cards[stack.cardIds[0] ?? ''] : undefined
 
-  return fuelDeck && fuelDeck.cards.length > 0 && isDiscoveryEffect(card, 'ration_pack')
+  return fuelDeck && (fuelDeck.cards.length > 0 || (fuelDiscard?.cards.length ?? 0) > 0) && isDiscoveryEffect(card, 'ration_pack')
     ? [
         {
           id: 'use-ration',

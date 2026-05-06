@@ -36,6 +36,8 @@ type HandZoneAreaProps = {
   stressCount?: number
   currentSector?: number
   totalSectors?: number
+  missionsCompleted?: number
+  turnNumber?: number
   canInteract: boolean
   onCardPointerDown: HandPointerDownHandler
   onCardKeyDown: HandKeyDownHandler
@@ -98,6 +100,8 @@ export function HandZoneArea({
   stressCount,
   currentSector,
   totalSectors,
+  missionsCompleted,
+  turnNumber,
   canInteract,
   onCardPointerDown,
   onCardKeyDown,
@@ -121,8 +125,19 @@ export function HandZoneArea({
 
   return (
     <div className={`hand-zone hand-zone-${zone}`} data-hand-zone={zone} aria-label={`${label} area`}>
-      {zone === 'tired' && stressCount !== undefined && currentSector !== undefined && totalSectors !== undefined ? (
-        <StressTracker stressCount={stressCount} currentSector={currentSector} totalSectors={totalSectors} />
+      {zone === 'tired' &&
+      stressCount !== undefined &&
+      currentSector !== undefined &&
+      totalSectors !== undefined &&
+      missionsCompleted !== undefined &&
+      turnNumber !== undefined ? (
+        <StressTracker
+          stressCount={stressCount}
+          currentSector={currentSector}
+          totalSectors={totalSectors}
+          missionsCompleted={missionsCompleted}
+          turnNumber={turnNumber}
+        />
       ) : null}
       <span className="hand-zone-label">{label}</span>
       {subtitle && <span className="hand-zone-subtitle">{subtitle}</span>}

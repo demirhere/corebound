@@ -1,4 +1,4 @@
-import type { BoardState, Card, DamageKind, HorizonDetails } from './types'
+import type { BoardState, Card, DamageKind, MissionDetails, RouteSlot } from './types'
 
 export function isDamageSourceCard(card: Card | undefined) {
   return card?.kind === 'hazard' && Boolean(card.hazard)
@@ -30,22 +30,17 @@ export function getDamageDisplayTitle(card: Card) {
   return card.damage && card.hazard ? card.hazard.damageTitle : card.title
 }
 
-export function getDestinationFuelSurcharge(cards: Record<string, Card>, horizon: HorizonDetails | undefined) {
-  if (!horizon) {
-    return 0
-  }
+export function getDestinationFuelSurcharge(cards: Record<string, Card>, mission: MissionDetails | undefined) {
+  void cards
+  void mission
 
-  let surcharge = 0
+  return 0
+}
 
-  if (horizon.need.icons.includes('engine') && hasDamageKind(cards, 'fractured-engine')) {
-    surcharge += 1
-  }
-
-  if (hasDamageKind(cards, 'long-reach')) {
-    surcharge += 1
-  }
-
-  return surcharge
+export function getMissionAnyIconSurcharge(cards: Record<string, Card>, routeSlots: readonly (RouteSlot | null)[]) {
+  return hasDamageKind(cards, 'long-reach') && routeSlots.filter((slot) => slot !== null).length === 2
+    ? 1
+    : 0
 }
 
 export function blocksRoundEndTiredCrewReadying(board: Pick<BoardState, 'cards'>) {

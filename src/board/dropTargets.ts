@@ -10,7 +10,8 @@ import {
   canStackCards,
   isFaceDownStack,
 } from '../game/rules'
-import { getNextStopFuelDiscount } from '../game/effects'
+import { getMissionAnyIconSurcharge } from '../game/damage'
+import { getNextGateFuelDiscount, getNextStopFuelDiscount } from '../game/effects'
 import {
   countSpentShipParts,
   getProtectedRouteCardIds,
@@ -34,8 +35,14 @@ export function getNearestDropTarget(
 ): DropTarget {
   const { stacks, decks, cards } = board
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
+  const gateFuelDiscount = getNextGateFuelDiscount(board.pendingEffects)
   const spentServiceDroneBays = countSpentShipParts(board.shipPartSlots, 'service-drone-bay', board.currentSector)
-  const spentControlConsoles = countSpentShipParts(board.shipPartSlots, 'adaptive-control-console', board.currentSector)
+  const spentAdaptiveControlConsoles = countSpentShipParts(
+    board.shipPartSlots,
+    'adaptive-control-console',
+    board.currentSector,
+  )
+  const missionAnyIconSurcharge = getMissionAnyIconSurcharge(board.cards, board.routeSlots)
   const routeCardIds = new Set(getProtectedRouteCardIds(board.routeSlots, board.shipPartSlots))
   const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
   const sourceHasRouteCard = sourceStack ? stackContainsRouteCard(sourceStack.cardIds, routeCardIds) : false
@@ -90,7 +97,18 @@ export function getNearestDropTarget(
     }
 
     if (
-      !canStackCards(sourceStack, targetStack, cards, fuelDiscount, board.stressCount, spentServiceDroneBays, spentControlConsoles) &&
+      !canStackCards(
+        sourceStack,
+        targetStack,
+        cards,
+        fuelDiscount,
+        board.stressCount,
+        spentServiceDroneBays,
+        0,
+        0,
+        gateFuelDiscount + spentAdaptiveControlConsoles,
+        missionAnyIconSurcharge,
+      ) &&
       !canCombineAsDeck(sourceStack, targetStack, cards)
     ) {
       continue
@@ -121,8 +139,14 @@ export function getStackDropTargetIds(
 ) {
   const { stacks, cards } = board
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
+  const gateFuelDiscount = getNextGateFuelDiscount(board.pendingEffects)
   const spentServiceDroneBays = countSpentShipParts(board.shipPartSlots, 'service-drone-bay', board.currentSector)
-  const spentControlConsoles = countSpentShipParts(board.shipPartSlots, 'adaptive-control-console', board.currentSector)
+  const spentAdaptiveControlConsoles = countSpentShipParts(
+    board.shipPartSlots,
+    'adaptive-control-console',
+    board.currentSector,
+  )
+  const missionAnyIconSurcharge = getMissionAnyIconSurcharge(board.cards, board.routeSlots)
   const routeCardIds = new Set(getProtectedRouteCardIds(board.routeSlots, board.shipPartSlots))
   const sourceStack = stacks.find((stack) => stack.id === sourceStackId)
   const sourceHasRouteCard = sourceStack ? stackContainsRouteCard(sourceStack.cardIds, routeCardIds) : false
@@ -148,7 +172,18 @@ export function getStackDropTargetIds(
       return []
     }
 
-    return canStackCards(sourceStack, targetStack, cards, fuelDiscount, board.stressCount, spentServiceDroneBays, spentControlConsoles) ||
+    return canStackCards(
+      sourceStack,
+      targetStack,
+      cards,
+      fuelDiscount,
+      board.stressCount,
+      spentServiceDroneBays,
+      0,
+      0,
+      gateFuelDiscount + spentAdaptiveControlConsoles,
+      missionAnyIconSurcharge,
+    ) ||
       canCombineAsDeck(sourceStack, targetStack, cards)
       ? [targetStack.id]
       : []

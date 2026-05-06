@@ -34,11 +34,14 @@ type BoardCardProps = {
   stackOffsetRatio: number
   fuelDiscount: number
   fuelSurcharge: number
+  missionAnyIconSurcharge: number
   stressCount: number
   gateExtraCrewCount: number
   gateCrewSlotDiscount: number
   gateIconDiscount: number
+  gateFuelDiscount: number
   isTraveledStop?: boolean
+  isAcquiredShipPart?: boolean
   onPointerDown: CardPointerDownHandler
   onKeyDown: CardKeyDownHandler
 }
@@ -50,11 +53,14 @@ type CardShellProps = {
   isActive?: boolean
   fuelDiscount?: number
   fuelSurcharge?: number
+  missionAnyIconSurcharge?: number
   stressCount?: number
   gateExtraCrewCount?: number
   gateCrewSlotDiscount?: number
   gateIconDiscount?: number
+  gateFuelDiscount?: number
   isTraveledStop?: boolean
+  isAcquiredShipPart?: boolean
   ariaLabel: string
   motionCardId?: string
   dataHandCardId?: string
@@ -70,11 +76,14 @@ export function CardShell({
   isActive = false,
   fuelDiscount = 0,
   fuelSurcharge = 0,
+  missionAnyIconSurcharge = 0,
   stressCount = 0,
   gateExtraCrewCount = 0,
   gateCrewSlotDiscount = 0,
   gateIconDiscount = 0,
+  gateFuelDiscount = 0,
   isTraveledStop = false,
+  isAcquiredShipPart = false,
   ariaLabel,
   motionCardId,
   dataHandCardId,
@@ -90,19 +99,22 @@ export function CardShell({
     card,
     fuelDiscount,
     fuelSurcharge,
+    missionAnyIconSurcharge,
     stressCount,
     gateExtraCrewCount,
     gateCrewSlotDiscount,
     gateIconDiscount,
+    gateFuelDiscount,
+    isAcquiredShipPart,
   )
   const resourceClass = card.kind === 'resource' && card.resource ? `card-resource-${card.resource}` : ''
-  const horizonDetails = card.kind === 'horizon' ? card.horizon : undefined
-  const horizonFindClass = horizonDetails
-    ? horizonDetails.find.kind === 'ship_part' ? 'card-find-ship-part' : 'card-find-visit-reward'
+  const missionDetails = card.kind === 'mission' ? card.mission : undefined
+  const missionFindClass = missionDetails
+    ? missionDetails.find.kind === 'ship_part' ? 'card-find-ship-part' : 'card-find-visit-reward'
     : ''
-  const horizonBadge = horizonDetails?.find.kind === 'ship_part' ? 'Ship Part' : 'Resources'
-  const headerTitle = horizonDetails ? horizonDetails.find.itemName : getDamageDisplayTitle(card)
-  const horizonHeaderDetail = horizonDetails ? renderSectorCardHeaderDetail(card) : null
+  const missionBadge = missionDetails?.find.kind === 'ship_part' ? 'Ship Part' : 'Resources'
+  const headerTitle = missionDetails ? missionDetails.find.itemName : getDamageDisplayTitle(card)
+  const missionHeaderDetail = missionDetails ? renderSectorCardHeaderDetail(card) : null
   const isGateCard = card.kind === 'gate'
   const gateBackTitle = isGateCard ? `${card.title} Final Gate` : null
 
@@ -110,7 +122,7 @@ export function CardShell({
     <div
       className={`card-shell ${card.faceUp ? 'is-face-up' : 'is-face-down'} ${
         isActive ? 'is-being-dragged' : ''
-      } card-kind-${card.kind} ${resourceClass} ${horizonFindClass} ${card.spentMother ? 'is-spent-mother' : ''} ${isTraveledStop ? 'is-traveled-stop' : ''} ${className}`}
+      } card-kind-${card.kind} ${resourceClass} ${missionFindClass} ${card.spentMother ? 'is-spent-mother' : ''} ${isTraveledStop ? 'is-traveled-stop' : ''} ${className}`}
       data-hand-card-id={dataHandCardId}
       data-motion-card-id={motionCardId}
       style={
@@ -139,12 +151,12 @@ export function CardShell({
         <article className="card-face card-front">
           {!usesIntegratedHeader && (
             <header className="card-header">
-              {horizonDetails ? (
+              {missionDetails ? (
                 <>
-                  <span className="card-destination-title">{horizonBadge}</span>
-                  <span className="card-title">{horizonDetails.find.itemName}</span>
-                  {horizonHeaderDetail && (
-                    <span className="card-rule-text sector-card-header-detail">{horizonHeaderDetail}</span>
+                  <span className="card-destination-title">{missionBadge}</span>
+                  <span className="card-title">{missionDetails.find.itemName}</span>
+                  {missionHeaderDetail && (
+                    <span className="card-rule-text sector-card-header-detail">{missionHeaderDetail}</span>
                   )}
                 </>
               ) : (
@@ -194,16 +206,19 @@ export function BoardCard({
   stackOffsetRatio,
   fuelDiscount,
   fuelSurcharge,
+  missionAnyIconSurcharge,
   stressCount,
   gateExtraCrewCount,
   gateCrewSlotDiscount,
   gateIconDiscount,
+  gateFuelDiscount,
   isTraveledStop = false,
+  isAcquiredShipPart = false,
   onPointerDown,
   onKeyDown,
 }: BoardCardProps) {
-  const cardLabel = card.kind === 'horizon' && card.horizon
-    ? `${card.horizon.find.itemName} at ${card.title}`
+  const cardLabel = card.kind === 'mission' && card.mission
+    ? `${card.mission.find.itemName} at ${card.title}`
     : card.kind === 'gate' && !card.faceUp
       ? `${card.title} Final Gate`
       : getDamageDisplayTitle(card)
@@ -222,11 +237,14 @@ export function BoardCard({
       canInteract={canInteract}
       fuelDiscount={fuelDiscount}
       fuelSurcharge={fuelSurcharge}
+      missionAnyIconSurcharge={missionAnyIconSurcharge}
       stressCount={stressCount}
       gateExtraCrewCount={gateExtraCrewCount}
       gateCrewSlotDiscount={gateCrewSlotDiscount}
       gateIconDiscount={gateIconDiscount}
+      gateFuelDiscount={gateFuelDiscount}
       isTraveledStop={isTraveledStop}
+      isAcquiredShipPart={isAcquiredShipPart}
       motionCardId={card.id}
       style={
         {

@@ -5,16 +5,16 @@ This manual describes the current ten-sector Corebound board prototype. It suppo
 Player-facing teach:
 
 ```text
-Pass each sector Gate. Optional Missions reveal 3 Destinations at a time; visit them only if you want ship parts, immediate benefits, or Discoveries before the Gate.
+Pass each sector Gate by paying its Fuel-first cost. Optional Missions reveal 3 Destinations at a time; visit them only if you want ship parts or immediate benefits before the Gate.
 ```
 
 ## Objective
 
 Pass 10 sector Gates. At setup, shuffle the Gate deck and draw the top Gate face up. After each Gate succeeds, draw the next Gate from the top of the visible Gate deck. A sector Gate can be attempted at any time in that sector. Map Destinations are optional preparation, not prerequisites.
 
-Solo: you win when the 10th Gate is completed.
+Solo: you win after the 10th Gate is completed and the round is ended.
 
-Multiplayer: everyone is trying to keep the ship alive, but only the ship's survival creates a score. If the ship is stranded or any Gate cannot be passed, everyone loses. If the final Gate succeeds, count each player's owned surviving crew; the player with the most crew leads the new world.
+Multiplayer: everyone is trying to keep the ship alive, but only the ship's survival creates a score. If the ship runs out of Fuel at round end, is stranded, or any Gate cannot be passed, everyone loses. If the final Gate succeeds, finish the current round, then count each player's owned surviving crew; the player with the most crew leads the new world.
 
 Multiplayer tie-breakers:
 
@@ -22,34 +22,35 @@ Multiplayer tie-breakers:
 2. Most Ready crew.
 3. Shared victory.
 
-You lose if no reachable Mission remains and the current Gate cannot be passed with available Ship Parts, Ready crew, required Fuel, and unused MOTHER cards.
+You lose if the Fuel Supply is empty at round end, or if no reachable Mission remains and the current Gate cannot be passed with available Gate Ship Parts, Ready crew, required Gate Fuel, crew-made Fuel, and allowed MOTHER support.
 
 ## Starting Setup
 
-The prototype uses 10 sectors, one active Missions deck at a time, one Fuel deck, one MOTHER deck, one Cryo deck, one Discovery deck, one Drift deck, one visible Gate deck, one Damage deck, a 3-slot Map, one face-up Gate, a Stress area, and two hand areas: Hand and Tired.
+The prototype uses 10 sectors, one active Missions deck at a time, one Fuel deck, one MOTHER deck, one Cryo deck, one Drift deck, one visible Gate deck, one Damage deck, a 3-slot Map, one face-up Gate, a Stress area, and two hand areas: Hand and Tired. The Discovery deck is temporarily disabled.
 
 On load or restart, setup is staged as an animated deal instead of cards snapping into place. After that animation, the Map is empty; click the active Missions deck to deal the first 3-card Map offer.
 
 | Area | Cards | Setup |
 | --- | ---: | --- |
-| Fuel Supply | 2 Fuel Cell cards | Shuffle 12 Fuel Cells, deal the top 2 face up as the starting Fuel Supply. |
-| Fuel Deck | 10 Fuel Cell cards | The remaining Fuel Cells stay in the Fuel Deck. Fuel rewards draw from here. |
+| Fuel Supply | 1 Fuel Cell card | Shuffle Fuel Cells, deal the top 1 face up as the starting Fuel Supply. |
+| Fuel Deck | 10 Fuel Cell cards | The remaining Fuel Cells stay in the Fuel Deck. Fuel rewards draw from here. If the Fuel Deck is empty when Fuel would be drawn, shuffle the Fuel Discard into the Fuel Deck first. |
+| Fuel Discard | 0 Fuel Cell cards | Starts empty. Fuel spent from the Fuel Supply or burned by Drift goes here, then can be reshuffled into the Fuel Deck. |
 | Starting Crew | 5 crew in solo, even hands in multiplayer | Deal all starting crew as Ready crew. In multiplayer, every launched player starts with the same number of Ready crew; if the 5-card starting set does not divide evenly, draw enough extra crew from the shuffled Cryo deck to finish the even deal. |
 | Tired Crew | 0 crew | Starts empty. Crew used on Destinations or Gates move here. |
-| Missions | 9 Destinations | Shuffle all 9 Destinations for the sector and place them as a manual draw deck titled after the current Gate. Do not deal Map Destinations during setup; the player draws the first Map offer from here. |
-| Map | 0 Destinations before the first draw | Starts empty. After the player draws from Missions, these are the current visible Destinations. Complete 1, keep its card on the board only if it found a Ship Part, and clear Immediate Benefit Destinations with the other visible Destinations. New Map offers are drawn manually from Missions, at most once per turn. |
+| Missions | 15 Destinations | Shuffle all 15 Destinations for the sector and place them as a manual draw deck titled after the current Gate. Do not deal Map Destinations during setup; the player draws the first Map offer from here. |
+| Map | 0 Destinations before the first draw | Starts empty. After the player draws from Missions, these are the current visible Destinations. Complete 1, keep its card on the board only if it found a Ship Part, and clear Resource Destinations with the other visible Destinations. New Map offers are drawn manually from Missions, at most once per turn. |
 | Gate | 1 Gate card | Shuffle all 14 Gates, place the top Gate face up below Missions, and keep the rest visible as the Gate Deck. The run uses 10 of the shuffled Gates in the order they are drawn; the remainder stay unused for this run. The face-up Gate is attemptable anytime. |
 | MOTHER Deck | 6 MOTHER cards | Place as a manual draw deck. Draws 1 card at a time. |
-| Discovery Deck | 24 Discovery cards | Shuffle 3 copies each of 8 Discovery designs. This is reward-only; completing a Destination automatically deals the top Discovery to the earning player's Hand. |
+| Discovery Deck | Disabled | Temporarily not set up. Completing a Destination does not award a Discovery. |
 | Drift Deck | 10 Drift cards | Shuffle 7 Burn and 3 Fatigue receipt cards. This deck resolves automatically after the final player ends their turn each round. Reshuffle the full Drift deck when it is empty before a Drift draw. |
 | Gate Deck | 13 remaining Gates | Shows how many shuffled Gates remain. Each Gate success draws the next Gate from here, for 10 Gates total. |
 | Damage Deck | 12 Damage cards | Shuffle and keep as a reward-only penalty deck. If a passed Gate is not cleared cleanly, draw the top Damage and leave it on the ship board. |
 | Stress | 0 Stress | Spent MOTHER adds Stress. |
-| Cryo Deck | Up to 7 Cryo crew | Shuffle and keep as a reward-only deck. In solo, all 7 Cryo crew start here. In multiplayer, any Cryo crew needed to finish the even starting deal are removed first, so Wake rewards draw from the remaining Cryo deck. |
+| Cryo Deck | Up to 7 Cryo crew | Shuffle and keep for future crew rewards. In solo, all 7 Cryo crew start here. In multiplayer, any Cryo crew needed to finish the even starting deal are removed first. |
 
 ## Crew Icons
 
-Each crew card has two specialization icons. These icons satisfy matching Destination or Gate requirements. Fuel Cells pay Fuel normally. Without enough Fuel Cells, only one Ready Engineer paired with one Ready Scientist can make 1 water to pay 1 Fuel. Other crew pairs cannot pay Fuel.
+Each crew card has two specialization icons. These icons satisfy matching Destination requirements. Gates no longer ask for specialization icons, but some Gate effects can ban crew by icon or by role. Fuel Cells stacked on the Gate pay Gate Fuel normally. Without enough Fuel Cells, only one Ready Engineer paired with one Ready Scientist can make 1 water to pay 1 Fuel. Other crew pairs cannot pay Fuel.
 
 The visible crew icon formerly called Star is now called Nav. Science uses a beaker icon.
 
@@ -73,61 +74,51 @@ The visible crew icon formerly called Star is now called Nav. Science uses a bea
 
 ## Destinations And Finds
 
-Destinations are shuffled into Missions. A sector begins with an empty Map; draw from Missions to reveal 3 face-up Map Destinations side by side, or 2 if Phantom Course Damage is active. Completing a Destination marks it traveled. Ship Part Destination cards move to the route area and remain on the board after sector completion; Immediate Benefit Destination cards clear with the other visible Destinations. You may pass the Gate before visiting any Destination, after one or two Destinations, or after all 3 route slots are full. The next Map offer is not drawn automatically. End the turn, then draw from Missions on a later turn if the Map is empty and you still want more optional preparation.
+Destinations are shuffled into Missions. A sector begins with an empty Map; draw from Missions to reveal 3 face-up Map Destinations side by side, or 2 if Phantom Course Damage is active. Completing a Destination marks it traveled. Ship Part Destination cards move to the route area and remain on the board after sector completion; Resource Destination cards clear with the other visible Destinations. You may pass the Gate before visiting any Destination, after one or two Destinations, or after all 3 route slots are full. The next Map offer is not drawn automatically. End the turn, then draw from Missions on a later turn if the Map is empty and you still want more optional preparation.
 
-Every visible Destination card uses the found item as the main title, labels the find as Ship Part or Resources, shows that item's effect, and shows the completion cost. The physical Destination name is used in logs, accessibility labels, and the manual table below. The destination terrain type is not shown as a rule on the card.
+Every visible Destination card uses the found item as the main title, labels the find as Ship Part or Resources, shows that item's effect, and shows the completion cost. Destination costs are crew-icon combinations only; they never include printed Fuel. The physical Destination name is used in logs, accessibility labels, and the manual table below. The destination terrain type is not shown as a rule on the card.
 
-Each traveled Destination gives exactly one find:
+Each traveled Destination gives one find. Finds can reward Fuel, wake Cryo crew, combine both, or reveal a Ship Part:
 
 ```text
-Immediate Benefit: resolve it now, mark the Destination traveled, then clear its card.
-Ship Part: make that Ship Part available for a Gate and keep its Destination card on the board. It gives no immediate benefit.
+Resources: recover the printed 1-4 Fuel now, mark the Destination traveled, then clear its card.
+Wake: the Mission Lead chooses the printed 1-2 Cryo crew, each joins Tired, and each wake readies 1 crew that was already Tired.
+Ship Part: make that Ship Part available and keep its Destination card on the board. It gives no resource reward.
 ```
 
-No Destination gives both an immediate benefit and a Ship Part. In the current deck, deep-space Destinations provide immediate benefits only; Ship Parts are found at physical destinations.
+No Destination gives both Resources and a Ship Part. Some Wake Destinations also recover 1-2 Fuel.
 
 | Destination | Find | Cost | Result |
 | --- | --- | --- | --- |
-| Dust Garden | Medbay Rehydrator | Life, Nav | Ship Part: Ready 1 Tired crew before Gate. |
-| Life Orchard | Biogel Cache | Fuel 1, Life, Engine | Immediate Benefit: Ready 1 crew. |
-| Cryo Choir | Cryo Access Codes | Fuel 2, Life, Science | Immediate Benefit: Wake 1 crew into Tired and Ready 1 crew. |
-| Sleeper Arklet | Cryo Access Codes | Fuel 2, Life, Life, Nav | Immediate Benefit: Wake 1 crew into Tired and Ready 1 crew. |
-| Iron Wake | Service Drone Bay | Fuel 1, Engine, Engine | Ship Part: Fill 1 Gate crew slot. It provides no icon. |
-| Red Salvage | Fuel Cell Cache | Fuel 1, Engine, Science | Immediate Benefit: Collect 1 Fuel. |
-| Broken Atlas | Survey Archive | Science, Science | Immediate Benefit: Peek at top 2 stops, keep 1. |
-| Gravity Sling | Slingshot Trajectory | Fuel 2, Nav, Engine | Immediate Benefit: Next stop -1 Fuel. |
-| Quiet Relay | Adaptive Control Console | Fuel 1, Science, Nav | Ship Part: Cover 1 missing Gate icon. It fills no crew slot. |
+| Dust Garden | Medbay Rehydrator | Life, Nav | Ship Part: Ready +1 crew after each sector. |
+| Life Orchard | Biogel Fuel Cache | Life, Engine | Resources: Recover 2 Fuel. |
+| Cryo Choir | Cryo Fuel Cells | Life, Science, Science | Resources: Recover 3 Fuel. |
+| Sleeper Arklet | Ark Fuel Vault | Life, Life, Nav, Nav | Resources: Recover 4 Fuel. |
+| Iron Wake | Service Drone Bay | Engine, Engine | Ship Part: Reduce Sector Gate crew need by 1. |
+| Red Salvage | Fuel Cell Cache | Engine, Engine, Science | Resources: Recover 3 Fuel. |
+| Broken Atlas | Atlas Fuel Cache | Science, Science | Resources: Recover 2 Fuel. |
+| Gravity Sling | Slingshot Fuel Reserve | Nav | Resources: Recover 1 Fuel. |
+| Cryo Ping | Cryo Wake Beacon | Science | Wake 1 Cryo crew. |
+| Frost Lullaby | Thaw Ration Cache | Life, Nav | Wake 1 Cryo crew and recover 1 Fuel. |
+| Vault Nursery | Revival Fuel Locker | Engine, Life, Science | Wake 1 Cryo crew and recover 2 Fuel. |
+| Sleeping Convoy | Crew Ark Pods | Nav, Nav, Science | Wake 2 Cryo crew. |
+| Amber Hibernaculum | Biogel Cryo Reserve | Life, Life, Engine, Science | Wake 2 Cryo crew and recover 1 Fuel. |
+| Last Dormitory | Deep Sleep Fuel Cache | Engine, Engine, Life, Nav | Wake 2 Cryo crew and recover 2 Fuel. |
+| Quiet Relay | Adaptive Control Console | Science, Nav | Ship Part: Reduce required Gate Fuel by 1. |
 
 ## Discoveries
 
-When a crew completes a Destination, they bring home one Discovery. Draw the top card of the 24-card Discovery Deck automatically and add it to the earning player's Hand.
+Discoveries are temporarily disabled. The Discovery deck is not set up, and completing a Destination does not draw or award a Discovery.
 
-In solo, you earn every Discovery. In multiplayer, the Discovery goes to the player whose crew committed the most to that Destination. If tied, it goes to the Mission Lead, which is the current turn player.
-
-Discovery cards are not crew. They are specimen-style cards kept in Hand until played. Stack them with the commitment they modify:
-
-| Discovery | Tag | Effect |
-| --- | --- | --- |
-| Star Chart | Crew | This committed crew counts as Nav. |
-| Spare Coil | Crew | This committed crew counts as Engine. |
-| Bio-sample | Crew | This committed crew counts as Life. |
-| Field Notes | Crew | This committed crew counts as Science. |
-| Pressure Suit | Mission | -1 Fuel cost on this Destination. |
-| Coolant Pack | Gate | Clear 1 Stress before this Gate scores. |
-| Local Allies | Gate | Skip 1 extra Gate crew slot. You still must pass the Gate normally. |
-| Ration Pack | Anytime | +1 Fuel to supply, then discard. |
-
-Crew-tag Discoveries pair with adjacent committed crew; the intended physical stack is Discovery under the crew it modifies. The prototype also accepts the reverse adjacent order to make drag-and-drop forgiving. Mission-tag Discoveries must be in the Destination stack. Gate-tag Discoveries must be in the Gate stack. Ration Pack is used by dropping it onto the board by itself, then clicking Use ration above the card.
-
-Ship Parts are controlled by the app at Gates. Medbay Rehydrator spends only if there is a Tired crew to ready. Service Drone Bay and Adaptive Control Console are spent automatically at the next Gate, up to that Gate's crew-slot and icon capacity, so plan as though they will be used at that Gate rather than saved by choice. Each Ship Part can be spent once. Spent Ship Parts stay visible on their traveled Destination cards and cannot be reused. Unspent Ship Parts remain visible and available after the sector Gate resolves, so they can be carried forward to a later Gate.
+Ship Parts are controlled by the app. Medbay Rehydrator readies +1 Tired crew after each sector and stays available. Service Drone Bay spends automatically when the Sector Gate has printed crew need left to reduce. Adaptive Control Console spends automatically when a Gate has required Fuel left to reduce. Service Drone Bay and Adaptive Control Console can each be spent once. Spent Ship Parts stay visible on their traveled Destination cards and cannot be reused. Unspent Ship Parts remain visible and available after the sector Gate resolves, so they can be carried forward to a later Gate.
 
 In multiplayer, Ship Part Blueprints are credited to the Mission Lead who traveled to that Destination for tie-break scoring, but their effects help everyone.
 
 | Ship Part | Gate Effect |
 | --- | --- |
-| Medbay Rehydrator | Ready 1 Tired crew before Gate. |
-| Service Drone Bay | Fill 1 Gate crew slot. It provides no icon. |
-| Adaptive Control Console | Cover 1 missing Gate icon. It fills no crew slot. |
+| Medbay Rehydrator | Ready +1 crew after each sector. |
+| Service Drone Bay | Reduce Sector Gate crew need by 1. |
+| Adaptive Control Console | Reduce required Gate Fuel by 1. |
 
 ## Map Loop
 
@@ -136,124 +127,112 @@ At the start of each sector, the Gate is already visible. The Mission Lead can a
 On your turn, take as many board actions as needed. You may draw Fuel with an Engineer + Scientist stack, draw MOTHER, organize stacks, prepare a Destination, start the Gate, or visit no Destination. You may travel to only one Destination per turn. To visit an optional Destination:
 
 1. Choose 1 face-up Destination from the Map.
-2. Stack its Fuel and icon payment with Ready crew, Fuel Cells, Engineer + Scientist water pairs, and usable MOTHER.
+2. Stack its crew-icon payment with Ready crew and usable MOTHER.
 3. Click the Travel action button above the ready stack to confirm the visit.
 4. Move used crew to Tired.
 5. Spend MOTHER only if needed to cover missing non-Fuel icons.
-6. Resolve the Destination's find. Immediate Benefits resolve now. Ship Parts become available for the Gate.
-7. Award 1 Discovery from the Discovery Deck to the player whose crew committed most. Ties go to the Mission Lead.
+6. Resolve the Destination's find. Fuel rewards recover Fuel now, Wake rewards recruit Cryo crew for the Mission Lead, and Ship Parts become available for the Gate.
+7. Skip Discovery awards while the Discovery deck is disabled.
 8. Mark the completed Destination traveled. Keep its card in the route area only if it found a Ship Part; otherwise clear it with the other Map cards.
 9. Discard the other visible untraveled Map Destinations.
 10. End the turn before drawing a new Map offer. You can also ignore further Missions and start the Gate instead.
 11. If all 3 route slots are full, no more Destinations are traveled in that sector; start the Gate when ready.
 
-After every player has taken one turn, the final End turn press starts Drift before the next round begins unless Last Verge is the active Gate. Interaction locks, the top Drift card flips face up, and shortly after it is fully revealed it is discarded and resolved. Drift Loop Damage resolves 2 Drift cards at round end:
+After every player has taken one turn, the final End turn press starts Drift before the next round begins. Interaction locks, the top Drift card flips face up, and shortly after it is fully revealed it is discarded and resolved. Drift Loop Damage resolves 2 Drift cards at round end:
 
 | Drift | Count | Effect |
 | --- | ---: | --- |
-| Burn | 7 | Discard 1 Fuel from the Fuel Supply. If no Fuel is available, discard nothing. |
+| Burn | 7 | Discard 1 Fuel from the Fuel Supply. If no Fuel is available, discard nothing; the ship still loses if Fuel is empty when round end finishes. |
 | Fatigue | 3 | Move the first Ready crew in the shared Hand order to Tired. If no Ready crew is available, add 1 Stress. |
 
-After the Drift card is discarded and its effect resolves, each player readies their longest-Tired crew card that was already Tired at the start of the round. Crew that became Tired during this round, including from this Drift card, cannot be readied by this round-end step. If a player has no eligible Tired crew, that player readies nothing.
+After the Drift card is discarded and its effect resolves, each player readies their longest-Tired crew card that was already Tired at the start of the round. Crew that became Tired during this round, including from this Drift card, cannot be readied by this round-end step. If a player has no eligible Tired crew, that player readies nothing. If the Fuel Supply is empty after Drift and round-end effects, the ship loses immediately.
 
-Last Verge holds round-end Drift cards in reserve. When that Gate begins, all held Drift cards resolve immediately before Ship Parts apply.
+Gates with the extra-Drift effect resolve 1 additional Drift card when the Gate begins, before Ship Parts apply.
 
 In solo, every turn is also a full round, so Drift resolves after each End turn press.
 
-In multiplayer, the current turn player is the Mission Lead. Only the Mission Lead can draw decks, move table cards freely, trigger stack actions, choose Wake or Scout rewards, pass Gates, and end the turn. Other players can still commit their own Ready crew and Discovery cards by clicking or dragging a card out of their Hand area, and can remove their own committed cards from the board by clicking them or dragging them back to their Hand area.
+In multiplayer, the current turn player is the Mission Lead. Only the Mission Lead can draw decks, move table cards freely, trigger stack actions, choose pending reward panels, pass Gates, and end the turn. Other players can still commit their own Ready crew by clicking or dragging a card out of their Hand area, and can remove their own committed crew from the board by clicking them or dragging them back to their Hand area.
 
 Important: a Ship Part cannot help complete the Destination that created it. Ship Parts are available only after that Destination's completion fully resolves.
 
-Important: crew-made water for Fuel payment requires exactly one Ready Engineer plus one Ready Scientist per Fuel. Those two crew cannot also satisfy Destination icons for that same completion, and they move to Tired with the other used crew.
+Important: crew-made water for Fuel payment requires exactly one Ready Engineer plus one Ready Scientist per Fuel. Those two crew cannot also fill Gate crew slots for that same completion, and they move to Tired with the other used crew.
 
-## Immediate Benefits
+## Destination Rewards
 
-Collect 1 Fuel draws 1 Fuel Cell from the Fuel Deck into play. It stacks onto the existing Fuel Supply if one is in play, otherwise it appears at the Fuel Supply setup position. Fuel rewards help the shared ship.
+Fuel rewards draw the printed number of Fuel Cells from the Fuel Deck into play. They stack onto the existing Fuel Supply if one is in play, otherwise they appear at the Fuel Supply setup position. If the Fuel Deck is empty, shuffle the Fuel Discard into it first. Fuel rewards help the shared ship.
 
-Wake 1 reveals up to 2 cards from the Cryo Deck. Choose 1 to recruit into the back of Tired, then Ready 1 crew from the front of the Tired row. Unchosen Cryo crew go to the bottom of the Cryo Deck. In multiplayer, the recruited crew belongs to the Mission Lead.
-
-Scout N looks at the top N Missions cards. Choose the card you like to keep on top of Missions. The others are sent to the back in their revealed order. If Scout resolves after a Destination, complete the Scout choice before the turn continues; it does not draw the next 3-card Map offer automatically. Scout is skipped if it is earned when all 3 route slots are full, because no more Destinations can be traveled in that sector.
-
-Ready 1 moves the front Tired crew card back to the Hand area. Ready rewards help the shared ship.
-
-Next stop -1 Fuel creates a pending -1 Fuel discount for the next Destination completion in the current sector. It expires at Gate transition if unused.
+Wake rewards draw 2 Cryo crew choices at a time. The Mission Lead chooses 1, that crew joins Tired under the Mission Lead's ownership, and then 1 crew that was already Tired readies. Wake 2 rewards repeat this process once if enough Cryo crew remain.
 
 ## Gate Cards
 
 Each sector Gate has two layers:
 
 ```text
-1. Pass the Gate's basic requirements: crew slots, icons, and any Gate resolve costs.
-2. Clear the Gate's clean-clear condition.
+1. Pass the Gate's basic requirements: Fuel, 0-1 crew, and any Gate resolve costs.
+2. Pay the Gate's extra clean-clear Fuel/Crew cost.
 ```
 
 Passing the Gate is required. If you fail to pass, the ship loses at the Gate. Clearing the Gate cleanly is optional. If you pass but do not clear it, draw the top Damage card and leave it visible on the ship board for the rest of the run. Damage effects apply to all future rounds.
 
-Gate requirements are two separate base checks: crew slots and required icons. Gate effects can add costs, block support, or change how those checks count.
+Gate requirements are Fuel-first checks. Current Gates cost 3-5 Fuel before discounts and may require 0-1 crew to pass. Gates do not show or require Gate icons. Gate effects can block support, ban a crew category, add a MOTHER Fuel surcharge, or force an extra Drift card before the Gate can finish.
 
-| Gate | Slots | Icons | Effect at Resolve | Clear |
-| --- | ---: | --- | --- | --- |
-| Narrow Crossing | 3 | Engine, Life, Nav | None. Clean Gate. | Commit 1 crew beyond minimum. |
-| Quiet Drift | 3 | Engine, Engine, Nav | First crew committed contributes 0 icons. | Commit 4+ crew total. |
-| Old Pass | 3 | Nav, Life, Science | Engine-icon crew cost +1 Fuel each. | Commit 2+ Engineers. |
-| Lost Beacon | 3 | Engine, Life, Nav | -1 slot capacity: need 1 extra crew. | Spend 2 MOTHER. |
-| Dust Reach | 4 | Engine, Nav, Life | Discoveries cannot be played. | Have 0 Tired crew committed. |
-| Cold Mirror | 4 | Engine, Engine, Life | Ship Part / Blueprint "ready Tired" effects blocked. | Commit 2+ Medics. |
-| Echo Vault | 4 | Nav, Science, Life | MOTHER unusable. | Commit a Pilot. |
-| Ash Belt | 4 | Engine, Engine, Nav | If Stress is 3+, +1 slot needed. | Stress = 0 at Resolve. |
-| Black Threshold | 4 | Life, Life, Science | Each Blueprint that triggers adds 1 Stress. | Commit 2+ Scientists. |
-| Hollow Span | 4 | Nav, Engine, Science | Ship Parts unusable. | Commit 5+ crew total. |
-| Iron Shoal | 5 | Engine, Engine, Nav, Science | MOTHER cannot substitute for icons. | Commit 5 different crew roles. |
-| Last Verge | 5 | Engine, Life, Nav, Science | All Drift cards held in reserve trigger before Resolve. | Commit 2+ crew of same role. |
-| Drowned Comm | 5 | Engine, Life, Life, Nav | The leftmost committed crew has 1 icon ignored. | Commit a Recon and a Medic. |
-| The Reach | 5 | Engine, Life, Nav, Science | One icon type chosen by the Mission Lead must be covered twice. | Commit 6+ crew total. |
+Clean-clear costs are extra costs above the pass requirement. The app spends the extra clean-clear Fuel automatically if the Gate can afford it; commit any listed extra crew if you want to avoid Damage.
+
+| Gate | Pass Fuel | Pass Crew | Effect at Resolve | Clean Clear |
+| --- | ---: | ---: | --- | --- |
+| Narrow Crossing | 3 | 0 | MOTHER cannot be used. | No extra cost. |
+| Quiet Drift | 3 | 0 | Resolve 1 extra Drift before passing. | Pay +1 Fuel. |
+| Old Pass | 3 | 1 | Engine crew cannot be committed. | Commit +1 crew. |
+| Lost Beacon | 3 | 0 | Nav crew cannot be committed. | Pay +2 Fuel. |
+| Dust Reach | 4 | 0 | Life crew cannot be committed. | Pay +1 Fuel and commit +1 crew. |
+| Cold Mirror | 4 | 1 | Medic crew cannot be committed. | Commit +1 crew. |
+| Echo Vault | 4 | 0 | MOTHER cannot be used. | Pay +2 Fuel. |
+| Ash Belt | 4 | 1 | Every MOTHER used requires +1 Fuel. | Pay +1 Fuel and commit +1 crew. |
+| Black Threshold | 4 | 0 | Science crew cannot be committed. | Pay +2 Fuel. |
+| Hollow Span | 4 | 1 | Engineer crew cannot be committed. | Pay +1 Fuel and commit +1 crew. |
+| Iron Shoal | 5 | 0 | Pilot crew cannot be committed. | Pay +2 Fuel. |
+| Last Verge | 5 | 1 | Resolve 1 extra Drift before passing. | Pay +1 Fuel and commit +2 crew. |
+| Drowned Comm | 5 | 0 | Scientist crew cannot be committed. | Pay +2 Fuel and commit +1 crew. |
+| The Reach | 5 | 1 | Every MOTHER used requires +1 Fuel. | Pay +2 Fuel and commit +2 crew. |
 
 ### Damage Deck
 
-The Damage deck is a standalone 12-card deck. If a Gate is passed but not cleared cleanly, draw the top Damage card automatically, leave it visible on the ship board, and apply it to all future rounds. Cards marked "(to be implemented)" are visible but have no active effect yet.
+The Damage deck is a standalone 11-card deck. If a Gate is passed but not cleared cleanly, draw the top Damage card automatically, leave it visible on the ship board, and apply it to all future rounds. Cards marked "(to be implemented)" are visible but have no active effect yet.
 
 | Damage | Effect | Trigger |
 | --- | --- | --- |
-| Fractured Engine | Mission Engine costs +1 Fuel. | At each Mission attempt. |
+| Fractured Engine | Engine Missions require +1 Engine icon. (to be implemented) | At each Mission attempt. |
 | Frozen Sector | No Tired-to-Ready trickle at round end. | Each round end. |
 | Comm Failure | Each MOTHER use costs +1 Fuel. | When MOTHER is spent. |
 | Sensor Loss | Cannot peek anything. | Always. |
 | Hull Crack | +1 Stress at each round end. | Each round end. |
-| Crew Quarters Damaged | Discovery hand limit -1. (to be implemented) | Always. |
-| Mission Lead Injured | Mission Lead may not commit a 4th crew per turn. (to be implemented) | Each turn. |
-| Sealed Cargo | First Mission per sector gives no Discovery. | Each sector. |
+| Crew Quarters Damaged | Discovery hand limit -1. No current impact while Discoveries are disabled. | Always. |
+| Sealed Cargo | First Mission per sector gives no Discovery. No current impact while Discoveries are disabled. | Each sector. |
 | Stress Echo | Each MOTHER spend adds 1 extra Stress. | When MOTHER is spent. |
-| Phantom Course | Sector Stops reveals 2 Missions instead of 3. | Each sector start. |
+| Phantom Course | Missions reveal 2 cards instead of 3. | Each sector start. |
 | Drift Loop | Drift flips happen 2x per round end. | Each round end. |
-| Long Reach | All Mission Fuel costs +1. | At each Mission attempt. |
+| Long Reach | The 3rd Mission in a sector requires +1 crew icon. | At each Mission attempt. |
 
-Gate resolution is confirmed from stack actions. Each sector Gate is dealt face up and remains visible. Available Ship Parts apply automatically when the Gate begins unless the Gate blocks them: Medbay Rehydrators ready Tired crew, Service Drone Bays scribble out crew slots, and Adaptive Control Consoles scribble out required icons. If the Gate is already started and a later optional Destination creates a Ship Part, the app applies that Ship Part before the Gate is passed if the Gate allows it. Then stack Ready crew, any required Gate Fuel, and usable MOTHER onto the Gate and click Pass Gate when the pass requirements are satisfied.
+Gate resolution is confirmed from stack actions. Each sector Gate is dealt face up and remains visible. Available Gate Ship Parts apply automatically when the Gate begins: Service Drone Bays scribble out printed Gate crew need, and Adaptive Control Consoles scribble out required Gate Fuel. Medbay Rehydrators apply after the sector instead. If the Gate is already started and a later optional Destination creates a Gate Ship Part, the app applies that Ship Part before the Gate is passed. Then stack required Fuel Cells from the Fuel Supply, required Ready crew, any extra clean-clear crew, and any water-pair crew needed for missing Fuel onto the Gate. Click the Gate action when the stack satisfies the pass requirements. The action says Complete sector with damage when the Gate can pass but the clean-clear cost is missing.
 
 Gate resolution order:
 
-1. Apply stacked Coolant Packs to clear Stress before the Gate scores.
-2. Resolve any held Drift from Last Verge.
-3. Apply any Medbay Rehydrators automatically to Ready Tired crew unless this Gate blocks ready-Tired effects.
-4. Apply any Service Drone Bays automatically to fill crew slots.
-5. Apply any Adaptive Control Consoles automatically to cover missing icons.
-6. If Black Threshold is active, add 1 Stress for each Ship Part Blueprint that triggered.
-7. Check Stress. If Ash Belt is active and Stress is 3 or more, add 1 red crew slot to the Gate.
-8. Apply stacked Local Allies to skip extra Gate crew slots.
-9. Commit Ready crew to fill all remaining crew slots.
-10. Apply Gate icon changes such as Quiet Drift, Drowned Comm, and The Reach.
-11. Check required icons shown by committed crew, including paired Crew-tag Discoveries.
-12. Count already-applied Adaptive Control Consoles against missing Gate icons.
-13. Spend MOTHER only for remaining missing non-Fuel icons if this Gate allows it.
-14. If all crew slots are filled and all icons are shown or covered, the Gate is passed.
-15. Check the Gate clear condition. If it is not cleared, draw the top Damage card and leave it on the ship board.
-16. If the Gate pass requirements are not met, the ship fails at the Gate.
+1. Resolve 1 extra Drift if this Gate requires extra Drift.
+2. Apply any Service Drone Bays automatically to reduce printed Gate crew need.
+3. Apply any Adaptive Control Consoles automatically to reduce required Gate Fuel.
+4. Spend required Gate Fuel from the committed Fuel Cells. If Fuel is short, committed Engineer + Scientist water pairs can cover missing Fuel.
+5. Commit Ready crew to fill all remaining crew slots.
+6. Check whether the Gate's effect bans any committed crew or MOTHER.
+7. If Fuel is paid and all crew slots are filled, the Gate is passed.
+8. Check the Gate clean-clear Fuel/Crew cost. If it is not cleared, draw the top Damage card and leave it on the ship board.
+9. If the Gate pass requirements are not met, the ship fails at the Gate.
 
 Non-negotiable clarifications:
 
 ```text
 MOTHER can cover icons only. MOTHER never fills a crew slot.
-Adaptive Control Console can cover icons only. It never fills a crew slot.
-Service Drone Bay fills a crew slot only. It never provides an icon.
+Adaptive Control Console reduces required Gate Fuel only. It never fills a crew slot.
+Service Drone Bay reduces printed Sector Gate crew need only. It never reduces Fuel or clean-clear crew costs.
 ```
 
 ## Stress And MOTHER
@@ -270,17 +249,16 @@ Stress rules:
 
 ```text
 Each spent MOTHER adds 1 Stress.
-If Ash Belt is the active Gate and Stress is 3 or more, add 1 red crew slot.
 Stress carries forward across all sectors of the run.
 ```
 
 ## Valid Completion Stacks
 
-A Destination completion stack can contain the Destination card, Ready crew, Fuel Cells, usable MOTHER cards, Crew-tag Discoveries paired with committed crew, and Mission-tag Discoveries stacked on that Destination. Crew paying Fuel must be valid Engineer + Scientist water pairs. Other card types block completion.
+A Destination completion stack can contain the Destination card, Ready crew, and usable MOTHER cards. Other card types block completion.
 
-A Ship Part blueprint Destination can also be used as a temporary prep pile with Ready crew, Fuel Cells, and usable MOTHER before it is ready to complete.
+A Ship Part blueprint Destination can also be used as a temporary prep pile with Ready crew and usable MOTHER before it is ready to complete.
 
-A Gate completion stack can contain the Gate card, Ready crew, usable MOTHER cards, Crew-tag Discoveries paired with committed crew, and Gate-tag Discoveries stacked on that Gate. Fuel Cells are allowed only when the Gate or Damage requires Gate Fuel, such as Old Pass or Comm Failure; otherwise Fuel Cells and other card types block completion.
+A Gate completion stack can contain the Gate card, Ready crew, Fuel Cells, and usable MOTHER cards. Every Gate requires committed Fuel or committed Engineer + Scientist water pairs to cover missing Fuel. Fuel Cells can also be stacked when extra Gate or Damage Fuel costs apply, such as clean-clear Fuel or Comm Failure. Other card types block completion.
 
 Completion never happens automatically, except automatic Ship Part Gate modifiers. When a stack satisfies an active requirement, an action button appears above that stack. Click the button to resolve the action.
 
@@ -289,49 +267,48 @@ The current stack actions are:
 | Stack | Action |
 | --- | --- |
 | Engineer + Scientist | Draw 1 Fuel from the Fuel Deck; both crew move to Tired. |
-| Ration Pack by itself | Use ration to draw 1 Fuel from the Fuel Deck to the Fuel Supply, then discard the Ration Pack. |
 | Ready Destination payment | Travel to that Destination. |
-| Ready Gate payment | Pass the Gate. |
+| Ready Gate payment | Pass the Gate. If clean-clear costs are missing, the action says Complete sector with damage. |
 
 ## Sector Transition
 
 After each non-final Gate succeeds:
 
-1. The current sector's route progress resets. Any unresolved visible Map Destinations are discarded. Immediate Benefit traveled Destinations leave the board; Ship Part Destination cards remain visible.
+1. The current sector's route progress resets. Any unresolved visible Map Destinations are discarded. Resource traveled Destinations leave the board; Ship Part Destination cards remain visible.
 2. Ship Part Destination cards stay on the board. Unspent Ship Parts remain available; spent Ship Parts remain spent.
-3. All Tired crew become Ready.
-4. Fuel carries forward.
+3. Each available Medbay Rehydrator readies +1 Tired crew. Other Tired crew stay Tired until normal round-end readiness or another effect readies them.
+4. Fuel carries forward, and spent Fuel in the Fuel Discard can be reshuffled into the Fuel Deck when needed.
 5. Stress carries forward.
 6. If the Gate was not cleared cleanly, the drawn Damage remains visible and its effect carries forward across all remaining sectors.
 7. The 9 Destinations are reshuffled for the next sector and placed in Missions titled after the next Gate.
 8. Draw the next Gate from the Gate Deck, place it face up below Missions, and attempt it anytime.
 9. The next sector's Map starts empty; click Missions to fill the Map.
 
-After the 10th Gate succeeds, the player wins.
+After the 10th Gate succeeds, play locks to End run presses. When the final player ends the round and Drift/readiness resolves, the run scores and the arrival screen appears.
 
 ## Prototype Controls
 
-Click a manual deck, or press Enter or Space while it is focused, to draw from it. Missions draws one 3-card Map offer per turn when the Map is empty. The MOTHER Deck draws 1 card, stacking onto an existing usable MOTHER stack if one is in play or dealing next to the MOTHER Deck setup position otherwise. Scout can set the top card before a future Missions draw.
+Click a manual deck, or press Enter or Space while it is focused, to draw from it. Missions draws one 3-card Map offer per turn when the Map is empty. The MOTHER Deck draws 1 card, stacking onto an existing usable MOTHER stack if one is in play or dealing next to the MOTHER Deck setup position otherwise.
 
 In multiplayer, you see only your own Hand and Tired areas. You can see each other player's total crew count plus Ready and Tired counts in the player panel.
 
 Drag decks to reposition them. A deck can merge only with another deck containing the same card family, such as Fuel with Fuel or MOTHER with MOTHER.
 
-Drag Ready crew and Discovery cards from the Hand area onto the board. Tired crew cannot be dragged manually unless an Immediate Benefit or Medbay Rehydrator readies them first.
+Drag Ready crew from the Hand area onto the board. Tired crew cannot be dragged manually until round-end readiness, Medbay Rehydrator, or another effect readies them first.
 
-Drag a card stack onto a highlighted valid target to combine it into a Destination, Gate, Ship Part blueprint prep pile, Discovery pairing, or temporary support stack of Ready crew, Fuel Cells, Engineer + Scientist water pairs, and usable MOTHER cards. Dragging from a card inside a stack splits that card and every card above it into a new moving stack. When a stack has an available action, click the button above it to confirm.
+Drag a card stack onto a highlighted valid target to combine it into a Destination, Gate, Ship Part blueprint prep pile, or temporary support stack of Ready crew, Fuel Cells, Engineer + Scientist water pairs, and usable MOTHER cards. Dragging from a card inside a stack splits that card and every card above it into a new moving stack. When a stack has an available action, click the button above it to confirm.
 
-Drag visible traveled Ship Part Destination cards onto each other to stack them and organize board space. During the Gate, the app applies available Ship Parts automatically; no Gate stacking is required. Ship Part cards cannot be discarded.
+Drag visible traveled Ship Part Destination cards onto each other to stack them and organize board space. During the Gate, the app applies available Gate Ship Parts automatically; no Gate stacking is required. Ship Part cards cannot be discarded.
 
-Use the End turn button to start the next turn and refresh the once-per-turn Missions draw permission. Missions are drawn manually from the Missions deck; End turn no longer forces a Mission draw. On the final turn of a round, End turn draws and reveals Drift first; controls stay disabled until the Drift card discards, resolves, and each player readies their longest eligible Tired crew.
+Use the End turn button to start the next turn and refresh the once-per-turn Missions draw permission. Missions are drawn manually from the Missions deck; End turn no longer forces a Mission draw. On the final turn of a round, End turn draws and reveals Drift first; controls stay disabled until the Drift card discards, resolves, and each player readies their longest eligible Tired crew. After the final Gate succeeds, this control becomes End run; the arrival screen waits until the last player presses it and round-end effects resolve.
 
-Drag an all-crew, all-Discovery, or mixed crew-and-Discovery stack back to the Hand area to return those cards to hand.
+Drag an all-crew stack back to the Hand area to return those cards to hand.
 
-Off-turn multiplayer players cannot freely drag stacks, draw decks, use stack actions, or end the turn. They can click or drag one of their own Ready crew or Discovery cards to add it to the board, and click or drag one of their own crew or Discovery cards on the board to return it to their Hand area.
+Off-turn multiplayer players cannot freely drag stacks, draw decks, use stack actions, or end the turn. They can click or drag one of their own Ready crew cards to add it to the board, and click or drag one of their own crew cards on the board to return it to their Hand area.
 
 Drag a stack or Ready crew card to the discard zone to discard it. Gates, Damage, active Map Destinations, and visible traveled Ship Part Destinations cannot be discarded.
 
-Resolve Wake and Scout choice panels before taking more board actions.
+Resolve pending choice panels before taking more board actions.
 
 Use Restart and reshuffle to start a fresh random run.
 
@@ -356,25 +333,27 @@ On the Netlify deployment, the app expects the PartyKit server at `corebound.dem
 
 Players who are connected on the start screen become the player roster when Launch is pressed. Late joiners after launch receive the current table state but are not added to the scoring roster for that run.
 
-The app still accepts `role=observer` for a read-only view. Observers receive card and deck positions, active stack/deck drag previews, Wake and Scout dialogs, How to Play dialog state, win/loss screens, and playtest log state.
+The app still accepts `role=observer` for a read-only view. Observers receive card and deck positions, active stack/deck drag previews, pending choice dialogs, How to Play dialog state, win/loss screens, and playtest log state.
 
 ## Win And Loss Summary
 
-Solo: win by completing the 10th Gate.
+Solo: win by completing the 10th Gate, pressing End run, and resolving round end.
 
 Multiplayer scoring happens only if the ship survives:
 
 ```text
-If the ship is stranded or any Gate fails: everyone loses.
-If the final Gate succeeds: count each player's owned crew.
+If the ship runs out of Fuel at round end, is stranded, or any Gate fails: everyone loses.
+If the final Gate succeeds: finish the round, then count each player's owned crew.
 Most crew wins.
 ```
 
-Count both Ready and Tired crew. They survived. If crew totals tie, compare Blueprints built, then Ready crew. If still tied, the victory is shared.
+Count both Ready and Tired crew. If crew totals tie, compare Blueprints built, then Ready crew. If still tied, the victory is shared.
 
-Lose as Stranded in the Reach if no reachable Mission remains and the current Gate cannot be passed with available resources. This can happen when the Map is empty and Missions has no cards left, or when visible Map Destinations exist but none can be completed with available Fuel, Ready crew, crew-made water, and unused MOTHER, and the Gate is also out of reach.
+Lose as Fuel exhausted if the Fuel Supply is empty after Drift and round-end effects finish.
 
-Lose as The Gate cannot be passed if the current Gate cannot be completed with available Ship Parts, Ready crew cards, required Gate Fuel, and unused MOTHER cards for missing icons. Available Ship Parts include unspent parts carried from an earlier sector unless the Gate blocks Ship Parts. Unused MOTHER includes usable MOTHER cards in play plus cards still in the MOTHER Deck, subject to Gate and Damage restrictions.
+Lose as Stranded in the Reach if no reachable Mission remains and the current Gate cannot be passed with available resources. This can happen when the Map is empty and Missions has no cards left, when visible Map Destinations exist but none can be completed with Ready crew and unused MOTHER, or when the Fuel Supply, Fuel Deck, and Fuel Discard cannot produce enough Fuel and the Gate is also out of reach.
+
+Lose as The Gate cannot be passed if the current Gate cannot be completed with available Gate Ship Parts, Ready crew cards, required Gate Fuel, crew-made Fuel, and any allowed MOTHER support. Available Gate Ship Parts include unspent Service Drone Bays and Adaptive Control Consoles carried from an earlier sector. Unused MOTHER includes usable MOTHER cards in play plus cards still in the MOTHER Deck, subject to Gate and Damage restrictions.
 
 There is no active Hull, health, sector field, score track, market, relic system, Research repair deck, or character progression in this prototype. Damage is active and permanent for the run.
 
@@ -386,33 +365,30 @@ CORE LOOP
 Start each sector: read the face-up Gate. Either start the Gate now, or click Missions to draw optional Map Destinations. Draw a new Map offer at most once per turn.
 
 1. If you want preparation, choose 1 of 3 Map Destinations.
-2. Pay Fuel + icons.
-   Engineer + Scientist = 1 water for Fuel.
+2. Pay crew icons.
+   MOTHER can cover missing non-Fuel icons.
 3. Click Travel above the ready stack.
 4. Move used crew to Tired.
 5. Resolve the find.
-   Immediate Benefit = resolve now.
+   Resources = recover Fuel now.
+   Wake = Mission Lead recruits Cryo crew into Tired, then readies crew.
    Ship Part = save; applies automatically at a Gate.
-6. Earn 1 Discovery for the player whose crew committed most.
-7. Keep Ship Part Destinations on the board; clear Immediate Benefit Destinations.
-8. Discard the other Map Destinations.
-9. End turn before drawing a new Map offer.
-10. After the final player ends their turn, resolve 1 Drift card, then ready each player's longest-Tired crew that was already Tired at the start of the round.
+6. Keep Ship Part Destinations on the board; clear Resource and Wake Destinations.
+7. Discard the other Map Destinations.
+8. End turn before drawing a new Map offer.
+9. After the final player ends their turn, resolve 1 Drift card, then ready each player's longest-Tired crew that was already Tired at the start of the round.
 
 DISCOVERIES
 
-Crew tags pair with committed crew.
-Mission tags stack on Destinations.
-Gate tags stack on Gates.
-Ration Pack drops by itself, then Use ration.
+Temporarily disabled. Destinations do not award Discovery cards.
 
-Gate anytime: pass the Gate to survive; clear it cleanly to avoid drawing permanent Damage.
+Gate anytime: spend 3-5 Fuel, pass the Gate to survive, and clear it cleanly with extra Fuel/Crew to avoid drawing permanent Damage.
 
 SHIP PARTS
 
-Medbay Rehydrator: ready 1 Tired crew.
-Service Drone Bay: fill 1 crew slot, no icon.
-Adaptive Control Console: cover 1 icon, no crew slot.
+Medbay Rehydrator: ready +1 crew after each sector.
+Service Drone Bay: reduce Sector Gate crew need by 1.
+Adaptive Control Console: reduce required Gate Fuel by 1.
 Unspent Ship Parts carry forward after a Gate.
 
 MOTHER
@@ -420,10 +396,11 @@ MOTHER
 MOTHER covers icons only.
 MOTHER never fills crew slots.
 Each spent MOTHER adds 1 Stress.
-At 3+ Stress, Ash Belt adds 1 crew slot while it is the active Gate.
+Some Gates ban MOTHER or make each MOTHER require +1 Fuel.
 
 STUCK?
 
+If Fuel is empty at round end, you lose as Fuel exhausted.
 If no reachable Mission remains and the Gate cannot be passed, you lose as Stranded in the Reach.
 
 MULTIPLAYER
@@ -431,7 +408,8 @@ MULTIPLAYER
 Mission Lead takes the full turn.
 Other players may only add or remove their own crew by click or drag.
 Shared rewards help the ship.
-Crew rewards join the Mission Lead.
+Fuel rewards help the shared ship.
+Wake rewards add crew for the Mission Lead.
 Blueprints help everyone, but score for the Mission Lead who found them.
-Any ship loss means everyone loses; only the 10th Gate success scores crew.
+Any ship loss means everyone loses; only 10th Gate success plus final round end scores crew.
 ```

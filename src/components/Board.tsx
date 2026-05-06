@@ -2,8 +2,8 @@ import {
   type PointerEvent as ReactPointerEvent,
   type Ref,
 } from 'react'
-import { getNextStopFuelDiscount } from '../game/effects'
-import { getDestinationFuelSurcharge } from '../game/damage'
+import { getNextGateFuelDiscount, getNextStopFuelDiscount } from '../game/effects'
+import { getDestinationFuelSurcharge, getMissionAnyIconSurcharge } from '../game/damage'
 import { getGateExtraCrewSlots } from '../game/blueprints/sectorGates'
 import type { BoardState, ShipPartKind } from '../game/types'
 import {
@@ -52,6 +52,10 @@ function countSpentShipParts(board: BoardView, shipPart: ShipPartKind) {
   ), 0)
 }
 
+function isFinalTurnOfRound(board: BoardView) {
+  return board.players.length <= 1 || board.turnPlayerIndex >= board.players.length - 1
+}
+
 type BoardProps = {
   board: BoardView
   boardRef: Ref<HTMLDivElement>
@@ -65,6 +69,7 @@ type BoardProps = {
   localPlayerId: string | null
   canMoveBoardFreely: boolean
   canUseOwnCrew: boolean
+  canEndTurn: boolean
   isLocalTurn: boolean
   stackOffsetRatio: number
   onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void
@@ -97,6 +102,7 @@ export function Board({
   localPlayerId,
   canMoveBoardFreely,
   canUseOwnCrew,
+  canEndTurn,
   isLocalTurn,
   stackOffsetRatio,
   onPointerMove,
@@ -116,7 +122,7 @@ export function Board({
   onResetGame,
 }: BoardProps) {
   const isGameOver = board.hasArrived || Boolean(board.lossReason)
-  const canEndTurn = canMoveBoardFreely &&
+  const canEndTurnNow = canEndTurn &&
     !board.hasArrived &&
     !board.lossReason &&
     !board.pendingWakeChoice &&
@@ -128,17 +134,26 @@ export function Board({
   const visibleTiredCardIds = getVisibleTiredCardIds(board, localPlayerId)
   const endTurnLabel = board.pendingDrift
     ? 'Resolving drift'
-    : !isLocalTurn ? 'Waiting for other player'
-    : 'End turn'
+    : !isLocalTurn
+      ? 'Waiting for other player'
+      : board.isRunEnding
+        ? 'End run'
+        : 'End turn'
+  const endTurnSublabel = canEndTurnNow && !board.isRunEnding && isFinalTurnOfRound(board)
+    ? 'Draws drift'
+    : null
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
   const gateCrewSlotDiscount = countSpentShipParts(board, 'service-drone-bay')
-  const gateIconDiscount = countSpentShipParts(board, 'adaptive-control-console')
+  const gateFuelShipPartDiscount = countSpentShipParts(board, 'adaptive-control-console')
+  const gateIconDiscount = 0
+  const gateFuelDiscount = getNextGateFuelDiscount(board.pendingEffects) + gateFuelShipPartDiscount
+  const missionAnyIconSurcharge = getMissionAnyIconSurcharge(board.cards, board.routeSlots)
   const gateDetails = Object.values(board.cards).find((card) => card.kind === 'gate' && card.gate)?.gate
   const gateExtraCrewCount = gateDetails ? getGateExtraCrewSlots(gateDetails, board.stressCount) : 0
   const traveledStopCardIds = new Set([
     ...board.routeSlots.flatMap((routeSlot) => routeSlot ? [routeSlot.cardId] : []),
-    ...board.shipPartSlots.map((slot) => slot.cardId),
   ])
+  const acquiredShipPartCardIds = new Set(board.shipPartSlots.map((slot) => slot.cardId))
 
   function canInteractWithStackCard(cardId: string) {
     return Boolean(
@@ -203,12 +218,15 @@ export function Board({
           }
           stackOffsetRatio={stackOffsetRatio}
           fuelDiscount={fuelDiscount}
-          getFuelSurcharge={(card) => getDestinationFuelSurcharge(board.cards, card.horizon)}
+          getFuelSurcharge={(card) => getDestinationFuelSurcharge(board.cards, card.mission)}
+          getMissionAnyIconSurcharge={(card) => card.mission ? missionAnyIconSurcharge : 0}
           stressCount={board.stressCount}
           gateExtraCrewCount={gateExtraCrewCount}
           gateCrewSlotDiscount={gateCrewSlotDiscount}
           gateIconDiscount={gateIconDiscount}
+          gateFuelDiscount={gateFuelDiscount}
           traveledStopCardIds={traveledStopCardIds}
+          acquiredShipPartCardIds={acquiredShipPartCardIds}
           actions={canMoveBoardFreely ? getStackActions(board, stack) : []}
           onStackAction={onStackAction}
           onCardPointerDown={onCardPointerDown}
@@ -226,10 +244,13 @@ export function Board({
         stressCount={board.stressCount}
         currentSector={board.currentSector}
         totalSectors={board.totalSectors}
+        missionsCompleted={board.completedStarSummaries.length}
+        turnNumber={board.turnNumber}
         endTurnAttentionKey={endTurnAttentionKey}
         canInteract={canUseOwnCrew}
-        canEndTurn={canEndTurn}
+        canEndTurn={canEndTurnNow}
         endTurnLabel={endTurnLabel}
+        endTurnSublabel={endTurnSublabel}
         onEndTurn={onEndTurn}
         onCardPointerDown={onHandCardPointerDown}
         onCardKeyDown={onHandCardKeyDown}

@@ -1571,6 +1571,7 @@
 }
 
 .hand-end-turn-slot {
+  position: relative;
   display: grid;
   place-items: center;
   min-width: 0;
@@ -1675,6 +1676,24 @@
   &.is-draw-attention-even {
     animation: end-turn-draw-attention-repeat 720ms cubic-bezier(0.18, 0.82, 0.28, 1);
   }
+
+  &.is-draw-attention-odd,
+  &.is-draw-attention-even {
+    z-index: 2500;
+  }
+}
+
+.hand-end-turn-copy {
+  display: grid;
+  gap: 0.08em;
+}
+
+.hand-end-turn-sublabel {
+  font: inherit;
+  font-size: 0.48em;
+  font-weight: 500;
+  line-height: 1.05;
+  opacity: 0.86;
 }
 
 @keyframes end-turn-draw-attention {
@@ -1684,23 +1703,27 @@
   }
 
   14% {
-    transform: rotate(-2.2deg) scale(1.18);
+    transform: rotate(-2.2deg) scale(1.5);
   }
 
-  28% {
-    transform: translateX(-7px) rotate(-5deg) scale(1.18);
+  24% {
+    transform: translateX(-14px) rotate(-7deg) scale(1.5);
   }
 
-  42% {
-    transform: translateX(7px) rotate(1.5deg) scale(1.18);
+  34% {
+    transform: translateX(14px) rotate(3deg) scale(1.48);
   }
 
-  56% {
-    transform: translateX(-5px) rotate(-4deg) scale(1.14);
+  46% {
+    transform: translateX(-10px) rotate(-5deg) scale(1.38);
   }
 
-  70% {
-    transform: translateX(4px) rotate(0.6deg) scale(1.1);
+  58% {
+    transform: translateX(8px) rotate(2deg) scale(1.24);
+  }
+
+  72% {
+    transform: translateX(-5px) rotate(-3deg) scale(1.12);
   }
 }
 
@@ -1711,55 +1734,27 @@
   }
 
   14% {
-    transform: rotate(-2.2deg) scale(1.18);
+    transform: rotate(-2.2deg) scale(1.5);
   }
 
-  28% {
-    transform: translateX(-7px) rotate(-5deg) scale(1.18);
+  24% {
+    transform: translateX(-14px) rotate(-7deg) scale(1.5);
   }
 
-  42% {
-    transform: translateX(7px) rotate(1.5deg) scale(1.18);
+  34% {
+    transform: translateX(14px) rotate(3deg) scale(1.48);
   }
 
-  56% {
-    transform: translateX(-5px) rotate(-4deg) scale(1.14);
+  46% {
+    transform: translateX(-10px) rotate(-5deg) scale(1.38);
   }
 
-  70% {
-    transform: translateX(4px) rotate(0.6deg) scale(1.1);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hand-end-turn-button.is-draw-attention-odd {
-    animation: end-turn-draw-attention-reduced 240ms ease-out;
+  58% {
+    transform: translateX(8px) rotate(2deg) scale(1.24);
   }
 
-  .hand-end-turn-button.is-draw-attention-even {
-    animation: end-turn-draw-attention-reduced-repeat 240ms ease-out;
-  }
-}
-
-@keyframes end-turn-draw-attention-reduced {
-  0%,
-  100% {
-    transform: rotate(-2.2deg) scale(1);
-  }
-
-  50% {
-    transform: rotate(-2.2deg) scale(1.08);
-  }
-}
-
-@keyframes end-turn-draw-attention-reduced-repeat {
-  0%,
-  100% {
-    transform: rotate(-2.2deg) scale(1);
-  }
-
-  50% {
-    transform: rotate(-2.2deg) scale(1.08);
+  72% {
+    transform: translateX(-5px) rotate(-3deg) scale(1.12);
   }
 }
 
@@ -2003,26 +1998,6 @@
   &.is-traveled-stop {
     cursor: grab;
     filter: drop-shadow(0 10px 9px rgba(0, 0, 0, 0.36)) saturate(0.82);
-
-    .card-inner::after {
-      content: 'Traveled';
-      position: absolute;
-      right: 9px;
-      bottom: 9px;
-      z-index: 4;
-      padding: 4px 7px;
-      border: 2px solid rgba(17, 19, 26, 0.62);
-      border-radius: 999px;
-      color: #11131a;
-      background: color-mix(in srgb, var(--card-accent) 48%, #fff8e8);
-      font-size: clamp(9px, 0.78vw, 11px);
-      font-style: italic;
-      font-weight: 950;
-      letter-spacing: 0.04em;
-      line-height: 1;
-      text-transform: uppercase;
-      transform: rotate(-4deg);
-    }
   }
 }
 
@@ -3079,7 +3054,7 @@
   }
 }
 
-.card-kind-horizon {
+.card-kind-mission {
   .card-face.card-front {
     border-width: 0;
     border-color: transparent;
@@ -3499,6 +3474,7 @@
   .card-kicker,
   .card-rule-row > span,
   .card-rule-text,
+  .need-icon-count,
   .card-wake-reward {
     color: var(--blueprint-text);
   }
@@ -3703,6 +3679,12 @@
   vertical-align: -0.14em;
 }
 
+.sector-card-resource-reward {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .card-primary-icons {
   position: relative;
   z-index: 1;
@@ -3738,6 +3720,31 @@
 .card-rule-icons {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.need-icon-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #11131a;
+  font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  text-align: left;
+}
+
+.need-icon-count-label {
+  display: inline-block;
+  min-width: 0.9em;
+  transform: rotate(-1deg);
+}
+
+.gate-fuel-cost {
+  display: inline-flex;
   align-items: center;
   gap: 4px;
 }
@@ -3785,8 +3792,9 @@
 }
 
 .extra-need-icon {
-  display: inline-grid;
+  display: inline-flex;
   flex: 0 0 auto;
+  align-items: center;
   place-items: center;
   padding: 2px;
   border: 2px solid #ff4f64;

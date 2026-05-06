@@ -24,7 +24,7 @@ import './App.css'
 
 function noop() {}
 
-const DRIFT_RESOLVE_AFTER_REVEAL_DELAY_MS = 300
+const DRIFT_RESOLVE_AFTER_REVEAL_DELAY_MS = 1500
 const DRIFT_RESOLVE_DELAY_MS = CARD_DRAW_DURATION_MS + DRIFT_RESOLVE_AFTER_REVEAL_DELAY_MS
 
 function App() {
@@ -54,8 +54,9 @@ function App() {
   const isLocalTurn = !isMultiplayer || board.currentPlayerId === localPlayerId
   const canApplyGameUpdates = !isRealtimeObserver && isLocalPlayerInGame
   const isResolvingDrift = board.pendingDrift !== null
-  const canMoveBoardFreely = canApplyGameUpdates && isLocalTurn && !isResolvingDrift
-  const canUseOwnCrew = canApplyGameUpdates && !isResolvingDrift
+  const canUseTurnControls = canApplyGameUpdates && isLocalTurn && !isResolvingDrift
+  const canMoveBoardFreely = canUseTurnControls && !board.isRunEnding
+  const canUseOwnCrew = canApplyGameUpdates && !isResolvingDrift && !board.isRunEnding
   const canResetGame = canApplyGameUpdates
   const shouldResolveDrift = isGameStarted && canApplyGameUpdates && isLocalTurn && isResolvingDrift
 
@@ -87,6 +88,7 @@ function App() {
     localPlayerId,
     canMoveBoardFreely,
     canUseOwnCrew,
+    canEndTurn: canUseTurnControls,
     onSharedDragChange: canApplyGameUpdates ? realtime.sendSharedDrag : undefined,
   })
 
@@ -166,6 +168,7 @@ function App() {
             localPlayerId={localPlayerId}
             canMoveBoardFreely={canMoveBoardFreely}
             canUseOwnCrew={canUseOwnCrew}
+            canEndTurn={canUseTurnControls}
             isLocalTurn={isLocalTurn}
             stackOffsetRatio={interactions.stackOffsetRatio}
             onPointerMove={canUseOwnCrew ? interactions.onPointerMove : noop}
@@ -181,7 +184,7 @@ function App() {
             onScoutCardChoice={canMoveBoardFreely ? interactions.onScoutCardChoice : noop}
             onScoutChoiceConfirm={canMoveBoardFreely ? interactions.onScoutChoiceConfirm : noop}
             onStackAction={canMoveBoardFreely ? interactions.onStackAction : noop}
-            onEndTurn={canMoveBoardFreely ? interactions.onEndTurn : noop}
+            onEndTurn={canUseTurnControls ? interactions.onEndTurn : noop}
             onResetGame={resetGame}
           />
           <PlaytestLog

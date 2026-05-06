@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { type CSSProperties } from 'react'
 import type { BoardState, GameLossReason } from '../game/types'
 import {
   getPlayerCrewStats,
@@ -27,9 +27,16 @@ function lossContent(reason: GameLossReason) {
     }
   }
 
+  if (reason === 'fuel-depleted') {
+    return {
+      title: 'Fuel exhausted.',
+      body: 'The Fuel Supply is empty at round end.',
+    }
+  }
+
   return {
     title: 'The Gate cannot be passed.',
-    body: 'The Gate cannot be completed with available Ship Parts, Ready crew, required Gate Fuel, and unused MOTHER cards.',
+    body: 'The Gate cannot be completed with available Gate Ship Parts, Ready crew, required Gate Fuel, crew-made Fuel, and allowed MOTHER support.',
   }
 }
 
@@ -260,6 +267,9 @@ export function WakeChoiceDialog({ board, isGameOver, canInteract, onWakeCrewCho
   onWakeCrewChoice: (cardId: string) => void
 }) {
   const wakeChoiceCards = getWakeChoiceCards(board)
+  const remainingText = board.pendingWakeChoice?.remaining === 1
+    ? '1 crew'
+    : `${board.pendingWakeChoice?.remaining ?? 0} crew, one at a time`
 
   if (isGameOver || !board.pendingWakeChoice || wakeChoiceCards.length === 0) {
     return null
@@ -274,7 +284,7 @@ export function WakeChoiceDialog({ board, isGameOver, canInteract, onWakeCrewCho
         aria-labelledby="wake-choice-title"
       >
         <h2 id="wake-choice-title">Choose Cryo Crew</h2>
-        <p>That crew joins Tired. Then Ready 1 crew that was already Tired.</p>
+        <p>Choose {remainingText}. Each joins Tired, then readies 1 crew that was already Tired.</p>
         <div className="wake-choice-cards">
           {wakeChoiceCards.map((card) => (
             <CardShell
@@ -310,7 +320,7 @@ function getScoutChoiceCards(board: BoardView) {
   return board.pendingScoutChoice?.choiceCardIds.flatMap((cardId) => {
     const card = board.cards[cardId]
 
-    return card?.kind === 'horizon' ? [card] : []
+    return card?.kind === 'mission' ? [card] : []
   }) ?? []
 }
 

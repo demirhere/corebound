@@ -1,151 +1,181 @@
 import { createGateCard } from './factories'
 import type { Card, CrewRoleKind, GateDetails, RequirementIconKind } from '../types'
 
-const nav = 'star'
-const science = 'signal'
+const gateClear = (extraFuel: number, extraCrew: number): GateDetails['clear'] => ({
+  extraFuel,
+  extraCrew,
+})
 
 export const sectorGates = [
   createGateCard(
     'Narrow Crossing',
     'SECTOR GATE',
-    ['engine', 'life', nav],
     3,
-    'clean',
-    'None. Clean Gate.',
-    { kind: 'extra-crew-beyond-minimum', count: 1 },
-    'Commit 1 crew beyond minimum.',
+    [],
+    0,
+    'block-mother',
+    'MOTHER cannot be used.',
+    gateClear(0, 0),
+    'No extra cost.',
   ),
   createGateCard(
     'Quiet Drift',
     'SECTOR GATE',
-    ['engine', 'engine', nav],
     3,
-    'first-crew-no-icons',
-    'First crew committed contributes 0 icons.',
-    { kind: 'crew-count-at-least', count: 4 },
-    'Commit 4+ crew total.',
+    [],
+    0,
+    'extra-drift',
+    'Resolve 1 extra Drift before passing.',
+    gateClear(1, 0),
+    'Pay +1 Fuel.',
   ),
   createGateCard(
     'Old Pass',
     'SECTOR GATE',
-    [nav, 'life', science],
     3,
-    'engine-icons-cost-fuel',
-    'Engine-icon crew cost +1 Fuel each.',
-    { kind: 'role-count-at-least', roles: ['engineer'], count: 2 },
-    'Commit 2+ Engineers.',
+    [],
+    1,
+    'block-engine-crew',
+    'Engine crew cannot be committed.',
+    gateClear(0, 1),
+    'Commit +1 crew.',
   ),
   createGateCard(
     'Lost Beacon',
     'SECTOR GATE',
-    ['engine', 'life', nav],
     3,
-    'extra-crew-slot',
-    '-1 slot capacity: need 1 extra crew.',
-    { kind: 'mother-spent-at-least', count: 2 },
-    'Spend 2 MOTHER.',
+    [],
+    0,
+    'block-nav-crew',
+    'Nav crew cannot be committed.',
+    gateClear(2, 0),
+    'Pay +2 Fuel.',
   ),
   createGateCard(
     'Dust Reach',
     'SECTOR GATE',
-    ['engine', nav, 'life'],
     4,
-    'block-discoveries',
-    'Discoveries cannot be played.',
-    { kind: 'no-tired-crew' },
-    'Have 0 Tired crew committed.',
+    [],
+    0,
+    'block-life-crew',
+    'Life crew cannot be committed.',
+    gateClear(1, 1),
+    'Pay +1 Fuel and commit +1 crew.',
   ),
   createGateCard(
     'Cold Mirror',
     'SECTOR GATE',
-    ['engine', 'engine', 'life'],
     4,
-    'block-ready-tired',
-    'Ship Part / Blueprint "ready Tired" effects blocked.',
-    { kind: 'role-count-at-least', roles: ['medic'], count: 2 },
-    'Commit 2+ Medics.',
+    [],
+    1,
+    'block-medic-crew',
+    'Medic crew cannot be committed.',
+    gateClear(0, 1),
+    'Commit +1 crew.',
   ),
   createGateCard(
     'Echo Vault',
     'SECTOR GATE',
-    [nav, science, 'life'],
     4,
+    [],
+    0,
     'block-mother',
-    'MOTHER unusable.',
-    { kind: 'role-count-at-least', roles: ['pilot'], count: 1 },
-    'Commit a Pilot.',
+    'MOTHER cannot be used.',
+    gateClear(2, 0),
+    'Pay +2 Fuel.',
   ),
   createGateCard(
     'Ash Belt',
     'SECTOR GATE',
-    ['engine', 'engine', nav],
     4,
-    'stress-extra-slot',
-    'If Stress is 3+, +1 slot needed.',
-    { kind: 'stress-zero' },
-    'Stress = 0 at Resolve.',
+    [],
+    1,
+    'mother-costs-fuel',
+    'Every MOTHER used requires +1 Fuel.',
+    gateClear(1, 1),
+    'Pay +1 Fuel and commit +1 crew.',
   ),
   createGateCard(
     'Black Threshold',
     'SECTOR GATE',
-    ['life', 'life', science],
     4,
-    'blueprints-add-stress',
-    'Each Blueprint that triggers adds 1 Stress.',
-    { kind: 'role-count-at-least', roles: ['scientist'], count: 2 },
-    'Commit 2+ Scientists.',
+    [],
+    0,
+    'block-science-crew',
+    'Science crew cannot be committed.',
+    gateClear(2, 0),
+    'Pay +2 Fuel.',
   ),
   createGateCard(
     'Hollow Span',
     'SECTOR GATE',
-    [nav, 'engine', science],
     4,
-    'block-ship-parts',
-    'Ship Parts unusable.',
-    { kind: 'crew-count-at-least', count: 5 },
-    'Commit 5+ crew total.',
+    [],
+    1,
+    'block-engineer-crew',
+    'Engineer crew cannot be committed.',
+    gateClear(1, 1),
+    'Pay +1 Fuel and commit +1 crew.',
   ),
   createGateCard(
     'Iron Shoal',
     'SECTOR GATE',
-    ['engine', 'engine', nav, science],
     5,
-    'block-mother-icons',
-    'MOTHER cannot substitute for icons.',
-    { kind: 'different-role-count-at-least', count: 5 },
-    'Commit 5 different crew roles.',
+    [],
+    0,
+    'block-pilot-crew',
+    'Pilot crew cannot be committed.',
+    gateClear(2, 0),
+    'Pay +2 Fuel.',
   ),
   createGateCard(
     'Last Verge',
     'SECTOR GATE',
-    ['engine', 'life', nav, science],
     5,
-    'hold-drift',
-    'All Drift cards held in reserve trigger before Resolve.',
-    { kind: 'same-role-count-at-least', count: 2 },
-    'Commit 2+ crew of same role.',
+    [],
+    1,
+    'extra-drift',
+    'Resolve 1 extra Drift before passing.',
+    gateClear(1, 2),
+    'Pay +1 Fuel and commit +2 crew.',
   ),
   createGateCard(
     'Drowned Comm',
     'SECTOR GATE',
-    ['engine', 'life', 'life', nav],
     5,
-    'leftmost-crew-ignore-icon',
-    'The leftmost committed crew has 1 icon ignored.',
-    { kind: 'roles-committed', roles: ['recon', 'medic'] },
-    'Commit a Recon and a Medic.',
+    [],
+    0,
+    'block-scientist-crew',
+    'Scientist crew cannot be committed.',
+    gateClear(2, 1),
+    'Pay +2 Fuel and commit +1 crew.',
   ),
   createGateCard(
     'The Reach',
     'SECTOR GATE',
-    ['engine', 'life', nav, science],
     5,
-    'double-chosen-icon',
-    'One icon type chosen by the Mission Lead must be covered twice.',
-    { kind: 'crew-count-at-least', count: 6 },
-    'Commit 6+ crew total.',
+    [],
+    1,
+    'mother-costs-fuel',
+    'Every MOTHER used requires +1 Fuel.',
+    gateClear(2, 2),
+    'Pay +2 Fuel and commit +2 crew.',
   ),
 ]
+
+const blockedIconByEffect: Partial<Record<GateDetails['effectKind'], RequirementIconKind>> = {
+  'block-engine-crew': 'engine',
+  'block-life-crew': 'life',
+  'block-science-crew': 'signal',
+  'block-nav-crew': 'star',
+}
+
+const blockedRoleByEffect: Partial<Record<GateDetails['effectKind'], CrewRoleKind>> = {
+  'block-engineer-crew': 'engineer',
+  'block-medic-crew': 'medic',
+  'block-pilot-crew': 'pilot',
+  'block-scientist-crew': 'scientist',
+}
 
 export function getCrewRole(card: Card | undefined): CrewRoleKind {
   if (card?.kind !== 'crew') {
@@ -180,106 +210,84 @@ export function getCrewRole(card: Card | undefined): CrewRoleKind {
 }
 
 export function getGateExtraCrewSlots(
-  gate: GateDetails,
-  stressCount: number,
-  skippedSlots = 0,
+  _gate: GateDetails,
+  _stressCount: number,
+  _skippedSlots = 0,
 ) {
-  const printedExtraSlots =
-    gate.effectKind === 'extra-crew-slot' ||
-    (gate.effectKind === 'stress-extra-slot' && stressCount >= 3)
-      ? 1
-      : 0
+  void _skippedSlots
 
-  return Math.max(0, printedExtraSlots - skippedSlots)
+  return 0
 }
 
-export function gateBlocksDiscoveries(gate: GateDetails) {
-  return gate.effectKind === 'block-discoveries'
+export function gateBlocksCrewCard(gate: GateDetails, card: Card | undefined) {
+  if (card?.kind !== 'crew') {
+    return false
+  }
+
+  const blockedIcon = blockedIconByEffect[gate.effectKind]
+
+  if (blockedIcon && card.specializations?.includes(blockedIcon)) {
+    return true
+  }
+
+  const blockedRole = blockedRoleByEffect[gate.effectKind]
+
+  return blockedRole ? getCrewRole(card) === blockedRole : false
 }
 
-export function gateBlocksReadyTired(gate: GateDetails) {
-  return gate.effectKind === 'block-ready-tired'
+export function gateBlocksDiscoveries(_gate: GateDetails) {
+  void _gate
+
+  return false
+}
+
+export function gateBlocksReadyTired(_gate: GateDetails) {
+  void _gate
+
+  return false
 }
 
 export function gateBlocksMotherIcons(gate: GateDetails) {
-  return gate.effectKind === 'block-mother' || gate.effectKind === 'block-mother-icons'
+  return gate.effectKind === 'block-mother'
 }
 
-export function gateBlocksShipParts(gate: GateDetails) {
-  return gate.effectKind === 'block-ship-parts'
+export function gateBlocksShipParts(_gate: GateDetails) {
+  void _gate
+
+  return false
 }
 
-export function gateAddsBlueprintStress(gate: GateDetails) {
-  return gate.effectKind === 'blueprints-add-stress'
+export function gateAddsBlueprintStress(_gate: GateDetails) {
+  void _gate
+
+  return false
 }
 
-export function gateHoldsDrift(gate: GateDetails) {
-  return gate.effectKind === 'hold-drift'
+export function gateHoldsDrift(_gate: GateDetails) {
+  void _gate
+
+  return false
+}
+
+export function getGateExtraDriftCount(gate: GateDetails) {
+  return gate.effectKind === 'extra-drift' ? 1 : 0
+}
+
+export function getGateMotherFuelCost(gate: GateDetails) {
+  return gate.effectKind === 'mother-costs-fuel' ? 1 : 0
 }
 
 export function getGateRequiredIconOptions(gate: GateDetails): RequirementIconKind[][] {
-  if (gate.effectKind !== 'double-chosen-icon') {
-    return [gate.need.icons]
-  }
-
-  return [...new Set(gate.need.icons)].map((icon) => [...gate.need.icons, icon])
+  return [gate.need.icons]
 }
 
 export function isGateClearConditionMet(
   gate: GateDetails,
   crewCards: readonly Card[],
-  nextStressCount: number,
-  spentMotherCount: number,
-  tiredCrewCardIds: readonly string[] = [],
+  paidFuelCount: number,
+  requiredFuelCount: number,
+  crewNeedReduction = 0,
 ) {
-  const crewRoles = crewCards.map(getCrewRole)
-  const crewRoleCounts = new Map<CrewRoleKind, number>()
-  const tiredCrewCardIdSet = new Set(tiredCrewCardIds)
-
-  for (const role of crewRoles) {
-    crewRoleCounts.set(role, (crewRoleCounts.get(role) ?? 0) + 1)
-  }
-
-  if (gate.clear.kind === 'extra-crew-beyond-minimum') {
-    return crewCards.length >= gate.need.crew + (gate.clear.count ?? 1)
-  }
-
-  if (gate.clear.kind === 'crew-count-at-least') {
-    return crewCards.length >= (gate.clear.count ?? 0)
-  }
-
-  if (gate.clear.kind === 'role-count-at-least') {
-    const count = gate.clear.count ?? 1
-    const role = gate.clear.roles?.[0]
-
-    return role ? (crewRoleCounts.get(role) ?? 0) >= count : false
-  }
-
-  if (gate.clear.kind === 'mother-spent-at-least') {
-    return spentMotherCount >= (gate.clear.count ?? 0)
-  }
-
-  if (gate.clear.kind === 'no-tired-crew') {
-    return crewCards.every((card) => !tiredCrewCardIdSet.has(card.id))
-  }
-
-  if (gate.clear.kind === 'stress-zero') {
-    return nextStressCount === 0
-  }
-
-  if (gate.clear.kind === 'different-role-count-at-least') {
-    return new Set(crewRoles).size >= (gate.clear.count ?? 0)
-  }
-
-  if (gate.clear.kind === 'same-role-count-at-least') {
-    const count = gate.clear.count ?? 0
-
-    return Array.from(crewRoleCounts.values()).some((roleCount) => roleCount >= count)
-  }
-
-  if (gate.clear.kind === 'roles-committed') {
-    return (gate.clear.roles ?? []).every((role) => (crewRoleCounts.get(role) ?? 0) > 0)
-  }
-
-  return true
+  return crewCards.length >= Math.max(0, gate.need.crew - crewNeedReduction) + gate.clear.extraCrew &&
+    paidFuelCount >= requiredFuelCount + gate.clear.extraFuel
 }

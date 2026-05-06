@@ -7,6 +7,7 @@ type SectorCardLayoutProps = {
   visual: ReactNode
   visualClassName?: string
   art?: ReactNode
+  showCost?: boolean
 }
 
 export function SectorCardLayout({
@@ -16,6 +17,7 @@ export function SectorCardLayout({
   visual,
   visualClassName = '',
   art,
+  showCost = true,
 }: SectorCardLayoutProps) {
   const visualClass = visualClassName ? ` ${visualClassName}` : ''
 
@@ -25,11 +27,13 @@ export function SectorCardLayout({
       <div className={`sector-card-visual${visualClass}`}>
         {visual}
       </div>
-      <div className="sector-card-cost-row">
-        <span>Req</span>
-        <div className="card-rule-icons">{cost}</div>
-      </div>
-      {hasFuelDiscount && (
+      {showCost && (
+        <div className="sector-card-cost-row">
+          <span>Crew</span>
+          <div className="card-rule-icons">{cost}</div>
+        </div>
+      )}
+      {showCost && hasFuelDiscount && (
         <p className="card-rule-text sector-card-discount">
           Next Destination discount: {removedFuelCount} Fuel scribbled out.
         </p>

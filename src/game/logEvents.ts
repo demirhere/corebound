@@ -27,21 +27,26 @@ function describeVisitRewards(rewards: readonly VisitReward[]) {
     .map((reward) => {
       if (reward.kind === 'resource') {
         return reward.count === 1
-          ? `Collect ${reward.resource}`
-          : `Collect ${reward.count} ${reward.resource}`
+          ? `Recover ${reward.resource}`
+          : `Recover ${reward.count} ${reward.resource}`
       }
       if (reward.kind === 'crew') {
         if (reward.label === 'Wake') {
-          return 'Wake 1 crew into Tired and Ready 1 crew'
+          return reward.count === 1
+            ? 'Wake 1 crew into Tired and Ready 1 crew'
+            : `Wake ${reward.count} crew into Tired and Ready ${reward.count} crew`
         }
 
         return `${reward.label} ${reward.count}`
       }
       if (reward.kind === 'scout') {
-        return `Peek at top ${reward.count} stops, keep 1`
+        return `Peek at top ${reward.count} Missions, keep 1`
       }
       if (reward.kind === 'next_stop_fuel_discount') {
-        return `Next stop -${reward.amount} Fuel`
+        return `Next Mission -${reward.amount} Fuel`
+      }
+      if (reward.kind === 'next_gate_fuel_discount') {
+        return `Next Gate -${reward.amount} Fuel`
       }
       if (reward.kind === 'ready') {
         return reward.count === 1
@@ -55,7 +60,9 @@ function describeVisitRewards(rewards: readonly VisitReward[]) {
 
 function describeFind(find: DestinationFind) {
   if (find.kind === 'ship_part') {
-    return `${find.itemName}: ${getShipPartUseText(find.shipPart)}`
+    const rewardText = describeVisitRewards(find.rewards ?? [])
+
+    return `${find.itemName}: ${getShipPartUseText(find.shipPart)}${rewardText ? `; ${rewardText}` : ''}`
   }
 
   return `${find.itemName}: ${describeVisitRewards(find.rewards) || 'no immediate benefit'}`
@@ -76,15 +83,15 @@ export function cardRulesText(card: Card | CardBlueprint) {
     return `specialties: ${specialties}; water math: Engineer+Scientist=water; MOTHER cannot pay Fuel`
   }
 
-  if (card.kind === 'horizon' && card.horizon) {
+  if (card.kind === 'mission' && card.mission) {
     const need = [
-      `fuel ${card.horizon.need.fuel}`,
-      card.horizon.need.icons.length > 0 ? card.horizon.need.icons.map(getRequirementIconLabel).join(', ') : null,
+      card.mission.need.fuel > 0 ? `fuel ${card.mission.need.fuel}` : null,
+      card.mission.need.icons.length > 0 ? card.mission.need.icons.map(getRequirementIconLabel).join(', ') : null,
     ]
       .filter(Boolean)
       .join('; ')
 
-    return `Destination: ${card.title}; costs: ${need}; find: ${describeFind(card.horizon.find)}`
+    return `Destination: ${card.title}; costs: ${need}; find: ${describeFind(card.mission.find)}`
   }
 
   if (card.kind === 'mother') {
@@ -94,7 +101,7 @@ export function cardRulesText(card: Card | CardBlueprint) {
   if (card.kind === 'gate' && card.gate) {
     const icons = card.gate.need.icons.map(getRequirementIconLabel).join(', ')
 
-    return `gate crew slots: ${card.gate.need.crew}; icons needed: ${icons}; resolve: ${card.gate.effectText}; clear: ${card.gate.clearText}`
+    return `gate fuel ${card.gate.need.fuel}; crew slots: ${card.gate.need.crew}; icons needed: ${icons}; resolve: ${card.gate.effectText}; clear: ${card.gate.clearText}`
   }
 
   if (card.kind === 'discovery' && card.discovery) {
@@ -494,20 +501,20 @@ export function decksMergedEvent(sourceDeck: Deck, targetDeck: Deck): PlaytestLo
   }
 }
 
-export function horizonCompletedEvent(
-  horizonCard: Card,
+export function missionCompletedEvent(
+  missionCard: Card,
   sourceStack: Stack,
   rewardCards: readonly Card[],
   cards: Record<string, Card>,
 ): PlaytestLogEvent {
-  const find = horizonCard.horizon?.find
+  const find = missionCard.mission?.find
 
   return {
-    type: 'stop.completed',
-    message: `${describeCard(horizonCard, horizonCard.id)} completed from ${sourceStack.id}; found: ${find ? describeFind(find) : 'none'}.`,
+    type: 'mission.completed',
+    message: `${describeCard(missionCard, missionCard.id)} completed from ${sourceStack.id}; found: ${find ? describeFind(find) : 'none'}.`,
     details: {
-      stopCardId: horizonCard.id,
-      stopTitle: horizonCard.title,
+      missionCardId: missionCard.id,
+      missionTitle: missionCard.title,
       foundItemName: find?.itemName ?? null,
       findKind: find?.kind ?? null,
       sourceStackId: sourceStack.id,
@@ -523,8 +530,8 @@ export function horizonCompletedEvent(
   }
 }
 
-export function stopMovedToRouteEvent(
-  stopCard: Card,
+export function missionMovedToRouteEvent(
+  missionCard: Card,
   routeSlotIndex: number,
   find: DestinationFind,
   gateBegins: boolean,
@@ -533,15 +540,15 @@ export function stopMovedToRouteEvent(
     ? `${getShipPartLabel(find.shipPart)} available`
     : `${find.itemName} resolved`
   const travelText = find.kind === 'ship_part'
-    ? `${stopCard.title} moved to traveled Destination ${routeSlotIndex + 1}`
-    : `${stopCard.title} marked traveled Destination ${routeSlotIndex + 1} and cleared`
+    ? `${missionCard.title} moved to traveled Destination ${routeSlotIndex + 1}`
+    : `${missionCard.title} marked traveled Destination ${routeSlotIndex + 1} and cleared`
 
   return {
-    type: 'stop.traveled',
+    type: 'mission.traveled',
     message: `${travelText}. ${findText}.${gateBegins ? ' Gate begins.' : ''}`,
     details: {
-      stopCardId: stopCard.id,
-      stopTitle: stopCard.title,
+      missionCardId: missionCard.id,
+      missionTitle: missionCard.title,
       routeSlot: routeSlotIndex + 1,
       findKind: find.kind,
       foundItemName: find.itemName,
@@ -552,15 +559,15 @@ export function stopMovedToRouteEvent(
   }
 }
 
-export function shipPartAvailableEvent(stopCard: Card, routeSlotIndex: number, shipPart: ShipPartKind): PlaytestLogEvent {
+export function shipPartAvailableEvent(missionCard: Card, routeSlotIndex: number, shipPart: ShipPartKind): PlaytestLogEvent {
   const shipPartLabel = getShipPartLabel(shipPart)
 
   return {
     type: 'ship_part.available',
-    message: `${shipPartLabel} available from traveled ${stopCard.title}.`,
+    message: `${shipPartLabel} available from traveled ${missionCard.title}.`,
     details: {
-      stopCardId: stopCard.id,
-      stopTitle: stopCard.title,
+      missionCardId: missionCard.id,
+      missionTitle: missionCard.title,
       routeSlot: routeSlotIndex + 1,
       shipPart,
       shipPartLabel,
@@ -568,19 +575,45 @@ export function shipPartAvailableEvent(stopCard: Card, routeSlotIndex: number, s
   }
 }
 
-export function shipPartSpentEvent(stopCard: Card, routeSlotIndex: number, shipPart: ShipPartKind): PlaytestLogEvent {
+export function shipPartSpentEvent(missionCard: Card, routeSlotIndex: number, shipPart: ShipPartKind): PlaytestLogEvent {
   const shipPartLabel = getShipPartLabel(shipPart)
 
   return {
     type: 'ship_part.spent',
-    message: `${shipPartLabel} spent from ${stopCard.title}: ${getShipPartUseText(shipPart)}`,
+    message: `${shipPartLabel} spent from ${missionCard.title}: ${getShipPartUseText(shipPart)}`,
     details: {
-      stopCardId: stopCard.id,
-      stopTitle: stopCard.title,
+      missionCardId: missionCard.id,
+      missionTitle: missionCard.title,
       routeSlot: routeSlotIndex + 1,
       shipPart,
       shipPartLabel,
       useText: getShipPartUseText(shipPart),
+    },
+  }
+}
+
+export function medbayRehydratorReadiedEvent(
+  medbayCards: readonly Card[],
+  readiedCrewCardIds: readonly string[],
+  cards: Record<string, Card>,
+): PlaytestLogEvent {
+  const shipPartLabel = getShipPartLabel('medbay-rehydrator')
+  const medbayTitles = cardTitles(medbayCards.map((card) => card.id), cards)
+  const readiedCrewTitles = cardTitles(readiedCrewCardIds, cards)
+  const readiedCrewText = readiedCrewTitles.length > 0 ? readiedCrewTitles.join(', ') : 'no crew'
+
+  return {
+    type: 'ship_part.medbay_readied',
+    message: `${shipPartLabel} readied ${readiedCrewText} after sector.`,
+    details: {
+      shipPart: 'medbay-rehydrator',
+      shipPartLabel,
+      medbayCardIds: medbayCards.map((card) => card.id),
+      medbayTitles,
+      readiedCrewCardIds,
+      readiedCrewTitles,
+      readiedCrewSummaries: cardSummaries(readiedCrewCardIds, cards),
+      readiedCrewContents: cardContents(readiedCrewCardIds, cards),
     },
   }
 }
@@ -615,7 +648,7 @@ export function wakeCrewRecruitedEvent(
 }
 
 export function readyRewardAppliedEvent(
-  horizonCard: Card,
+  missionCard: Card,
   readiedCrewCardIds: readonly string[],
   cards: Record<string, Card>,
 ): PlaytestLogEvent {
@@ -624,10 +657,10 @@ export function readyRewardAppliedEvent(
 
   return {
     type: 'ready.reward.applied',
-    message: `${horizonCard.title} readied ${readiedCrewText}.`,
+    message: `${missionCard.title} readied ${readiedCrewText}.`,
     details: {
-      sectorCardId: horizonCard.id,
-      sectorTitle: horizonCard.title,
+      sectorCardId: missionCard.id,
+      sectorTitle: missionCard.title,
       readiedCrewCardIds,
       readiedCrewTitles,
       readiedCrewSummaries: cardSummaries(readiedCrewCardIds, cards),
@@ -667,6 +700,18 @@ export function driftDeckReshuffledEvent(deck: Deck): PlaytestLogEvent {
     details: {
       deckId: deck.id,
       deckTitle: deck.title,
+    },
+  }
+}
+
+export function fuelDeckReshuffledEvent(deck: Deck, discardCount: number): PlaytestLogEvent {
+  return {
+    type: 'fuel.deck.reshuffled',
+    message: `Fuel Deck reshuffled with ${discardCount} spent Fuel Cell${discardCount === 1 ? '' : 's'}.`,
+    details: {
+      deckId: deck.id,
+      deckTitle: deck.title,
+      discardCount,
     },
   }
 }
@@ -721,23 +766,23 @@ export function stressThresholdActiveEvent(gateCard: Card, stressCount: number, 
 export function sectorRevealedEvent(
   sector: number,
   gateCard: Card,
-  horizonCards: readonly CardBlueprint[],
+  missionCards: readonly CardBlueprint[],
 ): PlaytestLogEvent {
-  const horizonSummaries = horizonCards.map((card) => `${card.title}${cardRulesText(card) ? ` [${cardRulesText(card)}]` : ''}`)
+  const missionSummaries = missionCards.map((card) => `${card.title}${cardRulesText(card) ? ` [${cardRulesText(card)}]` : ''}`)
   const gateTitle = `${gateCard.title} Final Gate`
 
   return {
     type: 'sector.revealed',
-    message: `Sector ${sector} prepared: ${gateTitle} placed face up and attemptable anytime; Missions reset with ${horizonCards.length} cards.`,
+    message: `Sector ${sector} prepared: ${gateTitle} placed face up and attemptable anytime; Missions reset with ${missionCards.length} cards.`,
     details: {
       sector,
       gateCardId: gateCard.id,
       gateTitle,
       gateSummary: `${gateTitle} (${gateCard.id}) face up`,
       gateFaceUp: gateCard.faceUp,
-      horizonCardCount: horizonCards.length,
-      horizonSummaries,
-      horizonContents: horizonCards.map(cardContent),
+      missionCardCount: missionCards.length,
+      missionSummaries,
+      missionContents: missionCards.map(cardContent),
     },
   }
 }
@@ -805,11 +850,11 @@ export function gateCrewSlotsCheckedEvent(
   crewCommitted: number,
   serviceDroneBaysSpent: number,
 ): PlaytestLogEvent {
-  const filledSlots = crewCommitted + serviceDroneBaysSpent
+  const filledSlots = crewCommitted
 
   return {
     type: 'gate.crew_slots_checked',
-    message: `${gateCard.title} crew slots checked: ${filledSlots}/${requiredCrewSlots} filled (${crewCommitted} crew, ${serviceDroneBaysSpent} Service Drone Bay).`,
+    message: `${gateCard.title} crew need checked: ${filledSlots}/${requiredCrewSlots} crew committed; Service Drone Bay reduction: ${serviceDroneBaysSpent}.`,
     details: {
       gateCardId: gateCard.id,
       gateTitle: gateCard.title,
@@ -855,7 +900,7 @@ export function gateCompletedEvent(
 ): PlaytestLogEvent {
   return {
     type: 'gate.completed',
-    message: `${describeCard(gateCard, gateCard.id)} completed from ${sourceStack.id}; ${isFinalGate ? 'ship arrived beyond the final Gate' : 'next sector begins'}.`,
+    message: `${describeCard(gateCard, gateCard.id)} completed from ${sourceStack.id}; ${isFinalGate ? 'final round end will score the run' : 'next sector begins'}.`,
     details: {
       gateCardId: gateCard.id,
       gateTitle: gateCard.title,
@@ -917,7 +962,7 @@ export function routeArchivedEvent(sector: number, routeCardIds: readonly string
   const routeTitles = cardTitles(routeCardIds, cards)
 
   return {
-    type: 'traveled_stops.archived',
+    type: 'traveled_missions.archived',
     message: `Sector ${sector} traveled Destinations archived after Gate: ${routeTitles.join(', ') || 'none'}.`,
     details: {
       sector,
@@ -966,10 +1011,11 @@ export function starsCompletedSummaryEvent(
 }
 
 export function gameLostEvent(reason: GameLossReason): PlaytestLogEvent {
-  const message =
-    reason === 'sector-stranded'
-      ? 'No reachable Mission remains and the Gate cannot be passed with current resources.'
-      : 'The Gate cannot be completed with available Ship Parts, Ready crew, required Gate Fuel, and unused MOTHER cards.'
+  const message = reason === 'sector-stranded'
+    ? 'No reachable Mission remains and the Gate cannot be passed with current resources.'
+    : reason === 'fuel-depleted'
+      ? 'The Fuel Supply is empty at round end.'
+      : 'The Gate cannot be completed with available Gate Ship Parts, Ready crew, required Gate Fuel, crew-made Fuel, and allowed MOTHER support.'
 
   return {
     type: 'game.lost',

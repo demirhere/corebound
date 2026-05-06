@@ -9,7 +9,7 @@ import type {
   DiscoveryTag,
   GateDetails,
   HazardKind,
-  HorizonKind,
+  MissionKind,
   RequirementIconKind,
   ResourceKind,
   ShipPartKind,
@@ -21,7 +21,7 @@ import {
   driftArt,
   gateArt,
   hazardArt,
-  horizonArt,
+  missionArt,
   motherArt,
   resourceArt,
 } from './art'
@@ -164,23 +164,23 @@ export function createDamageCard(
   }
 }
 
-export function createHorizonCard(
+export function createMissionCard(
   title: string,
-  horizonKind: HorizonKind,
+  missionKind: MissionKind,
   fuel: number,
   icons: RequirementIconKind[],
   find: DestinationFind,
 ): CardBlueprint {
-  const art = horizonArt[horizonKind]
+  const art = missionArt[missionKind]
 
   return {
     title,
     icon: art.icon,
     hue: art.hue,
     accent: art.accent,
-    kind: 'horizon',
-    horizon: {
-      kind: horizonKind,
+    kind: 'mission',
+    mission: {
+      kind: missionKind,
       need: {
         fuel,
         icons,
@@ -190,11 +190,16 @@ export function createHorizonCard(
   }
 }
 
-export function shipPartFind(itemName: string, shipPart: ShipPartKind): DestinationFind {
+export function shipPartFind(
+  itemName: string,
+  shipPart: ShipPartKind,
+  rewards: VisitReward[] = [],
+): DestinationFind {
   return {
     kind: 'ship_part',
     itemName,
     shipPart,
+    rewards,
   }
 }
 
@@ -209,6 +214,7 @@ export function visitRewardFind(itemName: string, rewards: VisitReward[]): Desti
 export function createGateCard(
   title: string,
   label: string,
+  fuel: number,
   icons: RequirementIconKind[],
   crew: number,
   effectKind: GateDetails['effectKind'],
@@ -225,6 +231,7 @@ export function createGateCard(
     gate: {
       label,
       need: {
+        fuel,
         icons,
         crew,
       },
@@ -234,7 +241,7 @@ export function createGateCard(
       clearText,
       motherPenalty: {
         threshold: 3,
-        extraHumanCrew: effectKind === 'stress-extra-slot' ? 1 : 0,
+        extraHumanCrew: 0,
       },
     },
   }

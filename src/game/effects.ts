@@ -6,6 +6,10 @@ export function createBoardEffectsForVisitRewards(rewards: readonly VisitReward[
       return [{ kind: 'next_stop_fuel_discount', amount: reward.amount }]
     }
 
+    if (reward.kind === 'next_gate_fuel_discount') {
+      return [{ kind: 'next_gate_fuel_discount', amount: reward.amount }]
+    }
+
     return []
   })
 }
@@ -23,11 +27,28 @@ export function getNextStopFuelDiscount(effects: readonly BoardEffect[]) {
   return effects.find((effect) => effect.kind === 'next_stop_fuel_discount')?.amount ?? 0
 }
 
+export function getNextGateFuelDiscount(effects: readonly BoardEffect[]) {
+  return effects.find((effect) => effect.kind === 'next_gate_fuel_discount')?.amount ?? 0
+}
+
 export function consumeNextStopFuelDiscount(effects: readonly BoardEffect[]) {
   let hasConsumedDiscount = false
 
   return effects.flatMap<BoardEffect>((effect) => {
     if (!hasConsumedDiscount && effect.kind === 'next_stop_fuel_discount') {
+      hasConsumedDiscount = true
+      return []
+    }
+
+    return [{ ...effect }]
+  })
+}
+
+export function consumeNextGateFuelDiscount(effects: readonly BoardEffect[]) {
+  let hasConsumedDiscount = false
+
+  return effects.flatMap<BoardEffect>((effect) => {
+    if (!hasConsumedDiscount && effect.kind === 'next_gate_fuel_discount') {
       hasConsumedDiscount = true
       return []
     }

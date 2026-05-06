@@ -1,8 +1,8 @@
-import { MOTHER_DECK_ID } from './decks'
+import { FUEL_DECK_ID, FUEL_DISCARD_DECK_ID, MOTHER_DECK_ID } from './decks'
 import { getNextStopFuelDiscount } from './effects'
-import { getDestinationFuelSurcharge } from './damage'
+import { getDestinationFuelSurcharge, getMissionAnyIconSurcharge } from './damage'
 import {
-  canCompleteHorizonNeedWithFuelOptions,
+  canCompleteMissionNeedWithFuelOptions,
   countUsableMotherCardsInPlay,
 } from './rules'
 import type { BoardState, Card } from './types'
@@ -40,6 +40,26 @@ export function countFuelCardsInPlay(current: BoardState) {
   return fuelCardIds.size
 }
 
+export function countFuelCardsInSupply(current: BoardState) {
+  const supplyStack = current.stacks.find((stack) =>
+    stack.cardIds.some((cardId) => {
+      const card = current.cards[cardId]
+
+      return card?.kind === 'resource' && card.resource === 'fuel'
+    }),
+  )
+
+  return supplyStack?.cardIds.filter((cardId) => {
+    const card = current.cards[cardId]
+
+    return card?.kind === 'resource' && card.resource === 'fuel'
+  }).length ?? 0
+}
+
+export function countFuelCardsInDeckAndDiscard(current: BoardState) {
+  return getDeckCardCount(current, FUEL_DECK_ID) + getDeckCardCount(current, FUEL_DISCARD_DECK_ID)
+}
+
 export function getAvailableMotherCardCount(current: BoardState) {
   return (
     countUsableMotherCardsInPlay(current.stacks, current.cards) +
@@ -47,11 +67,11 @@ export function getAvailableMotherCardCount(current: BoardState) {
   )
 }
 
-export function getVisibleHorizonCards(current: BoardState) {
+export function getVisibleMissionCards(current: BoardState) {
   return current.mapSlots.flatMap((cardId) => {
     const card = cardId ? current.cards[cardId] : null
 
-    return card?.kind === 'horizon' && card.horizon ? [card] : []
+    return card?.kind === 'mission' && card.mission ? [card] : []
   })
 }
 
@@ -63,26 +83,29 @@ function hasMissionDiscoverySupportInHand(current: BoardState) {
   })
 }
 
-export function canTravelToHorizon(current: BoardState, horizonCard: Card) {
-  if (!horizonCard.horizon) {
+export function canTravelToMission(current: BoardState, missionCard: Card) {
+  if (!missionCard.mission) {
     return false
   }
 
   const requiredFuel = Math.max(
     0,
-    horizonCard.horizon.need.fuel +
-      getDestinationFuelSurcharge(current.cards, horizonCard.horizon) -
+    missionCard.mission.need.fuel +
+      getDestinationFuelSurcharge(current.cards, missionCard.mission) -
       getNextStopFuelDiscount(current.pendingEffects),
   )
+  const missionAnyIconSurcharge = getMissionAnyIconSurcharge(current.cards, current.routeSlots)
 
   const readyCrewCardIds = getReadyCrewCardIds(current)
-  const canTravelWithoutDiscoveries = canCompleteHorizonNeedWithFuelOptions(
+  const canTravelWithoutDiscoveries = canCompleteMissionNeedWithFuelOptions(
     readyCrewCardIds,
     current.cards,
-    horizonCard.horizon.need.icons,
+    missionCard.mission.need.icons,
     requiredFuel,
-    countFuelCardsInPlay(current),
+    Math.min(countFuelCardsInPlay(current), requiredFuel),
     getAvailableMotherCardCount(current),
+    [],
+    missionAnyIconSurcharge,
   )
 
   return canTravelWithoutDiscoveries || (
@@ -91,14 +114,14 @@ export function canTravelToHorizon(current: BoardState, horizonCard: Card) {
   )
 }
 
-export function canTravelToAnyHorizon(current: BoardState, horizonCardIds: readonly string[]) {
-  return horizonCardIds.some((cardId) => {
+export function canTravelToAnyMission(current: BoardState, missionCardIds: readonly string[]) {
+  return missionCardIds.some((cardId) => {
     const card = current.cards[cardId]
 
-    return card?.kind === 'horizon' && canTravelToHorizon(current, card)
+    return card?.kind === 'mission' && canTravelToMission(current, card)
   })
 }
 
-export function canTravelToAnyVisibleHorizon(current: BoardState) {
-  return getVisibleHorizonCards(current).some((card) => canTravelToHorizon(current, card))
+export function canTravelToAnyVisibleMission(current: BoardState) {
+  return getVisibleMissionCards(current).some((card) => canTravelToMission(current, card))
 }

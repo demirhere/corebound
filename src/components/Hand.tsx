@@ -24,11 +24,14 @@ type HandProps = {
   stressCount: number
   currentSector: number
   totalSectors: number
+  missionsCompleted: number
+  turnNumber: number
   endTurnAttentionKey: number
   handRef: Ref<HTMLElement>
   canInteract: boolean
   canEndTurn: boolean
   endTurnLabel: string
+  endTurnSublabel: string | null
   onEndTurn: () => void
   onCardPointerDown: HandPointerDownHandler
   onCardKeyDown: HandKeyDownHandler
@@ -43,11 +46,14 @@ export function Hand({
   stressCount,
   currentSector,
   totalSectors,
+  missionsCompleted,
+  turnNumber,
   endTurnAttentionKey,
   handRef,
   canInteract,
   canEndTurn,
   endTurnLabel,
+  endTurnSublabel,
   onEndTurn,
   onCardPointerDown,
   onCardKeyDown,
@@ -90,6 +96,8 @@ export function Hand({
         stressCount={stressCount}
         currentSector={currentSector}
         totalSectors={totalSectors}
+        missionsCompleted={missionsCompleted}
+        turnNumber={turnNumber}
         canInteract={canInteract}
         onCardPointerDown={onCardPointerDown}
         onCardKeyDown={onCardKeyDown}
@@ -102,7 +110,10 @@ export function Hand({
           onPointerDown={(event) => event.stopPropagation()}
           onClick={onEndTurn}
         >
-          {endTurnLabel}
+          <span className="hand-end-turn-copy">
+            <span>{endTurnLabel}</span>
+            {endTurnSublabel ? <span className="hand-end-turn-sublabel">{endTurnSublabel}</span> : null}
+          </span>
         </button>
       </div>
     </section>

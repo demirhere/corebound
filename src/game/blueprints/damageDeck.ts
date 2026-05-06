@@ -4,8 +4,9 @@ export const damageDeck = [
   createDamageCard(
     'Fractured Engine',
     'fractured-engine',
-    'Mission Engine costs +1 Fuel.',
+    'Engine Missions require +1 Engine icon.',
     'At each Mission attempt',
+    false,
   ),
   createDamageCard(
     'Frozen Sector',
@@ -39,13 +40,6 @@ export const damageDeck = [
     false,
   ),
   createDamageCard(
-    'Mission Lead Injured',
-    'mission-lead-injured',
-    'Mission Lead may not commit a 4th crew per turn.',
-    'Each turn',
-    false,
-  ),
-  createDamageCard(
     'Sealed Cargo',
     'sealed-cargo',
     'First Mission per sector gives no Discovery.',
@@ -60,7 +54,7 @@ export const damageDeck = [
   createDamageCard(
     'Phantom Course',
     'phantom-course',
-    'Sector Stops reveals 2 Missions instead of 3.',
+    'Missions reveal 2 cards instead of 3.',
     'Each sector start',
   ),
   createDamageCard(
@@ -72,7 +66,7 @@ export const damageDeck = [
   createDamageCard(
     'Long Reach',
     'long-reach',
-    'All Mission Fuel costs +1.',
+    'The 3rd Mission in a sector requires +1 crew icon.',
     'At each Mission attempt',
   ),
 ]

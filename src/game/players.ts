@@ -58,7 +58,8 @@ export function getPlayerTiredCrewCardIds(board: BoardState, playerId: string | 
   }
 
   return board.tiredCardIds.filter((cardId) => (
-    board.cards[cardId]?.kind === 'crew' && board.crewOwnerIds[cardId] === playerId
+    board.cards[cardId]?.kind === 'crew' &&
+      board.crewOwnerIds[cardId] === playerId
   ))
 }
 
