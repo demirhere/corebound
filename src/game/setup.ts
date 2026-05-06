@@ -29,7 +29,7 @@ import type { PlaytestLogEvent } from './playtestLog'
 
 const RESOURCE_DECK_SIZE = 12
 const MOTHER_DECK_SIZE = 6
-export const TOTAL_SECTORS = 2
+export const TOTAL_SECTORS = 10
 export const SOLO_PLAYER_ID = 'solo'
 export const SOLO_PLAYER: GamePlayer = {
   id: SOLO_PLAYER_ID,

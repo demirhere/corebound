@@ -207,7 +207,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
           <section className="how-to-play-wide-section how-to-play-warning-section">
             <h3>Win And Loss</h3>
             <p>
-              Solo wins by passing Gate 2. Multiplayer scores only after that success:
+              Solo wins by passing the final Gate (10th sector). Multiplayer scores only after that success:
               most crew wins, then Blueprints, then Ready crew. Any ship loss means everyone loses.
               You lose if no reachable Mission remains and the Gate cannot be passed, or if the Gate
               cannot be passed with available Ship Parts, Ready crew, required Gate Fuel, and unused MOTHER.

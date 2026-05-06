@@ -60,6 +60,46 @@ export const sectorDeckArt: Record<number, DeckArt> = {
     hue: 222,
     accent: '#74a7ff',
   },
+  3: {
+    icon: 'moon',
+    hue: 184,
+    accent: '#73ffd6',
+  },
+  4: {
+    icon: 'diamond',
+    hue: 147,
+    accent: '#77ffbb',
+  },
+  5: {
+    icon: 'flower',
+    hue: 96,
+    accent: '#bcdd6a',
+  },
+  6: {
+    icon: 'snowflake',
+    hue: 42,
+    accent: '#ffb72e',
+  },
+  7: {
+    icon: 'hex',
+    hue: 20,
+    accent: '#ff9f68',
+  },
+  8: {
+    icon: 'satellite',
+    hue: 354,
+    accent: '#ff4f64',
+  },
+  9: {
+    icon: 'antenna',
+    hue: 309,
+    accent: '#ff8ce6',
+  },
+  10: {
+    icon: 'gate',
+    hue: 282,
+    accent: '#d98cff',
+  },
 }
 
 export const crewArt: DeckArt = {

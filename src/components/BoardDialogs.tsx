@@ -140,7 +140,7 @@ function getArrivalTitle(standings: readonly PlayerStanding[]) {
   const winners = standings.filter((standing) => standing.isWinner)
 
   if (winners.length === 0) {
-    return 'You arrived beyond the second Gate.'
+    return 'You arrived beyond the final Gate.'
   }
 
   if (winners.length > 1) {
@@ -182,11 +182,11 @@ export function ArrivalDialog({ hasArrived, board, onResetGame, canReset }: {
     <div className="dialog-overlay">
       <section className="arrival-panel" role="status" aria-live="polite">
         <p className="arrival-kicker">Gate cleared</p>
-        <h2>{isMultiplayer ? getArrivalTitle(standings) : 'You arrived beyond the second Gate.'}</h2>
+        <h2>{isMultiplayer ? getArrivalTitle(standings) : 'You arrived beyond the final Gate.'}</h2>
         <p>
           {isMultiplayer
-            ? 'Gate 2 passed. Crew count scores first, then Blueprints built, then Ready crew. If still tied, victory is shared.'
-            : 'Two-sector prototype complete. Restart to reshuffle both sectors and run it again.'}
+            ? `Gate ${board.totalSectors} passed. Crew count scores first, then Blueprints built, then Ready crew. If still tied, victory is shared.`
+            : `${board.totalSectors}-sector prototype complete. Restart to reshuffle the whole run and try it again.`}
         </p>
         {isMultiplayer ? <PlayerStandingsRows standings={standings} /> : null}
         <button type="button" onClick={onResetGame} disabled={!canReset}>

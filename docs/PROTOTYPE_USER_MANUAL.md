@@ -1,6 +1,6 @@
 # Corebound Prototype User Manual
 
-This manual describes the current two-sector Corebound board prototype. It supports solo play and PartyKit multiplayer. The app sets up the board automatically when the run launches or restarts, but the rules below are written so a playtester can understand the physical table loop.
+This manual describes the current ten-sector Corebound board prototype. It supports solo play and PartyKit multiplayer. The app sets up the board automatically when the run launches or restarts, but the rules below are written so a playtester can understand the physical table loop.
 
 Player-facing teach:
 
@@ -10,11 +10,11 @@ Pass each sector Gate. Optional Missions reveal 3 Destinations at a time; visit 
 
 ## Objective
 
-Pass two sector Gates. At setup, shuffle the Gate deck and draw the top Gate face up. After Gate 1 succeeds, draw the next Gate from the top of the visible Gate deck. A sector Gate can be attempted at any time in that sector. Map Destinations are optional preparation, not prerequisites.
+Pass 10 sector Gates. At setup, shuffle the Gate deck and draw the top Gate face up. After each Gate succeeds, draw the next Gate from the top of the visible Gate deck. A sector Gate can be attempted at any time in that sector. Map Destinations are optional preparation, not prerequisites.
 
-Solo: you win when the second Gate is completed.
+Solo: you win when the 10th Gate is completed.
 
-Multiplayer: everyone is trying to keep the ship alive, but only the ship's survival creates a score. If the ship is stranded or any Gate cannot be passed, everyone loses. If Gate 2 succeeds, count each player's owned surviving crew; the player with the most crew leads the new world.
+Multiplayer: everyone is trying to keep the ship alive, but only the ship's survival creates a score. If the ship is stranded or any Gate cannot be passed, everyone loses. If the final Gate succeeds, count each player's owned surviving crew; the player with the most crew leads the new world.
 
 Multiplayer tie-breakers:
 
@@ -26,7 +26,7 @@ You lose if no reachable Mission remains and the current Gate cannot be passed w
 
 ## Starting Setup
 
-The prototype uses two sectors, one active Missions deck at a time, one Fuel deck, one MOTHER deck, one Cryo deck, one Discovery deck, one Drift deck, one visible Gate deck, one Damage deck, a 3-slot Map, one face-up Gate, a Stress area, and two hand areas: Hand and Tired.
+The prototype uses 10 sectors, one active Missions deck at a time, one Fuel deck, one MOTHER deck, one Cryo deck, one Discovery deck, one Drift deck, one visible Gate deck, one Damage deck, a 3-slot Map, one face-up Gate, a Stress area, and two hand areas: Hand and Tired.
 
 On load or restart, setup is staged as an animated deal instead of cards snapping into place. After that animation, the Map is empty; click the active Missions deck to deal the first 3-card Map offer.
 
@@ -38,11 +38,11 @@ On load or restart, setup is staged as an animated deal instead of cards snappin
 | Tired Crew | 0 crew | Starts empty. Crew used on Destinations or Gates move here. |
 | Missions | 9 Destinations | Shuffle all 9 Destinations for the sector and place them as a manual draw deck titled after the current Gate. Do not deal Map Destinations during setup; the player draws the first Map offer from here. |
 | Map | 0 Destinations before the first draw | Starts empty. After the player draws from Missions, these are the current visible Destinations. Complete 1, keep its card on the board only if it found a Ship Part, and clear Immediate Benefit Destinations with the other visible Destinations. New Map offers are drawn manually from Missions, at most once per turn. |
-| Gate | 1 Gate card | Shuffle all 14 Gates, place the top Gate face up below Missions, and keep the rest visible as the Gate Deck. The face-up Gate is attemptable anytime. |
+| Gate | 1 Gate card | Shuffle all 14 Gates, place the top Gate face up below Missions, and keep the rest visible as the Gate Deck. The run uses 10 of the shuffled Gates in the order they are drawn; the remainder stay unused for this run. The face-up Gate is attemptable anytime. |
 | MOTHER Deck | 6 MOTHER cards | Place as a manual draw deck. Draws 1 card at a time. |
 | Discovery Deck | 24 Discovery cards | Shuffle 3 copies each of 8 Discovery designs. This is reward-only; completing a Destination automatically deals the top Discovery to the earning player's Hand. |
 | Drift Deck | 10 Drift cards | Shuffle 7 Burn and 3 Fatigue receipt cards. This deck resolves automatically after the final player ends their turn each round. Reshuffle the full Drift deck when it is empty before a Drift draw. |
-| Gate Deck | 13 remaining Gates | Shows how many shuffled Gates remain. Gate 1 success draws the next Gate from here. |
+| Gate Deck | 13 remaining Gates | Shows how many shuffled Gates remain. Each Gate success draws the next Gate from here, for 10 Gates total. |
 | Damage Deck | 12 Damage cards | Shuffle and keep as a reward-only penalty deck. If a passed Gate is not cleared cleanly, draw the top Damage and leave it on the ship board. |
 | Stress | 0 Stress | Spent MOTHER adds Stress. |
 | Cryo Deck | Up to 7 Cryo crew | Shuffle and keep as a reward-only deck. In solo, all 7 Cryo crew start here. In multiplayer, any Cryo crew needed to finish the even starting deal are removed first, so Wake rewards draw from the remaining Cryo deck. |
@@ -271,7 +271,7 @@ Stress rules:
 ```text
 Each spent MOTHER adds 1 Stress.
 If Ash Belt is the active Gate and Stress is 3 or more, add 1 red crew slot.
-Stress carries from Sector 1 to Sector 2.
+Stress carries forward across all sectors of the run.
 ```
 
 ## Valid Completion Stacks
@@ -295,19 +295,19 @@ The current stack actions are:
 
 ## Sector Transition
 
-After Gate 1 succeeds:
+After each non-final Gate succeeds:
 
-1. The Sector 1 route progress resets. Any unresolved visible Map Destinations are discarded. Immediate Benefit traveled Destinations leave the board; Ship Part Destination cards remain visible.
+1. The current sector's route progress resets. Any unresolved visible Map Destinations are discarded. Immediate Benefit traveled Destinations leave the board; Ship Part Destination cards remain visible.
 2. Ship Part Destination cards stay on the board. Unspent Ship Parts remain available; spent Ship Parts remain spent.
 3. All Tired crew become Ready.
 4. Fuel carries forward.
 5. Stress carries forward.
-6. If the Gate was not cleared cleanly, the drawn Damage remains visible and its effect carries forward.
-7. The 9 Destinations are reshuffled for Sector 2 and placed in Missions titled after the next Gate.
+6. If the Gate was not cleared cleanly, the drawn Damage remains visible and its effect carries forward across all remaining sectors.
+7. The 9 Destinations are reshuffled for the next sector and placed in Missions titled after the next Gate.
 8. Draw the next Gate from the Gate Deck, place it face up below Missions, and attempt it anytime.
-9. The Sector 2 Map starts empty; click Missions to fill the Map.
+9. The next sector's Map starts empty; click Missions to fill the Map.
 
-After Gate 2 succeeds, the player wins.
+After the 10th Gate succeeds, the player wins.
 
 ## Prototype Controls
 
@@ -360,13 +360,13 @@ The app still accepts `role=observer` for a read-only view. Observers receive ca
 
 ## Win And Loss Summary
 
-Solo: win by completing Gate 2.
+Solo: win by completing the 10th Gate.
 
 Multiplayer scoring happens only if the ship survives:
 
 ```text
 If the ship is stranded or any Gate fails: everyone loses.
-If Gate 2 succeeds: count each player's owned crew.
+If the final Gate succeeds: count each player's owned crew.
 Most crew wins.
 ```
 
@@ -433,5 +433,5 @@ Other players may only add or remove their own crew by click or drag.
 Shared rewards help the ship.
 Crew rewards join the Mission Lead.
 Blueprints help everyone, but score for the Mission Lead who found them.
-Any ship loss means everyone loses; only Gate 2 success scores crew.
+Any ship loss means everyone loses; only the 10th Gate success scores crew.
 ```
