@@ -130,6 +130,15 @@ function renderResourceReward(reward: Extract<VisitReward, { kind: 'resource' }>
   )
 }
 
+function renderRewardIconCount(icon: GameIconKind, count: number, key: string) {
+  return (
+    <span className="need-icon-count" key={key}>
+      {count > 1 ? <span className="need-icon-count-label">{count}x</span> : null}
+      <GameIcon kind={icon} />
+    </span>
+  )
+}
+
 function renderReward(reward: VisitReward, index: number) {
   if (reward.kind === 'resource') {
     return [renderResourceReward(reward, index)]
@@ -137,19 +146,13 @@ function renderReward(reward: VisitReward, index: number) {
 
   if (reward.kind === 'crew') {
     if (reward.label === 'Wake') {
-      const wakeText = reward.count === 1 ? 'Wake 1' : `Wake ${reward.count}`
-      const readyText = reward.count === 1 ? 'Ready 1' : `Ready ${reward.count}`
+      const wakeText = 'Wake'
+      const readyText = 'Ready'
 
       return [
-        <span key={`wake-${index}`} className="sector-card-detail">
-          {wakeText}{' '}
-          {Array.from({ length: reward.count }, (_, rewardIndex) => (
-            <GameIcon key={`wake-${index}-${rewardIndex}`} kind="tired-person" />
-          ))}
-          {' and then '}{readyText}{' '}
-          {Array.from({ length: reward.count }, (_, rewardIndex) => (
-            <GameIcon key={`wake-ready-${index}-${rewardIndex}`} kind="person" />
-          ))}
+        <span key={`wake-${index}`} className="card-crew-reward">
+          {wakeText} {renderRewardIconCount('tired-person', reward.count, `wake-${index}-icon`)}
+          {' and then '}{readyText} {renderRewardIconCount('person', reward.count, `wake-ready-${index}-icon`)}
         </span>,
       ]
     }
@@ -157,11 +160,9 @@ function renderReward(reward: VisitReward, index: number) {
     const iconKind = 'person'
 
     return [
-      <span key={`crew-${index}`} className="sector-card-detail">
-        {reward.label} {reward.count}{' '}
-        {Array.from({ length: reward.count }, (_, rewardIndex) => (
-          <GameIcon key={`${iconKind}-${index}-${rewardIndex}`} kind={iconKind} />
-        ))}
+      <span key={`crew-${index}`} className="card-crew-reward">
+        {reward.label}{' '}
+        {renderRewardIconCount(iconKind, reward.count, `${iconKind}-${index}`)}
       </span>
     ]
   }
@@ -193,21 +194,19 @@ function renderReward(reward: VisitReward, index: number) {
   }
 
   if (reward.kind === 'ready') {
-    const readyText = reward.count === 1 ? 'Ready 1' : `Ready ${reward.count}`
+    const readyText = 'Ready'
     const readyTitle = `${readyText} crew`
 
     return [
       <span
         key={`ready-${index}`}
-        className="sector-card-detail"
+        className="card-crew-reward"
         role="img"
         aria-label={readyTitle}
         title={readyTitle}
       >
         {readyText}{' '}
-        {Array.from({ length: reward.count }, (_, rewardIndex) => (
-          <GameIcon key={`ready-${index}-${rewardIndex}`} kind="person" />
-        ))}
+        {renderRewardIconCount('person', reward.count, `ready-${index}-icon`)}
       </span>
     ]
   }
@@ -648,7 +647,7 @@ export function renderGameplayCardContent(
 
     return (
       <>
-        <p className="card-rule-text">{card.gate.effectText}</p>
+        {card.gate.effectKind !== 'none' && <p className="card-rule-text">{card.gate.effectText}</p>}
         <div className="card-rule-row card-gate-section">
           <span>Need to pass:</span>
           <div className="card-rule-icons">

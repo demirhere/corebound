@@ -164,6 +164,7 @@ export type GateDetails = {
     crew: number
   }
   effectKind:
+    | 'none'
     | 'block-engine-crew'
     | 'block-life-crew'
     | 'block-science-crew'

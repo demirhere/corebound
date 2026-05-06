@@ -36,7 +36,7 @@ function lossContent(reason: GameLossReason) {
 
   return {
     title: 'The Gate cannot be passed.',
-    body: 'The Gate cannot be completed with available Gate Ship Parts, Ready crew, required Gate Fuel, crew-made Fuel, and allowed MOTHER support.',
+    body: 'The Gate cannot be completed with required Gate Fuel, crew-made Fuel, and available Gate Fuel discounts.',
   }
 }
 

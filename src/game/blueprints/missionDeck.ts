@@ -17,9 +17,12 @@ export const missionDeck = [
     'Ark Fuel Vault',
     [{ kind: 'resource', resource: 'fuel', count: 4 }],
   )),
-  createMissionCard('Iron Wake', 'asteroid', 0, ['engine', 'engine'], shipPartFind(
-    'Service Drone Bay',
-    'service-drone-bay',
+  createMissionCard('Iron Wake', 'asteroid', 0, ['engine', 'engine'], visitRewardFind(
+    'Service Drone Cache',
+    [
+      { kind: 'ready', count: 1 },
+      { kind: 'resource', resource: 'fuel', count: 1 },
+    ],
   )),
   createMissionCard('Red Salvage', 'asteroid', 0, ['engine', 'engine', 'signal'], visitRewardFind(
     'Fuel Cell Cache',

@@ -99,9 +99,15 @@ export function cardRulesText(card: Card | CardBlueprint) {
   }
 
   if (card.kind === 'gate' && card.gate) {
-    const icons = card.gate.need.icons.map(getRequirementIconLabel).join(', ')
+    const need = [
+      `fuel ${card.gate.need.fuel}`,
+      card.gate.need.crew > 0 ? `crew slots ${card.gate.need.crew}` : null,
+      card.gate.need.icons.length > 0 ? `icons ${card.gate.need.icons.map(getRequirementIconLabel).join(', ')}` : null,
+    ]
+      .filter(Boolean)
+      .join('; ')
 
-    return `gate fuel ${card.gate.need.fuel}; crew slots: ${card.gate.need.crew}; icons needed: ${icons}; resolve: ${card.gate.effectText}; clear: ${card.gate.clearText}`
+    return `gate ${need}; resolve: ${card.gate.effectText}; clear: ${card.gate.clearText}`
   }
 
   if (card.kind === 'discovery' && card.discovery) {
@@ -852,9 +858,13 @@ export function gateCrewSlotsCheckedEvent(
 ): PlaytestLogEvent {
   const filledSlots = crewCommitted
 
+  const message = requiredCrewSlots === 0 && serviceDroneBaysSpent === 0
+    ? `${gateCard.title} crew need checked: no Gate crew required.`
+    : `${gateCard.title} crew need checked: ${filledSlots}/${requiredCrewSlots} crew committed; Service Drone Bay reduction: ${serviceDroneBaysSpent}.`
+
   return {
     type: 'gate.crew_slots_checked',
-    message: `${gateCard.title} crew need checked: ${filledSlots}/${requiredCrewSlots} crew committed; Service Drone Bay reduction: ${serviceDroneBaysSpent}.`,
+    message,
     details: {
       gateCardId: gateCard.id,
       gateTitle: gateCard.title,
@@ -1015,7 +1025,7 @@ export function gameLostEvent(reason: GameLossReason): PlaytestLogEvent {
     ? 'No reachable Mission remains and the Gate cannot be passed with current resources.'
     : reason === 'fuel-depleted'
       ? 'The Fuel Supply is empty at round end.'
-      : 'The Gate cannot be completed with available Gate Ship Parts, Ready crew, required Gate Fuel, crew-made Fuel, and allowed MOTHER support.'
+      : 'The Gate cannot be completed with required Gate Fuel, crew-made Fuel, and available Gate Fuel discounts.'
 
   return {
     type: 'game.lost',

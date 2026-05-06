@@ -3054,6 +3054,10 @@
   }
 }
 
+.card-kind-resource .card-rule-text {
+  font-weight: 500;
+}
+
 .card-kind-mission {
   .card-face.card-front {
     border-width: 0;
@@ -3683,6 +3687,28 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+
+.card-crew-reward {
+  display: inline;
+  color: #11131a;
+  font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  text-align: left;
+
+  .need-icon-count {
+    display: inline;
+  }
+
+  > .game-icon,
+  .need-icon-count .game-icon {
+    display: inline-grid;
+    margin: 0 0.08em;
+    vertical-align: -0.24em;
+  }
 }
 
 .card-primary-icons {

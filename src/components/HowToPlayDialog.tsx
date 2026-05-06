@@ -135,8 +135,8 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
             <ol>
               <li>Read the face-up Gate, then click Missions to reveal Map Destinations.</li>
               <li>Travel to only 1 Destination per turn. Stack its crew-icon payment, then click Travel.</li>
-              <li>Used crew move to Tired. Rewards recover Fuel, wake Cryo crew for the Mission Lead, or reveal Ship Parts.</li>
-              <li>Each Gate costs 3-5 Fuel to pass, with simple extra Fuel/Crew to clear cleanly.</li>
+              <li>Used crew move to Tired. Rewards recover Fuel, ready Tired crew, wake Cryo crew for the Mission Lead, or reveal Ship Parts.</li>
+              <li>Each Gate costs 3-6 Fuel to pass, with extra Fuel to clear cleanly.</li>
               <li>After a non-final Gate succeeds, the next sector starts with an empty Map.</li>
               <li>If Fuel is empty, recover Fuel before round end or the ship loses.</li>
               <li>Unchosen Map Destinations clear. End turn before drawing again unless that was the 3rd Destination.</li>
@@ -147,7 +147,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
             <h3>Paying Costs</h3>
             <div className="how-to-play-equations">
               <p><HowToPlayChip icon="fuel" label="Fuel Cell" /> pays Gate Fuel.</p>
-              <p><HowToPlayChip icon="person" label="Ready crew" /> pays matching Destination icons or Gate crew slots.</p>
+              <p><HowToPlayChip icon="person" label="Ready crew" /> pays matching Destination icons.</p>
               <p><HowToPlayIconStrip icons={['engine', 'signal']} /> Engineer + Scientist can make 1 <GameIcon kind="fuel" /> when Fuel is short.</p>
               <p><HowToPlayChip icon="mother" label="MOTHER" /> covers missing non-Fuel icons only, and only with at least 1 human crew committed.</p>
             </div>
@@ -157,6 +157,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
             <h3>Finds</h3>
             <ul>
               <li>Resource Missions recover 1-4 Fuel for the shared supply.</li>
+              <li>Ready Missions ready Tired crew.</li>
               <li>Wake Missions recruit 1-2 Cryo crew for the Mission Lead; new crew joins Tired.</li>
               <li>Ship Part Missions make one Ship Part available.</li>
             </ul>
@@ -166,17 +167,16 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
             <h3>Ship Parts</h3>
             <div className="how-to-play-find-types">
               <p><strong>Medbay Rehydrator</strong> readies +1 Tired crew after each sector.</p>
-              <p><strong>Service Drone Bay</strong> reduces Sector Gate crew need by 1.</p>
               <p><strong>Adaptive Control Console</strong> reduces required Gate Fuel by 1.</p>
-              <p>The app applies Medbay at sector end and other available Ship Parts automatically at Gates. Unspent parts carry forward.</p>
+              <p>The app applies Medbay at sector end and available Gate Fuel discounts automatically at Gates. Unspent parts carry forward.</p>
             </div>
           </section>
 
           <section>
             <h3>Gates And Stress</h3>
             <p>
-              Each sector draws one Gate from the shuffled Gate deck. Pay its 3-5 Fuel and any crew
-              slots to survive, then pay its extra clean-clear Fuel/Crew to avoid drawing Damage.
+              Each sector draws one Gate from the shuffled Gate deck. Pay its 3-6 Fuel to survive,
+              then pay its extra clean-clear Fuel to avoid drawing Damage.
             </p>
           </section>
 
@@ -191,8 +191,8 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
           <section>
             <h3>MOTHER Limits</h3>
             <p>
-              MOTHER never pays <GameIcon kind="fuel" />, never fills <GameIcon kind="person" /> slots,
-              and adds 1 Stress only when spent. Unused MOTHER returns to the MOTHER Deck after completion.
+              MOTHER never pays <GameIcon kind="fuel" />, covers Destination icons only,
+              and adds 1 Stress when spent. Unused MOTHER returns to the MOTHER Deck after completion.
             </p>
           </section>
 
@@ -210,7 +210,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
               Solo wins after passing the final Gate (10th sector) and ending the round. Multiplayer scores after that final round ends:
               most crew wins, then Blueprints, then Ready crew. Any ship loss means everyone loses.
               You lose if Fuel is empty at round end, if no reachable Mission remains and the Gate cannot be passed,
-              or if the Gate cannot be passed with available Gate Ship Parts, Ready crew, required Gate Fuel, and allowed MOTHER support.
+              or if the Gate cannot be passed with required Gate Fuel, crew-made Fuel, and available Gate Fuel discounts.
             </p>
           </section>
         </div>

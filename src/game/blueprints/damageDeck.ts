@@ -54,7 +54,7 @@ export const damageDeck = [
   createDamageCard(
     'Phantom Course',
     'phantom-course',
-    'Missions reveal 2 cards instead of 3.',
+    'You can draft 2 missions at a time.',
     'Each sector start',
   ),
   createDamageCard(
