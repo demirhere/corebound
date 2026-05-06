@@ -2,10 +2,12 @@ import type {
   CardBlueprint,
   CardIconKind,
   CrewSpecialization,
+  DamageKind,
   DestinationFind,
   DiscoveryDetails,
   DiscoveryEffectKind,
   DiscoveryTag,
+  GateDetails,
   HazardKind,
   HorizonKind,
   RequirementIconKind,
@@ -127,6 +129,37 @@ export function createHazardCard(
       damageTitle,
       damageEffectText,
       flavorText,
+      effectImplemented: true,
+    },
+  }
+}
+
+export function createDamageCard(
+  title: string,
+  kind: DamageKind,
+  damageEffectText: string,
+  flavorText: string,
+  effectImplemented = true,
+): CardBlueprint {
+  const art = hazardArt[kind]
+  const displayEffectText = effectImplemented
+    ? damageEffectText
+    : `${damageEffectText} (to be implemented)`
+
+  return {
+    title,
+    icon: art.icon,
+    hue: art.hue,
+    accent: art.accent,
+    kind: 'hazard',
+    hazard: {
+      kind,
+      effectText: displayEffectText,
+      clearText: '',
+      damageTitle: title,
+      damageEffectText: displayEffectText,
+      flavorText,
+      effectImplemented,
     },
   }
 }
@@ -178,7 +211,10 @@ export function createGateCard(
   label: string,
   icons: RequirementIconKind[],
   crew: number,
-  motherPenalty: { threshold: number; extraHumanCrew: number },
+  effectKind: GateDetails['effectKind'],
+  effectText: string,
+  clear: GateDetails['clear'],
+  clearText: string,
 ): CardBlueprint {
   return {
     title,
@@ -192,7 +228,14 @@ export function createGateCard(
         icons,
         crew,
       },
-      motherPenalty,
+      effectKind,
+      effectText,
+      clear,
+      clearText,
+      motherPenalty: {
+        threshold: 3,
+        extraHumanCrew: effectKind === 'stress-extra-slot' ? 1 : 0,
+      },
     },
   }
 }

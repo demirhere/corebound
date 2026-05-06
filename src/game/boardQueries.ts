@@ -1,6 +1,6 @@
 import { MOTHER_DECK_ID } from './decks'
 import { getNextStopFuelDiscount } from './effects'
-import { getDestinationFuelSurcharge } from './hazards'
+import { getDestinationFuelSurcharge } from './damage'
 import {
   canCompleteHorizonNeedWithFuelOptions,
   countUsableMotherCardsInPlay,

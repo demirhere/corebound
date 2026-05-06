@@ -81,57 +81,62 @@ export const driftArt: DeckArt = {
 }
 
 export const hazardArt: Record<HazardKind, DeckArt> = {
-  'ion-storm': {
+  'fractured-engine': {
     icon: 'zap',
     hue: 48,
     accent: '#ffd45d',
   },
-  'dust-veil': {
-    icon: 'moon',
-    hue: 24,
-    accent: '#e0a56b',
-  },
-  'cold-reach': {
+  'frozen-sector': {
     icon: 'snowflake',
     hue: 197,
     accent: '#9bd8e8',
   },
-  'echo-field': {
+  'comm-failure': {
     icon: 'antenna',
     hue: 309,
     accent: '#ff8ce6',
   },
-  'black-tide': {
-    icon: 'crescent',
-    hue: 232,
-    accent: '#8793ff',
-  },
-  fracture: {
-    icon: 'crosshair',
-    hue: 356,
-    accent: '#ff6f7d',
-  },
-  'silent-watch': {
-    icon: 'star',
-    hue: 266,
-    accent: '#b99cff',
-  },
-  'hard-vacuum': {
-    icon: 'diamond',
-    hue: 184,
-    accent: '#73ffd6',
-  },
-  resonance: {
-    icon: 'hex',
-    hue: 128,
-    accent: '#70c58c',
-  },
-  'ghost-signal': {
+  'sensor-loss': {
     icon: 'satellite',
     hue: 162,
     accent: '#7cffd3',
   },
-  'the-veil': {
+  'hull-crack': {
+    icon: 'crescent',
+    hue: 232,
+    accent: '#8793ff',
+  },
+  'crew-quarters-damaged': {
+    icon: 'person',
+    hue: 24,
+    accent: '#e0a56b',
+  },
+  'mission-lead-injured': {
+    icon: 'crosshair',
+    hue: 356,
+    accent: '#ff6f7d',
+  },
+  'sealed-cargo': {
+    icon: 'diamond',
+    hue: 184,
+    accent: '#73ffd6',
+  },
+  'stress-echo': {
+    icon: 'hex',
+    hue: 128,
+    accent: '#70c58c',
+  },
+  'phantom-course': {
+    icon: 'moon',
+    hue: 24,
+    accent: '#e0a56b',
+  },
+  'drift-loop': {
+    icon: 'star',
+    hue: 266,
+    accent: '#b99cff',
+  },
+  'long-reach': {
     icon: 'flower',
     hue: 280,
     accent: '#d98cff',

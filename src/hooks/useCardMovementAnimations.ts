@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react'
-import { CRYO_DECK_ID, DRIFT_DECK_ID, HAZARD_DECK_ID, HORIZON_DECK_ID } from '../game/decks'
+import { CRYO_DECK_ID, DAMAGE_DECK_ID, DRIFT_DECK_ID, GATE_DECK_ID, HORIZON_DECK_ID } from '../game/decks'
 import type { BoardState, Card, CardBlueprint, Deck, HandZone } from '../game/types'
 
 const CARD_MOVE_DURATION_MS = 170
@@ -128,8 +128,12 @@ function getKnownSourceDeckId(card: Card) {
     return DRIFT_DECK_ID
   }
 
-  if (card.id.startsWith('hazard-')) {
-    return HAZARD_DECK_ID
+  if (card.id.startsWith('damage-')) {
+    return DAMAGE_DECK_ID
+  }
+
+  if (card.id.startsWith('gate-')) {
+    return GATE_DECK_ID
   }
 
   if (card.id.startsWith('reward-')) {

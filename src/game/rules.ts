@@ -1,10 +1,14 @@
 import {
-  countDamageKind,
   getDestinationFuelSurcharge,
-  hasActiveHazardKind,
-  hasHazardPressure,
+  getMotherFuelCost,
   isActiveHazardCard,
-} from './hazards'
+} from './damage'
+import {
+  gateBlocksDiscoveries,
+  gateBlocksMotherIcons,
+  getGateExtraCrewSlots,
+  getGateRequiredIconOptions,
+} from './blueprints/sectorGates'
 import type { Card, CardBlueprint, Deck, DiscoveryEffectKind, GateDetails, RequirementIconKind, Stack } from './types'
 
 export type HorizonStackCompletion = {
@@ -60,6 +64,7 @@ const crewDiscoveryIconsByEffect: Partial<Record<DiscoveryEffectKind, Requiremen
 
 type GateHazardModifiers = {
   ignoredCrewCardIds: Set<string>
+  ignoredSingleIconCrewCardIds: Set<string>
   ignoredCrewIconCount: number
   motherCostPerMissingIcon: number
   usableMotherCapacity: number
@@ -305,9 +310,10 @@ function canAssignUsefulSupport(
   motherCount: number,
   cards: Record<string, Card>,
   need: CompletionNeed,
+  motherFuelCost = 0,
   stackCardIds: readonly string[] = [],
 ) {
-  if (fuelCardCount > need.fuel) {
+  if (fuelCardCount > need.fuel + motherCount * motherFuelCost) {
     return false
   }
 
@@ -433,6 +439,10 @@ function canUseAllCardsInCompletionStack(
       return false
     }
 
+    if (objectiveCard?.kind === 'gate' && objectiveCard.gate && gateBlocksDiscoveries(objectiveCard.gate)) {
+      return false
+    }
+
     if (discovery.tag === 'crew') {
       return true
     }
@@ -465,6 +475,7 @@ function canUseAllCardsInCompletionStack(
         any: 0,
         fuel: Math.max(0, objectiveCard.horizon.need.fuel + fuelSurcharge - fuelDiscount - missionFuelDiscount),
       },
+      getMotherFuelCost(cards),
       cardIds,
     )
 
@@ -475,7 +486,7 @@ function canUseAllCardsInCompletionStack(
     const stressCleared = countGateStressClearDiscoveries(cardIds, cards)
     const hazardSkipCount = countGateHazardSkipDiscoveries(cardIds, cards)
     const effectiveStressCount = Math.max(0, stressCountBefore - stressCleared)
-    const allowsGateFuel = hasActiveHazardKind(cards, 'ion-storm')
+    const allowsGateFuel = objectiveCard.gate.effectKind === 'engine-icons-cost-fuel' || getMotherFuelCost(cards) > 0
 
     if (fuelCardCount > 0 && !allowsGateFuel) {
       return false
@@ -681,6 +692,14 @@ export function cardsToDeckBlueprints(cardIds: string[], cards: Record<string, C
                 icons: [...card.gate.need.icons],
                 crew: card.gate.need.crew,
               },
+              effectKind: card.gate.effectKind,
+              effectText: card.gate.effectText,
+              clear: {
+                kind: card.gate.clear.kind,
+                count: card.gate.clear.count,
+                roles: card.gate.clear.roles ? [...card.gate.clear.roles] : undefined,
+              },
+              clearText: card.gate.clearText,
               motherPenalty: { ...card.gate.motherPenalty },
             }
           : undefined,
@@ -707,6 +726,7 @@ export function cardsToDeckBlueprints(cardIds: string[], cards: Record<string, C
               damageTitle: card.hazard.damageTitle,
               damageEffectText: card.hazard.damageEffectText,
               flavorText: card.hazard.flavorText,
+              effectImplemented: card.hazard.effectImplemented,
             }
           : undefined,
         specimenIndex: card.specimenIndex,
@@ -840,7 +860,7 @@ function getGateMissingNeedIcons(
   cards: Record<string, Card>,
   icons: readonly RequirementIconKind[],
   stackCardIds: readonly string[],
-  modifiers: Pick<GateHazardModifiers, 'ignoredCrewCardIds' | 'ignoredCrewIconCount'>,
+  modifiers: Pick<GateHazardModifiers, 'ignoredCrewCardIds' | 'ignoredSingleIconCrewCardIds' | 'ignoredCrewIconCount'>,
 ) {
   const requiredIcons = countRequirementIcons(icons)
   const availableIcons: Record<RequirementIconKind, number> = {
@@ -855,7 +875,12 @@ function getGateMissingNeedIcons(
       continue
     }
 
-    for (const specialization of getCrewSpecializationsForNeed(cardId, cards, stackCardIds)) {
+    const specializations = getCrewSpecializationsForNeed(cardId, cards, stackCardIds)
+    const effectiveSpecializations = modifiers.ignoredSingleIconCrewCardIds.has(cardId)
+      ? specializations.slice(1)
+      : specializations
+
+    for (const specialization of effectiveSpecializations) {
       availableIcons[specialization] += 1
     }
   }
@@ -872,7 +897,7 @@ function countEffectiveGateCrewIcons(
   cards: Record<string, Card>,
   stackCardIds: readonly string[],
   icon: RequirementIconKind,
-  modifiers: Pick<GateHazardModifiers, 'ignoredCrewCardIds' | 'ignoredCrewIconCount'>,
+  modifiers: Pick<GateHazardModifiers, 'ignoredCrewCardIds' | 'ignoredSingleIconCrewCardIds' | 'ignoredCrewIconCount'>,
 ) {
   const requiredIcons = countRequirementIcons([icon])
   const availableIcons: Record<RequirementIconKind, number> = {
@@ -887,7 +912,12 @@ function countEffectiveGateCrewIcons(
       continue
     }
 
-    for (const specialization of getCrewSpecializationsForNeed(cardId, cards, stackCardIds)) {
+    const specializations = getCrewSpecializationsForNeed(cardId, cards, stackCardIds)
+    const effectiveSpecializations = modifiers.ignoredSingleIconCrewCardIds.has(cardId)
+      ? specializations.slice(1)
+      : specializations
+
+    for (const specialization of effectiveSpecializations) {
       availableIcons[specialization] += 1
     }
   }
@@ -1032,36 +1062,40 @@ function getGateCrewCardNeedPayment(
 function getGateHazardModifiers(
   crewCardIds: readonly string[],
   cards: Record<string, Card>,
+  gate: GateDetails,
   stackCardIds: readonly string[],
   usableMotherCount: number,
   fuelCount: number,
 ): GateHazardModifiers {
   const ignoredCrewCardIds = new Set<string>()
+  const ignoredSingleIconCrewCardIds = new Set<string>()
   const firstCrewCardId = crewCardIds[0]
 
-  if (firstCrewCardId && (hasActiveHazardKind(cards, 'dust-veil') || countDamageKind(cards, 'dust-veil') > 0)) {
+  if (firstCrewCardId && gate.effectKind === 'first-crew-no-icons') {
     ignoredCrewCardIds.add(firstCrewCardId)
   }
 
-  const ignoredCrewIconCount = (
-    hasActiveHazardKind(cards, 'fracture') ? 1 : 0
-  ) + countDamageKind(cards, 'fracture')
-  const motherCostPerMissingIcon = 1 + (
-    hasActiveHazardKind(cards, 'hard-vacuum') ? 1 : 0
-  ) + countDamageKind(cards, 'hard-vacuum')
-  const usableMotherCapacity = hasActiveHazardKind(cards, 'echo-field')
+  if (firstCrewCardId && gate.effectKind === 'leftmost-crew-ignore-icon') {
+    ignoredSingleIconCrewCardIds.add(firstCrewCardId)
+  }
+
+  const ignoredCrewIconCount = 0
+  const motherCostPerMissingIcon = 1
+  const usableMotherCapacity = gateBlocksMotherIcons(gate)
     ? 0
-    : Math.max(0, usableMotherCount - countDamageKind(cards, 'echo-field'))
+    : usableMotherCount
   const baseModifiers = {
     ignoredCrewCardIds,
+    ignoredSingleIconCrewCardIds,
     ignoredCrewIconCount,
     motherCostPerMissingIcon,
     usableMotherCapacity,
     requiredFuelCount: 0,
   }
-  const requiredFuelCount = hasActiveHazardKind(cards, 'ion-storm')
+  const printedRequiredFuelCount = gate.effectKind === 'engine-icons-cost-fuel'
     ? countEffectiveGateCrewIcons(crewCardIds, cards, stackCardIds, 'engine', baseModifiers)
     : 0
+  const requiredFuelCount = printedRequiredFuelCount
 
   return {
     ...baseModifiers,
@@ -1082,22 +1116,41 @@ function getGateNeedPayment(
   hazardSkipCount = 0,
   stackCardIds: readonly string[] = [],
 ) {
-  const modifiers = getGateHazardModifiers(crewCardIds, cards, stackCardIds, usableMotherCount, fuelCount)
-  const extraHumanCrewRequired = hasHazardPressure(cards, 'black-tide') && stressCountBefore >= gate.motherPenalty.threshold
-    ? Math.max(0, gate.motherPenalty.extraHumanCrew - hazardSkipCount)
-    : 0
+  const modifiers = getGateHazardModifiers(crewCardIds, cards, gate, stackCardIds, usableMotherCount, fuelCount)
+  const extraHumanCrewRequired = getGateExtraCrewSlots(gate, stressCountBefore, hazardSkipCount)
   const requiredCrewSlots = Math.max(0, gate.need.crew + extraHumanCrewRequired - serviceDroneBayCount)
 
-  const payment = getGateCrewCardNeedPayment(
-    crewCardIds,
-    cards,
-    gate.need.icons,
-    requiredCrewSlots,
-    modifiers.usableMotherCapacity,
-    controlConsoleCount,
-    modifiers,
-    stackCardIds,
-  )
+  let payment: CrewMotherNeedPayment | null = null
+  let requiredFuelCount = 0
+
+  for (const requiredIcons of getGateRequiredIconOptions(gate)) {
+    const candidate = getGateCrewCardNeedPayment(
+      crewCardIds,
+      cards,
+      requiredIcons,
+      requiredCrewSlots,
+      modifiers.usableMotherCapacity,
+      controlConsoleCount,
+      modifiers,
+      stackCardIds,
+    )
+
+    if (!candidate) {
+      continue
+    }
+
+    const candidateRequiredFuelCount = modifiers.requiredFuelCount +
+      candidate.requiredMotherCount * getMotherFuelCost(cards)
+
+    if (fuelCount < candidateRequiredFuelCount) {
+      continue
+    }
+
+    if (!payment || candidate.requiredMotherCount < payment.requiredMotherCount) {
+      payment = candidate
+      requiredFuelCount = candidateRequiredFuelCount
+    }
+  }
 
   if (!payment) {
     return null
@@ -1106,7 +1159,7 @@ function getGateNeedPayment(
   return {
     ...payment,
     extraHumanCrewRequired,
-    requiredFuelCount: modifiers.requiredFuelCount,
+    requiredFuelCount,
     motherSpentTotal: stressCountBefore + payment.requiredMotherCount,
   }
 }
@@ -1174,11 +1227,10 @@ function getHorizonNeedPayment(
   requiredFuel: number,
   fuelCount: number,
   motherCount: number,
+  motherFuelCost: number,
   stackCardIds: readonly string[] = [],
 ): HorizonNeedPayment | null {
-  const missingFuel = requiredFuel - fuelCount
-
-  if (missingFuel < 0 || crewCardIds.length === 0) {
+  if (crewCardIds.length === 0) {
     return null
   }
 
@@ -1189,6 +1241,12 @@ function getHorizonNeedPayment(
     const missingIcons = getMissingNeedIcons(selectedIconCrewCardIds, cards, icons, 0, stackCardIds)
 
     if (missingIcons.length > motherCount) {
+      return
+    }
+
+    const missingFuel = requiredFuel + missingIcons.length * motherFuelCost - fuelCount
+
+    if (missingFuel < 0) {
       return
     }
 
@@ -1246,8 +1304,9 @@ export function canCompleteHorizonNeedWithFuelOptions(
     cards,
     icons,
     requiredFuel,
-    Math.min(requiredFuel, availableFuelCount),
+    availableFuelCount,
     motherCount,
+    getMotherFuelCost(cards),
     stackCardIds,
   ) !== null
 }
@@ -1334,6 +1393,7 @@ export function getHorizonStackCompletion(
     requiredFuel,
     fuelCount,
     motherCount,
+    getMotherFuelCost(cards),
     stack.cardIds,
   )
 
@@ -1376,7 +1436,7 @@ export function getGateStackCompletion(
   const stressCleared = countGateStressClearDiscoveries(stack.cardIds, cards)
   const hazardSkipCount = countGateHazardSkipDiscoveries(stack.cardIds, cards)
   const effectiveStressCount = Math.max(0, stressCountBefore - stressCleared)
-  const allowsGateFuel = hasActiveHazardKind(cards, 'ion-storm')
+  const allowsGateFuel = gateCard.gate.effectKind === 'engine-icons-cost-fuel' || getMotherFuelCost(cards) > 0
 
   for (const [index, cardId] of stack.cardIds.entries()) {
     if (cardId === gateCardId) {
@@ -1394,10 +1454,19 @@ export function getGateStackCompletion(
     } else if (isUsableMotherCard(card)) {
       usableMotherCount += 1
     } else if (isCrewDiscoveryCard(card)) {
+      if (gateBlocksDiscoveries(gateCard.gate)) {
+        hasBlockingCard = true
+        continue
+      }
+
       if (!isPairedCrewDiscoveryIndex(index, stack.cardIds, cards)) {
         hasBlockingCard = true
       }
     } else if (isGateDiscoveryCard(card)) {
+      if (gateBlocksDiscoveries(gateCard.gate)) {
+        hasBlockingCard = true
+      }
+
       continue
     } else if (isActiveHazardCard(card)) {
       continue
@@ -1407,14 +1476,25 @@ export function getGateStackCompletion(
   }
 
   const crewCardIds = getCrewCardIds(stack, cards)
-  const fallbackModifiers = getGateHazardModifiers(crewCardIds, cards, stack.cardIds, usableMotherCount, fuelCount)
-  const fallbackRequiredMotherCount = getGateMissingNeedIcons(
+  const fallbackModifiers = getGateHazardModifiers(
     crewCardIds,
     cards,
-    gateCard.gate.need.icons,
+    gateCard.gate,
     stack.cardIds,
-    fallbackModifiers,
-  ).length * fallbackModifiers.motherCostPerMissingIcon
+    usableMotherCount,
+    fuelCount,
+  )
+  const fallbackRequiredMotherCount = Math.min(
+    ...getGateRequiredIconOptions(gateCard.gate).map((icons) => (
+      getGateMissingNeedIcons(
+        crewCardIds,
+        cards,
+        icons,
+        stack.cardIds,
+        fallbackModifiers,
+      ).length * fallbackModifiers.motherCostPerMissingIcon
+    )),
+  )
   const fallbackMotherAfterControlConsoles = Math.max(0, fallbackRequiredMotherCount - controlConsoleCount)
   const payment = getGateNeedPayment(
     crewCardIds,
@@ -1434,9 +1514,7 @@ export function getGateStackCompletion(
     gateCardIndex,
     motherSpentTotal: payment?.motherSpentTotal ?? effectiveStressCount + Math.min(fallbackMotherAfterControlConsoles, usableMotherCount),
     extraHumanCrewRequired: payment?.extraHumanCrewRequired ?? (
-      hasHazardPressure(cards, 'black-tide') && effectiveStressCount >= gateCard.gate.motherPenalty.threshold
-        ? Math.max(0, gateCard.gate.motherPenalty.extraHumanCrew - hazardSkipCount)
-        : 0
+      getGateExtraCrewSlots(gateCard.gate, effectiveStressCount, hazardSkipCount)
     ),
     requiredMotherCount: payment?.requiredMotherCount ?? fallbackMotherAfterControlConsoles,
     motherCoveredIcons: payment?.motherCoveredIcons ?? [],

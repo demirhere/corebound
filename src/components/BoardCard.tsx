@@ -3,7 +3,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import { getHazardDisplayTitle } from '../game/hazards'
+import { getDamageDisplayTitle } from '../game/damage'
 import type { Card } from '../game/types'
 import { DeckIcon } from './DeckIcon'
 import { GameIcon } from './GameIcon'
@@ -101,7 +101,7 @@ export function CardShell({
     ? horizonDetails.find.kind === 'ship_part' ? 'card-find-ship-part' : 'card-find-visit-reward'
     : ''
   const horizonBadge = horizonDetails?.find.kind === 'ship_part' ? 'Ship Part' : 'Resources'
-  const headerTitle = horizonDetails ? horizonDetails.find.itemName : getHazardDisplayTitle(card)
+  const headerTitle = horizonDetails ? horizonDetails.find.itemName : getDamageDisplayTitle(card)
   const horizonHeaderDetail = horizonDetails ? renderSectorCardHeaderDetail(card) : null
   const isGateCard = card.kind === 'gate'
   const gateBackTitle = isGateCard ? `${card.title} Final Gate` : null
@@ -206,7 +206,7 @@ export function BoardCard({
     ? `${card.horizon.find.itemName} at ${card.title}`
     : card.kind === 'gate' && !card.faceUp
       ? `${card.title} Final Gate`
-      : getHazardDisplayTitle(card)
+      : getDamageDisplayTitle(card)
   const ariaLabel = isTraveledStop
     ? `${cardLabel}. Traveled destination in the route area. Drag to organize traveled destinations.`
     : card.kind === 'gate' && !card.faceUp

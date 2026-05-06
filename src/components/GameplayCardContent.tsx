@@ -59,7 +59,7 @@ function renderFuelNeed(printedFuel: number, currentFuelCost: number, keyPrefix:
       <GameIcon key={`${keyPrefix}-fuel-${index}`} kind="fuel" />
     )),
     ...Array.from({ length: extraFuelCount }, (_, index) => (
-      <span key={`${keyPrefix}-extra-fuel-${index}`} className="extra-need-icon" title="Fuel added by Hazard or Damage">
+      <span key={`${keyPrefix}-extra-fuel-${index}`} className="extra-need-icon" title="Fuel added by Gate or Damage">
         <GameIcon kind="fuel" />
       </span>
     )),
@@ -301,23 +301,23 @@ function renderFuelCellContent(card: Card) {
 }
 
 function renderGatePenalty(gate: GateDetails, stressCount: number) {
-  if (gate.motherPenalty.extraHumanCrew <= 0) {
+  if (gate.effectKind !== 'stress-extra-slot') {
     return null
   }
 
-  const isActive = stressCount >= gate.motherPenalty.threshold
+  const isActive = stressCount >= 3
 
   return (
     <div className={`card-gate-penalty ${isActive ? 'is-active' : ''}`}>
       <span className="card-gate-penalty-divider" aria-hidden="true" />
       <p className="card-wake-reward card-gate-penalty-line">
         <span className="card-gate-penalty-pair">
-          <span>+{gate.motherPenalty.extraHumanCrew}</span>
+          <span>+1</span>
           <GameIcon kind="person" />
         </span>
         <span>at</span>
         <span className="card-gate-penalty-pair">
-          <span>+{gate.motherPenalty.threshold}</span>
+          <span>+3</span>
           <span>Stress</span>
         </span>
       </p>
@@ -426,7 +426,7 @@ function renderHazardContent(card: Card) {
       <div className="hazard-card-content hazard-card-damage">
         <div className="hazard-card-eyebrow">
           <span>Ship Damage</span>
-          <span>{getHazardShortKind(card.hazard)}</span>
+          <span>{card.hazard.effectImplemented ? getHazardShortKind(card.hazard) : 'To be implemented'}</span>
         </div>
         <div className="hazard-card-title">{card.hazard.damageTitle}</div>
         <p className="hazard-card-effect">{card.hazard.damageEffectText}</p>
@@ -441,7 +441,7 @@ function renderHazardContent(card: Card) {
   return (
     <div className="hazard-card-content">
       <div className="hazard-card-eyebrow">
-        <span>Gate Hazard</span>
+        <span>Damage</span>
         <span>{card.hazard.flavorText}</span>
       </div>
       <div className="hazard-card-title">{card.title}</div>
@@ -454,7 +454,7 @@ function renderHazardContent(card: Card) {
         <p>{card.hazard.clearText}</p>
       </section>
       <section className="hazard-card-panel">
-        <span>Damage if not cleared</span>
+        <span>Permanent effect</span>
         <p>{card.hazard.damageTitle}</p>
       </section>
     </div>
@@ -537,9 +537,9 @@ export function renderGameplayCardContent(
 
     return (
       <>
-        <p className="card-kicker">{card.gate.label}</p>
+        <p className="card-rule-text">{card.gate.effectText}</p>
         <div className="card-rule-row card-gate-section">
-          <span>Crew slots</span>
+          <span>Need to pass:</span>
           <div className="card-rule-icons">
             {renderGateCrewNeed(
               card.gate.need.crew,
@@ -547,11 +547,6 @@ export function renderGameplayCardContent(
               gateCrewSlotDiscount,
               `${card.id}-gate-crew-need`,
             )}
-          </div>
-        </div>
-        <div className="card-rule-row card-gate-section">
-          <span>Icons needed</span>
-          <div className="card-rule-icons">
             {renderGateIconNeed(card.gate.need.icons, gateIconDiscount, `${card.id}-gate-icon-need`)}
           </div>
         </div>
@@ -559,7 +554,10 @@ export function renderGameplayCardContent(
         {hasShipPartDiscount && (
           <p className="card-rule-text sector-card-discount">Ship Parts auto-scribble Gate needs.</p>
         )}
-        <p className="card-rule-text">Finish after 3 traveled Destinations. MOTHER and Adaptive Control Consoles cover icons only.</p>
+        <div className="card-rule-row card-gate-section">
+          <span>Without damage:</span>
+          <p className="card-rule-text">{card.gate.clearText}</p>
+        </div>
       </>
     )
   }

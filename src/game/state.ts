@@ -147,6 +147,7 @@ function migrateBoardState(board: BoardState): BoardState {
         }
       : null,
     pendingDrift: legacyBoard.pendingDrift ?? null,
+    heldDriftCount: legacyBoard.heldDriftCount ?? 0,
   }
 }
 

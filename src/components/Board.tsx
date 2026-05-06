@@ -3,7 +3,8 @@ import {
   type Ref,
 } from 'react'
 import { getNextStopFuelDiscount } from '../game/effects'
-import { getBlackTideExtraCrew, getDestinationFuelSurcharge } from '../game/hazards'
+import { getDestinationFuelSurcharge } from '../game/damage'
+import { getGateExtraCrewSlots } from '../game/blueprints/sectorGates'
 import type { BoardState, ShipPartKind } from '../game/types'
 import {
   ArrivalDialog,
@@ -132,7 +133,8 @@ export function Board({
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
   const gateCrewSlotDiscount = countSpentShipParts(board, 'service-drone-bay')
   const gateIconDiscount = countSpentShipParts(board, 'adaptive-control-console')
-  const gateExtraCrewCount = getBlackTideExtraCrew(board, 3, 1)
+  const gateDetails = Object.values(board.cards).find((card) => card.kind === 'gate' && card.gate)?.gate
+  const gateExtraCrewCount = gateDetails ? getGateExtraCrewSlots(gateDetails, board.stressCount) : 0
   const traveledStopCardIds = new Set([
     ...board.routeSlots.flatMap((routeSlot) => routeSlot ? [routeSlot.cardId] : []),
     ...board.shipPartSlots.map((slot) => slot.cardId),

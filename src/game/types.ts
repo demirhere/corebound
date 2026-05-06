@@ -27,6 +27,18 @@ export type HorizonKind = 'deep-space' | 'planet' | 'asteroid'
 
 export type RequirementIconKind = CrewSpecialization
 
+export type CrewRoleKind =
+  | 'engineer'
+  | 'medic'
+  | 'pilot'
+  | 'mechanic'
+  | 'scientist'
+  | 'helmsman'
+  | 'doctor'
+  | 'recon'
+  | 'operator'
+  | 'crew'
+
 export type DiscoveryTag = 'crew' | 'mission' | 'gate' | 'anytime'
 
 export type DiscoveryEffectKind =
@@ -54,26 +66,30 @@ export type DriftDetails = {
   effectText: string
 }
 
-export type HazardKind =
-  | 'ion-storm'
-  | 'dust-veil'
-  | 'cold-reach'
-  | 'echo-field'
-  | 'black-tide'
-  | 'fracture'
-  | 'silent-watch'
-  | 'hard-vacuum'
-  | 'resonance'
-  | 'ghost-signal'
-  | 'the-veil'
+export type DamageKind =
+  | 'fractured-engine'
+  | 'frozen-sector'
+  | 'comm-failure'
+  | 'sensor-loss'
+  | 'hull-crack'
+  | 'crew-quarters-damaged'
+  | 'mission-lead-injured'
+  | 'sealed-cargo'
+  | 'stress-echo'
+  | 'phantom-course'
+  | 'drift-loop'
+  | 'long-reach'
+
+export type HazardKind = DamageKind
 
 export type HazardDetails = {
-  kind: HazardKind
+  kind: DamageKind
   effectText: string
   clearText: string
   damageTitle: string
   damageEffectText: string
   flavorText: string
+  effectImplemented: boolean
 }
 
 export type CardKind = 'resource' | 'crew' | 'horizon' | 'mother' | 'gate' | 'discovery' | 'drift' | 'hazard'
@@ -142,6 +158,37 @@ export type GateDetails = {
     icons: RequirementIconKind[]
     crew: number
   }
+  effectKind:
+    | 'clean'
+    | 'first-crew-no-icons'
+    | 'engine-icons-cost-fuel'
+    | 'extra-crew-slot'
+    | 'block-discoveries'
+    | 'block-ready-tired'
+    | 'block-mother'
+    | 'stress-extra-slot'
+    | 'blueprints-add-stress'
+    | 'block-ship-parts'
+    | 'block-mother-icons'
+    | 'hold-drift'
+    | 'leftmost-crew-ignore-icon'
+    | 'double-chosen-icon'
+  effectText: string
+  clear: {
+    kind:
+      | 'extra-crew-beyond-minimum'
+      | 'crew-count-at-least'
+      | 'role-count-at-least'
+      | 'mother-spent-at-least'
+      | 'no-tired-crew'
+      | 'stress-zero'
+      | 'different-role-count-at-least'
+      | 'same-role-count-at-least'
+      | 'roles-committed'
+    count?: number
+    roles?: CrewRoleKind[]
+  }
+  clearText: string
   motherPenalty: {
     threshold: number
     extraHumanCrew: number
@@ -285,6 +332,7 @@ export type BoardState = {
   sectorDrawnThisTurn: boolean
   traveledThisTurn: boolean
   gateStartedSector: number | null
+  heldDriftCount: number
   stressCount: number
   currentSector: number
   totalSectors: number

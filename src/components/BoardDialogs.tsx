@@ -29,7 +29,7 @@ function lossContent(reason: GameLossReason) {
 
   return {
     title: 'The Gate cannot be passed.',
-    body: 'The Gate cannot be completed with available Ship Parts, Ready crew, Hazard Fuel, and unused MOTHER cards.',
+    body: 'The Gate cannot be completed with available Ship Parts, Ready crew, required Gate Fuel, and unused MOTHER cards.',
   }
 }
 
@@ -140,7 +140,7 @@ function getArrivalTitle(standings: readonly PlayerStanding[]) {
   const winners = standings.filter((standing) => standing.isWinner)
 
   if (winners.length === 0) {
-    return 'You arrived beyond the Dark Threshold.'
+    return 'You arrived beyond the second Gate.'
   }
 
   if (winners.length > 1) {
@@ -182,10 +182,10 @@ export function ArrivalDialog({ hasArrived, board, onResetGame, canReset }: {
     <div className="dialog-overlay">
       <section className="arrival-panel" role="status" aria-live="polite">
         <p className="arrival-kicker">Gate cleared</p>
-        <h2>{isMultiplayer ? getArrivalTitle(standings) : 'You arrived beyond the Dark Threshold.'}</h2>
+        <h2>{isMultiplayer ? getArrivalTitle(standings) : 'You arrived beyond the second Gate.'}</h2>
         <p>
           {isMultiplayer
-            ? 'Dark Threshold passed. Crew count scores first, then Blueprints built, then Ready crew. If still tied, victory is shared.'
+            ? 'Gate 2 passed. Crew count scores first, then Blueprints built, then Ready crew. If still tied, victory is shared.'
             : 'Two-sector prototype complete. Restart to reshuffle both sectors and run it again.'}
         </p>
         {isMultiplayer ? <PlayerStandingsRows standings={standings} /> : null}

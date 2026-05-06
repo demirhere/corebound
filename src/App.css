@@ -2163,7 +2163,8 @@
   align-items: start;
 
   > span:first-child {
-    max-width: 52px;
+    width: 100%;
+    max-width: none;
     line-height: 1.05;
   }
 }
@@ -4414,7 +4415,7 @@
   }
 }
 
-.deck-card[data-deck-id='hazard-deck'] {
+.deck-card[data-deck-id='damage-deck'] {
   --deck-cover-light: #fff4de;
   --deck-cover: #ece2d2;
   --deck-cover-dark: #c8b7a2;

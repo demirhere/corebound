@@ -133,7 +133,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
           <section className="how-to-play-wide-section">
             <h3>Core Loop</h3>
             <ol>
-              <li>Read the face-up Gate Hazard, then click Missions to reveal Map Destinations.</li>
+              <li>Read the face-up Gate, then click Missions to reveal Map Destinations.</li>
               <li>Travel to only 1 Destination per turn. Stack its payment, then click Travel.</li>
               <li>Used crew move to Tired. Immediate Benefits resolve now; Ship Parts stay visible for a Gate.</li>
               <li>If Fuel is empty and no Map is visible, draw Missions before ending the turn.</li>
@@ -175,17 +175,16 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
           <section>
             <h3>Gates And Stress</h3>
             <p>
-              Narrow Crossing needs 3 crew slots; Dark Threshold needs 4. Both also need
-              {' '}<HowToPlayIconStrip icons={['engine', 'life', 'star', 'signal']} />.
-              Hazards can add Fuel, block MOTHER, change icon math, hold Drift, or add Damage.
+              Each sector draws one Gate from the shuffled Gate deck. Pass its crew slots and icons
+              to survive, then meet its clear line to avoid drawing Damage.
             </p>
           </section>
 
           <section>
-            <h3>Hazards</h3>
+            <h3>Damage</h3>
             <p>
-              Passing the Gate is required. Clearing the Hazard is optional; if it is not cleared,
-              it flips into permanent Damage and stays on the ship board.
+              If a Gate is passed but not cleared cleanly, draw the top Damage card. Damage stays
+              on the ship board and affects future rounds.
             </p>
           </section>
 
@@ -208,10 +207,10 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
           <section className="how-to-play-wide-section how-to-play-warning-section">
             <h3>Win And Loss</h3>
             <p>
-              Solo wins by passing Dark Threshold. Multiplayer scores only after that success:
+              Solo wins by passing Gate 2. Multiplayer scores only after that success:
               most crew wins, then Blueprints, then Ready crew. Any ship loss means everyone loses.
               You lose if no reachable Mission remains and the Gate cannot be passed, or if the Gate
-              cannot be passed with available Ship Parts, Ready crew, Hazard Fuel, and unused MOTHER.
+              cannot be passed with available Ship Parts, Ready crew, required Gate Fuel, and unused MOTHER.
             </p>
           </section>
         </div>

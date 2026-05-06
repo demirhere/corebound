@@ -9,7 +9,7 @@ import type {
   Stack,
   VisitReward,
 } from './types'
-import { getHazardDisplayTitle } from './hazards'
+import { getDamageDisplayTitle } from './damage'
 import type { PlaytestLogEvent } from './playtestLog'
 import type { MotherCoveredIcon } from './rules'
 import {
@@ -94,7 +94,7 @@ export function cardRulesText(card: Card | CardBlueprint) {
   if (card.kind === 'gate' && card.gate) {
     const icons = card.gate.need.icons.map(getRequirementIconLabel).join(', ')
 
-    return `gate crew slots: ${card.gate.need.crew}; icons needed: ${icons}; MOTHER and Adaptive Control Consoles cover icons only; Black Tide uses ${card.gate.motherPenalty.threshold}+ Stress to add ${card.gate.motherPenalty.extraHumanCrew} crew slot`
+    return `gate crew slots: ${card.gate.need.crew}; icons needed: ${icons}; resolve: ${card.gate.effectText}; clear: ${card.gate.clearText}`
   }
 
   if (card.kind === 'discovery' && card.discovery) {
@@ -108,7 +108,7 @@ export function cardRulesText(card: Card | CardBlueprint) {
   if (card.kind === 'hazard' && card.hazard) {
     return 'damage' in card && card.damage
       ? `Damage: ${card.hazard.damageEffectText}`
-      : `Hazard: ${card.hazard.effectText}; Clear: ${card.hazard.clearText}; Damage: ${card.hazard.damageTitle} - ${card.hazard.damageEffectText}`
+      : `Damage: ${card.hazard.damageEffectText}`
   }
 
   return ''
@@ -120,7 +120,7 @@ function describeCard(card: Card | undefined, fallbackId: string) {
   }
 
   const rulesText = cardRulesText(card)
-  const title = getHazardDisplayTitle(card)
+  const title = getDamageDisplayTitle(card)
 
   return `${title} (${card.id})${rulesText ? ` [${rulesText}]` : ''}`
 }
@@ -722,25 +722,19 @@ export function sectorRevealedEvent(
   sector: number,
   gateCard: Card,
   horizonCards: readonly CardBlueprint[],
-  hazardCard: Card | null = null,
 ): PlaytestLogEvent {
   const horizonSummaries = horizonCards.map((card) => `${card.title}${cardRulesText(card) ? ` [${cardRulesText(card)}]` : ''}`)
   const gateTitle = `${gateCard.title} Final Gate`
-  const hazardText = hazardCard ? ` Hazard: ${describeCard(hazardCard, hazardCard.id)}.` : ''
 
   return {
     type: 'sector.revealed',
-    message: `Sector ${sector} prepared: ${gateTitle} placed face up and attemptable anytime; Missions reset with ${horizonCards.length} cards.${hazardText}`,
+    message: `Sector ${sector} prepared: ${gateTitle} placed face up and attemptable anytime; Missions reset with ${horizonCards.length} cards.`,
     details: {
       sector,
       gateCardId: gateCard.id,
       gateTitle,
       gateSummary: `${gateTitle} (${gateCard.id}) face up`,
       gateFaceUp: gateCard.faceUp,
-      hazardCardId: hazardCard?.id ?? null,
-      hazardTitle: hazardCard?.title ?? null,
-      hazardSummary: hazardCard ? describeCard(hazardCard, hazardCard.id) : null,
-      hazardContent: hazardCard ? cardContent(hazardCard) : null,
       horizonCardCount: horizonCards.length,
       horizonSummaries,
       horizonContents: horizonCards.map(cardContent),
@@ -878,29 +872,24 @@ export function gateCompletedEvent(
   }
 }
 
-export function hazardClearedEvent(hazardCard: Card, gateCard: Card): PlaytestLogEvent {
+export function gateCleanClearedEvent(gateCard: Card): PlaytestLogEvent {
   return {
-    type: 'hazard.cleared',
-    message: `${describeCard(hazardCard, hazardCard.id)} cleared at ${gateCard.title}; no Damage taken.`,
+    type: 'gate.cleared_cleanly',
+    message: `${gateCard.title} cleared cleanly; no Damage drawn.`,
     details: {
-      hazardCardId: hazardCard.id,
-      hazardTitle: hazardCard.title,
-      hazardSummary: describeCard(hazardCard, hazardCard.id),
-      hazardContent: cardContent(hazardCard),
       gateCardId: gateCard.id,
       gateTitle: gateCard.title,
+      gateSummary: describeCard(gateCard, gateCard.id),
+      gateContent: cardContent(gateCard),
     },
   }
 }
 
-export function hazardBecameDamageEvent(hazardCard: Card, damageCard: Card, gateCard: Card): PlaytestLogEvent {
+export function damageDrawnEvent(gateCard: Card, damageCard: Card): PlaytestLogEvent {
   return {
-    type: 'hazard.damage_taken',
-    message: `${hazardCard.title} was passed but not cleared at ${gateCard.title}; ${describeCard(damageCard, damageCard.id)} stays on the ship.`,
+    type: 'damage.drawn',
+    message: `${gateCard.title} was passed but not cleared cleanly; ${describeCard(damageCard, damageCard.id)} stays on the ship.`,
     details: {
-      hazardCardId: hazardCard.id,
-      hazardTitle: hazardCard.title,
-      hazardSummary: describeCard(hazardCard, hazardCard.id),
       damageTitle: damageCard.hazard?.damageTitle ?? damageCard.title,
       damageSummary: describeCard(damageCard, damageCard.id),
       damageContent: cardContent(damageCard),
@@ -910,30 +899,16 @@ export function hazardBecameDamageEvent(hazardCard: Card, damageCard: Card, gate
   }
 }
 
-export function hazardDriftHeldEvent(hazardCard: Card): PlaytestLogEvent {
+export function gateDriftHeldEvent(gateCard: Card, heldDriftCount: number): PlaytestLogEvent {
   return {
-    type: 'hazard.drift_held',
-    message: `${hazardCard.title}: round-end Drift is held until the Gate.`,
+    type: 'gate.drift_held',
+    message: `${gateCard.title}: round-end Drift held in reserve (${heldDriftCount} held).`,
     details: {
-      hazardCardId: hazardCard.id,
-      hazardTitle: hazardCard.title,
-      hazardSummary: describeCard(hazardCard, hazardCard.id),
-      hazardContent: cardContent(hazardCard),
-    },
-  }
-}
-
-export function hazardSignaledDestinationEvent(hazardCard: Card, destinationCard: Card): PlaytestLogEvent {
-  return {
-    type: 'hazard.signaled_destination',
-    message: `${hazardCard.title} revealed ${describeCard(destinationCard, destinationCard.id)}; it should be one of this sector's traveled Destinations.`,
-    details: {
-      hazardCardId: hazardCard.id,
-      hazardTitle: hazardCard.title,
-      destinationCardId: destinationCard.id,
-      destinationTitle: destinationCard.title,
-      destinationSummary: describeCard(destinationCard, destinationCard.id),
-      destinationContent: cardContent(destinationCard),
+      gateCardId: gateCard.id,
+      gateTitle: gateCard.title,
+      gateSummary: describeCard(gateCard, gateCard.id),
+      gateContent: cardContent(gateCard),
+      heldDriftCount,
     },
   }
 }
@@ -994,7 +969,7 @@ export function gameLostEvent(reason: GameLossReason): PlaytestLogEvent {
   const message =
     reason === 'sector-stranded'
       ? 'No reachable Mission remains and the Gate cannot be passed with current resources.'
-      : 'The Gate cannot be completed with available Ship Parts, Ready crew, Hazard Fuel, and unused MOTHER cards.'
+      : 'The Gate cannot be completed with available Ship Parts, Ready crew, required Gate Fuel, and unused MOTHER cards.'
 
   return {
     type: 'game.lost',

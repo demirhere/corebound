@@ -59,7 +59,7 @@ const discoveryDesigns = [
     'Local Allies',
     'gate',
     'gate_skip_hazard',
-    'Skip 1 Black Tide crew slot. Still must Pass.',
+    'Skip 1 extra Gate crew slot. Still must Pass.',
     'person',
     6,
     { amount: 1 },
