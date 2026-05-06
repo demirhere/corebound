@@ -1,4 +1,4 @@
-import { HORIZON_DECK_ID, MOTHER_DECK_ID } from './decks'
+import { MOTHER_DECK_ID } from './decks'
 import { getNextStopFuelDiscount } from './effects'
 import { getDestinationFuelSurcharge } from './hazards'
 import {
@@ -38,26 +38,6 @@ export function countFuelCardsInPlay(current: BoardState) {
   }
 
   return fuelCardIds.size
-}
-
-export function shouldDrawMissionsBeforeEndTurn(current: BoardState) {
-  const visibleHorizonCards = getVisibleHorizonCards(current)
-  const onlyForcedDestinationVisible = visibleHorizonCards.length === 1 &&
-    visibleHorizonCards[0]?.id === current.forcedDestinationCardId
-
-  return (
-    !current.hasArrived &&
-    !current.lossReason &&
-    !current.pendingWakeChoice &&
-    !current.pendingScoutChoice &&
-    !current.pendingDrift &&
-    !current.sectorDrawnThisTurn &&
-    !current.traveledThisTurn &&
-    current.routeSlots.some((slot) => slot === null) &&
-    countFuelCardsInPlay(current) === 0 &&
-    (visibleHorizonCards.length === 0 || onlyForcedDestinationVisible) &&
-    current.decks.some((deck) => deck.id === HORIZON_DECK_ID)
-  )
 }
 
 export function getAvailableMotherCardCount(current: BoardState) {

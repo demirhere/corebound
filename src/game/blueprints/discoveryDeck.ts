@@ -1,0 +1,78 @@
+import { createDiscoveryCard } from './factories'
+
+const discoveryDesigns = [
+  createDiscoveryCard(
+    'Star Chart',
+    'crew',
+    'crew_nav',
+    'This committed crew counts as Nav.',
+    'star',
+    0,
+    { icon: 'star' },
+  ),
+  createDiscoveryCard(
+    'Spare Coil',
+    'crew',
+    'crew_engine',
+    'This committed crew counts as Engine.',
+    'hex',
+    1,
+    { icon: 'engine' },
+  ),
+  createDiscoveryCard(
+    'Bio-sample',
+    'crew',
+    'crew_life',
+    'This committed crew counts as Life.',
+    'sprout',
+    2,
+    { icon: 'life' },
+  ),
+  createDiscoveryCard(
+    'Field Notes',
+    'crew',
+    'crew_science',
+    'This committed crew counts as Science.',
+    'antenna',
+    3,
+    { icon: 'signal' },
+  ),
+  createDiscoveryCard(
+    'Pressure Suit',
+    'mission',
+    'mission_fuel_discount',
+    '-1 Fuel cost on this Mission.',
+    'shield',
+    4,
+    { amount: 1 },
+  ),
+  createDiscoveryCard(
+    'Coolant Pack',
+    'gate',
+    'gate_clear_stress',
+    'Clear 1 Stress before this Gate scores.',
+    'snowflake',
+    5,
+    { amount: 1 },
+  ),
+  createDiscoveryCard(
+    'Local Allies',
+    'gate',
+    'gate_skip_hazard',
+    'Skip 1 Black Tide crew slot. Still must Pass.',
+    'person',
+    6,
+    { amount: 1 },
+  ),
+  createDiscoveryCard(
+    'Ration Pack',
+    'anytime',
+    'ration_pack',
+    '+1 Fuel to supply, then discard.',
+    'pentagon',
+    7,
+    { amount: 1 },
+  ),
+]
+
+export const discoveryDeck = discoveryDesigns.flatMap((card) => Array.from({ length: 3 }, () => card))

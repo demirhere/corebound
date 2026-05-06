@@ -183,7 +183,7 @@ export function mapInitializedEvent(sector: number, mapCards: readonly Card[]): 
 
   return {
     type: 'map.initialized',
-    message: `Sector ${sector} Map initialized with 3 Destinations: ${cardTitlesText}.`,
+    message: `Sector ${sector} Map initialized with ${mapCards.length} Destinations: ${cardTitlesText}.`,
     details: {
       sector,
       cardIds: mapCards.map((card) => card.id),
@@ -730,12 +730,12 @@ export function sectorRevealedEvent(
 
   return {
     type: 'sector.revealed',
-    message: `Sector ${sector} prepared: ${gateTitle} placed face down; Missions reset with ${horizonCards.length} cards.${hazardText}`,
+    message: `Sector ${sector} prepared: ${gateTitle} placed face up and attemptable anytime; Missions reset with ${horizonCards.length} cards.${hazardText}`,
     details: {
       sector,
       gateCardId: gateCard.id,
       gateTitle,
-      gateSummary: `${gateTitle} (${gateCard.id}) face down`,
+      gateSummary: `${gateTitle} (${gateCard.id}) face up`,
       gateFaceUp: gateCard.faceUp,
       hazardCardId: hazardCard?.id ?? null,
       hazardTitle: hazardCard?.title ?? null,
@@ -993,7 +993,7 @@ export function starsCompletedSummaryEvent(
 export function gameLostEvent(reason: GameLossReason): PlaytestLogEvent {
   const message =
     reason === 'sector-stranded'
-      ? 'The sector has no reachable Map Destination before the route is full.'
+      ? 'No reachable Mission remains and the Gate cannot be passed with current resources.'
       : 'The Gate cannot be completed with available Ship Parts, Ready crew, Hazard Fuel, and unused MOTHER cards.'
 
   return {

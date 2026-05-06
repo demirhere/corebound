@@ -23,7 +23,7 @@ function lossContent(reason: GameLossReason) {
   if (reason === 'sector-stranded') {
     return {
       title: 'Stranded in the Reach.',
-      body: 'The sector has no reachable Map Destination before 3 Destinations are traveled.',
+      body: 'No reachable Mission remains, and the Gate cannot be passed with current resources.',
     }
   }
 

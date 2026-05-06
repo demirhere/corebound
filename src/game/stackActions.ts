@@ -39,10 +39,6 @@ function isBoardActionBlocked(current: BoardState) {
   )
 }
 
-function isSectorHorizonFinished(current: BoardState) {
-  return current.routeSlots.every(Boolean)
-}
-
 function countSpentShipParts(
   shipPartSlots: readonly ShipPartSlot[],
   shipPart: ShipPartKind,
@@ -125,10 +121,6 @@ function getTravelAction(current: BoardState, stack: Stack): StackAction[] {
 }
 
 function getPassGateAction(current: BoardState, stack: Stack): StackAction[] {
-  if (!isSectorHorizonFinished(current)) {
-    return []
-  }
-
   const completion = getGateStackCompletion(
     stack,
     current.cards,

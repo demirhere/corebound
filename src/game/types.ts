@@ -284,6 +284,7 @@ export type BoardState = {
   currentPlayerId: string | null
   sectorDrawnThisTurn: boolean
   traveledThisTurn: boolean
+  gateStartedSector: number | null
   stressCount: number
   currentSector: number
   totalSectors: number

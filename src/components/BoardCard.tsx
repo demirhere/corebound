@@ -209,8 +209,10 @@ export function BoardCard({
       : getHazardDisplayTitle(card)
   const ariaLabel = isTraveledStop
     ? `${cardLabel}. Traveled destination in the route area. Drag to organize traveled destinations.`
-    : card.kind === 'gate'
-      ? `${cardLabel}. Click to flip ${card.faceUp ? 'face down' : 'face up'}, or drag to move this part of the stack.`
+    : card.kind === 'gate' && !card.faceUp
+      ? `${cardLabel}. Click to reveal, or drag to move this part of the stack.`
+      : card.kind === 'gate'
+        ? `${cardLabel}. Sector Gate. Drag to move this part of the stack.`
       : `${cardLabel}. Drag to move this part of the stack.`
 
   return (

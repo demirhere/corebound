@@ -91,7 +91,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
         <p className="arrival-kicker">Corebound Rulebook</p>
         <h2 id="how-to-play-title">How To Play</h2>
         <p className="how-to-play-summary">
-          Visit 3 Map Destinations, pass the Gate, and clear its Hazard to avoid permanent Damage.
+          Pass each sector Gate. Draw optional Map Destinations when you want extra preparation.
         </p>
 
         <div className="how-to-play-flow" aria-label="Sector route summary">
@@ -210,7 +210,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
             <p>
               Solo wins by passing Dark Threshold. Multiplayer scores only after that success:
               most crew wins, then Blueprints, then Ready crew. Any ship loss means everyone loses.
-              You lose if the sector has no reachable Map Destination before 3 Destinations are traveled, or if the Gate
+              You lose if no reachable Mission remains and the Gate cannot be passed, or if the Gate
               cannot be passed with available Ship Parts, Ready crew, Hazard Fuel, and unused MOTHER.
             </p>
           </section>

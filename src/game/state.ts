@@ -129,6 +129,7 @@ function migrateBoardState(board: BoardState): BoardState {
     currentPlayerId,
     sectorDrawnThisTurn: legacyBoard.sectorDrawnThisTurn ?? false,
     traveledThisTurn: legacyBoard.traveledThisTurn ?? false,
+    gateStartedSector: legacyBoard.gateStartedSector ?? null,
     roundStartTiredCardIds: legacyBoard.roundStartTiredCardIds ?? legacyBoard.tiredCardIds ?? [],
     shipPartSlots: (legacyBoard.shipPartSlots ?? []).map((slot) => ({
       ...slot,

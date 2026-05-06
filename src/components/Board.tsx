@@ -4,7 +4,6 @@ import {
 } from 'react'
 import { getNextStopFuelDiscount } from '../game/effects'
 import { getBlackTideExtraCrew, getDestinationFuelSurcharge } from '../game/hazards'
-import { shouldDrawMissionsBeforeEndTurn } from '../game/boardQueries'
 import type { BoardState, ShipPartKind } from '../game/types'
 import {
   ArrivalDialog,
@@ -126,11 +125,9 @@ export function Board({
   const isMultiplayer = isMultiplayerBoard(board)
   const visibleHandCardIds = getVisibleHandCardIds(board, localPlayerId)
   const visibleTiredCardIds = getVisibleTiredCardIds(board, localPlayerId)
-  const needsMissionDrawBeforeEndTurn = shouldDrawMissionsBeforeEndTurn(board)
   const endTurnLabel = board.pendingDrift
     ? 'Resolving drift'
     : !isLocalTurn ? 'Waiting for other player'
-    : needsMissionDrawBeforeEndTurn ? 'Draw missions'
     : 'End turn'
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
   const gateCrewSlotDiscount = countSpentShipParts(board, 'service-drone-bay')
