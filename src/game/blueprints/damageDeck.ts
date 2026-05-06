@@ -11,8 +11,9 @@ export const damageDeck = [
   createDamageCard(
     'Frozen Sector',
     'frozen-sector',
-    'No Tired-to-Ready trickle at round end.',
-    'Each round end',
+    'No current effect while round-end steps are disabled.',
+    'No current trigger',
+    false,
   ),
   createDamageCard(
     'Comm Failure',
@@ -29,8 +30,9 @@ export const damageDeck = [
   createDamageCard(
     'Hull Crack',
     'hull-crack',
-    '+1 Stress at each round end.',
-    'Each round end',
+    'No current effect while round-end steps are disabled.',
+    'No current trigger',
+    false,
   ),
   createDamageCard(
     'Crew Quarters Damaged',
@@ -60,8 +62,9 @@ export const damageDeck = [
   createDamageCard(
     'Drift Loop',
     'drift-loop',
-    'Drift flips happen 2x per round end.',
-    'Each round end',
+    'No current effect while round-end Drift is disabled.',
+    'No current trigger',
+    false,
   ),
   createDamageCard(
     'Long Reach',

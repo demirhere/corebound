@@ -653,6 +653,24 @@ export function wakeCrewRecruitedEvent(
   }
 }
 
+export function turnStartCrewDrawnEvent(card: Card, deck: Deck, playerName: string | null): PlaytestLogEvent {
+  const playerText = playerName ? ` for ${playerName}` : ''
+
+  return {
+    type: 'turn_start.crew_drawn',
+    message: `${describeCard(card, card.id)} drawn from ${deck.title}${playerText} and enters Ready.`,
+    details: {
+      cardId: card.id,
+      cardTitle: card.title,
+      cardSummary: describeCard(card, card.id),
+      cardContent: cardContent(card),
+      deckId: deck.id,
+      deckTitle: deck.title,
+      playerName,
+    },
+  }
+}
+
 export function readyRewardAppliedEvent(
   missionCard: Card,
   readiedCrewCardIds: readonly string[],
@@ -702,7 +720,7 @@ export function stressClearedEvent(source: string, from: number, to: number): Pl
 export function driftDeckReshuffledEvent(deck: Deck): PlaytestLogEvent {
   return {
     type: 'drift.deck.reshuffled',
-    message: `${deck.title} was empty and reshuffled before the round-end Drift draw.`,
+    message: `${deck.title} was empty and reshuffled before the Drift draw.`,
     details: {
       deckId: deck.id,
       deckTitle: deck.title,
@@ -910,7 +928,7 @@ export function gateCompletedEvent(
 ): PlaytestLogEvent {
   return {
     type: 'gate.completed',
-    message: `${describeCard(gateCard, gateCard.id)} completed from ${sourceStack.id}; ${isFinalGate ? 'final round end will score the run' : 'next sector begins'}.`,
+    message: `${describeCard(gateCard, gateCard.id)} completed from ${sourceStack.id}; ${isFinalGate ? 'End run will score the run' : 'next sector begins'}.`,
     details: {
       gateCardId: gateCard.id,
       gateTitle: gateCard.title,
@@ -957,7 +975,7 @@ export function damageDrawnEvent(gateCard: Card, damageCard: Card): PlaytestLogE
 export function gateDriftHeldEvent(gateCard: Card, heldDriftCount: number): PlaytestLogEvent {
   return {
     type: 'gate.drift_held',
-    message: `${gateCard.title}: round-end Drift held in reserve (${heldDriftCount} held).`,
+    message: `${gateCard.title}: Drift held in reserve (${heldDriftCount} held).`,
     details: {
       gateCardId: gateCard.id,
       gateTitle: gateCard.title,
@@ -1024,7 +1042,7 @@ export function gameLostEvent(reason: GameLossReason): PlaytestLogEvent {
   const message = reason === 'sector-stranded'
     ? 'No reachable Mission remains and the Gate cannot be passed with current resources.'
     : reason === 'fuel-depleted'
-      ? 'The Fuel Supply is empty at round end.'
+      ? 'The Fuel Supply was exhausted.'
       : 'The Gate cannot be completed with required Gate Fuel, crew-made Fuel, and available Gate Fuel discounts.'
 
   return {

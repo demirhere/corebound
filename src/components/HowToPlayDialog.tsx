@@ -138,7 +138,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
               <li>Used crew move to Tired. Rewards recover Fuel, ready Tired crew, wake Cryo crew for the Mission Lead, or reveal Ship Parts.</li>
               <li>Each Gate costs 3-6 Fuel to pass, with extra Fuel to clear cleanly.</li>
               <li>After a non-final Gate succeeds, the next sector starts with an empty Map.</li>
-              <li>If Fuel is empty, recover Fuel before round end or the ship loses.</li>
+              <li>Each new turn starts by drawing 1 Cryo crew into Ready, if Cryo remains.</li>
               <li>Unchosen Map Destinations clear. End turn before drawing again unless that was the 3rd Destination.</li>
             </ol>
           </section>
@@ -207,10 +207,10 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
           <section className="how-to-play-wide-section how-to-play-warning-section">
             <h3>Win And Loss</h3>
             <p>
-              Solo wins after passing the final Gate (10th sector) and ending the round. Multiplayer scores after that final round ends:
+              Solo wins after passing the final Gate (10th sector) and pressing End run. Multiplayer scores after End run:
               most crew wins, then Blueprints, then Ready crew. Any ship loss means everyone loses.
-              You lose if Fuel is empty at round end, if no reachable Mission remains and the Gate cannot be passed,
-              or if the Gate cannot be passed with required Gate Fuel, crew-made Fuel, and available Gate Fuel discounts.
+              You lose if no reachable Mission remains and the Gate cannot be passed, or if the Gate cannot be passed
+              with required Gate Fuel, crew-made Fuel, and available Gate Fuel discounts.
             </p>
           </section>
         </div>

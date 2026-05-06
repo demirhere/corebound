@@ -52,10 +52,6 @@ function countSpentShipParts(board: BoardView, shipPart: ShipPartKind) {
   ), 0)
 }
 
-function isFinalTurnOfRound(board: BoardView) {
-  return board.players.length <= 1 || board.turnPlayerIndex >= board.players.length - 1
-}
-
 type BoardProps = {
   board: BoardView
   boardRef: Ref<HTMLDivElement>
@@ -139,9 +135,7 @@ export function Board({
       : board.isRunEnding
         ? 'End run'
         : 'End turn'
-  const endTurnSublabel = canEndTurnNow && !board.isRunEnding && isFinalTurnOfRound(board)
-    ? 'Draws drift'
-    : null
+  const endTurnSublabel = null
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
   const gateCrewSlotDiscount = countSpentShipParts(board, 'service-drone-bay')
   const gateFuelShipPartDiscount = countSpentShipParts(board, 'adaptive-control-console')

@@ -23,13 +23,14 @@ import {
   automaticRewardDeckDraw,
   manualDeckDraw,
 } from './decks'
-import { cardContent, cardRulesText } from './logEvents'
+import { cardContent, cardRulesText, turnStartCrewDrawnEvent } from './logEvents'
 import type { PlaytestLogEvent } from './playtestLog'
 import { STARTING_FUEL_SUPPLY } from './economyTuning'
 
 const FUEL_DECK_SIZE = 10
 const RESOURCE_DECK_SIZE = STARTING_FUEL_SUPPLY + FUEL_DECK_SIZE
 const MOTHER_DECK_SIZE = 6
+const STARTING_CREW_CARD_COUNT = 4
 export const TOTAL_SECTORS = 10
 export const SOLO_PLAYER_ID = 'solo'
 export const SOLO_PLAYER: GamePlayer = {
@@ -213,20 +214,22 @@ function normalizeSetupPlayers(players: readonly GamePlayer[] | undefined) {
 }
 
 function createStartingCrewDeal(players: readonly GamePlayer[], shuffledCryoCrewDeck: readonly CardBlueprint[]) {
+  const startingCrewBlueprints = startingCrewCards.slice(0, STARTING_CREW_CARD_COUNT)
+
   if (players.length <= 1) {
     return {
-      startingCrewBlueprints: startingCrewCards,
+      startingCrewBlueprints,
       cryoDeckCards: [...shuffledCryoCrewDeck],
     }
   }
 
-  const cardsPerPlayer = Math.ceil(startingCrewCards.length / players.length)
+  const cardsPerPlayer = Math.ceil(startingCrewBlueprints.length / players.length)
   const totalStartingCrewCount = cardsPerPlayer * players.length
-  const extraCrewCount = Math.max(0, totalStartingCrewCount - startingCrewCards.length)
+  const extraCrewCount = Math.max(0, totalStartingCrewCount - startingCrewBlueprints.length)
 
   return {
     startingCrewBlueprints: [
-      ...startingCrewCards,
+      ...startingCrewBlueprints,
       ...shuffledCryoCrewDeck.slice(0, extraCrewCount),
     ],
     cryoDeckCards: shuffledCryoCrewDeck.slice(extraCrewCount),
@@ -237,7 +240,10 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
   const setupPlayers = normalizeSetupPlayers(players)
   const fuelDeck = shuffleCards(createResourceDeck('fuel', RESOURCE_DECK_SIZE))
   const motherDeckCards = createMotherDeck(MOTHER_DECK_SIZE)
-  const shuffledCryoCrewDeck = shuffleCards(cryoCrewDeck)
+  const shuffledCryoCrewDeck = shuffleCards([
+    ...startingCrewCards.slice(STARTING_CREW_CARD_COUNT),
+    ...cryoCrewDeck,
+  ])
   const startingCrewDeal = createStartingCrewDeal(setupPlayers, shuffledCryoCrewDeck)
   const driftDeckCards = createDriftDeckCards()
   const gateDeckCards = createGateDeckCards()
@@ -246,7 +252,11 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
   const initialFuelCards = createBoardCards('fuel-start', fuelDeck.slice(0, STARTING_FUEL_SUPPLY))
   // const initialHullCards = createBoardCards('hull-start', hullDeck.slice(0, 4))
   const handCards = createBoardCards('crew-hand', startingCrewDeal.startingCrewBlueprints)
-  const crewOwnerEntries = handCards.map((card, index) => {
+  const cryoDeckCards = startingCrewDeal.cryoDeckCards
+  const firstTurnCrewCards = createBoardCards('crew-turn-start', cryoDeckCards.slice(0, 1))
+  const remainingCryoDeckCards = cryoDeckCards.slice(firstTurnCrewCards.length)
+  const readyCrewCards = [...handCards, ...firstTurnCrewCards]
+  const crewOwnerEntries = readyCrewCards.map((card, index) => {
     const owner = setupPlayers[index % setupPlayers.length] ?? setupPlayers[0]
 
     return [card.id, owner?.id ?? SOLO_PLAYER_ID] as const
@@ -259,10 +269,9 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
 
   const initialCards = [
     ...initialFuelCards,
-    ...handCards,
+    ...readyCrewCards,
     ...(gateCard ? [gateCard] : []),
   ]
-  const cryoDeckCards = startingCrewDeal.cryoDeckCards
   const initialSectorDeckArt = getSectorDeckArt(1)
 
   const board: BoardState = {
@@ -350,7 +359,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
         y: OFFSCREEN_DECK_POSITION.y,
         z: 1016,
         draw: automaticRewardDeckDraw,
-        cards: cryoDeckCards,
+        cards: remainingCryoDeckCards,
       },
       {
         id: DRIFT_DECK_ID,
@@ -393,7 +402,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
     routeSlots: Array.from({ length: ROUTE_SLOT_COUNT }, () => null),
     shipPartSlots: [],
     archivedRouteCardIds: [],
-    handCardIds: handCards.map((card) => card.id),
+    handCardIds: readyCrewCards.map((card) => card.id),
     tiredCardIds: [],
     roundStartTiredCardIds: [],
     completedStarSummaries: [],
@@ -470,7 +479,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
       setupDeckCreatedEvent(MOTHER_DECK_ID, 'MOTHER Deck', motherDeckCards),
       // setupDeckCreatedEvent('hull-deck', 'Hull Deck', hullDeckCards),
       setupDeckCreatedEvent(MISSION_DECK_ID, 'Missions', missionDeckCards),
-      setupDeckCreatedEvent(CRYO_DECK_ID, 'Cryo Deck', cryoDeckCards),
+      setupDeckCreatedEvent(CRYO_DECK_ID, 'Cryo Deck', remainingCryoDeckCards),
       setupDeckCreatedEvent(DRIFT_DECK_ID, 'Drift Deck', driftDeckCards),
       setupDeckCreatedEvent(GATE_DECK_ID, 'Gate Deck', remainingGateDeckCards),
       setupDeckCreatedEvent(DAMAGE_DECK_ID, 'Damage Deck', damageDeckCards),
@@ -484,6 +493,13 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
           setupPlayers.find((player) => player.id === crewOwnerEntries[index]?.[1]) ?? null,
         )
       )),
+      ...firstTurnCrewCards.map((card) => {
+        const cryoDeck = board.decks.find((deck) => deck.id === CRYO_DECK_ID)
+
+        return cryoDeck
+          ? turnStartCrewDrawnEvent(card, { ...cryoDeck, cards: cryoDeckCards }, setupPlayers[0]?.name ?? null)
+          : setupCrewDealtEvent(card, handCards.length + 1, setupPlayers[0] ?? null)
+      }),
     ],
   }
 }

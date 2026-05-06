@@ -12,9 +12,9 @@ Pass each sector Gate by paying its Fuel-first cost. Optional Missions reveal 3 
 
 Pass 10 sector Gates. At setup, shuffle the Gate deck and draw the top Gate face up. After each Gate succeeds, draw the next Gate from the top of the visible Gate deck. A sector Gate can be attempted at any time in that sector. Map Destinations are optional preparation, not prerequisites.
 
-Solo: you win after the 10th Gate is completed and the round is ended.
+Solo: you win after the 10th Gate is completed and End run is pressed.
 
-Multiplayer: everyone is trying to keep the ship alive, but only the ship's survival creates a score. If the ship runs out of Fuel at round end, is stranded, or any Gate cannot be passed, everyone loses. If the final Gate succeeds, finish the current round, then count each player's owned surviving crew; the player with the most crew leads the new world.
+Multiplayer: everyone is trying to keep the ship alive, but only the ship's survival creates a score. If the ship is stranded or any Gate cannot be passed, everyone loses. If the final Gate succeeds, press End run, then count each player's owned surviving crew; the player with the most crew leads the new world.
 
 Multiplayer tie-breakers:
 
@@ -22,7 +22,7 @@ Multiplayer tie-breakers:
 2. Most Ready crew.
 3. Shared victory.
 
-You lose if the Fuel Supply is empty at round end, or if no reachable Mission remains and the current Gate cannot be passed with required Gate Fuel, crew-made Fuel, and available Gate Fuel discounts.
+You lose if no reachable Mission remains and the current Gate cannot be passed with required Gate Fuel, crew-made Fuel, and available Gate Fuel discounts.
 
 ## Starting Setup
 
@@ -35,18 +35,18 @@ On load or restart, setup is staged as an animated deal instead of cards snappin
 | Fuel Supply | 1 Fuel Cell card | Shuffle Fuel Cells, deal the top 1 face up as the starting Fuel Supply. |
 | Fuel Deck | 10 Fuel Cell cards | The remaining Fuel Cells stay in the Fuel Deck. Fuel rewards draw from here. If the Fuel Deck is empty when Fuel would be drawn, shuffle the Fuel Discard into the Fuel Deck first. |
 | Fuel Discard | 0 Fuel Cell cards | Starts empty. Fuel spent from the Fuel Supply or burned by Drift goes here, then can be reshuffled into the Fuel Deck. |
-| Starting Crew | 5 crew in solo, even hands in multiplayer | Deal all starting crew as Ready crew. In multiplayer, every launched player starts with the same number of Ready crew; if the 5-card starting set does not divide evenly, draw enough extra crew from the shuffled Cryo deck to finish the even deal. |
+| Starting Crew | 4 crew in solo, even hands in multiplayer | Deal 4 starting crew as Ready crew. In multiplayer, every launched player starts with the same number of Ready crew; if the 4-card starting set does not divide evenly, draw enough extra crew from the shuffled Cryo deck to finish the even deal. |
 | Tired Crew | 0 crew | Starts empty. Crew used on Destinations or Gates move here. |
 | Missions | 15 Destinations | Shuffle all 15 Destinations for the sector and place them as a manual draw deck titled after the current Gate. Do not deal Map Destinations during setup; the player draws the first Map offer from here. |
 | Map | 0 Destinations before the first draw | Starts empty. After the player draws from Missions, these are the current visible Destinations. Complete 1, keep its card on the board only if it found a Ship Part, and clear Resource Destinations with the other visible Destinations. New Map offers are drawn manually from Missions, at most once per turn. |
 | Gate | 1 Gate card | Shuffle all 14 Gates, place the top Gate face up below Missions, and keep the rest visible as the Gate Deck. The run uses 10 of the shuffled Gates in the order they are drawn; the remainder stay unused for this run. The face-up Gate is attemptable anytime. |
 | MOTHER Deck | 6 MOTHER cards | Place as a manual draw deck. Draws 1 card at a time. |
 | Discovery Deck | Disabled | Temporarily not set up. Completing a Destination does not award a Discovery. |
-| Drift Deck | 10 Drift cards | Shuffle 7 Burn and 3 Fatigue receipt cards. This deck resolves automatically after the final player ends their turn each round. Reshuffle the full Drift deck when it is empty before a Drift draw. |
+| Drift Deck | 10 Drift cards | Shuffle 7 Burn and 3 Fatigue receipt cards. This deck resolves only when a Gate effect asks for Drift. Reshuffle the full Drift deck when it is empty before a Drift draw. |
 | Gate Deck | 13 remaining Gates | Shows how many shuffled Gates remain. Each Gate success draws the next Gate from here, for 10 Gates total. |
 | Damage Deck | 12 Damage cards | Shuffle and keep as a reward-only penalty deck. If a passed Gate is not cleared cleanly, draw the top Damage and leave it on the ship board. |
 | Stress | 0 Stress | Spent MOTHER adds Stress. |
-| Cryo Deck | Up to 7 Cryo crew | Shuffle and keep for future crew rewards. In solo, all 7 Cryo crew start here. In multiplayer, any Cryo crew needed to finish the even starting deal are removed first. |
+| Cryo Deck | Up to 8 Cryo crew | Shuffle the unused starting crew and Cryo crew together. Each player's turn starts by drawing 1 Cryo crew into Ready if any remain. In multiplayer, any Cryo crew needed to finish the even starting deal are removed first. |
 
 ## Crew Icons
 
@@ -60,7 +60,6 @@ The visible crew icon formerly called Star is now called Nav. Science uses a bea
 | Mara Voss | Engine, Engine | Engineer |
 | Ada Chen | Engine, Science | Scientist |
 | Sana Iqbal | Life, Life | Medic |
-| Nia Okonkwo | Science, Nav | Recon |
 
 | Cryo Crew | Icons | Role |
 | --- | --- | --- |
@@ -71,6 +70,7 @@ The visible crew icon formerly called Star is now called Nav. Science uses a bea
 | Ilya Rao | Nav, Science | Recon |
 | Oren Vale | Science, Science | Operator |
 | Malik Ortega | Nav, Nav | Pilot |
+| Nia Okonkwo | Science, Nav | Recon |
 
 ## Destinations And Finds
 
@@ -138,18 +138,16 @@ On your turn, take as many board actions as needed. You may draw Fuel with an En
 10. End the turn before drawing a new Map offer. You can also ignore further Missions and start the Gate instead.
 11. If all 3 route slots are full, no more Destinations are traveled in that sector; start the Gate when ready.
 
-After every player has taken one turn, the final End turn press starts Drift before the next round begins. Interaction locks, the top Drift card flips face up, and shortly after it is fully revealed it is discarded and resolved. Drift Loop Damage resolves 2 Drift cards at round end:
+Every player turn starts by drawing the top Cryo crew into Ready for that player, if any Cryo crew remain. End turn advances to the next player, resets the once-per-turn Missions draw permission, and does not trigger any special round-end step.
+
+Drift cards resolve only from Gate effects that call for Drift:
 
 | Drift | Count | Effect |
 | --- | ---: | --- |
-| Burn | 7 | Discard 1 Fuel from the Fuel Supply. If no Fuel is available, discard nothing; the ship still loses if Fuel is empty when round end finishes. |
+| Burn | 7 | Discard 1 Fuel from the Fuel Supply. If no Fuel is available, discard nothing. |
 | Fatigue | 3 | Move the first Ready crew in the shared Hand order to Tired. If no Ready crew is available, add 1 Stress. |
 
-After the Drift card is discarded and its effect resolves, each player readies their longest-Tired crew card that was already Tired at the start of the round. Crew that became Tired during this round, including from this Drift card, cannot be readied by this round-end step. If a player has no eligible Tired crew, that player readies nothing. If the Fuel Supply is empty after Drift and round-end effects, the ship loses immediately.
-
 Gates with the extra-Drift effect resolve 1 additional Drift card when the Gate begins, before Ship Parts apply.
-
-In solo, every turn is also a full round, so Drift resolves after each End turn press.
 
 In multiplayer, the current turn player is the Mission Lead. Only the Mission Lead can draw decks, move table cards freely, trigger stack actions, choose pending reward panels, pass Gates, and end the turn. Other players can still commit their own Ready crew by clicking or dragging a card out of their Hand area, and can remove their own committed crew from the board by clicking them or dragging them back to their Hand area.
 
@@ -202,15 +200,15 @@ The Damage deck is a standalone 11-card deck. If a Gate is passed but not cleare
 | Damage | Effect | Trigger |
 | --- | --- | --- |
 | Fractured Engine | Engine Missions require +1 Engine icon. (to be implemented) | At each Mission attempt. |
-| Frozen Sector | No Tired-to-Ready trickle at round end. | Each round end. |
+| Frozen Sector | No current effect while round-end steps are disabled. (to be implemented) | No current trigger. |
 | Comm Failure | Each MOTHER use costs +1 Fuel. | When MOTHER is spent. |
 | Sensor Loss | Cannot peek anything. | Always. |
-| Hull Crack | +1 Stress at each round end. | Each round end. |
+| Hull Crack | No current effect while round-end steps are disabled. (to be implemented) | No current trigger. |
 | Crew Quarters Damaged | Discovery hand limit -1. No current impact while Discoveries are disabled. | Always. |
 | Sealed Cargo | First Mission per sector gives no Discovery. No current impact while Discoveries are disabled. | Each sector. |
 | Stress Echo | Each MOTHER spend adds 1 extra Stress. | When MOTHER is spent. |
 | Phantom Course | Missions reveal 2 cards instead of 3. | Each sector start. |
-| Drift Loop | Drift flips happen 2x per round end. | Each round end. |
+| Drift Loop | No current effect while round-end Drift is disabled. (to be implemented) | No current trigger. |
 | Long Reach | The 3rd Mission in a sector requires +1 crew icon. | At each Mission attempt. |
 
 Gate resolution is confirmed from stack actions. Each sector Gate is dealt face up and remains visible. Available Gate Fuel discounts apply automatically when the Gate begins: Adaptive Control Consoles scribble out required Gate Fuel. Medbay Rehydrators apply after the sector instead. If the Gate is already started and a later optional Destination creates a Gate Fuel discount, the app applies that discount before the Gate is passed. Then stack required Fuel Cells from the Fuel Supply and any water-pair crew needed for missing Fuel onto the Gate. Click the Gate action when the stack satisfies the pass requirements. The action says Complete sector with damage when the Gate can pass but the clean-clear cost is missing.
@@ -272,7 +270,7 @@ After each non-final Gate succeeds:
 
 1. The current sector's route progress resets. Any unresolved visible Map Destinations are discarded. Resource traveled Destinations leave the board; Ship Part Destination cards remain visible.
 2. Ship Part Destination cards stay on the board. Unspent Ship Parts remain available; spent Ship Parts remain spent.
-3. Each available Medbay Rehydrator readies +1 Tired crew. Other Tired crew stay Tired until normal round-end readiness or another effect readies them.
+3. Each available Medbay Rehydrator readies +1 Tired crew. Other Tired crew stay Tired until another effect readies them.
 4. Fuel carries forward, and spent Fuel in the Fuel Discard can be reshuffled into the Fuel Deck when needed.
 5. Stress carries forward.
 6. If the Gate was not cleared cleanly, the drawn Damage remains visible and its effect carries forward across all remaining sectors.
@@ -280,7 +278,7 @@ After each non-final Gate succeeds:
 8. Draw the next Gate from the Gate Deck, place it face up below Missions, and attempt it anytime.
 9. The next sector's Map starts empty; click Missions to fill the Map.
 
-After the 10th Gate succeeds, play locks to End run presses. When the final player ends the round and Drift/readiness resolves, the run scores and the arrival screen appears.
+After the 10th Gate succeeds, play locks to End run. Press End run to score and show the arrival screen.
 
 ## Prototype Controls
 
@@ -290,13 +288,13 @@ In multiplayer, you see only your own Hand and Tired areas. You can see each oth
 
 Drag decks to reposition them. A deck can merge only with another deck containing the same card family, such as Fuel with Fuel or MOTHER with MOTHER.
 
-Drag Ready crew from the Hand area onto the board. Tired crew cannot be dragged manually until round-end readiness, Medbay Rehydrator, or another effect readies them first.
+Drag Ready crew from the Hand area onto the board. Tired crew cannot be dragged manually until Medbay Rehydrator or another effect readies them first.
 
 Drag a card stack onto a highlighted valid target to combine it into a Destination, Gate, Ship Part blueprint prep pile, or temporary support stack of Ready crew, Fuel Cells, Engineer + Scientist water pairs, and usable MOTHER cards. MOTHER supports Destinations only. Dragging from a card inside a stack splits that card and every card above it into a new moving stack. When a stack has an available action, click the button above it to confirm.
 
 Drag visible traveled Ship Part Destination cards onto each other to stack them and organize board space. During the Gate, the app applies available Gate Fuel discounts automatically; no Gate stacking is required. Ship Part cards cannot be discarded.
 
-Use the End turn button to start the next turn and refresh the once-per-turn Missions draw permission. Missions are drawn manually from the Missions deck; End turn no longer forces a Mission draw. On the final turn of a round, End turn draws and reveals Drift first; controls stay disabled until the Drift card discards, resolves, and each player readies their longest eligible Tired crew. After the final Gate succeeds, this control becomes End run; the arrival screen waits until the last player presses it and round-end effects resolve.
+Use the End turn button to start the next turn and refresh the once-per-turn Missions draw permission. Missions are drawn manually from the Missions deck; End turn does not force a Mission draw or any round-end effect. The next turn player immediately draws 1 Cryo crew into Ready if any remain. After the final Gate succeeds, this control becomes End run; pressing it shows the arrival screen.
 
 Drag an all-crew stack back to the Hand area to return those cards to hand.
 
@@ -333,19 +331,17 @@ The app still accepts `role=observer` for a read-only view. Observers receive ca
 
 ## Win And Loss Summary
 
-Solo: win by completing the 10th Gate, pressing End run, and resolving round end.
+Solo: win by completing the 10th Gate and pressing End run.
 
 Multiplayer scoring happens only if the ship survives:
 
 ```text
-If the ship runs out of Fuel at round end, is stranded, or any Gate fails: everyone loses.
-If the final Gate succeeds: finish the round, then count each player's owned crew.
+If the ship is stranded or any Gate fails: everyone loses.
+If the final Gate succeeds: press End run, then count each player's owned crew.
 Most crew wins.
 ```
 
 Count both Ready and Tired crew. If crew totals tie, compare Blueprints built, then Ready crew. If still tied, the victory is shared.
-
-Lose as Fuel exhausted if the Fuel Supply is empty after Drift and round-end effects finish.
 
 Lose as Stranded in the Reach if no reachable Mission remains and the current Gate cannot be passed with available resources. This can happen when the Map is empty and Missions has no cards left, when visible Map Destinations exist but none can be completed with Ready crew and unused MOTHER, or when the Fuel Supply, Fuel Deck, Fuel Discard, water-pair crew, and Gate Fuel discounts cannot produce enough Fuel and the Gate is also out of reach.
 
@@ -396,7 +392,6 @@ Gates do not require MOTHER support.
 
 STUCK?
 
-If Fuel is empty at round end, you lose as Fuel exhausted.
 If no reachable Mission remains and the Gate cannot be passed, you lose as Stranded in the Reach.
 
 MULTIPLAYER
@@ -407,5 +402,5 @@ Shared rewards help the ship.
 Fuel rewards help the shared ship.
 Wake rewards add crew for the Mission Lead.
 Blueprints help everyone, but score for the Mission Lead who found them.
-Any ship loss means everyone loses; only 10th Gate success plus final round end scores crew.
+Any ship loss means everyone loses; only 10th Gate success plus End run scores crew.
 ```

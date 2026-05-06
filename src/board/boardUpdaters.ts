@@ -61,7 +61,6 @@ import {
   gateIconsCheckedEvent,
   damageDrawnEvent,
   gateCleanClearedEvent,
-  gateDriftHeldEvent,
   handCardDroppedEvent,
   missionCompletedEvent,
   mapInitializedEvent,
@@ -71,7 +70,6 @@ import {
   mapRefilledEvent,
   readyRewardAppliedEvent,
   routeArchivedEvent,
-  roundEndCrewReadiedEvent,
   scoutUsedEvent,
   sectorRevealedEvent,
   medbayRehydratorReadiedEvent,
@@ -84,6 +82,7 @@ import {
   missionMovedToRouteEvent,
   stressAddedEvent,
   stressThresholdActiveEvent,
+  turnStartCrewDrawnEvent,
   turnEndedEvent,
   wakeCrewRecruitedEvent,
 } from '../game/logEvents'
@@ -131,12 +130,9 @@ import {
 import {
   blocksFirstMissionDiscovery,
   blocksPeeking,
-  blocksRoundEndTiredCrewReadying,
   getMissionMapDrawCount,
   getMissionAnyIconSurcharge,
   getMotherStressEcho,
-  getRoundEndDriftFlipCount,
-  getRoundEndStressDamage,
   isDamageCard,
 } from '../game/damage'
 import {
@@ -791,14 +787,6 @@ function resolveGateLossIfNeeded(current: BoardState) {
   }
 }
 
-function resolveRoundEndFuelLossIfNeeded(current: BoardState) {
-  if (countFuelCardsInFuelSupply(current) > 0) {
-    return { board: current, events: [] }
-  }
-
-  return resolveLoss(current, 'fuel-depleted')
-}
-
 function getVisibleMissionCardIds(current: BoardState) {
   return current.mapSlots.flatMap((cardId) => {
     const card = cardId ? current.cards[cardId] : null
@@ -833,6 +821,14 @@ function resolveSectorStrandedLossIfNeeded(current: BoardState) {
   }
 
   return resolveLoss(current, 'sector-stranded')
+}
+
+function resolveTurnLossIfNeeded(current: BoardState) {
+  const sectorLoss = resolveSectorStrandedLossIfNeeded(current)
+
+  return sectorLoss.board !== current || sectorLoss.events.length > 0
+    ? sectorLoss
+    : resolveGateLossIfNeeded(sectorLoss.board)
 }
 
 function readyTiredCrew(
@@ -975,10 +971,6 @@ function getFuelSupplyStack(current: BoardState) {
     stack.id === FUEL_SUPPLY_STACK_ID &&
       stack.cardIds.some((cardId) => isFuelResourceCard(current.cards[cardId])),
   ) ?? findFuelSupplyStack(current.stacks, current.cards)
-}
-
-function countFuelCardsInFuelSupply(current: BoardState) {
-  return getFuelSupplyStack(current)?.cardIds.filter((cardId) => isFuelResourceCard(current.cards[cardId])).length ?? 0
 }
 
 function placeFuelCardsInSupplyStack(
@@ -1235,10 +1227,6 @@ function getNextTurnPlayerIndex(current: BoardState) {
     : 0
 }
 
-function isFinalTurnOfRound(current: BoardState) {
-  return current.players.length <= 1 || current.turnPlayerIndex >= current.players.length - 1
-}
-
 function advanceTurn(current: BoardState) {
   const nextTurnPlayerIndex = getNextTurnPlayerIndex(current)
 
@@ -1254,14 +1242,53 @@ function advanceTurn(current: BoardState) {
   }
 }
 
+function drawTurnStartCryoCrew(current: BoardState) {
+  const cryoDeck = current.decks.find((deck) => deck.id === CRYO_DECK_ID)
+  const crewBlueprint = cryoDeck?.cards[0]
+
+  if (!cryoDeck || !crewBlueprint) {
+    return { board: current, events: [] as PlaytestLogEvent[] }
+  }
+
+  const crewCard = createCardFromBlueprint(crewBlueprint, `turn-crew-${current.nextCardId}`)
+  const currentPlayer = current.players.find((player) => player.id === current.currentPlayerId) ?? null
+  const board = {
+    ...current,
+    nextCardId: current.nextCardId + 1,
+    handCardIds: [...current.handCardIds, crewCard.id],
+    cards: {
+      ...current.cards,
+      [crewCard.id]: crewCard,
+    },
+    crewOwnerIds: current.currentPlayerId
+      ? {
+          ...current.crewOwnerIds,
+          [crewCard.id]: current.currentPlayerId,
+        }
+      : current.crewOwnerIds,
+    decks: current.decks.map((deck) =>
+      deck.id === CRYO_DECK_ID
+        ? { ...deck, cards: deck.cards.slice(1) }
+        : deck,
+    ),
+  }
+
+  return {
+    board,
+    events: [turnStartCrewDrawnEvent(crewCard, cryoDeck, currentPlayer?.name ?? null)],
+  }
+}
+
 function advanceTurnAndCheckLoss(current: BoardState) {
   const advancedBoard = advanceTurn(current)
-  const loss = resolveSectorStrandedLossIfNeeded(advancedBoard)
+  const turnStartDraw = drawTurnStartCryoCrew(advancedBoard)
+  const loss = resolveTurnLossIfNeeded(turnStartDraw.board)
 
   return {
     board: loss.board,
     events: [
       turnEndedEvent(current.turnNumber, advancedBoard.turnNumber),
+      ...turnStartDraw.events,
       ...loss.events,
     ],
   }
@@ -2470,161 +2497,6 @@ export function clearBoardDropTargetUpdate(current: BoardState) {
     : current
 }
 
-function applyRoundEndDamage(current: BoardState) {
-  const stressDamage = getRoundEndStressDamage(current.cards)
-
-  if (stressDamage <= 0) {
-    return { board: current, events: [] as PlaytestLogEvent[] }
-  }
-
-  const nextStressCount = current.stressCount + stressDamage
-
-  return {
-    board: {
-      ...current,
-      stressCount: nextStressCount,
-    },
-    events: [stressAddedEvent('Hull Crack: round end', current.stressCount, nextStressCount)],
-  }
-}
-
-function finishRoundEnd(current: BoardState) {
-  const roundEndDamage = applyRoundEndDamage(current)
-  const nextRoundBoard = {
-    ...roundEndDamage.board,
-    roundStartTiredCardIds: roundEndDamage.board.tiredCardIds,
-  }
-  const advancedBoard = advanceTurn(nextRoundBoard)
-  const fuelLoss = resolveRoundEndFuelLossIfNeeded(advancedBoard)
-  const sectorLoss = resolveSectorStrandedLossIfNeeded(fuelLoss.board)
-  const gateLoss = resolveGateLossIfNeeded(sectorLoss.board)
-  const resolvedBoard = gateLoss.board
-  const board = nextRoundBoard.isRunEnding && !resolvedBoard.lossReason
-    ? {
-        ...resolvedBoard,
-        isRunEnding: false,
-        hasArrived: true,
-        pendingWakeChoice: null,
-        pendingScoutChoice: null,
-        pendingDrift: null,
-        dropTargetStackId: null,
-        dropTargetDeckId: null,
-      }
-    : resolvedBoard
-
-  return {
-    board,
-    events: [
-      ...roundEndDamage.events,
-      turnEndedEvent(current.turnNumber, advancedBoard.turnNumber),
-      ...fuelLoss.events,
-      ...sectorLoss.events,
-      ...gateLoss.events,
-    ],
-  }
-}
-
-function beginRoundDrift(current: BoardState, metrics: BoardMetrics) {
-  const gateCard = getSectorGateCard(current)
-
-  if (gateCard?.gate && gateHoldsDrift(gateCard.gate)) {
-    const roundEndReady = readyLongestTiredCrewForEachPlayer(current)
-    const heldBoard = {
-      ...roundEndReady.board,
-      heldDriftCount: roundEndReady.board.heldDriftCount + 1,
-    }
-    const roundEnd = finishRoundEnd(heldBoard)
-    const roundEndReadyEvents = roundEndReady.readiedCrewCardIds.length > 0
-      ? [roundEndCrewReadiedEvent(roundEndReady.readiedCrewCardIds, roundEndReady.board.cards)]
-      : []
-
-    return {
-      board: roundEnd.board,
-      events: [
-        gateDriftHeldEvent(gateCard, heldBoard.heldDriftCount),
-        ...roundEndReadyEvents,
-        ...roundEnd.events,
-      ],
-    }
-  }
-
-  if (getRoundEndDriftFlipCount(current.cards) > 1) {
-    const driftResolved = resolveImmediateDriftCards(current, getRoundEndDriftFlipCount(current.cards), 'Drift Loop')
-    const roundEndReady = readyLongestTiredCrewForEachPlayer(driftResolved.board)
-    const roundEnd = finishRoundEnd(roundEndReady.board)
-    const roundEndReadyEvents = roundEndReady.readiedCrewCardIds.length > 0
-      ? [roundEndCrewReadiedEvent(roundEndReady.readiedCrewCardIds, roundEndReady.board.cards)]
-      : []
-
-    return {
-      board: roundEnd.board,
-      events: [
-        ...driftResolved.events,
-        ...roundEndReadyEvents,
-        ...roundEnd.events,
-      ],
-    }
-  }
-
-  const driftDeck = current.decks.find((deck) => deck.id === DRIFT_DECK_ID)
-
-  if (!driftDeck) {
-    return finishRoundEnd(current)
-  }
-
-  const wasEmpty = driftDeck.cards.length === 0
-  const driftDeckCards = wasEmpty ? createDriftDeckCards() : driftDeck.cards
-  const driftBlueprint = driftDeckCards[0]
-
-  if (!driftBlueprint) {
-    return finishRoundEnd(current)
-  }
-
-  const deckZ = current.topZ + 1
-  const cardZ = current.topZ + 2
-  const driftCard = createCardFromBlueprint(driftBlueprint, `drift-${current.nextCardId}`)
-  const driftStackId = `stack-${driftCard.id}`
-  const position = getNearbyDrawPosition({ ...driftDeck, cards: driftDeckCards }, metrics)
-  const nextBoard = {
-    ...current,
-    topZ: cardZ,
-    nextCardId: current.nextCardId + 1,
-    pendingDrift: {
-      cardId: driftCard.id,
-      stackId: driftStackId,
-    },
-    dropTargetStackId: null,
-    dropTargetDeckId: null,
-    cards: {
-      ...current.cards,
-      [driftCard.id]: driftCard,
-    },
-    stacks: [
-      ...current.stacks,
-      {
-        id: driftStackId,
-        cardIds: [driftCard.id],
-        x: position.x,
-        y: position.y,
-        z: cardZ,
-      },
-    ],
-    decks: current.decks.map((deck) =>
-      deck.id === DRIFT_DECK_ID
-        ? { ...deck, cards: driftDeckCards.slice(1), z: deckZ }
-        : deck,
-    ),
-  }
-
-  return {
-    board: nextBoard,
-    events: [
-      ...(wasEmpty ? [driftDeckReshuffledEvent(driftDeck)] : []),
-      cardDrawnEvent(driftCard, { ...driftDeck, cards: driftDeckCards }, driftStackId, position.x, position.y),
-    ],
-  }
-}
-
 function getFuelCardIdForDriftBurn(current: BoardState) {
   return getFuelSupplyStack(current)?.cardIds.find((cardId) => isFuelResourceCard(current.cards[cardId])) ?? null
 }
@@ -2688,50 +2560,6 @@ function applyDriftFatigue(current: BoardState) {
   }
 }
 
-function readyLongestTiredCrewForEachPlayer(current: BoardState) {
-  if (blocksRoundEndTiredCrewReadying(current)) {
-    return {
-      board: current,
-      readiedCrewCardIds: [] as string[],
-    }
-  }
-
-  const readiedCrewCardIdSet = new Set<string>()
-  const eligibleCrewCardIds = new Set(current.roundStartTiredCardIds)
-
-  for (const player of current.players) {
-    const readiedCrewCardId = current.tiredCardIds.find((cardId) => (
-      !readiedCrewCardIdSet.has(cardId) &&
-      eligibleCrewCardIds.has(cardId) &&
-      current.cards[cardId]?.kind === 'crew' &&
-      current.crewOwnerIds[cardId] === player.id
-    ))
-
-    if (readiedCrewCardId) {
-      readiedCrewCardIdSet.add(readiedCrewCardId)
-    }
-  }
-
-  if (readiedCrewCardIdSet.size === 0) {
-    return {
-      board: current,
-      readiedCrewCardIds: [] as string[],
-    }
-  }
-
-  const readiedCrewCardIds = current.tiredCardIds.filter((cardId) => readiedCrewCardIdSet.has(cardId))
-
-  return {
-    board: {
-      ...current,
-      handCardIds: [...current.handCardIds, ...readiedCrewCardIds],
-      tiredCardIds: current.tiredCardIds.filter((cardId) => !readiedCrewCardIdSet.has(cardId)),
-      roundStartTiredCardIds: removeRoundStartTiredCardIds(current, readiedCrewCardIds),
-    },
-    readiedCrewCardIds,
-  }
-}
-
 export function resolvePendingDriftUpdate(current: BoardState) {
   const pendingDrift = current.pendingDrift
 
@@ -2761,22 +2589,17 @@ export function resolvePendingDriftUpdate(current: BoardState) {
   const driftEffect = driftCard.drift.effectKind === 'burn'
     ? applyDriftBurn(boardWithoutDriftCard)
     : applyDriftFatigue(boardWithoutDriftCard)
-  const roundEndReady = readyLongestTiredCrewForEachPlayer(driftEffect.board)
-  const roundEnd = finishRoundEnd(roundEndReady.board)
-  const roundEndReadyEvents = roundEndReady.readiedCrewCardIds.length > 0
-    ? [roundEndCrewReadiedEvent(roundEndReady.readiedCrewCardIds, roundEndReady.board.cards)]
-    : []
+  const advanced = advanceTurnAndCheckLoss(driftEffect.board)
 
-  return withPlaytestEvents(roundEnd.board, [
+  return withPlaytestEvents(advanced.board, [
     cardsDiscardedEvent([driftCard.id], current.cards, 'Drift'),
     driftResolvedEvent(driftCard, driftEffect.result),
     ...driftEffect.events,
-    ...roundEndReadyEvents,
-    ...roundEnd.events,
+    ...advanced.events,
   ])
 }
 
-export function endTurnUpdate(metrics: BoardMetrics): BoardUpdater {
+export function endTurnUpdate(_metrics: BoardMetrics): BoardUpdater {
   return (current) => {
     if (
       current.hasArrived ||
@@ -2788,15 +2611,20 @@ export function endTurnUpdate(metrics: BoardMetrics): BoardUpdater {
       return current
     }
 
-    const currentLoss = resolveSectorStrandedLossIfNeeded(current)
-
-    if (currentLoss.board !== current || currentLoss.events.length > 0) {
-      return withPlaytestEvents(currentLoss.board, currentLoss.events)
+    if (current.isRunEnding) {
+      return {
+        ...current,
+        isRunEnding: false,
+        hasArrived: true,
+        pendingWakeChoice: null,
+        pendingScoutChoice: null,
+        pendingDrift: null,
+        dropTargetStackId: null,
+        dropTargetDeckId: null,
+      }
     }
 
-    const result = isFinalTurnOfRound(current)
-      ? beginRoundDrift(current, metrics)
-      : advanceTurnAndCheckLoss(current)
+    const result = advanceTurnAndCheckLoss(current)
 
     return withPlaytestEvents(result.board, result.events)
   }

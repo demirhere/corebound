@@ -30,7 +30,7 @@ function lossContent(reason: GameLossReason) {
   if (reason === 'fuel-depleted') {
     return {
       title: 'Fuel exhausted.',
-      body: 'The Fuel Supply is empty at round end.',
+      body: 'The Fuel Supply was exhausted.',
     }
   }
 
