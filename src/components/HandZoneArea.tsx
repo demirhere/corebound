@@ -5,6 +5,7 @@ import {
 } from 'react'
 import type { HandZone } from '../game/types'
 import { CardShell, type CardView } from './BoardCard'
+import { StressTracker } from './BoardPanels'
 
 export type HandPointerDownHandler = (
   event: ReactPointerEvent<HTMLDivElement>,
@@ -33,6 +34,8 @@ type HandZoneAreaProps = {
   activeCardIds: ReadonlySet<string>
   insertPreview: HandInsertPreview | null
   stressCount?: number
+  currentSector?: number
+  totalSectors?: number
   canInteract: boolean
   onCardPointerDown: HandPointerDownHandler
   onCardKeyDown: HandKeyDownHandler
@@ -85,23 +88,6 @@ function getCardSlotIndex(
   return baseIndex + (baseIndex >= previewIndex ? previewCardCount : 0)
 }
 
-function StressTracker({ stressCount }: { stressCount: number }) {
-  return (
-    <aside className="stress-area hand-zone-stress" aria-label="Stress area">
-      <p className="stress-tracker" aria-live="polite">
-        <span className="stress-label">Stress</span>
-        <span className="stress-history">
-          {Array.from({ length: stressCount + 1 }, (_, i) => (
-            <span key={i} className={i < stressCount ? 'stress-old' : 'stress-current'}>
-              {i}
-            </span>
-          ))}
-        </span>
-      </p>
-    </aside>
-  )
-}
-
 export function HandZoneArea({
   zone,
   label,
@@ -110,6 +96,8 @@ export function HandZoneArea({
   activeCardIds,
   insertPreview,
   stressCount,
+  currentSector,
+  totalSectors,
   canInteract,
   onCardPointerDown,
   onCardKeyDown,
@@ -133,7 +121,9 @@ export function HandZoneArea({
 
   return (
     <div className={`hand-zone hand-zone-${zone}`} data-hand-zone={zone} aria-label={`${label} area`}>
-      {zone === 'tired' && stressCount !== undefined ? <StressTracker stressCount={stressCount} /> : null}
+      {zone === 'tired' && stressCount !== undefined && currentSector !== undefined && totalSectors !== undefined ? (
+        <StressTracker stressCount={stressCount} currentSector={currentSector} totalSectors={totalSectors} />
+      ) : null}
       <span className="hand-zone-label">{label}</span>
       {subtitle && <span className="hand-zone-subtitle">{subtitle}</span>}
       <div className="hand-strip">

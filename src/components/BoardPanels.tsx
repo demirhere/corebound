@@ -6,6 +6,35 @@ type PlayerCrewPanelProps = {
   localPlayerId: string | null
 }
 
+type StressTrackerProps = {
+  stressCount: number
+  currentSector: number
+  totalSectors: number
+}
+
+export function StressTracker({ stressCount, currentSector, totalSectors }: StressTrackerProps) {
+  return (
+    <aside className="stress-area hand-zone-stress" aria-label="Sector and stress area" aria-live="polite">
+      <p className="stress-tracker">
+        <span className="stress-label">Sector</span>
+        <span className="stress-history sector-history" aria-label={`Sector ${currentSector} of ${totalSectors}`}>
+          <span className="stress-current">{currentSector}/{totalSectors}</span>
+        </span>
+      </p>
+      <p className="stress-tracker">
+        <span className="stress-label">Stress</span>
+        <span className="stress-history">
+          {Array.from({ length: stressCount + 1 }, (_, i) => (
+            <span key={i} className={i < stressCount ? 'stress-old' : 'stress-current'}>
+              {i}
+            </span>
+          ))}
+        </span>
+      </p>
+    </aside>
+  )
+}
+
 export function PlayerCrewPanel({ players, currentPlayerId, localPlayerId }: PlayerCrewPanelProps) {
   return (
     <aside className="player-crew-area" aria-label="Player crew counts" style={{ fontSize: 18 }}>

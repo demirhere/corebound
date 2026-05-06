@@ -153,6 +153,10 @@
   font-size: clamp(14px, 1.45vw, 21px);
 }
 
+.sector-history {
+  flex-wrap: nowrap;
+}
+
 .stress-old {
   position: relative;
   color: inherit;
@@ -171,6 +175,9 @@
   bottom: calc(100% + clamp(6px, 0.8vw, 12px));
   left: clamp(14px, 1.5vw, 20px);
   z-index: 3;
+  display: inline-flex;
+  gap: clamp(18px, 2vw, 28px);
+  align-items: flex-start;
   color: currentColor;
   font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
   font-size: clamp(13px, 1.25vw, 19px);
@@ -2676,6 +2683,159 @@
   white-space: nowrap;
 }
 
+.card-shell.card-kind-drift {
+  --drift-paper: #d7e3e7;
+  --drift-ink: #17232a;
+  --drift-muted: rgba(23, 35, 42, 0.62);
+  --drift-line: rgba(23, 35, 42, 0.18);
+
+  .card-face.card-front {
+    overflow: hidden;
+    border-color: rgba(18, 31, 38, 0.72);
+    border-radius: 7px 7px 12px 12px;
+    color: var(--drift-ink);
+    background:
+      linear-gradient(90deg, transparent 0 calc(100% - 8px), rgba(23, 35, 42, 0.12) calc(100% - 8px) calc(100% - 6px), transparent calc(100% - 6px)),
+      repeating-linear-gradient(90deg, rgba(42, 74, 85, 0.1) 0 1px, transparent 1px 18px),
+      repeating-linear-gradient(0deg, transparent 0 17px, rgba(42, 74, 85, 0.16) 17px 18px),
+      linear-gradient(160deg, #eef7f9 0%, var(--drift-paper) 64%, #b7c7cf 100%);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.58),
+      inset 0 -18px 20px rgba(23, 35, 42, 0.08);
+    clip-path: polygon(5% 0, 90% 0, 100% 7%, 100% 100%, 0 100%, 0 5%);
+  }
+
+  .card-front::before {
+    top: 8px;
+    right: 7px;
+    bottom: 8px;
+    left: auto;
+    border-left: 2px dashed rgba(23, 35, 42, 0.24);
+    opacity: 0.7;
+  }
+
+  .card-front::after {
+    content: '';
+    position: absolute;
+    top: 7px;
+    right: 4px;
+    bottom: 7px;
+    width: 3px;
+    background: repeating-linear-gradient(0deg, rgba(23, 35, 42, 0.38) 0 3px, transparent 3px 7px);
+    opacity: 0.42;
+  }
+
+  .card-art {
+    display: block;
+    padding: clamp(10px, 0.86vw, 13px) clamp(12px, 1vw, 15px);
+    background:
+      radial-gradient(circle at 8% 93%, rgba(255, 255, 255, 0.38), transparent 18%),
+      linear-gradient(90deg, transparent 0 28px, rgba(23, 35, 42, 0.08) 28px 30px, transparent 30px);
+  }
+}
+
+.drift-receipt {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  height: 100%;
+  min-width: 0;
+  grid-template-rows: auto auto auto auto 1fr auto;
+  gap: clamp(6px, 0.62vw, 9px);
+  font-family: ui-monospace, 'SFMono-Regular', 'Roboto Mono', 'Cascadia Mono', monospace;
+  letter-spacing: 0;
+}
+
+.drift-receipt-heading,
+.drift-receipt-code,
+.drift-receipt-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 7px;
+  color: var(--drift-muted);
+  font-size: clamp(6px, 0.54vw, 8px);
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.drift-receipt-heading {
+  padding-bottom: 5px;
+  border-bottom: 2px solid rgba(23, 35, 42, 0.6);
+  color: var(--drift-ink);
+  font-size: clamp(8px, 0.72vw, 10px);
+}
+
+.drift-receipt-title {
+  padding: 3px 0 2px;
+  border-bottom: 1px solid var(--drift-line);
+  font-size: clamp(22px, 2.35vw, 36px);
+  font-weight: 950;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.drift-receipt-code {
+  padding-bottom: 5px;
+  border-bottom: 1.5px dashed rgba(23, 35, 42, 0.32);
+}
+
+.drift-receipt-checks {
+  display: grid;
+  gap: 5px;
+  padding: 2px 0;
+  font-size: clamp(9px, 0.78vw, 12px);
+  font-weight: 850;
+  line-height: 1.08;
+  text-transform: uppercase;
+}
+
+.drift-receipt-checks span {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.drift-receipt-checks span::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 1.18em;
+  aspect-ratio: 1;
+  border: 2px solid rgba(23, 35, 42, 0.72);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.drift-receipt-checks span.is-checked::after {
+  content: '';
+  position: absolute;
+  left: 0.22em;
+  top: 0.12em;
+  width: 0.78em;
+  height: 0.42em;
+  border-bottom: 2px solid var(--drift-ink);
+  border-left: 2px solid var(--drift-ink);
+  transform: rotate(-45deg);
+}
+
+.drift-receipt-effect {
+  align-self: start;
+  margin: 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--drift-line);
+  color: var(--drift-ink);
+  font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+  font-size: clamp(10px, 0.86vw, 13px);
+  font-weight: 750;
+  letter-spacing: 0;
+  line-height: 1.08;
+}
+
+.drift-receipt-footer {
+  padding-top: 6px;
+  border-top: 2px solid rgba(23, 35, 42, 0.52);
+}
+
 .card-inner {
   position: relative;
   width: 100%;
@@ -4047,6 +4207,69 @@
 
   .deck-mark-icon .deck-icon-line {
     stroke-width: 1.7;
+  }
+}
+
+.deck-card[data-deck-id='drift-deck'] {
+  --deck-cover-light: #eef7f9;
+  --deck-cover: #d7e3e7;
+  --deck-cover-dark: #a9bbc4;
+  --deck-letter: #17232a;
+  --deck-edge: rgba(255, 255, 255, 0.62);
+  --deck-line: rgba(23, 35, 42, 0.2);
+  --deck-ink: #17232a;
+
+  padding: clamp(14px, 1.24vw, 19px) clamp(11px, 0.98vw, 15px);
+  border-radius: 7px 7px clamp(13px, 1.1vw, 18px) clamp(13px, 1.1vw, 18px);
+  color: var(--deck-letter);
+  background:
+    linear-gradient(90deg, transparent 0 calc(100% - 9px), rgba(23, 35, 42, 0.14) calc(100% - 9px) calc(100% - 7px), transparent calc(100% - 7px)),
+    repeating-linear-gradient(90deg, rgba(42, 74, 85, 0.1) 0 1px, transparent 1px 18px),
+    repeating-linear-gradient(0deg, transparent 0 17px, rgba(42, 74, 85, 0.16) 17px 18px),
+    linear-gradient(160deg, var(--deck-cover-light) 0%, var(--deck-cover) 65%, var(--deck-cover-dark) 100%);
+  clip-path: polygon(5% 0, 90% 0, 100% 7%, 100% 100%, 0 100%, 0 5%);
+  box-shadow:
+    3px -3px 0 rgba(255, 255, 255, 0.14),
+    7px -7px 0 rgba(255, 255, 255, 0.055),
+    inset 0 0 0 1px var(--deck-edge),
+    inset 0 -18px 20px rgba(23, 35, 42, 0.08),
+    0 19px 18px rgba(0, 0, 0, 0.46);
+
+  &::after {
+    inset: clamp(7px, 0.58vw, 9px);
+    border-color: rgba(23, 35, 42, 0.6);
+    border-style: dashed;
+    border-radius: 5px 5px 10px 10px;
+    box-shadow: none;
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    right: 4px;
+    top: 7px;
+    bottom: 7px;
+    z-index: 1;
+    width: 3px;
+    background: repeating-linear-gradient(0deg, rgba(23, 35, 42, 0.38) 0 3px, transparent 3px 7px);
+    opacity: 0.42;
+  }
+
+  .deck-title-lockup {
+    gap: clamp(6px, 0.62vw, 9px);
+    width: min(82%, 132px);
+  }
+
+  .deck-title,
+  .deck-badge {
+    font-family: ui-monospace, 'SFMono-Regular', 'Roboto Mono', 'Cascadia Mono', monospace;
+    letter-spacing: 0.08em;
+    text-shadow: none;
+  }
+
+  .deck-mark-icon {
+    width: clamp(30px, 3.1vw, 46px);
+    filter: none;
   }
 }
 

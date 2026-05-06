@@ -100,6 +100,10 @@ export function cardRulesText(card: Card | CardBlueprint) {
     return `${getDiscoveryTagLabel(card.discovery.tag)} Discovery: ${card.discovery.effectText}`
   }
 
+  if (card.kind === 'drift' && card.drift) {
+    return `Drift: ${card.drift.effectText}`
+  }
+
   return ''
 }
 
@@ -644,6 +648,51 @@ export function stressClearedEvent(source: string, from: number, to: number): Pl
       source,
       from,
       to,
+    },
+  }
+}
+
+export function driftDeckReshuffledEvent(deck: Deck): PlaytestLogEvent {
+  return {
+    type: 'drift.deck.reshuffled',
+    message: `${deck.title} was empty and reshuffled before the round-end Drift draw.`,
+    details: {
+      deckId: deck.id,
+      deckTitle: deck.title,
+    },
+  }
+}
+
+export function driftResolvedEvent(card: Card, result: string): PlaytestLogEvent {
+  return {
+    type: 'drift.resolved',
+    message: `Drift resolved: ${describeCard(card, card.id)}. ${result}`,
+    details: {
+      cardId: card.id,
+      cardTitle: card.title,
+      cardSummary: describeCard(card, card.id),
+      cardContent: cardContent(card),
+      effectKind: card.drift?.effectKind ?? null,
+      result,
+    },
+  }
+}
+
+export function roundEndCrewReadiedEvent(
+  readiedCrewCardIds: readonly string[],
+  cards: Record<string, Card>,
+): PlaytestLogEvent {
+  const readiedCrewTitles = cardTitles(readiedCrewCardIds, cards)
+  const readiedCrewText = readiedCrewTitles.length > 0 ? readiedCrewTitles.join(', ') : 'no crew'
+
+  return {
+    type: 'round_end.crew_readied',
+    message: `Round end readied ${readiedCrewText} from Tired.`,
+    details: {
+      readiedCrewCardIds,
+      readiedCrewTitles,
+      readiedCrewSummaries: cardSummaries(readiedCrewCardIds, cards),
+      readiedCrewContents: cardContents(readiedCrewCardIds, cards),
     },
   }
 }

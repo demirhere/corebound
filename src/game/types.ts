@@ -47,7 +47,14 @@ export type DiscoveryDetails = {
   amount?: number
 }
 
-export type CardKind = 'resource' | 'crew' | 'horizon' | 'mother' | 'gate' | 'discovery'
+export type DriftEffectKind = 'burn' | 'fatigue'
+
+export type DriftDetails = {
+  effectKind: DriftEffectKind
+  effectText: string
+}
+
+export type CardKind = 'resource' | 'crew' | 'horizon' | 'mother' | 'gate' | 'discovery' | 'drift'
 
 export type GameLossReason = 'sector-stranded' | 'gate-failed'
 
@@ -143,6 +150,7 @@ export type CardBlueprint = {
   horizon?: HorizonDetails
   gate?: GateDetails
   discovery?: DiscoveryDetails
+  drift?: DriftDetails
   specimenIndex?: number
 }
 
@@ -229,6 +237,7 @@ export type BoardState = {
   archivedRouteCardIds: string[]
   handCardIds: string[]
   tiredCardIds: string[]
+  roundStartTiredCardIds: string[]
   completedStarSummaries: CompletedStarSummary[]
   pendingWakeChoice: {
     remaining: number
@@ -239,6 +248,10 @@ export type BoardState = {
     choiceCardIds: string[]
     keptCardId: string | null
     bottomedCardIds: string[]
+  } | null
+  pendingDrift: {
+    cardId: string
+    stackId: string
   } | null
   pendingEffects: BoardEffect[]
   turnNumber: number

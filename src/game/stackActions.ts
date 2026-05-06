@@ -31,10 +31,11 @@ type WaterPairCrewRole = 'engineer' | 'scientist'
 
 function isBoardActionBlocked(current: BoardState) {
   return Boolean(
-    current.hasArrived ||
+      current.hasArrived ||
       current.lossReason ||
       current.pendingWakeChoice ||
-      current.pendingScoutChoice,
+      current.pendingScoutChoice ||
+      current.pendingDrift,
   )
 }
 

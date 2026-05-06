@@ -16,6 +16,7 @@ export function removeCardFromHandZones(current: BoardState, cardId: string) {
   return {
     handCardIds: current.handCardIds.filter((candidateId) => candidateId !== cardId),
     tiredCardIds: current.tiredCardIds.filter((candidateId) => candidateId !== cardId),
+    roundStartTiredCardIds: current.roundStartTiredCardIds.filter((candidateId) => candidateId !== cardId),
   }
 }
 

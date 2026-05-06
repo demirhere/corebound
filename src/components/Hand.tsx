@@ -22,6 +22,8 @@ type HandProps = {
   activeCardIds: readonly string[]
   insertPreview: HandInsertPreview | null
   stressCount: number
+  currentSector: number
+  totalSectors: number
   endTurnAttentionKey: number
   handRef: Ref<HTMLElement>
   canInteract: boolean
@@ -39,6 +41,8 @@ export function Hand({
   activeCardIds,
   insertPreview,
   stressCount,
+  currentSector,
+  totalSectors,
   endTurnAttentionKey,
   handRef,
   canInteract,
@@ -84,6 +88,8 @@ export function Hand({
         activeCardIds={activeCardIdSet}
         insertPreview={insertPreview}
         stressCount={stressCount}
+        currentSector={currentSector}
+        totalSectors={totalSectors}
         canInteract={canInteract}
         onCardPointerDown={onCardPointerDown}
         onCardKeyDown={onCardKeyDown}

@@ -370,6 +370,37 @@ function renderDiscoveryContent(card: Card) {
   )
 }
 
+function renderDriftContent(card: Card) {
+  if (!card.drift) {
+    return null
+  }
+
+  const isBurn = card.drift.effectKind === 'burn'
+
+  return (
+    <div className="drift-receipt">
+      <div className="drift-receipt-heading">
+        <span>Drift Wake-Up</span>
+        <span>{isBurn ? 'Fuel Burn' : 'Crew Fatigue'}</span>
+      </div>
+      <div className="drift-receipt-title">{card.title}</div>
+      <div className="drift-receipt-code">
+        <span>Round End</span>
+        <span>{card.id.toUpperCase()}</span>
+      </div>
+      <div className="drift-receipt-checks" aria-hidden="true">
+        <span className={isBurn ? 'is-checked' : ''}>Burn</span>
+        <span className={!isBurn ? 'is-checked' : ''}>Fatigue</span>
+      </div>
+      <p className="drift-receipt-effect">{card.drift.effectText}</p>
+      <div className="drift-receipt-footer" aria-hidden="true">
+        <span>Resolve</span>
+        <span>Discard</span>
+      </div>
+    </div>
+  )
+}
+
 export function renderGameplayCardContent(
   card: Card,
   fuelDiscount: number,
@@ -399,6 +430,10 @@ export function renderGameplayCardContent(
 
   if (card.kind === 'discovery') {
     return renderDiscoveryContent(card)
+  }
+
+  if (card.kind === 'drift') {
+    return renderDriftContent(card)
   }
 
   if (card.kind === 'mother') {

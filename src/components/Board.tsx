@@ -3,6 +3,7 @@ import {
   type Ref,
 } from 'react'
 import { getNextStopFuelDiscount } from '../game/effects'
+import { shouldDrawMissionsBeforeEndTurn } from '../game/boardQueries'
 import type { BoardState, ShipPartKind } from '../game/types'
 import {
   ArrivalDialog,
@@ -38,6 +39,7 @@ import {
   type HandPointerDownHandler,
 } from './Hand'
 import type { SharedDragPreview } from '../realtime/types'
+import { DRIFT_DECK_ID } from '../game/decks'
 
 type BoardView = BoardState
 
@@ -117,12 +119,18 @@ export function Board({
     !board.hasArrived &&
     !board.lossReason &&
     !board.pendingWakeChoice &&
-    !board.pendingScoutChoice
+    !board.pendingScoutChoice &&
+    !board.pendingDrift
   const playerStats = getPlayerCrewStats(board)
   const isMultiplayer = isMultiplayerBoard(board)
   const visibleHandCardIds = getVisibleHandCardIds(board, localPlayerId)
   const visibleTiredCardIds = getVisibleTiredCardIds(board, localPlayerId)
-  const endTurnLabel = isLocalTurn ? 'End turn' : 'Waiting for other player'
+  const needsMissionDrawBeforeEndTurn = shouldDrawMissionsBeforeEndTurn(board)
+  const endTurnLabel = board.pendingDrift
+    ? 'Resolving drift'
+    : !isLocalTurn ? 'Waiting for other player'
+    : needsMissionDrawBeforeEndTurn ? 'Draw missions'
+    : 'End turn'
   const fuelDiscount = getNextStopFuelDiscount(board.pendingEffects)
   const gateCrewSlotDiscount = countSpentShipParts(board, 'service-drone-bay')
   const gateIconDiscount = countSpentShipParts(board, 'adaptive-control-console')
@@ -161,7 +169,7 @@ export function Board({
         </div>
       ) : null}
       {board.decks
-        .filter((deck) => deck.cards.length > 0)
+        .filter((deck) => deck.cards.length > 0 || deck.id === DRIFT_DECK_ID)
         .map((deck) => (
           <DeckCard
             key={deck.id}
@@ -213,6 +221,8 @@ export function Board({
         activeCardIds={activeHandCardIds}
         insertPreview={handInsertPreview}
         stressCount={board.stressCount}
+        currentSector={board.currentSector}
+        totalSectors={board.totalSectors}
         endTurnAttentionKey={endTurnAttentionKey}
         canInteract={canUseOwnCrew}
         canEndTurn={canEndTurn}

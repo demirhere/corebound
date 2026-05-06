@@ -975,6 +975,7 @@ export function useBoardInteractions({
       !current.lossReason &&
       !current.pendingWakeChoice &&
       !current.pendingScoutChoice &&
+      !current.pendingDrift &&
       Boolean(deck && canManuallyDrawDeck(deck) && deck.cards.length > 0) &&
       current.sectorDrawnThisTurn &&
       getVisibleHorizonCards(current).length === 0 &&
@@ -1019,7 +1020,7 @@ export function useBoardInteractions({
       return
     }
 
-    setBoard(endTurnUpdate)
+    setBoard(endTurnUpdate(readBoardMetrics()))
   }
 
   function getBoardDropPosition(clientX: number, clientY: number, placeAboveHand = false) {
@@ -1146,6 +1147,7 @@ export function useBoardInteractions({
       board.lossReason ||
       board.pendingWakeChoice ||
       board.pendingScoutChoice ||
+      board.pendingDrift ||
       event.button !== 0 ||
       dragsRef.current.has(event.pointerId) ||
       !canClickStackCard(cardId)
@@ -1214,6 +1216,7 @@ export function useBoardInteractions({
       board.lossReason ||
       board.pendingWakeChoice ||
       board.pendingScoutChoice ||
+      board.pendingDrift ||
       event.button !== 0 ||
       dragsRef.current.has(event.pointerId) ||
       !canMoveBoardFreely
@@ -1264,6 +1267,7 @@ export function useBoardInteractions({
       board.lossReason ||
       board.pendingWakeChoice ||
       board.pendingScoutChoice ||
+      board.pendingDrift ||
       event.button !== 0 ||
       dragsRef.current.has(event.pointerId) ||
       !canUseOwnCrew
@@ -1761,7 +1765,11 @@ export function useBoardInteractions({
 
     event.preventDefault()
 
-    if (boardStateRef.current.pendingWakeChoice || boardStateRef.current.pendingScoutChoice) {
+    if (
+      boardStateRef.current.pendingWakeChoice ||
+      boardStateRef.current.pendingScoutChoice ||
+      boardStateRef.current.pendingDrift
+    ) {
       return
     }
 
@@ -1777,7 +1785,11 @@ export function useBoardInteractions({
 
     event.preventDefault()
 
-    if (boardStateRef.current.pendingWakeChoice || boardStateRef.current.pendingScoutChoice) {
+    if (
+      boardStateRef.current.pendingWakeChoice ||
+      boardStateRef.current.pendingScoutChoice ||
+      boardStateRef.current.pendingDrift
+    ) {
       return
     }
 
@@ -1796,7 +1808,8 @@ export function useBoardInteractions({
     if (
       !canUseOwnCrew ||
       boardStateRef.current.pendingWakeChoice ||
-      boardStateRef.current.pendingScoutChoice
+      boardStateRef.current.pendingScoutChoice ||
+      boardStateRef.current.pendingDrift
     ) {
       return
     }

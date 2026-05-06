@@ -129,6 +129,7 @@ function migrateBoardState(board: BoardState): BoardState {
     currentPlayerId,
     sectorDrawnThisTurn: legacyBoard.sectorDrawnThisTurn ?? false,
     traveledThisTurn: legacyBoard.traveledThisTurn ?? false,
+    roundStartTiredCardIds: legacyBoard.roundStartTiredCardIds ?? legacyBoard.tiredCardIds ?? [],
     shipPartSlots: (legacyBoard.shipPartSlots ?? []).map((slot) => ({
       ...slot,
       ownerId: slot.ownerId ?? null,
@@ -143,6 +144,7 @@ function migrateBoardState(board: BoardState): BoardState {
           playerId: legacyBoard.pendingWakeChoice.playerId ?? currentPlayerId,
         }
       : null,
+    pendingDrift: legacyBoard.pendingDrift ?? null,
   }
 }
 

@@ -76,6 +76,7 @@ export function CardShell({
   onKeyDown,
 }: CardShellProps) {
   const isCrewCard = card.kind === 'crew'
+  const usesIntegratedHeader = isCrewCard || card.kind === 'drift'
   const sampledIcons = pickCardIcons(`${card.id}:${card.title}`)
   const noteLines = pickCardNote(`${card.id}:${card.title}`)
   const gameplayContent = renderGameplayCardContent(
@@ -127,7 +128,7 @@ export function CardShell({
     >
       <div className="card-inner">
         <article className="card-face card-front">
-          {!isCrewCard && (
+          {!usesIntegratedHeader && (
             <header className="card-header">
               {horizonDetails ? (
                 <>
@@ -142,7 +143,7 @@ export function CardShell({
               )}
             </header>
           )}
-          <div className={`card-art ${gameplayContent ? 'card-art-gameplay' : ''} ${isCrewCard ? 'crew-card-art' : ''}`} aria-hidden="true">
+          <div className={`card-art ${gameplayContent ? 'card-art-gameplay' : ''} ${isCrewCard ? 'crew-card-art' : ''} ${card.kind === 'drift' ? 'drift-card-art' : ''}`} aria-hidden="true">
             {gameplayContent ?? (
               <>
                 <div className="card-icon-row">

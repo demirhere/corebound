@@ -18,6 +18,7 @@ import type {
 import {
   CRYO_DECK_ID,
   DISCOVERY_DECK_ID,
+  DRIFT_DECK_ID,
   FUEL_DECK_ID,
   HORIZON_DECK_ID,
   MOTHER_DECK_ID,
@@ -50,7 +51,7 @@ export const TRAVELED_STOP_POSITIONS = [
 export const FUEL_SUPPLY_STACK_ID = 'stack-fuel-supply'
 export const FUEL_SUPPLY_STACK_POSITION = {
   x: 15,
-  y: 8,
+  y: 40,
 }
 export const MOTHER_SUPPLY_STACK_ID = 'stack-mother-supply'
 export const MOTHER_SUPPLY_STACK_POSITION = {
@@ -136,6 +137,12 @@ const discoveryArt: DeckArt = {
   accent: '#70c58c',
 }
 
+const driftArt: DeckArt = {
+  icon: 'snowflake',
+  hue: 196,
+  accent: '#9bd8e8',
+}
+
 function createResourceDeck(resource: ResourceKind, count: number) {
   const art = resourceArt[resource]
   const title = resource === 'fuel' ? 'Fuel Cell' : 'Hull Plate'
@@ -198,6 +205,20 @@ function createDiscoveryCard(
       ...options,
     },
     specimenIndex,
+  }
+}
+
+function createDriftCard(title: string, effectKind: 'burn' | 'fatigue', effectText: string): CardBlueprint {
+  return {
+    title,
+    icon: driftArt.icon,
+    hue: driftArt.hue,
+    accent: driftArt.accent,
+    kind: 'drift',
+    drift: {
+      effectKind,
+      effectText,
+    },
   }
 }
 
@@ -452,6 +473,19 @@ const discoveryDesigns = [
 
 const discoveryDeck = discoveryDesigns.flatMap((card) => Array.from({ length: 3 }, () => card))
 
+const driftDeck = [
+  ...Array.from({ length: 7 }, () => createDriftCard(
+    'Burn',
+    'burn',
+    'Discard 1 Fuel from the supply. If none, discard nothing.',
+  )),
+  ...Array.from({ length: 3 }, () => createDriftCard(
+    'Fatigue',
+    'fatigue',
+    'Move the first Ready crew to Tired. If none, add 1 Stress.',
+  )),
+]
+
 const horizonDeck = [
   createHorizonCard('Dust Garden', 'planet', 0, ['life', 'star'], shipPartFind(
     'Medbay Rehydrator',
@@ -510,6 +544,10 @@ const sectorGates = [
 
 export function createSectorHorizonDeckCards() {
   return shuffleCards(horizonDeck)
+}
+
+export function createDriftDeckCards() {
+  return shuffleCards(driftDeck)
 }
 
 export function getSectorGateBlueprint(sector: number) {
@@ -583,6 +621,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
   const shuffledCryoCrewDeck = shuffleCards(cryoCrewDeck)
   const startingCrewDeal = createStartingCrewDeal(setupPlayers, shuffledCryoCrewDeck)
   const discoveryDeckCards = shuffleCards(discoveryDeck)
+  const driftDeckCards = createDriftDeckCards()
   // const hullDeck = shuffleCards(createResourceDeck('hull', RESOURCE_DECK_SIZE))
   const initialFuelCards = createBoardCards('fuel-start', fuelDeck.slice(0, 2))
   // const initialHullCards = createBoardCards('hull-start', hullDeck.slice(0, 4))
@@ -635,7 +674,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
         hue: resourceArt.fuel.hue,
         accent: resourceArt.fuel.accent,
         x: 3,
-        y: 8,
+        y: 40,
         z: 1012,
         draw: automaticRewardDeckDraw,
         cards: fuelDeckCards,
@@ -663,7 +702,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
         hue: motherArt.hue,
         accent: motherArt.accent,
         x: 3,
-        y: 40,
+        y: 8,
         z: 1013,
         draw: manualDeckDraw,
         cards: motherDeckCards,
@@ -674,8 +713,8 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
         icon: crewArt.icon,
         hue: crewArt.hue,
         accent: crewArt.accent,
-        x: 3,
-        y: 72,
+        x: 39,
+        y: 8,
         z: 1016,
         draw: automaticRewardDeckDraw,
         cards: cryoDeckCards,
@@ -686,11 +725,23 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
         icon: discoveryArt.icon,
         hue: discoveryArt.hue,
         accent: discoveryArt.accent,
-        x: 3,
-        y: 56,
+        x: 15,
+        y: 8,
         z: 1015,
         draw: automaticRewardDeckDraw,
         cards: discoveryDeckCards,
+      },
+      {
+        id: DRIFT_DECK_ID,
+        title: 'Drift Deck',
+        icon: driftArt.icon,
+        hue: driftArt.hue,
+        accent: driftArt.accent,
+        x: 27,
+        y: 8,
+        z: 1018,
+        draw: automaticRewardDeckDraw,
+        cards: driftDeckCards,
       },
     ],
     mapSlots: Array.from({ length: MAP_SLOT_COUNT }, () => null),
@@ -699,9 +750,11 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
     archivedRouteCardIds: [],
     handCardIds: handCards.map((card) => card.id),
     tiredCardIds: [],
+    roundStartTiredCardIds: [],
     completedStarSummaries: [],
     pendingWakeChoice: null,
     pendingScoutChoice: null,
+    pendingDrift: null,
     pendingEffects: [],
     turnNumber: 1,
     turnPlayerIndex: 0,
@@ -713,7 +766,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
     totalSectors: TOTAL_SECTORS,
     hasArrived: false,
     lossReason: null,
-    topZ: 1017,
+    topZ: 1018,
     nextCardId: 1,
     dropTargetStackId: null,
     dropTargetDeckId: null,
@@ -742,6 +795,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
     }),
     handCardIds: [],
     tiredCardIds: [],
+    roundStartTiredCardIds: [],
     topZ: board.decks.reduce((topZ, deck) => Math.max(topZ, deck.z), 0),
   }
 
@@ -755,6 +809,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
       setupDeckCreatedEvent(HORIZON_DECK_ID, getSectorDeckTitle(1), horizonDeckCards),
       setupDeckCreatedEvent(CRYO_DECK_ID, 'Cryo Deck', cryoDeckCards),
       setupDeckCreatedEvent(DISCOVERY_DECK_ID, 'Discovery Deck', discoveryDeckCards),
+      setupDeckCreatedEvent(DRIFT_DECK_ID, 'Drift Deck', driftDeckCards),
       ...(gateCard ? [setupGatePlacedEvent(gateCard, 'stack-sector-gate')] : []),
       ...initialFuelCards.map((card, index) => setupResourceDrawnEvent(card, 'Fuel Deck', index + 1)),
       // ...initialHullCards.map((card, index) => setupResourceDrawnEvent(card, 'Hull Deck', index + 1)),

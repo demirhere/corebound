@@ -26,7 +26,7 @@ You lose if the sector has no reachable Map Destination before 3 Destinations ar
 
 ## Starting Setup
 
-The prototype uses two sectors, one active Missions deck at a time, one Fuel deck, one MOTHER deck, one Cryo deck, one Discovery deck, a 3-slot Map, a Gate, a Stress area, and two hand areas: Hand and Tired.
+The prototype uses two sectors, one active Missions deck at a time, one Fuel deck, one MOTHER deck, one Cryo deck, one Discovery deck, one Drift deck, a 3-slot Map, a Gate, a Stress area, and two hand areas: Hand and Tired.
 
 On load or restart, setup is staged as an animated deal instead of cards snapping into place. After that animation, the Map is empty; click the active Missions deck to deal the first 3-card Map offer.
 
@@ -41,6 +41,7 @@ On load or restart, setup is staged as an animated deal instead of cards snappin
 | Gate | 1 Gate card | Place the Narrow Crossing Final Gate face down below Narrow Crossing Missions. Click it to reveal or hide Narrow Crossing as needed. |
 | MOTHER Deck | 6 MOTHER cards | Place as a manual draw deck. Draws 1 card at a time. |
 | Discovery Deck | 24 Discovery cards | Shuffle 3 copies each of 8 Discovery designs. This is reward-only; completing a Destination automatically deals the top Discovery to the earning player's Hand. |
+| Drift Deck | 10 Drift cards | Shuffle 7 Burn and 3 Fatigue receipt cards. This deck resolves automatically after the final player ends their turn each round. Reshuffle the full Drift deck when it is empty before a Drift draw. |
 | Stress | 0 Stress | Spent MOTHER adds Stress. |
 | Cryo Deck | Up to 7 Cryo crew | Shuffle and keep as a reward-only deck. In solo, all 7 Cryo crew start here. In multiplayer, any Cryo crew needed to finish the even starting deal are removed first, so Wake rewards draw from the remaining Cryo deck. |
 
@@ -143,6 +144,17 @@ On your turn, take as many board actions as needed. You may draw Fuel with an En
 9. Discard the other visible untraveled Map Destinations.
 10. If fewer than 3 Destinations have been traveled, end the turn before drawing a new Map offer.
 11. If the third Destination was just traveled, do not draw again. Clear any undealt Missions cards, then attempt the Gate.
+
+After every player has taken one turn, the final End turn press starts Drift before the next round begins. Interaction locks, the top Drift card flips face up, and shortly after it is fully revealed it is discarded and resolved:
+
+| Drift | Count | Effect |
+| --- | ---: | --- |
+| Burn | 7 | Discard 1 Fuel from the Fuel Supply. If no Fuel is available, discard nothing. |
+| Fatigue | 3 | Move the first Ready crew in the shared Hand order to Tired. If no Ready crew is available, add 1 Stress. |
+
+After the Drift card is discarded and its effect resolves, each player readies their longest-Tired crew card that was already Tired at the start of the round. Crew that became Tired during this round, including from this Drift card, cannot be readied by this round-end step. If a player has no eligible Tired crew, that player readies nothing.
+
+In solo, every turn is also a full round, so Drift resolves after each End turn press.
 
 In multiplayer, the current turn player is the Mission Lead. Only the Mission Lead can draw decks, move table cards freely, trigger stack actions, choose Wake or Scout rewards, pass Gates, and end the turn. Other players can still commit their own Ready crew and Discovery cards by clicking or dragging a card out of their Hand area, and can remove their own committed cards from the board by clicking them or dragging them back to their Hand area.
 
@@ -261,7 +273,7 @@ Drag a card stack onto a highlighted valid target to combine it into a Destinati
 
 Drag visible traveled Ship Part Destination cards onto each other to stack them and organize board space. During the Gate, the app applies available Ship Parts automatically; no Gate stacking is required. Ship Part cards cannot be discarded.
 
-Use the End turn button to start the next turn and refresh the once-per-turn Missions draw permission.
+Use the End turn button to start the next turn and refresh the once-per-turn Missions draw permission. If there is no Fuel, the Map is empty, and Missions have not been drawn this turn, the button becomes Draw missions instead; clicking it draws the next Map offer and immediately resolves stranded loss if none of the revealed Destinations can be completed. On the final turn of a round, End turn draws and reveals Drift first; controls stay disabled until the Drift card discards, resolves, and each player readies their longest eligible Tired crew.
 
 Drag an all-crew, all-Discovery, or mixed crew-and-Discovery stack back to the Hand area to return those cards to hand.
 
@@ -335,6 +347,7 @@ Start each sector: click Missions to draw 3 Map Destinations. Draw a new Map off
 7. Keep Ship Part Destinations on the board; clear Immediate Benefit Destinations.
 8. Discard the other Map Destinations.
 9. End turn before drawing a new Map offer unless that was the 3rd Destination.
+10. After the final player ends their turn, resolve 1 Drift card, then ready each player's longest-Tired crew that was already Tired at the start of the round.
 
 DISCOVERIES
 

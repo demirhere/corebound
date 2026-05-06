@@ -1,10 +1,9 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react'
-import { HORIZON_DECK_ID } from '../game/decks'
+import { CRYO_DECK_ID, DRIFT_DECK_ID, HORIZON_DECK_ID } from '../game/decks'
 import type { BoardState, Card, CardBlueprint, Deck, HandZone } from '../game/types'
 
-const CRYO_DECK_ID = 'cryo-deck'
 const CARD_MOVE_DURATION_MS = 170
-const CARD_DRAW_DURATION_MS = 600
+export const CARD_DRAW_DURATION_MS = 600
 const CARD_DRAW_STAGGER_MS = 28
 const MIN_MOVEMENT_PX = 2
 
@@ -122,6 +121,10 @@ function getKnownSourceDeckId(card: Card) {
 
   if (card.id.startsWith('scout-')) {
     return HORIZON_DECK_ID
+  }
+
+  if (card.id.startsWith('drift-')) {
+    return DRIFT_DECK_ID
   }
 
   if (card.id.startsWith('reward-')) {
@@ -338,6 +341,29 @@ function shouldAnimateExistingMove(
   return previousLocation.kind === 'choice' || currentLocation.kind === 'choice'
 }
 
+function getExistingMoveDuration(
+  previousLocation: CardLocation | undefined,
+  currentLocation: CardLocation | undefined,
+) {
+  if (
+    currentLocation?.kind === 'hand' &&
+    currentLocation.zone === 'tired'
+  ) {
+    return CARD_DRAW_DURATION_MS
+  }
+
+  if (
+    previousLocation?.kind === 'hand' &&
+    previousLocation.zone === 'tired' &&
+    currentLocation?.kind === 'hand' &&
+    currentLocation.zone === 'crew'
+  ) {
+    return CARD_DRAW_DURATION_MS
+  }
+
+  return CARD_MOVE_DURATION_MS
+}
+
 function readMotionElements(boardElement: HTMLElement) {
   const elements = new Map<string, MotionElement>()
 
@@ -417,6 +443,7 @@ function startCardAnimation(
   options: {
     kind: 'draw' | 'move'
     delay?: number
+    duration?: number
     flip?: boolean
   },
   activeAnimations: Map<string, ActiveCardAnimation>,
@@ -436,7 +463,9 @@ function startCardAnimation(
     return
   }
 
-  const duration = options.kind === 'draw' ? CARD_DRAW_DURATION_MS : CARD_MOVE_DURATION_MS
+  const duration = options.duration ?? (
+    options.kind === 'draw' ? CARD_DRAW_DURATION_MS : CARD_MOVE_DURATION_MS
+  )
   const delay = options.delay ?? 0
   const easing = options.kind === 'draw'
     ? 'cubic-bezier(0.14, 0.92, 0.22, 1)'
@@ -567,7 +596,10 @@ export function useCardMovementAnimations({ board, boardRef }: UseCardMovementAn
           continue
         }
 
-        if (!shouldAnimateExistingMove(previousLocations.get(cardId), currentLocations.get(cardId))) {
+        const previousLocation = previousLocations.get(cardId)
+        const currentLocation = currentLocations.get(cardId)
+
+        if (!shouldAnimateExistingMove(previousLocation, currentLocation)) {
           continue
         }
 
@@ -581,7 +613,10 @@ export function useCardMovementAnimations({ board, boardRef }: UseCardMovementAn
           cardId,
           target,
           previousRect,
-          { kind: 'move' },
+          {
+            kind: 'move',
+            duration: getExistingMoveDuration(previousLocation, currentLocation),
+          },
           activeAnimationsRef.current,
         )
       }

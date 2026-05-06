@@ -5,6 +5,7 @@ export const MOTHER_DECK_ID = 'mother-deck'
 export const FUEL_DECK_ID = 'fuel-deck'
 export const CRYO_DECK_ID = 'cryo-deck'
 export const DISCOVERY_DECK_ID = 'discovery-deck'
+export const DRIFT_DECK_ID = 'drift-deck'
 
 export const manualDeckDraw = {
   canManuallyDraw: true,

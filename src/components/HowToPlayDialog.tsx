@@ -136,6 +136,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
               <li>Click Missions to reveal 3 Map Destinations when the Map is empty.</li>
               <li>Travel to only 1 Destination per turn. Stack its payment, then click Travel.</li>
               <li>Used crew move to Tired. Immediate Benefits resolve now; Ship Parts stay visible for a Gate.</li>
+              <li>If Fuel is empty and no Map is visible, draw Missions before ending the turn.</li>
               <li>Unchosen Map Destinations clear. End turn before drawing again unless that was the 3rd Destination.</li>
             </ol>
           </section>

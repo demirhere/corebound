@@ -4,6 +4,7 @@ import { Board } from './components/Board'
 import { HowToPlayDialog } from './components/HowToPlayDialog'
 import { PlaytestLog } from './components/PlaytestLog'
 import { RealtimePanel } from './components/RealtimePanel'
+import { resolvePendingDriftUpdate } from './board/boardUpdaters'
 import {
   createInitialGameState,
   gameReducer,
@@ -12,13 +13,19 @@ import {
 import { isMultiplayerBoard } from './game/players'
 import type { GamePlayer } from './game/types'
 import { useBoardInteractions } from './hooks/useBoardInteractions'
-import { useCardMovementAnimations } from './hooks/useCardMovementAnimations'
+import {
+  CARD_DRAW_DURATION_MS,
+  useCardMovementAnimations,
+} from './hooks/useCardMovementAnimations'
 import { usePlaytestLogConsole } from './hooks/usePlaytestLogConsole'
 import { readRealtimeConfig } from './realtime/config'
 import { usePartyKitSync } from './realtime/usePartyKitSync'
 import './App.css'
 
 function noop() {}
+
+const DRIFT_RESOLVE_AFTER_REVEAL_DELAY_MS = 300
+const DRIFT_RESOLVE_DELAY_MS = CARD_DRAW_DURATION_MS + DRIFT_RESOLVE_AFTER_REVEAL_DELAY_MS
 
 function App() {
   const [realtimeConfig] = useState(() => readRealtimeConfig())
@@ -46,9 +53,11 @@ function App() {
     Boolean(localPlayerId && board.players.some((player) => player.id === localPlayerId))
   const isLocalTurn = !isMultiplayer || board.currentPlayerId === localPlayerId
   const canApplyGameUpdates = !isRealtimeObserver && isLocalPlayerInGame
-  const canMoveBoardFreely = canApplyGameUpdates && isLocalTurn
-  const canUseOwnCrew = canApplyGameUpdates
+  const isResolvingDrift = board.pendingDrift !== null
+  const canMoveBoardFreely = canApplyGameUpdates && isLocalTurn && !isResolvingDrift
+  const canUseOwnCrew = canApplyGameUpdates && !isResolvingDrift
   const canResetGame = canApplyGameUpdates
+  const shouldResolveDrift = isGameStarted && canApplyGameUpdates && isLocalTurn && isResolvingDrift
 
   function getLaunchPlayers(): GamePlayer[] {
     if (!realtimeConfig.enabled || isRealtimeObserver) {
@@ -98,6 +107,22 @@ function App() {
 
     return () => window.cancelAnimationFrame(frameId)
   }, [canMoveBoardFreely, isGameStarted, pendingSetupDealKey])
+
+  useEffect(() => {
+    if (!shouldResolveDrift) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      dispatchGame({
+        type: 'apply-board-update',
+        update: resolvePendingDriftUpdate,
+        occurredAt: new Date().toISOString(),
+      })
+    }, DRIFT_RESOLVE_DELAY_MS)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [board.pendingDrift?.cardId, shouldResolveDrift])
 
   function resetGame() {
     if (!canResetGame) {
