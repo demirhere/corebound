@@ -23,7 +23,7 @@ Plus targeted economy adjustments to `horizonDeck.ts` rewards/costs (see §3).
 
 Every Gate has a Fuel cost. To pass a Gate, the Mission Lead must spend that many Fuel Cells from the Fuel Supply *in addition to* satisfying crew slots and icons. Fuel is paid as part of the Pass Gate stack action; the existing button only enables when crew slots, icons, *and* Fuel are satisfiable.
 
-If the player cannot pay the Gate Fuel cost (and cannot generate it via Engineer + Scientist water pairs from Ready crew on the stack), the Gate cannot be passed and the run loses (`game-loss-reason: gate-failed`).
+If the player cannot pay the Gate Fuel cost (and cannot generate it via Scientist + Mechanic Fuel pairs from Ready crew on the stack), the Gate cannot be passed and the run loses (`game-loss-reason: gate-failed`).
 
 Gate Fuel cost stacks with effect-driven Fuel costs (e.g., Old Pass adds +1 Fuel per Engine crew on top of the base Fuel cost) and Damage cards (Long Reach already adds +1 to Mission Fuel; that does not change here).
 
@@ -38,7 +38,7 @@ Rationale for flat (vs. per-Gate variation): the Gate deck is shuffled, so per-G
 - `src/game/types.ts` — extend `GateDetails.need` with `fuel: number`. Keep this in `need` (alongside `crew` and `icons`) so callers that reason about Gate requirements all hit one spot.
 - `src/game/blueprints/factories.ts` — update `createGateCard` factory signature to accept and store `fuel`.
 - `src/game/blueprints/sectorGates.ts` — add `2` Fuel cost to all 14 entries.
-- `src/game/rules.ts` — Pass Gate legality check must require Fuel availability (Fuel Supply count + Engineer + Scientist water pairs from Ready crew already on the Gate stack).
+- `src/game/rules.ts` — Pass Gate legality check must require Fuel availability (Fuel Supply count + Scientist + Mechanic Fuel pairs from Ready crew already on the Gate stack).
 - `src/game/state.ts` / Pass Gate reducer — on success, decrement Fuel Supply by `gate.need.fuel`.
 - Loss-condition computation (currently surfaces `'gate-failed'`) — factor Fuel availability into the check.
 
@@ -114,9 +114,9 @@ Earnings:
 - Red Salvage ~3 hits × 3 Fuel = 9
 - Iron Wake ~3 hits × 1 Fuel = 3
 - Ration Pack discoveries × ~6 = 6
-- **Total earnings without water pairs: ~19 Fuel**
+- **Total earnings without crew-made Fuel: ~19 Fuel**
 
-Deficit: ~9 Fuel, expected to be covered by Engineer + Scientist water pairs (~9 pair activations across the run = 18 crew → Tired). This is **intentionally tight** — we want the player to feel the pressure. If RNG is unkind (Red Salvage shows up only twice), the run is winnable only with aggressive water pairs and Ration Pack draws. If unwinnable runs are too common in playtest, buff Red Salvage to 4 Fuel or reduce Gate cost on the first sector.
+Deficit: ~9 Fuel, expected to be covered by Scientist + Mechanic Fuel pairs (~9 pair activations across the run = 18 crew → Tired). This is **intentionally tight** — we want the player to feel the pressure. If RNG is unkind (Red Salvage shows up only twice), the run is winnable only with aggressive crew-made Fuel and Ration Pack draws. If unwinnable runs are too common in playtest, buff Red Salvage to 4 Fuel or reduce Gate cost on the first sector.
 
 ## 4. UI / UX Requirements
 
@@ -155,7 +155,7 @@ To keep the vet a clean signal, do not touch these in the same change:
 - Gate icon requirements, slot counts, effects, or clear conditions.
 - MOTHER deck or Stress mechanics.
 - Number of sectors (10), Gates drawn (10 of 14), or missions per sector (9, reshuffled per sector).
-- Engineer + Scientist water-pair rate (1 Fuel from 2 crew, both → Tired).
+- Scientist + Mechanic Fuel-pair rate (1 Fuel from 2 crew, both → Tired).
 
 If during implementation any of these *seem* to need a change, flag it for discussion rather than bundling.
 
@@ -181,7 +181,7 @@ After 3–4 full runs, gather observations on:
 ### Fuel pressure
 - Did Fuel ever feel scarce?
 - Did mission choice ever come down to "I need Fuel" vs. "I want a part / crew benefit"?
-- Did Engineer + Scientist water pairs become a real lever (used at least once per run)?
+- Did Scientist + Mechanic Fuel pairs become a real lever (used at least once per run)?
 - Did any run fail purely from Fuel exhaustion?
 
 ### Combined
@@ -220,7 +220,7 @@ All changes are localized; no cross-cutting refactor required.
 
 If the vet succeeds, the natural follow-ups — listed here so they aren't smuggled into this PR:
 
-- **Per-Gate Fuel-economy twists** that warp the basic 2-Fuel cost (e.g., Echo Vault: cannot use stored Fuel — must be generated this sector via water pairs; Old Pass: existing +1/Engine stays; The Reach: pay double Fuel if any icon is doubled).
-- **Crew-as-Fuel-engines** to replace icon-key feel with Balatro-joker feel (e.g., Engineer crew: +1 Fuel per Engineer-led water pair; Scientist crew: convert 1 Stress to 1 Fuel once per sector; Recon: peek + free scout reduces Fuel-mission RNG dependence).
+- **Per-Gate Fuel-economy twists** that warp the basic 2-Fuel cost (e.g., Echo Vault: cannot use stored Fuel — must be generated this sector via Fuel pairs; Old Pass: existing +1/Engine stays; The Reach: pay double Fuel if any icon is doubled).
+- **Crew-as-Fuel-engines** to replace icon-key feel with Balatro-joker feel (e.g., Mechanic crew: +1 Fuel per Mechanic-led Fuel pair; Scientist crew: convert 1 Stress to 1 Fuel once per sector; Recon: peek + free scout reduces Fuel-mission RNG dependence).
 - **Reduced crew count (~6–8 unique designs)** with named active abilities instead of icon-pair generic crew, to lower the "too many specialties to track" cognitive load.
 - **Difficulty curve revisit** — if Fuel pressure is still too flat, scale per-Gate `need.fuel` and `need.crew` by deck-position rather than reorder.

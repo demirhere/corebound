@@ -47,15 +47,29 @@ function renderCrewPortrait(portraitIndex: number) {
   return <div className="crew-photo" style={style} role="img" aria-hidden="true" />
 }
 
-export function renderCrewCardContent(card: Card) {
+function renderWaterPairFuelAmount(fuelAmount: number) {
+  if (fuelAmount <= 1) {
+    return <span className="crew-fuel-amount">1</span>
+  }
+
+  return (
+    <span className="crew-fuel-amount crew-fuel-amount-upgraded" aria-label={String(fuelAmount)}>
+      <span className="crew-fuel-old" aria-hidden="true">1</span>
+      <span className="crew-fuel-new" aria-hidden="true">{fuelAmount}</span>
+    </span>
+  )
+}
+
+export function renderCrewCardContent(card: Card, waterPairFuelAmount = 1) {
   const specializations = card.specializations ?? []
   const portraitIndex = card.portraitIndex ?? 0
   const crewRole = getCrewRole(specializations)
-  const waterPairPartner = crewRole === 'Engineer'
+  const waterPairPartner = crewRole === 'Mechanic'
     ? 'Scientist'
     : crewRole === 'Scientist'
-      ? 'Engineer'
+      ? 'Mechanic'
       : null
+  const isEngineer = crewRole === 'Engineer'
 
   return (
     <div className="crew-nametag">
@@ -80,7 +94,15 @@ export function renderCrewCardContent(card: Card) {
       {waterPairPartner && (
         <div className="crew-rule-note">
           <p className="card-rule-text">
-            Makes <GameIcon kind="fuel" /> when paired with {waterPairPartner}.
+            Makes {renderWaterPairFuelAmount(waterPairFuelAmount)} <GameIcon kind="fuel" /> when paired with {waterPairPartner}.
+          </p>
+        </div>
+      )}
+
+      {isEngineer && (
+        <div className="crew-rule-note">
+          <p className="card-rule-text">
+            Stack another Engineer and 2 <GameIcon kind="fuel" /> to draft a Ship Part.
           </p>
         </div>
       )}

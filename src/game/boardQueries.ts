@@ -1,6 +1,11 @@
-import { FUEL_DECK_ID, FUEL_DISCARD_DECK_ID, MOTHER_DECK_ID } from './decks'
+import { FUEL_DECK_ID, FUEL_DISCARD_DECK_ID, MOTHER_DECK_ID, SHIP_PART_DECK_ID } from './decks'
 import { getNextStopFuelDiscount } from './effects'
 import { getDestinationFuelSurcharge, getMissionAnyIconSurcharge } from './damage'
+import {
+  SHIP_PART_RESEARCH_ENGINE_ICON_COST,
+  SHIP_PART_RESEARCH_FUEL_COST,
+  getWaterPairFuelAmount,
+} from './shipParts'
 import {
   canCompleteMissionNeedWithFuelOptions,
   countUsableMotherCardsInPlay,
@@ -60,6 +65,20 @@ export function countFuelCardsInDeckAndDiscard(current: BoardState) {
   return getDeckCardCount(current, FUEL_DECK_ID) + getDeckCardCount(current, FUEL_DISCARD_DECK_ID)
 }
 
+function countReadyEngineIcons(current: BoardState) {
+  return getReadyCrewCardIds(current).reduce((count, cardId) => {
+    const card = current.cards[cardId]
+
+    return count + (card?.specializations?.filter((specialization) => specialization === 'engine').length ?? 0)
+  }, 0)
+}
+
+export function canResearchShipPart(current: BoardState) {
+  return getDeckCardCount(current, SHIP_PART_DECK_ID) > 0 &&
+    countFuelCardsInPlay(current) >= SHIP_PART_RESEARCH_FUEL_COST &&
+    countReadyEngineIcons(current) >= SHIP_PART_RESEARCH_ENGINE_ICON_COST
+}
+
 export function getAvailableMotherCardCount(current: BoardState) {
   return (
     countUsableMotherCardsInPlay(current.stacks, current.cards) +
@@ -106,6 +125,7 @@ export function canTravelToMission(current: BoardState, missionCard: Card) {
     getAvailableMotherCardCount(current),
     [],
     missionAnyIconSurcharge,
+    getWaterPairFuelAmount(current.shipPartSlots),
   )
 
   return canTravelWithoutDiscoveries || (

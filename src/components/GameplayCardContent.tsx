@@ -4,11 +4,13 @@ import type {
   DiscoveryTag,
   DestinationFind,
   HazardDetails,
+  MissionPatternKind,
   RequirementIconKind,
   ResourceKind,
   ShipPartKind,
   VisitReward,
 } from '../game/types'
+import { getMissionPatternLabel } from '../game/rules'
 import { getShipPartUseText } from '../game/shipParts'
 import { renderCrewCardContent } from './CrewCard'
 import { GameIcon } from './GameIcon'
@@ -73,6 +75,114 @@ function renderNeedIcon(icon: NeedIconKind, count: number, key: string, classNam
 function renderIconPips(icons: readonly NeedIconKind[], keyPrefix: string) {
   return countNeedIcons(icons).map(({ icon, count }) => (
     renderNeedIcon(icon, count, `${keyPrefix}-${icon}`)
+  ))
+}
+
+// Abstract spec slots for pattern missions. Each number is a "color group" —
+// slots sharing a number must be the SAME spec, slots with different numbers
+// must be DIFFERENT specs. Specific icon identity (Engine vs Life vs Nav vs
+// Science) is intentionally hidden so the visual matches the structural rule
+// ("any matched pair", "any 3 sharing one spec") instead of suggesting that
+// a particular icon on the card is required.
+function getMissionSpecGroups(
+  pattern: MissionPatternKind,
+): readonly (readonly number[])[] {
+  switch (pattern) {
+    case 'open':
+      // Open missions hide their pattern hint — the reward is computed
+      // dynamically from whatever crew the player stacks.
+      return []
+    case 'cross-trained':
+      return [[1, 2]]
+    case 'specialist':
+      return [[1, 1]]
+    case 'common-ground':
+      return [[1], [1]]
+    case 'common-knowledge':
+      return [[1], [1], [1]]
+    case 'common-cause':
+      return [[1], [1], [1], [1]]
+    case 'department-heads':
+      return [[1, 1], [2, 2]]
+    case 'bridge-crew':
+      return [[1, 1], [2, 2], [3, 3], [4, 4]]
+  }
+}
+
+function missionPatternUsesSeparateCrewBadges(pattern: MissionPatternKind): boolean {
+  switch (pattern) {
+    case 'common-ground':
+    case 'common-knowledge':
+    case 'common-cause':
+    case 'department-heads':
+    case 'bridge-crew':
+      return true
+    case 'open':
+    case 'cross-trained':
+    case 'specialist':
+      return false
+  }
+}
+
+function renderMissionSpecSlot(color: number, key: string) {
+  return (
+    <span
+      key={key}
+      className="mission-spec-slot"
+      data-spec-color={color}
+      aria-hidden="true"
+    />
+  )
+}
+
+function renderMissionSpecGroup(
+  group: readonly number[],
+  keyPrefix: string,
+  showCrewBadge: boolean,
+) {
+  if (group.length <= 1) {
+    const [color] = group
+    if (color === undefined) return null
+
+    if (showCrewBadge) {
+      return (
+        <span key={keyPrefix} className="mission-crew-badge" title="One crew with this spec">
+          <GameIcon kind="person" />
+          {renderMissionSpecSlot(color, `${keyPrefix}-spec`)}
+        </span>
+      )
+    }
+
+    return renderMissionSpecSlot(color, keyPrefix)
+  }
+
+  return (
+    <span
+      key={keyPrefix}
+      className={`mission-icon-group${showCrewBadge ? ' mission-crew-badge' : ''}`}
+      title={showCrewBadge ? 'One crew with these specs' : undefined}
+    >
+      {showCrewBadge ? <GameIcon kind="person" /> : null}
+      {group.map((color, index) => (
+        renderMissionSpecSlot(color, `${keyPrefix}-${index}`)
+      ))}
+    </span>
+  )
+}
+
+function renderMissionIcons(
+  icons: readonly RequirementIconKind[],
+  pattern: MissionPatternKind | undefined,
+  keyPrefix: string,
+) {
+  if (!pattern) {
+    return renderIconPips(icons, keyPrefix)
+  }
+
+  const groups = getMissionSpecGroups(pattern)
+  const showCrewBadge = missionPatternUsesSeparateCrewBadges(pattern)
+  return groups.map((group, index) => (
+    renderMissionSpecGroup(group, `${keyPrefix}-group-${index}`, showCrewBadge)
   ))
 }
 
@@ -235,6 +345,14 @@ export function renderSectorCardHeaderDetail(card: Card) {
     return null
   }
 
+  if (card.mission.pattern === 'open') {
+    return (
+      <span className="open-mission-description">
+        Stack crew here to send them on a fuel mission. Their composition matters.
+      </span>
+    )
+  }
+
   if (card.mission.find.kind === 'ship_part') {
     const rewards = card.mission.find.rewards ?? []
 
@@ -290,6 +408,23 @@ function renderShipPartSector(
   )
 }
 
+function renderOpenMissionContent(card: Card) {
+  const blueprintIndex =
+    hashString(`${card.id}:blueprint`) % (BLUEPRINT_ART_GRID_SIZE * BLUEPRINT_ART_GRID_SIZE)
+  const routeIndex =
+    hashString(`${card.id}:route`) % (ROUTE_ART_GRID_SIZE * ROUTE_ART_GRID_SIZE)
+
+  // Wrap the blueprint + route layers in a flex container so they sit
+  // centered in whatever vertical space is left below the header description,
+  // instead of pinning to the corners like ship-part cards.
+  return (
+    <div className="open-mission-art">
+      <SectorCardArt variant="blueprint" index={blueprintIndex} gridSize={BLUEPRINT_ART_GRID_SIZE} />
+      <SectorCardArt variant="route" index={routeIndex} gridSize={ROUTE_ART_GRID_SIZE} />
+    </div>
+  )
+}
+
 function renderVisitRewardSector(
   card: Card,
   currentFuelCost: number,
@@ -298,6 +433,7 @@ function renderVisitRewardSector(
   missionAnyIconSurcharge: number,
 ) {
   const need = card.mission?.need
+  const pattern = card.mission?.pattern
 
   if (!need) {
     return null
@@ -308,7 +444,7 @@ function renderVisitRewardSector(
       cost={(
         <>
           {renderFuelNeed(need.fuel, currentFuelCost, `${card.id}-fuel-need`)}
-          {renderIconPips(need.icons, `${card.id}-icon-need`)}
+          {renderMissionIcons(need.icons, pattern, `${card.id}-icon-need`)}
           {renderMissionAnyIconSurcharge(missionAnyIconSurcharge, card.id)}
         </>
       )}
@@ -316,6 +452,7 @@ function renderVisitRewardSector(
       removedFuelCount={removedFuelCount}
       visual={null}
       visualClassName="sector-card-visit-mark"
+      costLabel={pattern ? `Crew: ${getMissionPatternLabel(pattern)}` : 'Crew'}
     />
   )
 }
@@ -571,6 +708,7 @@ export function renderGameplayCardContent(
   gateIconDiscount = 0,
   gateFuelDiscount = 0,
   isAcquiredShipPart = false,
+  waterPairFuelAmount = 1,
 ) {
   if (card.kind === 'resource' && card.resource) {
     if (card.resource === 'fuel') {
@@ -589,7 +727,7 @@ export function renderGameplayCardContent(
   }
 
   if (card.kind === 'crew') {
-    return renderCrewCardContent(card)
+    return renderCrewCardContent(card, waterPairFuelAmount)
   }
 
   if (card.kind === 'discovery') {
@@ -621,6 +759,10 @@ export function renderGameplayCardContent(
   }
 
   if (card.kind === 'mission' && card.mission) {
+    if (card.mission.pattern === 'open') {
+      return renderOpenMissionContent(card)
+    }
+
     const currentFuelCost = Math.max(0, card.mission.need.fuel + fuelSurcharge - fuelDiscount)
     const hasFuelDiscount = currentFuelCost < card.mission.need.fuel
     const removedFuelCount = card.mission.need.fuel - currentFuelCost

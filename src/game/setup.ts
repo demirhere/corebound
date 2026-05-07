@@ -20,17 +20,27 @@ import {
   GATE_DECK_ID,
   MISSION_DECK_ID,
   MOTHER_DECK_ID,
+  SHIP_PART_DECK_ID,
   automaticRewardDeckDraw,
   manualDeckDraw,
 } from './decks'
-import { cardContent, cardRulesText, turnStartCrewDrawnEvent } from './logEvents'
+import {
+  cardContent,
+  cardRulesText,
+  mapInitializedEvent,
+  turnStartCrewDrawnEvent,
+} from './logEvents'
 import type { PlaytestLogEvent } from './playtestLog'
 import { STARTING_FUEL_SUPPLY } from './economyTuning'
+import { shipPartDeck } from './shipParts'
 
-const FUEL_DECK_SIZE = 10
+const FUEL_DECK_SIZE = 50
 const RESOURCE_DECK_SIZE = STARTING_FUEL_SUPPLY + FUEL_DECK_SIZE
-const MOTHER_DECK_SIZE = 6
-const STARTING_CREW_CARD_COUNT = 4
+// MOTHER, damage, stress and drift are temporarily disabled while the open-
+// mission economy is being tuned. Set deck sizes to 0 to keep the wiring
+// intact but invisible to players.
+const MOTHER_DECK_SIZE = 0
+const STARTING_CREW_CARD_COUNT = 5
 export const TOTAL_SECTORS = 10
 export const SOLO_PLAYER_ID = 'solo'
 export const SOLO_PLAYER: GamePlayer = {
@@ -162,12 +172,22 @@ export function createSectorMissionDeckCards() {
   return shuffleCards(missionDeck)
 }
 
+export function createShipPartDeckCards() {
+  return shuffleCards(shipPartDeck)
+}
+
 export function createDriftDeckCards() {
   return shuffleCards(driftDeck)
 }
 
 export function createGateDeckCards() {
-  return shuffleCards(sectorGates)
+  // Pick TOTAL_SECTORS gates from the master pool, then order them easiest
+  // → hardest by Fuel cost so the run ramps in difficulty across sectors.
+  // The unselected gates stay out of play for this run.
+  const picked = shuffleCards(sectorGates).slice(0, TOTAL_SECTORS)
+  return [...picked].sort(
+    (a, b) => (a.gate?.need.fuel ?? 0) - (b.gate?.need.fuel ?? 0),
+  )
 }
 
 export function createDamageDeckCards() {
@@ -266,11 +286,20 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
   const fuelDeckCards = fuelDeck.slice(STARTING_FUEL_SUPPLY)
   // const hullDeckCards = hullDeck.slice(4)
   const missionDeckCards = createSectorMissionDeckCards()
+  const initialMapMissionBlueprints = missionDeckCards.slice(0, MAP_SLOT_COUNT)
+  const initialMapMissionCards = initialMapMissionBlueprints.map((blueprint, index) => ({
+    ...blueprint,
+    id: `map-1-${index + 1}`,
+    faceUp: true,
+  }))
+  const remainingMissionDeckCards = missionDeckCards.slice(initialMapMissionBlueprints.length)
+  const shipPartDeckCards = createShipPartDeckCards()
 
   const initialCards = [
     ...initialFuelCards,
     ...readyCrewCards,
     ...(gateCard ? [gateCard] : []),
+    ...initialMapMissionCards,
   ]
   const initialSectorDeckArt = getSectorDeckArt(1)
 
@@ -295,6 +324,13 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
             },
           ]
         : []),
+      ...initialMapMissionCards.map((card, index) => ({
+        id: `stack-map-${index + 1}`,
+        cardIds: [card.id],
+        x: MAP_SLOT_POSITIONS[index]?.x ?? 50,
+        y: MAP_SLOT_POSITIONS[index]?.y ?? 8,
+        z: 1015 + index,
+      })),
     ],
     decks: [
       {
@@ -327,15 +363,23 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
         icon: initialSectorDeckArt.icon,
         hue: initialSectorDeckArt.hue,
         accent: initialSectorDeckArt.accent,
-        x: 85,
-        y: 24,
+        x: OFFSCREEN_DECK_POSITION.x,
+        y: OFFSCREEN_DECK_POSITION.y,
         z: 1014,
-        draw: {
-          ...manualDeckDraw,
-          count: MAP_SLOT_COUNT,
-          placement: 'left-row',
-        },
-        cards: missionDeckCards,
+        draw: automaticRewardDeckDraw,
+        cards: remainingMissionDeckCards,
+      },
+      {
+        id: SHIP_PART_DECK_ID,
+        title: 'Ship Parts',
+        icon: 'hex',
+        hue: 128,
+        accent: '#70c58c',
+        x: OFFSCREEN_DECK_POSITION.x,
+        y: OFFSCREEN_DECK_POSITION.y,
+        z: 1015,
+        draw: automaticRewardDeckDraw,
+        cards: shipPartDeckCards,
       },
       {
         id: MOTHER_DECK_ID,
@@ -398,7 +442,10 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
         cards: damageDeckCards,
       },
     ],
-    mapSlots: Array.from({ length: MAP_SLOT_COUNT }, () => null),
+    mapSlots: Array.from(
+      { length: MAP_SLOT_COUNT },
+      (_, index) => initialMapMissionCards[index]?.id ?? null,
+    ),
     routeSlots: Array.from({ length: ROUTE_SLOT_COUNT }, () => null),
     shipPartSlots: [],
     archivedRouteCardIds: [],
@@ -408,6 +455,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
     completedStarSummaries: [],
     pendingWakeChoice: null,
     pendingScoutChoice: null,
+    pendingShipPartChoice: null,
     pendingDrift: null,
     forcedDestinationCardId: null,
     pendingEffects: [],
@@ -431,6 +479,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
     players: setupPlayers,
     crewOwnerIds: Object.fromEntries(crewOwnerEntries),
     discoveryOwnerIds: {},
+    patternUsageCounts: {},
   }
   const predealBoard: BoardState = {
     ...board,
@@ -446,6 +495,10 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
           ...deck,
           cards: missionDeckCards,
         }
+      }
+
+      if (deck.id === SHIP_PART_DECK_ID) {
+        return { ...deck, cards: shipPartDeckCards }
       }
 
       if (deck.id === CRYO_DECK_ID) {
@@ -479,11 +532,13 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
       setupDeckCreatedEvent(MOTHER_DECK_ID, 'MOTHER Deck', motherDeckCards),
       // setupDeckCreatedEvent('hull-deck', 'Hull Deck', hullDeckCards),
       setupDeckCreatedEvent(MISSION_DECK_ID, 'Missions', missionDeckCards),
+      setupDeckCreatedEvent(SHIP_PART_DECK_ID, 'Ship Parts', shipPartDeckCards),
       setupDeckCreatedEvent(CRYO_DECK_ID, 'Cryo Deck', remainingCryoDeckCards),
       setupDeckCreatedEvent(DRIFT_DECK_ID, 'Drift Deck', driftDeckCards),
       setupDeckCreatedEvent(GATE_DECK_ID, 'Gate Deck', remainingGateDeckCards),
       setupDeckCreatedEvent(DAMAGE_DECK_ID, 'Damage Deck', damageDeckCards),
       ...(gateCard ? [setupGatePlacedEvent(gateCard, 'stack-sector-gate')] : []),
+      ...(initialMapMissionCards.length > 0 ? [mapInitializedEvent(1, initialMapMissionCards)] : []),
       ...initialFuelCards.map((card, index) => setupResourceDrawnEvent(card, 'Fuel Deck', index + 1)),
       // ...initialHullCards.map((card, index) => setupResourceDrawnEvent(card, 'Hull Deck', index + 1)),
       ...handCards.map((card, index) => (

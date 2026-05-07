@@ -8,6 +8,7 @@ type SectorCardLayoutProps = {
   visualClassName?: string
   art?: ReactNode
   showCost?: boolean
+  costLabel?: string
 }
 
 export function SectorCardLayout({
@@ -18,6 +19,7 @@ export function SectorCardLayout({
   visualClassName = '',
   art,
   showCost = true,
+  costLabel = 'Crew',
 }: SectorCardLayoutProps) {
   const visualClass = visualClassName ? ` ${visualClassName}` : ''
 
@@ -29,7 +31,7 @@ export function SectorCardLayout({
       </div>
       {showCost && (
         <div className="sector-card-cost-row">
-          <span>Crew</span>
+          <span>{costLabel}</span>
           <div className="card-rule-icons">{cost}</div>
         </div>
       )}

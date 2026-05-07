@@ -11,7 +11,8 @@ import type {
 } from './types'
 import { getDamageDisplayTitle } from './damage'
 import type { PlaytestLogEvent } from './playtestLog'
-import type { MotherCoveredIcon } from './rules'
+import { getMissionPatternLabel, type MotherCoveredIcon } from './rules'
+import type { MissionPatternKind } from './types'
 import {
   getRequirementIconLabel,
   getShipPartLabel,
@@ -80,12 +81,21 @@ export function cardRulesText(card: Card | CardBlueprint) {
   if (card.kind === 'crew') {
     const specialties = card.specializations?.map(getRequirementIconLabel).join(', ') ?? 'none'
 
-    return `specialties: ${specialties}; water math: Engineer+Scientist=water; MOTHER cannot pay Fuel`
+    return `specialties: ${specialties}; fuel math: Scientist+Mechanic=1 Fuel, or 2 with Fuel Synthesizer; research: 2 Engine + 2 Fuel drafts a Ship Part; MOTHER cannot pay Fuel`
   }
 
   if (card.kind === 'mission' && card.mission) {
+    if (
+      card.mission.find.kind === 'ship_part' &&
+      card.mission.need.fuel === 0 &&
+      card.mission.need.icons.length === 0
+    ) {
+      return `Ship Part Research: ${describeFind(card.mission.find)}`
+    }
+
     const need = [
       card.mission.need.fuel > 0 ? `fuel ${card.mission.need.fuel}` : null,
+      card.mission.pattern ? `pattern ${getMissionPatternLabel(card.mission.pattern)}` : null,
       card.mission.need.icons.length > 0 ? card.mission.need.icons.map(getRequirementIconLabel).join(', ') : null,
     ]
       .filter(Boolean)
@@ -400,7 +410,7 @@ export function motherCommittedEvent(
   coversIcon: MotherCoveredIcon | null,
 ): PlaytestLogEvent {
   const assignmentMessage = coversIcon === 'fuel'
-    ? 'Engineer+Scientist pair for water'
+    ? 'Scientist+Mechanic pair for Fuel'
     : coversIcon ? `covering ${coversIcon}` : 'overcommitted'
   const baseDetails = {
     cardId: motherCard.id,
@@ -512,12 +522,17 @@ export function missionCompletedEvent(
   sourceStack: Stack,
   rewardCards: readonly Card[],
   cards: Record<string, Card>,
+  options: { dynamicPattern?: MissionPatternKind, dynamicFuelReward?: number } = {},
 ): PlaytestLogEvent {
   const find = missionCard.mission?.find
+  const patternLabel = options.dynamicPattern ? getMissionPatternLabel(options.dynamicPattern) : null
+  const patternSuffix = patternLabel
+    ? ` (matched ${patternLabel} for ${options.dynamicFuelReward ?? 0} Fuel)`
+    : ''
 
   return {
     type: 'mission.completed',
-    message: `${describeCard(missionCard, missionCard.id)} completed from ${sourceStack.id}; found: ${find ? describeFind(find) : 'none'}.`,
+    message: `${describeCard(missionCard, missionCard.id)} completed from ${sourceStack.id}${patternSuffix}; found: ${find ? describeFind(find) : 'none'}.`,
     details: {
       missionCardId: missionCard.id,
       missionTitle: missionCard.title,
@@ -532,6 +547,9 @@ export function missionCompletedEvent(
       rewardCardTitles: rewardCards.map((card) => card.title),
       rewardCardSummaries: rewardCards.map((card) => describeCard(card, card.id)),
       rewardCardContents: rewardCards.map(cardContent),
+      dynamicPattern: options.dynamicPattern ?? null,
+      dynamicPatternLabel: patternLabel,
+      dynamicFuelReward: options.dynamicFuelReward ?? null,
     },
   }
 }
@@ -581,16 +599,52 @@ export function shipPartAvailableEvent(missionCard: Card, routeSlotIndex: number
   }
 }
 
-export function shipPartSpentEvent(missionCard: Card, routeSlotIndex: number, shipPart: ShipPartKind): PlaytestLogEvent {
+export function shipPartDraftedEvent(
+  chosenCard: Card,
+  unchosenCardIds: readonly string[],
+  cards: Record<string, Card>,
+  playerId: string | null,
+): PlaytestLogEvent {
+  const find = chosenCard.mission?.find
+  const shipPart = find?.kind === 'ship_part' ? find.shipPart : null
+  const shipPartLabel = shipPart ? getShipPartLabel(shipPart) : chosenCard.title
+  const bottomedTitles = cardTitles(unchosenCardIds, cards)
+  const bottomedText = bottomedTitles.length > 0
+    ? ` ${bottomedTitles.join(', ')} moved to the bottom of Ship Parts.`
+    : ''
+
+  return {
+    type: 'ship_part.drafted',
+    message: `${shipPartLabel} drafted from Ship Parts.${bottomedText}`,
+    details: {
+      cardId: chosenCard.id,
+      cardTitle: chosenCard.title,
+      cardSummary: describeCard(chosenCard, chosenCard.id),
+      cardContent: cardContent(chosenCard),
+      shipPart,
+      shipPartLabel,
+      playerId,
+      bottomedCardIds: unchosenCardIds,
+      bottomedCardTitles: bottomedTitles,
+      bottomedCardSummaries: cardSummaries(unchosenCardIds, cards),
+      bottomedCardContents: cardContents(unchosenCardIds, cards),
+    },
+  }
+}
+
+export function shipPartSpentEvent(missionCard: Card, routeSlotIndex: number | null, shipPart: ShipPartKind): PlaytestLogEvent {
   const shipPartLabel = getShipPartLabel(shipPart)
+  const sourceText = routeSlotIndex === null
+    ? missionCard.mission?.find.itemName ?? missionCard.title
+    : missionCard.title
 
   return {
     type: 'ship_part.spent',
-    message: `${shipPartLabel} spent from ${missionCard.title}: ${getShipPartUseText(shipPart)}`,
+    message: `${shipPartLabel} spent from ${sourceText}: ${getShipPartUseText(shipPart)}`,
     details: {
       missionCardId: missionCard.id,
       missionTitle: missionCard.title,
-      routeSlot: routeSlotIndex + 1,
+      routeSlot: routeSlotIndex === null ? null : routeSlotIndex + 1,
       shipPart,
       shipPartLabel,
       useText: getShipPartUseText(shipPart),
@@ -791,13 +845,18 @@ export function sectorRevealedEvent(
   sector: number,
   gateCard: Card,
   missionCards: readonly CardBlueprint[],
+  mapMissionCards: readonly Card[] = [],
 ): PlaytestLogEvent {
   const missionSummaries = missionCards.map((card) => `${card.title}${cardRulesText(card) ? ` [${cardRulesText(card)}]` : ''}`)
   const gateTitle = `${gateCard.title} Final Gate`
+  const mapSummaries = mapMissionCards.map((card) => `${card.title} (${card.id})`)
+  const mapSuffix = mapMissionCards.length > 0
+    ? ` Map auto-dealt: ${mapSummaries.join(', ')}.`
+    : ''
 
   return {
     type: 'sector.revealed',
-    message: `Sector ${sector} prepared: ${gateTitle} placed face up and attemptable anytime; Missions reset with ${missionCards.length} cards.`,
+    message: `Sector ${sector} prepared: ${gateTitle} placed face up and attemptable anytime; Missions reset with ${missionCards.length} cards.${mapSuffix}`,
     details: {
       sector,
       gateCardId: gateCard.id,
@@ -807,6 +866,30 @@ export function sectorRevealedEvent(
       missionCardCount: missionCards.length,
       missionSummaries,
       missionContents: missionCards.map(cardContent),
+      mapMissionCardIds: mapMissionCards.map((card) => card.id),
+      mapMissionTitles: mapMissionCards.map((card) => card.title),
+      mapMissionContents: mapMissionCards.map(cardContent),
+    },
+  }
+}
+
+export function sectorResetCrewReadiedEvent(
+  sector: number,
+  readiedCrewCardIds: readonly string[],
+  cards: Record<string, Card>,
+): PlaytestLogEvent {
+  const readiedCrewTitles = cardTitles(readiedCrewCardIds, cards)
+  const readiedCrewText = readiedCrewTitles.length > 0 ? readiedCrewTitles.join(', ') : 'no crew'
+
+  return {
+    type: 'sector_reset.crew_readied',
+    message: `Sector ${sector} reset: all Tired crew returned to Ready (${readiedCrewText}).`,
+    details: {
+      sector,
+      readiedCrewCardIds,
+      readiedCrewTitles,
+      readiedCrewSummaries: cardSummaries(readiedCrewCardIds, cards),
+      readiedCrewContents: cardContents(readiedCrewCardIds, cards),
     },
   }
 }
@@ -1040,7 +1123,7 @@ export function starsCompletedSummaryEvent(
 
 export function gameLostEvent(reason: GameLossReason): PlaytestLogEvent {
   const message = reason === 'sector-stranded'
-    ? 'No reachable Mission remains and the Gate cannot be passed with current resources.'
+    ? 'No reachable Mission or Ship Part Research remains and the Gate cannot be passed with current resources.'
     : reason === 'fuel-depleted'
       ? 'The Fuel Supply was exhausted.'
       : 'The Gate cannot be completed with required Gate Fuel, crew-made Fuel, and available Gate Fuel discounts.'

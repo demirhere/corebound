@@ -10,6 +10,7 @@ import type {
   GateDetails,
   HazardKind,
   MissionKind,
+  MissionPatternKind,
   RequirementIconKind,
   ResourceKind,
   ShipPartKind,
@@ -170,6 +171,7 @@ export function createMissionCard(
   fuel: number,
   icons: RequirementIconKind[],
   find: DestinationFind,
+  pattern?: MissionPatternKind,
 ): CardBlueprint {
   const art = missionArt[missionKind]
 
@@ -185,6 +187,7 @@ export function createMissionCard(
         fuel,
         icons,
       },
+      ...(pattern ? { pattern } : {}),
       find,
     },
   }

@@ -5,11 +5,13 @@ import {
 import { getNextGateFuelDiscount, getNextStopFuelDiscount } from '../game/effects'
 import { getDestinationFuelSurcharge, getMissionAnyIconSurcharge } from '../game/damage'
 import { getGateExtraCrewSlots } from '../game/blueprints/sectorGates'
+import { getWaterPairFuelAmount } from '../game/shipParts'
 import type { BoardState, ShipPartKind } from '../game/types'
 import {
   ArrivalDialog,
   LossDialog,
   ScoutChoiceDialog,
+  ShipPartChoiceDialog,
   WakeChoiceDialog,
 } from './BoardDialogs'
 import {
@@ -39,6 +41,7 @@ import {
   type HandKeyDownHandler,
   type HandPointerDownHandler,
 } from './Hand'
+import { TiredCrewDeck } from './TiredCrewDeck'
 import type { SharedDragPreview } from '../realtime/types'
 import { DRIFT_DECK_ID } from '../game/decks'
 
@@ -80,8 +83,10 @@ type BoardProps = {
   onWakeCrewChoice: (cardId: string) => void
   onScoutCardChoice: (cardId: string) => void
   onScoutChoiceConfirm: () => void
+  onShipPartChoice: (cardId: string) => void
   onStackAction: (stackId: string, actionId: string) => void
   onEndTurn: () => void
+  onShowCrewGuide: () => void
   onResetGame: () => void
 }
 
@@ -113,8 +118,10 @@ export function Board({
   onWakeCrewChoice,
   onScoutCardChoice,
   onScoutChoiceConfirm,
+  onShipPartChoice,
   onStackAction,
   onEndTurn,
+  onShowCrewGuide,
   onResetGame,
 }: BoardProps) {
   const isGameOver = board.hasArrived || Boolean(board.lossReason)
@@ -123,6 +130,7 @@ export function Board({
     !board.lossReason &&
     !board.pendingWakeChoice &&
     !board.pendingScoutChoice &&
+    !board.pendingShipPartChoice &&
     !board.pendingDrift
   const playerStats = getPlayerCrewStats(board)
   const isMultiplayer = isMultiplayerBoard(board)
@@ -141,6 +149,7 @@ export function Board({
   const gateFuelShipPartDiscount = countSpentShipParts(board, 'adaptive-control-console')
   const gateIconDiscount = 0
   const gateFuelDiscount = getNextGateFuelDiscount(board.pendingEffects) + gateFuelShipPartDiscount
+  const waterPairFuelAmount = getWaterPairFuelAmount(board.shipPartSlots)
   const missionAnyIconSurcharge = getMissionAnyIconSurcharge(board.cards, board.routeSlots)
   const gateDetails = Object.values(board.cards).find((card) => card.kind === 'gate' && card.gate)?.gate
   const gateExtraCrewCount = gateDetails ? getGateExtraCrewSlots(gateDetails, board.stressCount) : 0
@@ -219,6 +228,7 @@ export function Board({
           gateCrewSlotDiscount={gateCrewSlotDiscount}
           gateIconDiscount={gateIconDiscount}
           gateFuelDiscount={gateFuelDiscount}
+          waterPairFuelAmount={waterPairFuelAmount}
           traveledStopCardIds={traveledStopCardIds}
           acquiredShipPartCardIds={acquiredShipPartCardIds}
           actions={canMoveBoardFreely ? getStackActions(board, stack) : []}
@@ -228,24 +238,29 @@ export function Board({
         />
       ))}
 
+      <TiredCrewDeck
+        cardIds={visibleTiredCardIds}
+        cards={board.cards}
+      />
+
       <Hand
         handRef={handRef}
         crewCardIds={visibleHandCardIds}
-        tiredCardIds={visibleTiredCardIds}
         cards={board.cards}
         activeCardIds={activeHandCardIds}
         insertPreview={handInsertPreview}
-        stressCount={board.stressCount}
         currentSector={board.currentSector}
         totalSectors={board.totalSectors}
         missionsCompleted={board.completedStarSummaries.length}
         turnNumber={board.turnNumber}
+        waterPairFuelAmount={waterPairFuelAmount}
         endTurnAttentionKey={endTurnAttentionKey}
         canInteract={canUseOwnCrew}
         canEndTurn={canEndTurnNow}
         endTurnLabel={endTurnLabel}
         endTurnSublabel={endTurnSublabel}
         onEndTurn={onEndTurn}
+        onShowCrewGuide={onShowCrewGuide}
         onCardPointerDown={onHandCardPointerDown}
         onCardKeyDown={onHandCardKeyDown}
       />
@@ -269,6 +284,12 @@ export function Board({
         canInteract={canMoveBoardFreely}
         onScoutCardChoice={onScoutCardChoice}
         onScoutChoiceConfirm={onScoutChoiceConfirm}
+      />
+      <ShipPartChoiceDialog
+        board={board}
+        isGameOver={isGameOver}
+        canInteract={canMoveBoardFreely}
+        onShipPartChoice={onShipPartChoice}
       />
     </section>
   )

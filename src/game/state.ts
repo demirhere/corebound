@@ -167,9 +167,11 @@ function migrateBoardState(board: BoardState): BoardState {
           playerId: legacyBoard.pendingWakeChoice.playerId ?? currentPlayerId,
         }
       : null,
+    pendingShipPartChoice: legacyBoard.pendingShipPartChoice ?? null,
     pendingDrift: legacyBoard.pendingDrift ?? null,
     heldDriftCount: legacyBoard.heldDriftCount ?? 0,
     isRunEnding: legacyBoard.isRunEnding ?? false,
+    patternUsageCounts: legacyBoard.patternUsageCounts ?? {},
   }
 }
 

@@ -11,7 +11,7 @@ import {
   getGateMotherFuelCost,
   getGateRequiredIconOptions,
 } from './blueprints/sectorGates'
-import type { Card, CardBlueprint, Deck, DiscoveryEffectKind, GateDetails, RequirementIconKind, Stack } from './types'
+import type { Card, CardBlueprint, Deck, DiscoveryEffectKind, GateDetails, MissionPatternKind, RequirementIconKind, Stack } from './types'
 
 export type MissionStackCompletion = {
   missionCardId: string
@@ -19,6 +19,10 @@ export type MissionStackCompletion = {
   requiredMotherCount: number
   motherCoveredIcons: MotherCoveredIcon[]
   isReady: boolean
+  // Set when the mission has pattern: 'open' and the crew satisfies some
+  // pattern. The action label and granted Fuel use this dynamic value.
+  dynamicFuelReward?: number
+  dynamicPattern?: MissionPatternKind
 }
 
 export type GateStackCompletion = {
@@ -56,13 +60,128 @@ type GateNeedPayment = CrewMotherNeedPayment & {
 
 const requirementIconKinds = ['life', 'star', 'engine', 'signal'] as const
 
+function isMatchedSpecialistCard(card: Card | undefined) {
+  if (card?.kind !== 'crew') return false
+  const specs = card.specializations ?? []
+  return specs.length === 2 && specs[0] === specs[1]
+}
+
+function isMixedCrewCard(card: Card | undefined) {
+  if (card?.kind !== 'crew') return false
+  const specs = card.specializations ?? []
+  return specs.length === 2 && specs[0] !== specs[1]
+}
+
+function crewSpecializations(card: Card | undefined): readonly RequirementIconKind[] {
+  return card?.kind === 'crew' ? card.specializations ?? [] : []
+}
+
+function countCrewWithIcon(crewCards: readonly Card[], icon: RequirementIconKind) {
+  let count = 0
+  for (const card of crewCards) {
+    if (crewSpecializations(card).includes(icon)) count += 1
+  }
+  return count
+}
+
+function specialistDistinctIcons(crewCards: readonly Card[]) {
+  const icons = new Set<RequirementIconKind>()
+  for (const card of crewCards) {
+    if (isMatchedSpecialistCard(card)) {
+      const specs = crewSpecializations(card)
+      const icon = specs[0]
+      if (icon) icons.add(icon)
+    }
+  }
+  return icons
+}
+
+export function getMissionPatternLabel(pattern: MissionPatternKind): string {
+  switch (pattern) {
+    case 'open': return 'Open'
+    case 'cross-trained': return 'Cross-Trained'
+    case 'common-ground': return 'Common Ground'
+    case 'specialist': return 'Specialist'
+    case 'common-knowledge': return 'Common Knowledge'
+    case 'department-heads': return 'Department Heads'
+    case 'common-cause': return 'Common Cause'
+    case 'bridge-crew': return 'Bridge Crew'
+  }
+}
+
+// Patterns ranked by fuel reward. On 1-fuel ties, Cross-Trained (1 crew) is
+// strictly more efficient than Common Ground (2 crew), so it ranks higher.
+const PATTERN_FUEL_DESC: readonly { pattern: MissionPatternKind, fuel: number }[] = [
+  { pattern: 'bridge-crew',      fuel: 16 },
+  { pattern: 'common-cause',     fuel: 8 },
+  { pattern: 'department-heads', fuel: 5 },
+  { pattern: 'common-knowledge', fuel: 3 },
+  { pattern: 'specialist',       fuel: 2 },
+  { pattern: 'cross-trained',    fuel: 1 },
+  { pattern: 'common-ground',    fuel: 1 },
+]
+
+export function getMissionPatternFuel(pattern: MissionPatternKind): number {
+  if (pattern === 'open') return 0
+  return PATTERN_FUEL_DESC.find((entry) => entry.pattern === pattern)?.fuel ?? 0
+}
+
+export function findBestPatternForCrew(
+  crewCardIds: readonly string[],
+  cards: Record<string, Card>,
+): { pattern: MissionPatternKind, fuel: number } | null {
+  for (const { pattern, fuel } of PATTERN_FUEL_DESC) {
+    if (canCompleteHandPattern(crewCardIds, cards, pattern)) {
+      return { pattern, fuel }
+    }
+  }
+  return null
+}
+
+export function canCompleteHandPattern(
+  crewCardIds: readonly string[],
+  cards: Record<string, Card>,
+  pattern: MissionPatternKind,
+): boolean {
+  const crewCards = crewCardIds
+    .map((id) => cards[id])
+    .filter((card): card is Card => card?.kind === 'crew')
+
+  switch (pattern) {
+    case 'open':
+      // Any crew that satisfies any concrete pattern works.
+      return PATTERN_FUEL_DESC.some(({ pattern: p }) => canCompleteHandPattern(crewCardIds, cards, p))
+    case 'cross-trained':
+      return crewCards.some(isMixedCrewCard)
+    case 'common-ground':
+      for (let i = 0; i < crewCards.length; i++) {
+        const a = crewSpecializations(crewCards[i])
+        for (let j = i + 1; j < crewCards.length; j++) {
+          const b = crewSpecializations(crewCards[j])
+          if (a.some((spec) => b.includes(spec))) return true
+        }
+      }
+      return false
+    case 'specialist':
+      return crewCards.some(isMatchedSpecialistCard)
+    case 'common-knowledge':
+      return requirementIconKinds.some((icon) => countCrewWithIcon(crewCards, icon) >= 3)
+    case 'department-heads':
+      return specialistDistinctIcons(crewCards).size >= 2
+    case 'common-cause':
+      return requirementIconKinds.some((icon) => countCrewWithIcon(crewCards, icon) >= 4)
+    case 'bridge-crew':
+      return specialistDistinctIcons(crewCards).size === 4
+  }
+}
+
 type CompletionNeed = {
   icons: readonly RequirementIconKind[]
   any: number
   fuel: number
 }
 
-type WaterPairCrewRole = 'engineer' | 'scientist'
+type WaterPairCrewRole = 'mechanic' | 'scientist'
 
 const crewDiscoveryIconsByEffect: Partial<Record<DiscoveryEffectKind, RequirementIconKind>> = {
   crew_nav: 'star',
@@ -262,11 +381,11 @@ function getWaterPairCrewRole(card: Card | undefined): WaterPairCrewRole | null 
 
   const specializations = card.specializations ?? []
 
-  if (specializations.length > 0 && specializations.every((specialization) => specialization === 'engine')) {
-    return 'engineer'
-  }
-
   const specializationSet = new Set(specializations)
+
+  if (specializationSet.has('engine') && specializationSet.has('life')) {
+    return 'mechanic'
+  }
 
   return specializationSet.has('engine') && specializationSet.has('signal') ? 'scientist' : null
 }
@@ -275,14 +394,14 @@ function countWaterPairCrewRoles(
   crewCardIds: readonly string[],
   cards: Record<string, Card>,
 ) {
-  let engineerCount = 0
+  let mechanicCount = 0
   let scientistCount = 0
 
   for (const cardId of crewCardIds) {
     const role = getWaterPairCrewRole(cards[cardId])
 
-    if (role === 'engineer') {
-      engineerCount += 1
+    if (role === 'mechanic') {
+      mechanicCount += 1
     } else if (role === 'scientist') {
       scientistCount += 1
     } else {
@@ -290,7 +409,7 @@ function countWaterPairCrewRoles(
     }
   }
 
-  return { engineerCount, scientistCount }
+  return { mechanicCount, scientistCount }
 }
 
 function canUseWaterSupport(
@@ -298,6 +417,7 @@ function canUseWaterSupport(
   cards: Record<string, Card>,
   fuelCardCount: number,
   requiredFuel: number,
+  waterPairFuelAmount = 1,
 ) {
   const remainingFuel = requiredFuel - fuelCardCount
 
@@ -313,8 +433,7 @@ function canUseWaterSupport(
 
   return Boolean(
     roleCounts &&
-      roleCounts.engineerCount <= remainingFuel &&
-      roleCounts.scientistCount <= remainingFuel,
+      Math.min(roleCounts.mechanicCount, roleCounts.scientistCount) * waterPairFuelAmount >= remainingFuel,
   )
 }
 
@@ -326,6 +445,7 @@ function canAssignUsefulSupport(
   need: CompletionNeed,
   motherFuelCost = 0,
   stackCardIds: readonly string[] = [],
+  waterPairFuelAmount = 1,
 ) {
   if (fuelCardCount > need.fuel + motherCount * motherFuelCost) {
     return false
@@ -355,7 +475,10 @@ function canAssignUsefulSupport(
       const fuelCrewCardIds = crewCardIds.filter((cardId) => !iconCrewCardIdSet.has(cardId))
 
       for (let iconMotherCount = 0; iconMotherCount <= Math.min(motherCount, missingIconCount); iconMotherCount += 1) {
-        if (iconMotherCount === motherCount && canUseWaterSupport(fuelCrewCardIds, cards, fuelCardCount, need.fuel)) {
+        if (
+          iconMotherCount === motherCount &&
+          canUseWaterSupport(fuelCrewCardIds, cards, fuelCardCount, need.fuel, waterPairFuelAmount)
+        ) {
           canAssignSupport = true
           return
         }
@@ -404,6 +527,7 @@ function canUseAllCardsInCompletionStack(
   availableGateFuelCount: number,
   gateFuelDiscount: number,
   missionAnyIconSurcharge: number,
+  waterPairFuelAmount: number,
 ) {
   let objectiveCard: Card | null = null
   const crewCardIds: string[] = []
@@ -481,6 +605,10 @@ function canUseAllCardsInCompletionStack(
   }
 
   if (objectiveCard.kind === 'mission' && objectiveCard.mission) {
+    if (objectiveCard.mission.pattern) {
+      return true
+    }
+
     const missionFuelDiscount = countMissionFuelDiscountDiscoveries(cardIds, cards)
     const fuelSurcharge = getDestinationFuelSurcharge(cards, objectiveCard.mission)
     const canComplete = canAssignUsefulSupport(
@@ -495,6 +623,7 @@ function canUseAllCardsInCompletionStack(
         },
       getMotherFuelCost(cards),
       cardIds,
+      waterPairFuelAmount,
     )
 
     return canComplete || discoveryCardIds.length > 0
@@ -532,6 +661,7 @@ function canUseAllCardsInCompletionStack(
       hazardSkipCount,
       0,
       cardIds,
+      waterPairFuelAmount,
     )
 
     return gatePayment !== null || discoveryCardIds.length > 0 || canStackLegalGateSupport(
@@ -625,6 +755,7 @@ export function canStackCards(
   availableGateFuelCount = 0,
   gateFuelDiscount = 0,
   missionAnyIconSurcharge = 0,
+  waterPairFuelAmount = 1,
 ) {
   return (
     canStackAsGateHazardPile(sourceStack, targetStack, cards) ||
@@ -644,6 +775,7 @@ export function canStackCards(
         availableGateFuelCount,
         gateFuelDiscount,
         missionAnyIconSurcharge,
+        waterPairFuelAmount,
       )
       )
     )
@@ -657,6 +789,10 @@ export function canCombineAsDeck(sourceStack: Stack, targetStack: Stack, cards: 
 function getDeckCardFamily(card: CardBlueprint) {
   if (card.kind === 'resource') {
     return card.resource ? `resource:${card.resource}` : null
+  }
+
+  if (card.kind === 'mission' && card.mission?.find.kind === 'ship_part') {
+    return 'ship-part'
   }
 
   return card.kind
@@ -712,6 +848,7 @@ export function cardsToDeckBlueprints(cardIds: string[], cards: Record<string, C
                 fuel: card.mission.need.fuel,
                 icons: [...card.mission.need.icons],
               },
+              ...(card.mission.pattern ? { pattern: card.mission.pattern } : {}),
               find: card.mission.find.kind === 'ship_part'
                 ? {
                     ...card.mission.find,
@@ -1038,6 +1175,7 @@ function getGateCrewCardNeedPaymentWithFuel(
   controlConsoleCount: number,
   modifiers: GateHazardModifiers,
   stackCardIds: readonly string[] = [],
+  waterPairFuelAmount = 1,
 ): GateNeedPayment | null {
   if (crewCardIds.length < requiredCrewCount) {
     return null
@@ -1074,7 +1212,7 @@ function getGateCrewCardNeedPaymentWithFuel(
     const selectedIconCrewCardIdSet = new Set(selectedIconCrewCardIds)
     const fuelCrewCardIds = crewCardIds.filter((cardId) => !selectedIconCrewCardIdSet.has(cardId))
 
-    if (!canPayMissingFuelWithCrew(fuelGeneratedCount, fuelCrewCardIds, cards)) {
+    if (!canPayMissingFuelWithCrew(fuelGeneratedCount, fuelCrewCardIds, cards, waterPairFuelAmount)) {
       return
     }
 
@@ -1169,6 +1307,7 @@ function getGateNeedPayment(
   hazardSkipCount = 0,
   extraFuelRequired = 0,
   stackCardIds: readonly string[] = [],
+  waterPairFuelAmount = 1,
 ) {
   const modifiers = getGateHazardModifiers(
     crewCardIds,
@@ -1197,6 +1336,7 @@ function getGateNeedPayment(
       controlConsoleCount,
       modifiers,
       stackCardIds,
+      waterPairFuelAmount,
     )
 
     if (!candidate) {
@@ -1239,6 +1379,7 @@ export function canCompleteGateNeedWithCrewAndMother(
   controlConsoleCount = 0,
   hazardSkipCount = 0,
   stackCardIds: readonly string[] = [],
+  waterPairFuelAmount = 1,
 ) {
   return getGateNeedPayment(
     crewCardIds,
@@ -1254,6 +1395,7 @@ export function canCompleteGateNeedWithCrewAndMother(
     hazardSkipCount,
     0,
     stackCardIds,
+    waterPairFuelAmount,
   ) !== null
 }
 
@@ -1261,6 +1403,7 @@ function canPayMissingFuelWithCrew(
   missingFuel: number,
   crewCardIds: readonly string[],
   cards: Record<string, Card>,
+  waterPairFuelAmount = 1,
 ) {
   if (missingFuel === 0) {
     return true
@@ -1270,8 +1413,7 @@ function canPayMissingFuelWithCrew(
 
   return Boolean(
     roleCounts &&
-      roleCounts.engineerCount >= missingFuel &&
-      roleCounts.scientistCount >= missingFuel,
+      Math.min(roleCounts.mechanicCount, roleCounts.scientistCount) * waterPairFuelAmount >= missingFuel,
   )
 }
 
@@ -1297,6 +1439,7 @@ function getMissionNeedPayment(
   motherCount: number,
   motherFuelCost: number,
   stackCardIds: readonly string[] = [],
+  waterPairFuelAmount = 1,
 ): MissionNeedPayment | null {
   if (crewCardIds.length === 0) {
     return null
@@ -1321,7 +1464,7 @@ function getMissionNeedPayment(
     const selectedIconCrewCardIdSet = new Set(selectedIconCrewCardIds)
     const fuelCrewCardIds = crewCardIds.filter((cardId) => !selectedIconCrewCardIdSet.has(cardId))
 
-    if (!canPayMissingFuelWithCrew(missingFuel, fuelCrewCardIds, cards)) {
+    if (!canPayMissingFuelWithCrew(missingFuel, fuelCrewCardIds, cards, waterPairFuelAmount)) {
       return
     }
 
@@ -1367,6 +1510,7 @@ export function canCompleteMissionNeedWithFuelOptions(
   motherCount: number,
   stackCardIds: readonly string[] = [],
   any = 0,
+  waterPairFuelAmount = 1,
 ) {
   return getMissionNeedPayment(
     crewCardIds,
@@ -1378,6 +1522,7 @@ export function canCompleteMissionNeedWithFuelOptions(
     motherCount,
     getMotherFuelCost(cards),
     stackCardIds,
+    waterPairFuelAmount,
   ) !== null
 }
 
@@ -1386,6 +1531,7 @@ export function getMissionStackCompletion(
   cards: Record<string, Card>,
   fuelDiscount = 0,
   missionAnyIconSurcharge = 0,
+  waterPairFuelAmount = 1,
 ): MissionStackCompletion | null {
   const missionCardIndex = stack.cardIds.findIndex((cardId) => {
     const card = cards[cardId]
@@ -1443,19 +1589,48 @@ export function getMissionStackCompletion(
     }
   }
 
-  const missingIconCount = countMissingNeedIcons(
-    crewCardIds,
-    cards,
-    missionCard.mission.need.icons,
-    missionAnyIconSurcharge,
-    stack.cardIds,
-  )
   const requiredFuel = Math.max(
     0,
     missionCard.mission.need.fuel +
       getDestinationFuelSurcharge(cards, missionCard.mission) -
       fuelDiscount -
       missionFuelDiscount,
+  )
+
+  if (missionCard.mission.pattern === 'open') {
+    const best = findBestPatternForCrew(crewCardIds, cards)
+    const fuelPaid = fuelCount >= requiredFuel
+
+    return {
+      missionCardId,
+      missionCardIndex,
+      requiredMotherCount: 0,
+      motherCoveredIcons: [],
+      isReady: best !== null && fuelPaid && !hasBlockingCard,
+      dynamicFuelReward: best?.fuel,
+      dynamicPattern: best?.pattern,
+    }
+  }
+
+  if (missionCard.mission.pattern) {
+    const patternSatisfied = canCompleteHandPattern(crewCardIds, cards, missionCard.mission.pattern)
+    const fuelPaid = fuelCount >= requiredFuel
+
+    return {
+      missionCardId,
+      missionCardIndex,
+      requiredMotherCount: 0,
+      motherCoveredIcons: [],
+      isReady: patternSatisfied && fuelPaid && !hasBlockingCard,
+    }
+  }
+
+  const missingIconCount = countMissingNeedIcons(
+    crewCardIds,
+    cards,
+    missionCard.mission.need.icons,
+    missionAnyIconSurcharge,
+    stack.cardIds,
   )
   const payment = getMissionNeedPayment(
     crewCardIds,
@@ -1467,6 +1642,7 @@ export function getMissionStackCompletion(
     motherCount,
     getMotherFuelCost(cards),
     stack.cardIds,
+    waterPairFuelAmount,
   )
 
   return {
@@ -1486,6 +1662,7 @@ export function getGateStackCompletion(
   controlConsoleCount = 0,
   availableFuelCount = 0,
   gateFuelDiscount = 0,
+  waterPairFuelAmount = 1,
 ): GateStackCompletion | null {
   const gateCardIndex = stack.cardIds.findIndex((cardId) => {
     const card = cards[cardId]
@@ -1591,6 +1768,7 @@ export function getGateStackCompletion(
     hazardSkipCount,
     0,
     stack.cardIds,
+    waterPairFuelAmount,
   )
   const cleanCrewMet = crewCardIds.length >=
     Math.max(0, gateCard.gate.need.crew - getServiceDroneBayCrewReduction(gateCard.gate, serviceDroneBayCount)) +
@@ -1610,6 +1788,7 @@ export function getGateStackCompletion(
         hazardSkipCount,
         gateCard.gate.clear.extraFuel,
         stack.cardIds,
+        waterPairFuelAmount,
       )
     : basePayment
   const payment = cleanPayment ?? basePayment

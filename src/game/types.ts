@@ -97,7 +97,11 @@ export type GameLossReason = 'sector-stranded' | 'gate-failed' | 'fuel-depleted'
 
 export type HandZone = 'crew' | 'tired'
 
-export type ShipPartKind = 'medbay-rehydrator' | 'service-drone-bay' | 'adaptive-control-console'
+export type ShipPartKind =
+  | 'medbay-rehydrator'
+  | 'service-drone-bay'
+  | 'adaptive-control-console'
+  | 'fuel-synthesizer'
 
 export type ShipPartStatus = 'available' | 'spent'
 
@@ -147,12 +151,23 @@ export type DestinationFind =
       rewards: VisitReward[]
     }
 
+export type MissionPatternKind =
+  | 'open'
+  | 'cross-trained'
+  | 'common-ground'
+  | 'specialist'
+  | 'common-knowledge'
+  | 'department-heads'
+  | 'common-cause'
+  | 'bridge-crew'
+
 export type MissionDetails = {
   kind: MissionKind
   need: {
     fuel: number
     icons: RequirementIconKind[]
   }
+  pattern?: MissionPatternKind
   find: DestinationFind
 }
 
@@ -256,7 +271,7 @@ export type RouteSlot = {
 
 export type ShipPartSlot = {
   cardId: string
-  routeSlotIndex: number
+  routeSlotIndex: number | null
   sector: number
   itemName: string
   shipPart: ShipPartKind
@@ -317,6 +332,12 @@ export type BoardState = {
     keptCardId: string | null
     bottomedCardIds: string[]
   } | null
+  pendingShipPartChoice: {
+    choiceCardIds: string[]
+    playerId: string | null
+    x: number
+    y: number
+  } | null
   pendingDrift: {
     cardId: string
     stackId: string
@@ -343,6 +364,7 @@ export type BoardState = {
   players: GamePlayer[]
   crewOwnerIds: Record<string, string>
   discoveryOwnerIds: Record<string, string>
+  patternUsageCounts: Partial<Record<MissionPatternKind, number>>
 }
 
 export type BoardMetrics = {

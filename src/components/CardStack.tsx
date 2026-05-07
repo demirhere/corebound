@@ -26,6 +26,7 @@ type CardStackProps = {
   gateCrewSlotDiscount: number
   gateIconDiscount: number
   gateFuelDiscount: number
+  waterPairFuelAmount: number
   traveledStopCardIds: ReadonlySet<string>
   acquiredShipPartCardIds: ReadonlySet<string>
   actions: readonly StackAction[]
@@ -50,6 +51,7 @@ export function CardStack({
   gateCrewSlotDiscount,
   gateIconDiscount,
   gateFuelDiscount,
+  waterPairFuelAmount,
   traveledStopCardIds,
   acquiredShipPartCardIds,
   actions,
@@ -84,7 +86,7 @@ export function CardStack({
         <div className="stack-action-bar" aria-label="Available stack actions">
           {actions.map((action) => (
             <button
-              key={action.id}
+              key={action.attentionKey}
               type="button"
               className="stack-action-button"
               onPointerDown={(event) => event.stopPropagation()}
@@ -119,6 +121,7 @@ export function CardStack({
             gateCrewSlotDiscount={gateCrewSlotDiscount}
             gateIconDiscount={gateIconDiscount}
             gateFuelDiscount={gateFuelDiscount}
+            waterPairFuelAmount={waterPairFuelAmount}
             isTraveledStop={traveledStopCardIds.has(card.id)}
             isAcquiredShipPart={acquiredShipPartCardIds.has(card.id)}
             onPointerDown={onCardPointerDown}

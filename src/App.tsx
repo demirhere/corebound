@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useState } from 'react'
 import { BeginDialog } from './components/BeginDialog'
 import { Board } from './components/Board'
+import { CrewGuideDialog } from './components/CrewGuideDialog'
 import { HowToPlayDialog } from './components/HowToPlayDialog'
 import { PlaytestLog } from './components/PlaytestLog'
 import { RealtimePanel } from './components/RealtimePanel'
@@ -32,6 +33,7 @@ function App() {
   const [game, dispatchGame] = useReducer(gameReducer, undefined, createInitialGameState)
   const [isGameStarted, setIsGameStarted] = useState(false)
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
+  const [isCrewGuideOpen, setIsCrewGuideOpen] = useState(false)
   const { board, pendingSetupDeal, playtestLog, previousPlaytestLogSessions } = game
   const resetConsoleLog = usePlaytestLogConsole(playtestLog)
   const pendingSetupDealKey = pendingSetupDeal?.key ?? null
@@ -183,8 +185,10 @@ function App() {
             onWakeCrewChoice={canMoveBoardFreely ? interactions.onWakeCrewChoice : noop}
             onScoutCardChoice={canMoveBoardFreely ? interactions.onScoutCardChoice : noop}
             onScoutChoiceConfirm={canMoveBoardFreely ? interactions.onScoutChoiceConfirm : noop}
+            onShipPartChoice={canMoveBoardFreely ? interactions.onShipPartChoice : noop}
             onStackAction={canMoveBoardFreely ? interactions.onStackAction : noop}
             onEndTurn={canUseTurnControls ? interactions.onEndTurn : noop}
+            onShowCrewGuide={() => setIsCrewGuideOpen(true)}
             onResetGame={resetGame}
           />
           <PlaytestLog
@@ -210,6 +214,11 @@ function App() {
             isOpen={isHowToPlayOpen}
             onClose={canApplyGameUpdates ? () => setIsHowToPlayOpen(false) : noop}
             canClose={canApplyGameUpdates}
+          />
+          <CrewGuideDialog
+            isOpen={isCrewGuideOpen}
+            onClose={() => setIsCrewGuideOpen(false)}
+            patternUsageCounts={board.patternUsageCounts}
           />
         </>
       ) : (

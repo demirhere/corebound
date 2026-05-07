@@ -12,6 +12,7 @@ import {
 } from '../game/rules'
 import { getMissionAnyIconSurcharge } from '../game/damage'
 import { getNextGateFuelDiscount, getNextStopFuelDiscount } from '../game/effects'
+import { getWaterPairFuelAmount } from '../game/shipParts'
 import {
   countSpentShipParts,
   getProtectedRouteCardIds,
@@ -108,6 +109,7 @@ export function getNearestDropTarget(
         0,
         gateFuelDiscount + spentAdaptiveControlConsoles,
         missionAnyIconSurcharge,
+        getWaterPairFuelAmount(board.shipPartSlots),
       ) &&
       !canCombineAsDeck(sourceStack, targetStack, cards)
     ) {
@@ -183,6 +185,7 @@ export function getStackDropTargetIds(
       0,
       gateFuelDiscount + spentAdaptiveControlConsoles,
       missionAnyIconSurcharge,
+      getWaterPairFuelAmount(board.shipPartSlots),
     ) ||
       canCombineAsDeck(sourceStack, targetStack, cards)
       ? [targetStack.id]

@@ -1,169 +1,42 @@
 import { createGateCard } from './factories'
-import type { Card, CrewRoleKind, GateDetails, RequirementIconKind } from '../types'
-
-const gateClear = (extraFuel: number): GateDetails['clear'] => ({
-  extraFuel,
-  extraCrew: 0,
-})
+import type { Card, CardBlueprint, CrewRoleKind, GateDetails, RequirementIconKind } from '../types'
 
 const noGateEffect: GateDetails['effectKind'] = 'none'
 const noGateEffectText = 'No special effect.'
+const zeroClear: GateDetails['clear'] = { extraFuel: 0, extraCrew: 0 }
+const zeroClearText = 'No extra cost.'
 
-export const sectorGates = [
-  createGateCard(
-    'Narrow Crossing',
+function fuelGate(title: string, fuel: number): CardBlueprint {
+  return createGateCard(
+    title,
     'SECTOR GATE',
-    3,
+    fuel,
     [],
     0,
     noGateEffect,
     noGateEffectText,
-    gateClear(0),
-    'No extra cost.',
-  ),
-  createGateCard(
-    'Quiet Drift',
-    'SECTOR GATE',
-    3,
-    [],
-    0,
-    'extra-drift',
-    'Resolve 1 extra Drift before passing.',
-    gateClear(1),
-    'Pay +1 Fuel.',
-  ),
-  createGateCard(
-    'Old Pass',
-    'SECTOR GATE',
-    4,
-    [],
-    0,
-    noGateEffect,
-    noGateEffectText,
-    gateClear(1),
-    'Pay +1 Fuel.',
-  ),
-  createGateCard(
-    'Lost Beacon',
-    'SECTOR GATE',
-    3,
-    [],
-    0,
-    noGateEffect,
-    noGateEffectText,
-    gateClear(2),
-    'Pay +2 Fuel.',
-  ),
-  createGateCard(
-    'Dust Reach',
-    'SECTOR GATE',
-    4,
-    [],
-    0,
-    noGateEffect,
-    noGateEffectText,
-    gateClear(2),
-    'Pay +2 Fuel.',
-  ),
-  createGateCard(
-    'Cold Mirror',
-    'SECTOR GATE',
-    5,
-    [],
-    0,
-    noGateEffect,
-    noGateEffectText,
-    gateClear(1),
-    'Pay +1 Fuel.',
-  ),
-  createGateCard(
-    'Echo Vault',
-    'SECTOR GATE',
-    4,
-    [],
-    0,
-    noGateEffect,
-    noGateEffectText,
-    gateClear(2),
-    'Pay +2 Fuel.',
-  ),
-  createGateCard(
-    'Ash Belt',
-    'SECTOR GATE',
-    5,
-    [],
-    0,
-    noGateEffect,
-    noGateEffectText,
-    gateClear(2),
-    'Pay +2 Fuel.',
-  ),
-  createGateCard(
-    'Black Threshold',
-    'SECTOR GATE',
-    4,
-    [],
-    0,
-    noGateEffect,
-    noGateEffectText,
-    gateClear(2),
-    'Pay +2 Fuel.',
-  ),
-  createGateCard(
-    'Hollow Span',
-    'SECTOR GATE',
-    5,
-    [],
-    0,
-    noGateEffect,
-    noGateEffectText,
-    gateClear(2),
-    'Pay +2 Fuel.',
-  ),
-  createGateCard(
-    'Iron Shoal',
-    'SECTOR GATE',
-    5,
-    [],
-    0,
-    noGateEffect,
-    noGateEffectText,
-    gateClear(2),
-    'Pay +2 Fuel.',
-  ),
-  createGateCard(
-    'Last Verge',
-    'SECTOR GATE',
-    6,
-    [],
-    0,
-    'extra-drift',
-    'Resolve 1 extra Drift before passing.',
-    gateClear(3),
-    'Pay +3 Fuel.',
-  ),
-  createGateCard(
-    'Drowned Comm',
-    'SECTOR GATE',
-    5,
-    [],
-    0,
-    noGateEffect,
-    noGateEffectText,
-    gateClear(3),
-    'Pay +3 Fuel.',
-  ),
-  createGateCard(
-    'The Reach',
-    'SECTOR GATE',
-    6,
-    [],
-    0,
-    noGateEffect,
-    noGateEffectText,
-    gateClear(4),
-    'Pay +4 Fuel.',
-  ),
+    zeroClear,
+    zeroClearText,
+  )
+}
+
+// Fixed 10-gate sequence with monotonically increasing Fuel cost. The deck
+// is shuffled + sorted at setup, but with 10 cards (one per sector) the
+// shuffle is a no-op — every run sees the same difficulty ramp. Total cost
+// 250 Fuel, tuned so sector 1 is ~95% pass and overall win rate is ~4%
+// against a greedy max-fuel stacking strategy. Re-run `pnpm sim` after any
+// change here.
+export const sectorGates: CardBlueprint[] = [
+  fuelGate('Narrow Crossing', 9),
+  fuelGate('Old Pass',        12),
+  fuelGate('Lost Beacon',     15),
+  fuelGate('Dust Reach',      18),
+  fuelGate('Cold Mirror',     22),
+  fuelGate('Echo Vault',      26),
+  fuelGate('Hollow Span',     30),
+  fuelGate('Iron Shoal',      34),
+  fuelGate('Black Threshold', 38),
+  fuelGate('Drowned Comm',    46),
 ]
 
 const blockedIconByEffect: Partial<Record<GateDetails['effectKind'], RequirementIconKind>> = {

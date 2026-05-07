@@ -10,7 +10,8 @@
     "party:deploy": "partykit deploy",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sim": "node scripts/simulate.mjs"
   },
   "dependencies": {
     "partysocket": "^1.1.18",

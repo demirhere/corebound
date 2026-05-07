@@ -33,11 +33,11 @@ type HandZoneAreaProps = {
   cards: Record<string, CardView>
   activeCardIds: ReadonlySet<string>
   insertPreview: HandInsertPreview | null
-  stressCount?: number
   currentSector?: number
   totalSectors?: number
   missionsCompleted?: number
   turnNumber?: number
+  waterPairFuelAmount: number
   canInteract: boolean
   onCardPointerDown: HandPointerDownHandler
   onCardKeyDown: HandKeyDownHandler
@@ -54,7 +54,7 @@ function getHandCards(cardIds: readonly string[], cards: Record<string, CardView
 
 function getFanStyle(slotIndex: number, totalSlots: number, isActive = false) {
   const fanOffset = slotIndex - (totalSlots - 1) / 2
-  const fanSpacing = totalSlots > 6 ? 60 : totalSlots > 4 ? 80 : 105
+  const fanSpacing = totalSlots > 6 ? 90 : totalSlots > 4 ? 115 : 140
   const fanXPercent = fanOffset * fanSpacing
   const fanY = Math.abs(fanOffset) * 2
   const fanRotation = fanOffset * 2.25
@@ -97,11 +97,11 @@ export function HandZoneArea({
   cards,
   activeCardIds,
   insertPreview,
-  stressCount,
   currentSector,
   totalSectors,
   missionsCompleted,
   turnNumber,
+  waterPairFuelAmount,
   canInteract,
   onCardPointerDown,
   onCardKeyDown,
@@ -126,13 +126,11 @@ export function HandZoneArea({
   return (
     <div className={`hand-zone hand-zone-${zone}`} data-hand-zone={zone} aria-label={`${label} area`}>
       {zone === 'tired' &&
-      stressCount !== undefined &&
       currentSector !== undefined &&
       totalSectors !== undefined &&
       missionsCompleted !== undefined &&
       turnNumber !== undefined ? (
         <StressTracker
-          stressCount={stressCount}
           currentSector={currentSector}
           totalSectors={totalSectors}
           missionsCompleted={missionsCompleted}
@@ -181,9 +179,10 @@ export function HandZoneArea({
                   className="hand-card-shell"
                   isActive={isActive}
                   canInteract={canInteract && zone === 'crew'}
+                  waterPairFuelAmount={waterPairFuelAmount}
                   ariaLabel={
                     zone === 'crew'
-                      ? `${card.title}. Click to drop to the board or drag within Hand and to the board.`
+                      ? `${card.title}. Click to add to an existing crew stack or drop to the board. Drag to the board.`
                       : `${card.title}. Tired crew readies after a Gate or a Sector ready reward.`
                   }
                   onPointerDown={(event) => onCardPointerDown(event, card.id, zone)}

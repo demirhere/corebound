@@ -40,6 +40,7 @@ type BoardCardProps = {
   gateCrewSlotDiscount: number
   gateIconDiscount: number
   gateFuelDiscount: number
+  waterPairFuelAmount: number
   isTraveledStop?: boolean
   isAcquiredShipPart?: boolean
   onPointerDown: CardPointerDownHandler
@@ -59,6 +60,7 @@ type CardShellProps = {
   gateCrewSlotDiscount?: number
   gateIconDiscount?: number
   gateFuelDiscount?: number
+  waterPairFuelAmount?: number
   isTraveledStop?: boolean
   isAcquiredShipPart?: boolean
   ariaLabel: string
@@ -82,6 +84,7 @@ export function CardShell({
   gateCrewSlotDiscount = 0,
   gateIconDiscount = 0,
   gateFuelDiscount = 0,
+  waterPairFuelAmount = 1,
   isTraveledStop = false,
   isAcquiredShipPart = false,
   ariaLabel,
@@ -92,6 +95,8 @@ export function CardShell({
   onKeyDown,
 }: CardShellProps) {
   const isCrewCard = card.kind === 'crew'
+  const isOpenMissionCard =
+    card.kind === 'mission' && card.mission?.pattern === 'open'
   const usesIntegratedHeader = isCrewCard || card.kind === 'drift' || card.kind === 'hazard'
   const sampledIcons = pickCardIcons(`${card.id}:${card.title}`)
   const noteLines = pickCardNote(`${card.id}:${card.title}`)
@@ -106,14 +111,20 @@ export function CardShell({
     gateIconDiscount,
     gateFuelDiscount,
     isAcquiredShipPart,
+    waterPairFuelAmount,
   )
   const resourceClass = card.kind === 'resource' && card.resource ? `card-resource-${card.resource}` : ''
   const missionDetails = card.kind === 'mission' ? card.mission : undefined
   const missionFindClass = missionDetails
-    ? missionDetails.find.kind === 'ship_part' ? 'card-find-ship-part' : 'card-find-visit-reward'
+    ? (missionDetails.find.kind === 'ship_part' || isOpenMissionCard)
+      ? 'card-find-ship-part'
+      : 'card-find-visit-reward'
     : ''
-  const missionBadge = missionDetails?.find.kind === 'ship_part' ? 'Ship Part' : 'Resources'
-  const headerTitle = missionDetails ? missionDetails.find.itemName : getDamageDisplayTitle(card)
+  const missionBadge = missionDetails?.find.kind === 'ship_part' ? 'Ship Part' : 'Mission'
+  const missionHeaderTitle = isOpenMissionCard
+    ? 'Crew Mission'
+    : missionDetails?.find.itemName ?? ''
+  const headerTitle = missionDetails ? missionHeaderTitle : getDamageDisplayTitle(card)
   const missionHeaderDetail = missionDetails ? renderSectorCardHeaderDetail(card) : null
   const isGateCard = card.kind === 'gate'
   const gateBackTitle = isGateCard ? `${card.title} Final Gate` : null
@@ -153,8 +164,10 @@ export function CardShell({
             <header className="card-header">
               {missionDetails ? (
                 <>
-                  <span className="card-destination-title">{missionBadge}</span>
-                  <span className="card-title">{missionDetails.find.itemName}</span>
+                  {!isOpenMissionCard && (
+                    <span className="card-destination-title">{missionBadge}</span>
+                  )}
+                  <span className="card-title">{missionHeaderTitle}</span>
                   {missionHeaderDetail && (
                     <span className="card-rule-text sector-card-header-detail">{missionHeaderDetail}</span>
                   )}
@@ -212,6 +225,7 @@ export function BoardCard({
   gateCrewSlotDiscount,
   gateIconDiscount,
   gateFuelDiscount,
+  waterPairFuelAmount,
   isTraveledStop = false,
   isAcquiredShipPart = false,
   onPointerDown,
@@ -243,6 +257,7 @@ export function BoardCard({
       gateCrewSlotDiscount={gateCrewSlotDiscount}
       gateIconDiscount={gateIconDiscount}
       gateFuelDiscount={gateFuelDiscount}
+      waterPairFuelAmount={waterPairFuelAmount}
       isTraveledStop={isTraveledStop}
       isAcquiredShipPart={isAcquiredShipPart}
       motionCardId={card.id}

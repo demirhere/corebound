@@ -7,7 +7,6 @@ type PlayerCrewPanelProps = {
 }
 
 type StressTrackerProps = {
-  stressCount: number
   currentSector: number
   totalSectors: number
   missionsCompleted: number
@@ -15,18 +14,18 @@ type StressTrackerProps = {
 }
 
 export function StressTracker({
-  stressCount,
   currentSector,
   totalSectors,
   missionsCompleted,
   turnNumber,
 }: StressTrackerProps) {
   return (
-    <aside className="stress-area hand-zone-stress" aria-label="Sector and stress area" aria-live="polite">
+    <aside className="stress-area hand-zone-stress" aria-label="Sector area" aria-live="polite">
       <p className="stress-tracker">
         <span className="stress-label">Sector</span>
         <span className="stress-history sector-history" aria-label={`Sector ${currentSector} of ${totalSectors}`}>
-          <span className="stress-current">{currentSector}/{totalSectors}</span>
+          <span className="stress-current sector-current">{currentSector}</span>
+          <span className="sector-total">/{totalSectors}</span>
         </span>
       </p>
       <p className="stress-tracker">
@@ -39,16 +38,6 @@ export function StressTracker({
         <span className="stress-label">Turns</span>
         <span className="stress-history sector-history" aria-label={`Turn ${turnNumber}`}>
           <span className="stress-current">{turnNumber}</span>
-        </span>
-      </p>
-      <p className="stress-tracker">
-        <span className="stress-label">Stress</span>
-        <span className="stress-history">
-          {Array.from({ length: stressCount + 1 }, (_, i) => (
-            <span key={i} className={i < stressCount ? 'stress-old' : 'stress-current'}>
-              {i}
-            </span>
-          ))}
         </span>
       </p>
     </aside>

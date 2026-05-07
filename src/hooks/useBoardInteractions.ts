@@ -17,7 +17,9 @@ import {
   activateStackDragUpdate,
   addStackToHandUpdate,
   chooseScoutCardUpdate,
+  chooseShipPartUpdate,
   chooseWakeCrewUpdate,
+  clickHandCardToBoardUpdate,
   clearBoardDropTargetUpdate,
   commitDeckDragPositionUpdate,
   commitStackDragPositionUpdate,
@@ -977,6 +979,7 @@ export function useBoardInteractions({
       !current.lossReason &&
       !current.pendingWakeChoice &&
       !current.pendingScoutChoice &&
+      !current.pendingShipPartChoice &&
       !current.pendingDrift &&
       Boolean(deck && canManuallyDrawDeck(deck) && deck.cards.length > 0) &&
       current.sectorDrawnThisTurn &&
@@ -1009,6 +1012,14 @@ export function useBoardInteractions({
     setBoard(confirmScoutChoiceUpdate)
   }
 
+  function chooseShipPart(cardId: string) {
+    if (!canMoveBoardFreely) {
+      return
+    }
+
+    setBoard(chooseShipPartUpdate(cardId))
+  }
+
   function completeStackAction(stackId: string, actionId: string) {
     if (!canMoveBoardFreely) {
       return
@@ -1022,7 +1033,7 @@ export function useBoardInteractions({
       return
     }
 
-    setBoard(endTurnUpdate(readBoardMetrics()))
+    setBoard(endTurnUpdate())
   }
 
   function getBoardDropPosition(clientX: number, clientY: number, placeAboveHand = false) {
@@ -1040,6 +1051,10 @@ export function useBoardInteractions({
 
   function dropHandCardToBoard(cardId: string, position: { x: number; y: number }) {
     setBoard(dropHandCardToBoardUpdate(cardId, position))
+  }
+
+  function clickHandCardToBoard(cardId: string, position: { x: number; y: number }) {
+    setBoard(clickHandCardToBoardUpdate(cardId, position))
   }
 
   function discardStack(stackId: string) {
@@ -1149,6 +1164,7 @@ export function useBoardInteractions({
       board.lossReason ||
       board.pendingWakeChoice ||
       board.pendingScoutChoice ||
+      board.pendingShipPartChoice ||
       board.pendingDrift ||
       event.button !== 0 ||
       dragsRef.current.has(event.pointerId) ||
@@ -1218,6 +1234,7 @@ export function useBoardInteractions({
       board.lossReason ||
       board.pendingWakeChoice ||
       board.pendingScoutChoice ||
+      board.pendingShipPartChoice ||
       board.pendingDrift ||
       event.button !== 0 ||
       dragsRef.current.has(event.pointerId) ||
@@ -1269,6 +1286,7 @@ export function useBoardInteractions({
       board.lossReason ||
       board.pendingWakeChoice ||
       board.pendingScoutChoice ||
+      board.pendingShipPartChoice ||
       board.pendingDrift ||
       event.button !== 0 ||
       dragsRef.current.has(event.pointerId) ||
@@ -1610,7 +1628,7 @@ export function useBoardInteractions({
 
       if (preparation === 'idle') {
         clearHandInsertPreview()
-        dropHandCardToBoard(drag.cardId, getBoardDropPosition(event.clientX, event.clientY, true))
+        clickHandCardToBoard(drag.cardId, getBoardDropPosition(event.clientX, event.clientY, true))
         return
       }
 
@@ -1770,6 +1788,7 @@ export function useBoardInteractions({
     if (
       boardStateRef.current.pendingWakeChoice ||
       boardStateRef.current.pendingScoutChoice ||
+      boardStateRef.current.pendingShipPartChoice ||
       boardStateRef.current.pendingDrift
     ) {
       return
@@ -1790,6 +1809,7 @@ export function useBoardInteractions({
     if (
       boardStateRef.current.pendingWakeChoice ||
       boardStateRef.current.pendingScoutChoice ||
+      boardStateRef.current.pendingShipPartChoice ||
       boardStateRef.current.pendingDrift
     ) {
       return
@@ -1811,6 +1831,7 @@ export function useBoardInteractions({
       !canUseOwnCrew ||
       boardStateRef.current.pendingWakeChoice ||
       boardStateRef.current.pendingScoutChoice ||
+      boardStateRef.current.pendingShipPartChoice ||
       boardStateRef.current.pendingDrift
     ) {
       return
@@ -1824,7 +1845,7 @@ export function useBoardInteractions({
 
     const cardRect = event.currentTarget.getBoundingClientRect()
 
-    dropHandCardToBoard(
+    clickHandCardToBoard(
       cardId,
       getBoardDropPosition(
         cardRect.left + cardRect.width / 2,
@@ -1855,6 +1876,7 @@ export function useBoardInteractions({
     onWakeCrewChoice: chooseWakeCrew,
     onScoutCardChoice: chooseScoutCard,
     onScoutChoiceConfirm: confirmScoutChoice,
+    onShipPartChoice: chooseShipPart,
     onStackAction: completeStackAction,
     onEndTurn: endTurn,
     resetInteractions,

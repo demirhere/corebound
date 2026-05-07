@@ -128,12 +128,13 @@
 .stress-label {
   display: inline-block;
   position: relative;
+  color: #7398f5;
 }
 
 .stress-label::after {
   content: '';
   position: absolute;
-  top: clamp(17px, 1.8vw, 26px);
+  top: clamp(14px, 1.55vw, 22px);
   left: 0;
   width: 100%;
   height: 6px;
@@ -149,12 +150,21 @@
   flex-wrap: wrap;
   gap: 6px;
   align-items: baseline;
-  margin-top: clamp(8px, 0.7vw, 11px);
+  margin-top: clamp(12px, 0.95vw, 15px);
+  color: #fff;
   font-size: clamp(14px, 1.45vw, 21px);
 }
 
 .sector-history {
   flex-wrap: nowrap;
+}
+
+.sector-current {
+  font-size: 1.24em;
+}
+
+.sector-total {
+  color: #7398f5;
 }
 
 .stress-old {
@@ -171,14 +181,14 @@
 }
 
 .hand-zone-stress {
-  position: absolute;
-  bottom: calc(100% + clamp(6px, 0.8vw, 12px));
+  position: fixed;
+  top: clamp(12px, 2vw, 24px);
   left: clamp(14px, 1.5vw, 20px);
   z-index: 3;
   display: inline-flex;
   gap: clamp(18px, 2vw, 28px);
   align-items: flex-start;
-  color: currentColor;
+  color: #7398f5;
   font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
   font-size: clamp(13px, 1.25vw, 19px);
   font-style: normal;
@@ -663,6 +673,170 @@
     rgba(255, 248, 232, 0.44);
 }
 
+.crew-guide-overlay {
+  z-index: 1620;
+}
+
+.crew-guide-panel {
+  width: min(640px, calc(100vw - 32px));
+  max-height: min(86svh, 760px);
+  overflow: auto;
+  gap: 12px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, #b99cff 70%, #11131a) 0 8px, transparent 8px),
+    radial-gradient(circle at 82% 18%, rgba(185, 156, 255, 0.22), transparent 32%),
+    repeating-linear-gradient(180deg, transparent 0 18px, rgba(17, 19, 26, 0.06) 18px 19px, transparent 19px 27px),
+    linear-gradient(150deg, #fff7dc, #ffeec5 58%, #e3d8ff);
+
+  &::before {
+    content: none;
+  }
+
+  > button {
+    justify-self: end;
+    background:
+      repeating-linear-gradient(180deg, transparent 0 9px, rgba(17, 19, 26, 0.055) 9px 10px),
+      color-mix(in srgb, #b99cff 64%, #fff8e8);
+  }
+}
+
+.crew-guide-panel .game-icon {
+  display: inline-grid;
+  width: clamp(15px, 1.65vw, 22px);
+  vertical-align: -0.3em;
+}
+
+.crew-guide-summary {
+  max-width: 540px;
+}
+
+.crew-guide-table {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 6px 6px;
+  border: 2px solid rgba(17, 19, 26, 0.18);
+  border-radius: 18px 14px 20px 16px / 16px 20px 15px 19px;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 27px, rgba(17, 19, 26, 0.085) 27px 28px),
+    rgba(255, 248, 232, 0.42);
+  list-style: none;
+}
+
+.crew-guide-row {
+  display: grid;
+  grid-template-columns:
+    minmax(8.4em, max-content)
+    minmax(0, 1fr)
+    minmax(3.6em, max-content)
+    minmax(2.2em, max-content);
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 2px clamp(8px, 1.1vw, 14px);
+  padding: 7px 10px 8px;
+  color: #11131a;
+  font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+  font-style: italic;
+  line-height: 1;
+}
+
+.crew-guide-row:nth-child(odd) {
+  background: rgba(17, 19, 26, 0.04);
+  border-radius: 9px;
+}
+
+.crew-guide-name {
+  grid-column: 1;
+  grid-row: 1;
+  color: #11131a;
+  font-size: clamp(15px, 1.45vw, 20px);
+  font-weight: 1000;
+  letter-spacing: -0.045em;
+  white-space: nowrap;
+  transform: rotate(-0.6deg);
+}
+
+.crew-guide-icons {
+  grid-column: 2;
+  grid-row: 1;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.crew-guide-blurb {
+  grid-column: 1 / span 2;
+  grid-row: 2;
+  margin-top: 2px;
+  color: rgba(17, 19, 26, 0.66);
+  font-size: clamp(11px, 1.05vw, 14px);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.18;
+}
+
+.crew-guide-icon-strip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.crew-guide-crew-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 5px;
+  border: 1.6px solid rgba(17, 19, 26, 0.32);
+  border-radius: 7px 9px 8px 6px / 8px 6px 9px 7px;
+  background: rgba(255, 248, 232, 0.7);
+  transform: rotate(-1.2deg);
+}
+
+.crew-guide-crew-chip:nth-child(2n) {
+  transform: rotate(0.8deg);
+}
+
+.crew-guide-crew-chip .game-icon {
+  width: clamp(14px, 1.4vw, 18px);
+}
+
+.crew-guide-reward {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-self: end;
+  align-self: center;
+  font-size: clamp(15px, 1.45vw, 19px);
+  font-weight: 1000;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+}
+
+.crew-guide-reward-amount {
+  display: inline-block;
+  transform: rotate(-1.4deg);
+}
+
+.crew-guide-count {
+  grid-column: 4;
+  grid-row: 1 / span 2;
+  justify-self: end;
+  align-self: center;
+  color: rgba(17, 19, 26, 0.62);
+  font-size: clamp(13px, 1.25vw, 17px);
+  font-weight: 950;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  transform: rotate(1deg);
+}
+
 .failure-overlay {
   grid-template-columns: minmax(260px, 0.88fr) minmax(320px, 470px);
   justify-content: center;
@@ -954,6 +1128,10 @@
   &:focus-visible {
     transform: translateY(-6px) rotate(-1deg);
   }
+}
+
+.ship-part-choice-panel {
+  width: min(560px, calc(100vw - 32px));
 }
 
 .card-shell[aria-disabled='true'],
@@ -1413,16 +1591,22 @@
   --hand-card-height: calc(var(--card-height) * var(--hand-card-scale));
 
   position: absolute;
-  right: clamp(28px, 7vw, 112px);
+  right: clamp(10px, 2vw, 24px);
   bottom: clamp(10px, 2vh, 22px);
-  left: clamp(188px, 25vw, 310px);
+  left: clamp(10px, 2vw, 24px);
   z-index: 1000;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(clamp(124px, 18vw, 250px), 0.56fr) minmax(clamp(142px, 13vw, 230px), 0.36fr);
+  grid-template-columns: minmax(clamp(92px, 16vw, 220px), 0.34fr) minmax(0, 1fr) minmax(clamp(92px, 16vw, 220px), 0.34fr);
   align-items: stretch;
   min-height: calc(var(--hand-card-height) + 44px);
   gap: clamp(8px, 1.1vw, 16px);
   color: #4D6FC2;
+  pointer-events: none;
+}
+
+.hand::before {
+  content: '';
+  min-width: 0;
 }
 
 .hand.is-dragging-card {
@@ -1440,6 +1624,7 @@
   background:
     radial-gradient(circle at 18% 22%, rgba(74, 82, 120, 0.12), transparent 38%),
     radial-gradient(circle at 78% 68%, rgba(74, 82, 120, 0.08), transparent 36%);
+  pointer-events: auto;
   transition:
     color 160ms ease,
     filter 160ms ease,
@@ -1451,25 +1636,27 @@
     transform: translateY(-2px) scale(1.015);
   }
 
-  &::before {
+  &::before,
+  &::after {
     content: '';
     position: absolute;
     pointer-events: none;
-    border: 4px solid currentColor;
-    border-radius: 22px;
-    opacity: 0.72;
+    border: 3px solid currentColor;
     inset: 5px 7px 8px 5px;
-    transform: rotate(-1.4deg);
   }
-}
-
-.hand-zone-tired {
-  color: #4D6FC2;
 
   &::before {
-    transform: rotate(1.2deg);
+    border-radius: 23px 20px 25px 18px / 18px 25px 19px 24px;
+    opacity: 0.68;
+    transform: rotate(-0.45deg);
   }
 
+  &::after {
+    border-radius: 18px 26px 19px 24px / 24px 17px 25px 20px;
+    opacity: 0.34;
+    inset: 7px 5px 6px 8px;
+    transform: rotate(0.35deg);
+  }
 }
 
 .hand-zone-label {
@@ -1562,10 +1749,6 @@
   transform: translateY(-8px) scale(var(--hand-card-scale));
 }
 
-.hand-zone-tired .card-shell.hand-card-shell {
-  cursor: default;
-}
-
 .hand .card-shell.hand-card-shell.is-being-dragged {
   transform: scale(var(--hand-card-scale));
 }
@@ -1573,10 +1756,141 @@
 .hand-end-turn-slot {
   position: relative;
   display: grid;
-  place-items: center;
+  align-content: center;
+  justify-items: center;
+  gap: clamp(6px, 0.7vh, 12px);
   min-width: 0;
   min-height: calc(var(--hand-card-height) + 44px);
   pointer-events: auto;
+}
+
+.hand-crew-guide-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  color: #4D6FC2;
+  background: transparent;
+  cursor: pointer;
+  font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+  font-size: clamp(15px, 1.45vw, 24px);
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 0.96;
+  text-align: left;
+  text-shadow:
+    0 0 1px rgba(255, 255, 255, 0.92),
+    0 0 12px rgba(77, 111, 194, 0.42),
+    0 2px 3px rgba(5, 7, 19, 0.72);
+  text-transform: none;
+  overflow-wrap: anywhere;
+  transform: rotate(-2deg);
+  transform-origin: 42% 50%;
+  transition:
+    color 140ms ease,
+    text-shadow 140ms ease,
+    transform 140ms ease;
+
+  &::before {
+    content: '';
+    flex: 0 0 auto;
+    width: clamp(14px, 1.2vw, 20px);
+    height: clamp(14px, 1.2vw, 20px);
+    border: 2px solid currentColor;
+    border-radius: 38% 62% 47% 53% / 54% 42% 58% 46%;
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.1),
+      0 0 8px rgba(77, 111, 194, 0.36);
+    transform: rotate(2deg);
+    transition:
+      background 140ms ease,
+      border-color 140ms ease,
+      box-shadow 140ms ease,
+      transform 140ms ease;
+  }
+
+  &:hover,
+  &:focus-visible {
+    color: #f3e0a8;
+    outline: none;
+    text-shadow:
+      0 0 1px #fff,
+      0 0 14px rgba(243, 224, 168, 0.66),
+      0 2px 3px rgba(5, 7, 19, 0.9);
+    transform: translateY(-2px) rotate(-2deg);
+
+    &::before {
+      border-color: #f7eccc;
+      background: rgba(243, 224, 168, 0.55);
+      box-shadow:
+        0 0 0 2px rgba(243, 224, 168, 0.18),
+        0 0 12px rgba(243, 224, 168, 0.5);
+      transform: rotate(-2deg);
+    }
+  }
+}
+
+.hand-crew-guide-copy {
+  display: inline-block;
+}
+
+.tired-crew-deck {
+  --tired-card-scale: 0.58;
+  --tired-card-width: calc(var(--card-width) * var(--tired-card-scale));
+  --tired-card-height: calc(var(--card-height) * var(--tired-card-scale));
+  --deck-cover-light: hsl(198 43% 33%);
+  --deck-cover: hsl(198 45% 29%);
+  --deck-cover-dark: hsl(198 46% 25%);
+  --deck-letter: color-mix(in srgb, #82d8ff 34%, #f4d9a4);
+  --deck-edge: color-mix(in srgb, var(--deck-cover-light) 88%, #fff8e8);
+  --deck-line: color-mix(in srgb, var(--deck-letter) 74%, var(--deck-cover-light));
+  --deck-ink: #151916;
+
+  position: absolute;
+  bottom: clamp(10px, 2vh, 22px);
+  left: clamp(12px, 2vw, 26px);
+  z-index: 1002;
+  width: calc(var(--tired-card-width) + 32px);
+  height: calc(var(--tired-card-height) + 18px);
+  color: var(--deck-letter);
+  pointer-events: none;
+}
+
+.tired-crew-deck-card {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: var(--tired-card-width);
+  height: var(--tired-card-height);
+  transform: translate(var(--tired-card-x), var(--tired-card-y)) rotate(var(--tired-card-rotation));
+  transform-origin: center bottom;
+}
+
+.tired-crew-deck-cover.deck-card {
+  position: absolute;
+  left: 0;
+  top: auto;
+  bottom: 0;
+  --card-hue: 198;
+  --card-accent: #82d8ff;
+  width: var(--card-width);
+  height: var(--card-height);
+  cursor: default;
+  transform: scale(var(--tired-card-scale));
+  transform-origin: left bottom;
+}
+
+.tired-crew-deck-cover:not(.is-top-card) {
+  box-shadow:
+    inset 0 0 0 1px var(--deck-edge),
+    inset 0 11px 18px rgba(255, 255, 255, 0.045),
+    inset 0 -18px 28px rgba(0, 0, 0, 0.18),
+    0 13px 12px rgba(0, 0, 0, 0.34);
 }
 
 .hand-end-turn-button {
@@ -1832,6 +2146,8 @@
   text-transform: none;
   white-space: normal;
   transform: rotate(-1.4deg);
+  transform-origin: center;
+  animation: stack-action-attention-pop 680ms cubic-bezier(0.18, 0.82, 0.28, 1) backwards;
   transition:
     color 140ms ease,
     text-shadow 140ms ease,
@@ -1897,6 +2213,28 @@
   }
 }
 
+@keyframes stack-action-attention-pop {
+  0% {
+    transform: rotate(-1.4deg) scale(1.42);
+  }
+
+  38% {
+    transform: rotate(-1.4deg) scale(0.92);
+  }
+
+  58% {
+    transform: rotate(-1.4deg) scale(1.12);
+  }
+
+  78% {
+    transform: rotate(-1.4deg) scale(0.98);
+  }
+
+  100% {
+    transform: rotate(-1.4deg) scale(1);
+  }
+}
+
 .card-stack.is-drop-target::before {
   content: '';
   position: absolute;
@@ -1958,7 +2296,9 @@
 }
 
 .card-shell {
-  --card-title-font-size: 16px;
+  --card-title-font-size: clamp(12px, calc(var(--card-width) * 0.096), 16px);
+  --card-copy-font-size: clamp(9.5px, calc(var(--card-width) * 0.0715), 12px);
+  --card-label-font-size: clamp(7px, calc(var(--card-width) * 0.054), 9px);
 
   position: absolute;
   left: 0;
@@ -2263,7 +2603,7 @@
   overflow: hidden;
   color: #101112;
   font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
-  font-size: 16px;
+  font-size: var(--card-title-font-size);
   font-weight: 500;
   letter-spacing: -0.025em;
   line-height: 1;
@@ -2296,7 +2636,7 @@
   overflow: hidden;
   color: #fff8e3;
   font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
-  font-size: 9px;
+  font-size: var(--card-label-font-size);
   font-weight: 700;
   letter-spacing: 0.02em;
   line-height: 1;
@@ -2369,10 +2709,10 @@
     display: inline;
     color: #11131a;
     font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
-    font-size: 12px;
+    font-size: var(--card-copy-font-size);
     font-weight: 500;
     letter-spacing: -0.01em;
-    line-height: 1;
+    line-height: 1.12;
     text-align: left;
   }
 
@@ -2384,6 +2724,39 @@
     margin: 0 0.05em;
     vertical-align: -0.26em;
   }
+}
+
+.crew-fuel-amount {
+  display: inline-block;
+  min-width: 0.7em;
+  font-weight: 850;
+  text-align: center;
+}
+
+.crew-fuel-amount-upgraded {
+  position: relative;
+  min-width: 1.05em;
+  margin: 0 0.06em;
+  vertical-align: -0.05em;
+}
+
+.crew-fuel-old {
+  color: rgba(17, 19, 26, 0.56);
+  text-decoration: line-through;
+  text-decoration-color: #8b36ff;
+  text-decoration-thickness: 2px;
+}
+
+.crew-fuel-new {
+  position: absolute;
+  top: -0.48em;
+  left: 0.34em;
+  color: #8b36ff;
+  font-size: 1.35em;
+  font-weight: 950;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgba(255, 248, 232, 0.68);
+  transform: rotate(-10deg);
 }
 
 .card-shell.card-kind-discovery {
@@ -3075,7 +3448,7 @@
     gap: 5px;
     padding: 6px 14px 3px 18px;
     font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
-    font-size: 12px;
+    font-size: var(--card-copy-font-size);
     font-weight: 500;
     letter-spacing: -0.01em;
     line-height: 1;
@@ -3098,7 +3471,7 @@
       100% 100%, 0% 100%,
       1% 94%, 0% 82%, 2% 68%, 0% 54%, 1.5% 40%, 0% 26%, 1% 12%
     );
-    font-size: 9px;
+    font-size: var(--card-label-font-size);
     font-weight: 700;
     letter-spacing: 0.02em;
     line-height: 1;
@@ -3115,10 +3488,10 @@
     padding-right: 4px;
     padding-bottom: 2px;
     overflow: visible;
-    font-size: 16px;
+    font-size: var(--card-title-font-size);
     font-weight: 500;
     letter-spacing: -0.025em;
-    line-height: 1;
+    line-height: 1.06;
     text-transform: none;
     white-space: normal;
     transform: rotate(-1.1deg);
@@ -3145,11 +3518,11 @@
 
   .card-rule-text {
     font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
-    font-size: 12px;
+    font-size: var(--card-copy-font-size);
     font-style: normal;
     font-weight: 500;
     letter-spacing: -0.01em;
-    line-height: 1;
+    line-height: 1.12;
     text-shadow: none;
   }
 
@@ -3646,7 +4019,7 @@
   margin-bottom: 3px;
 
   > span {
-    font-size: 9px;
+    font-size: var(--card-label-font-size);
     font-weight: 700;
     letter-spacing: 0.02em;
     line-height: 1;
@@ -3661,6 +4034,135 @@
 
 .sector-card-discount {
   margin-top: -3px;
+}
+
+.open-mission-description {
+  display: inline-block;
+  font-weight: 500;
+  line-height: 1.35;
+  opacity: 0.85;
+}
+
+.open-mission-art {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: clamp(40px, 6vw, 90px);
+}
+
+.open-mission-art .sector-card-art-layer {
+  position: relative;
+  inset: auto;
+  flex: none;
+}
+
+.open-mission-art .sector-card-art-layer.is-blueprint {
+  width: clamp(46px, 5.4vw, 78px);
+  margin-left: -6px;
+  /* Left image — nudged slightly lower for staggered composition. */
+  transform: translateY(clamp(4px, 0.6vw, 8px));
+}
+
+.open-mission-art .sector-card-art-layer.is-route {
+  width: clamp(34px, 4vw, 58px);
+  margin-left: -8px;
+  /* Right image — nudged slightly higher to mirror the left offset. */
+  transform: translateY(clamp(-8px, -0.6vw, -4px));
+}
+
+.mission-icon-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 5px 2px;
+  border: 1.5px solid currentColor;
+  border-radius: 12px 9px 11px 8px / 9px 11px 8px 12px;
+  background: color-mix(in oklab, currentColor 6%, transparent);
+  transform: rotate(-1.2deg);
+}
+
+.mission-icon-group + .mission-icon-group {
+  margin-left: 2px;
+  transform: rotate(0.8deg);
+}
+
+.mission-icon-group + .mission-icon-group + .mission-icon-group {
+  transform: rotate(-0.6deg);
+}
+
+.mission-icon-group + .mission-icon-group + .mission-icon-group + .mission-icon-group {
+  transform: rotate(1.4deg);
+}
+
+.mission-crew-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  isolation: isolate;
+  padding-left: clamp(7px, 0.8vw, 12px);
+
+  > .game-icon,
+  > .mission-spec-slot {
+    position: relative;
+    z-index: 1;
+  }
+
+  > .game-icon[data-kind='person'] {
+    position: absolute;
+    inset: 50% auto auto 0;
+    z-index: 0;
+    opacity: 0.78;
+    transform: translateY(-50%) rotate(-9deg);
+  }
+}
+
+.mission-icon-group.mission-crew-badge {
+  padding-left: clamp(11px, 1.1vw, 16px);
+}
+
+/*
+  Abstract spec slot: a colored chip used in place of a specific Engine/Life/
+  Nav/Science icon. The hue+pattern combination tells players "same-color =
+  same spec" without committing to a specific spec, matching the structural
+  pattern check ("any matched pair", "any 3 sharing one spec").
+*/
+.mission-spec-slot {
+  position: relative;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in oklab, currentColor 55%, transparent);
+  flex: none;
+  background-color: var(--mission-spec-color, hsl(0, 0%, 55%));
+  background-image: var(--mission-spec-pattern, none);
+  background-size: var(--mission-spec-pattern-size, auto);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, white 22%, transparent);
+}
+
+.mission-spec-slot[data-spec-color='1'] {
+  --mission-spec-color: hsl(38, 75%, 62%);
+}
+
+.mission-spec-slot[data-spec-color='2'] {
+  --mission-spec-color: hsl(195, 55%, 58%);
+  --mission-spec-pattern: radial-gradient(circle, rgba(255, 255, 255, 0.55) 1px, transparent 1.4px);
+  --mission-spec-pattern-size: 4px 4px;
+}
+
+.mission-spec-slot[data-spec-color='3'] {
+  --mission-spec-color: hsl(325, 55%, 60%);
+  --mission-spec-pattern: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.45) 0 1.5px, transparent 1.5px 4px);
+}
+
+.mission-spec-slot[data-spec-color='4'] {
+  --mission-spec-color: hsl(140, 50%, 50%);
+  --mission-spec-pattern:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.25) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.25) 0 1px, transparent 1px 4px);
 }
 
 .sector-card-footer {
@@ -3693,10 +4195,10 @@
   display: inline;
   color: #11131a;
   font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
-  font-size: 12px;
+  font-size: var(--card-copy-font-size);
   font-weight: 500;
   letter-spacing: -0.01em;
-  line-height: 1;
+  line-height: 1.12;
   text-align: left;
 
   .need-icon-count {
@@ -3756,7 +4258,7 @@
   gap: 2px;
   color: #11131a;
   font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
-  font-size: 12px;
+  font-size: var(--card-copy-font-size);
   font-weight: 500;
   letter-spacing: -0.01em;
   line-height: 1;
@@ -3984,7 +4486,7 @@
   font-style: italic;
   font-weight: 850;
   letter-spacing: -0.035em;
-  line-height: 1.08;
+  line-height: 1.12;
 }
 
 .card-icon-row {
@@ -4011,7 +4513,7 @@
   font-style: italic;
   font-weight: 850;
   letter-spacing: -0.045em;
-  line-height: 1.08;
+  line-height: 1.12;
   text-align: left;
   text-shadow: 0 1px 0 rgba(255, 248, 232, 0.42);
   transform: rotate(-0.6deg);
@@ -4701,12 +5203,19 @@
   .hand {
     --hand-card-scale: 0.56;
 
-    right: 12px;
+    right: 8px;
     bottom: 8px;
-    left: 52px;
-    grid-template-columns: minmax(0, 1fr) minmax(78px, 0.65fr) 104px;
+    left: 8px;
+    grid-template-columns: minmax(82px, 0.34fr) minmax(0, 1fr) minmax(82px, 0.34fr);
     gap: 6px;
     min-height: calc(var(--hand-card-height) + 24px);
+  }
+
+  .tired-crew-deck {
+    --tired-card-scale: 0.52;
+
+    bottom: 8px;
+    left: 8px;
   }
 
   .hand-zone {
@@ -4732,7 +5241,6 @@
   }
 
   .hand-zone-stress {
-    bottom: calc(100% + 4px);
     left: 12px;
     font-size: 12px;
   }
