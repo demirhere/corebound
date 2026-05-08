@@ -335,6 +335,14 @@
   }
 }
 
+.research-overlay {
+  pointer-events: none;
+}
+
+.research-panel {
+  pointer-events: auto;
+}
+
 .arrival-panel {
   position: relative;
   z-index: 1;

@@ -47,11 +47,11 @@ export function ResearchDialog({
   const canRedraw = canInteract && hasRedrawPool && board.scraps >= redrawCost
 
   return (
-    <div className="dialog-overlay">
+    <div className="dialog-overlay research-overlay">
       <section
         className="arrival-panel research-panel"
         role="dialog"
-        aria-modal="true"
+        aria-modal="false"
         aria-labelledby="research-dialog-title"
       >
         <div className="research-header">
