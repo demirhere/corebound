@@ -5,7 +5,8 @@ import { CrewGuideDialog } from './components/CrewGuideDialog'
 import { HowToPlayDialog } from './components/HowToPlayDialog'
 import { PlaytestLog } from './components/PlaytestLog'
 import { RealtimePanel } from './components/RealtimePanel'
-import { resolvePendingDriftUpdate } from './board/boardUpdaters'
+import { resolvePendingDriftUpdate, sortHandCrewUpdate } from './board/boardUpdaters'
+import type { HandCrewSortKind } from './board/handState'
 import {
   createInitialGameState,
   gameReducer,
@@ -138,6 +139,17 @@ function App() {
     dispatchGame({ type: 'reset-game', occurredAt: new Date().toISOString() })
   }
 
+  function returnToMainMenu() {
+    if (!canResetGame) {
+      return
+    }
+
+    interactions.resetInteractions()
+    setIsHowToPlayOpen(false)
+    setIsCrewGuideOpen(false)
+    setIsGameStarted(false)
+  }
+
   function beginGame() {
     if (isRealtimeObserver) {
       return
@@ -151,6 +163,14 @@ function App() {
       occurredAt: new Date().toISOString(),
     })
     setIsGameStarted(true)
+  }
+
+  function sortCrewHand(sortKind: HandCrewSortKind) {
+    if (!canUseOwnCrew) {
+      return
+    }
+
+    setBoard(sortHandCrewUpdate(sortKind, localPlayerId))
   }
 
   return (
@@ -186,10 +206,16 @@ function App() {
             onScoutCardChoice={canMoveBoardFreely ? interactions.onScoutCardChoice : noop}
             onScoutChoiceConfirm={canMoveBoardFreely ? interactions.onScoutChoiceConfirm : noop}
             onShipPartChoice={canMoveBoardFreely ? interactions.onShipPartChoice : noop}
+            onPurchaseShipPart={canMoveBoardFreely ? interactions.onPurchaseShipPart : noop}
+            onRedrawResearchOffers={canMoveBoardFreely ? interactions.onRedrawResearchOffers : noop}
+            onCloseResearchDialog={canMoveBoardFreely ? interactions.onCloseResearchDialog : noop}
+            onDiscardActiveShipPart={canMoveBoardFreely ? interactions.onDiscardActiveShipPart : noop}
             onStackAction={canMoveBoardFreely ? interactions.onStackAction : noop}
             onEndTurn={canUseTurnControls ? interactions.onEndTurn : noop}
             onShowCrewGuide={() => setIsCrewGuideOpen(true)}
+            onSortCrew={canUseOwnCrew ? sortCrewHand : noop}
             onResetGame={resetGame}
+            onReturnToMainMenu={returnToMainMenu}
           />
           <PlaytestLog
             entries={playtestLog}

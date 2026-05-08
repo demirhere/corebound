@@ -270,6 +270,22 @@ export function cardsMovedToHandEvent(
   }
 }
 
+export function crewReclaimedToHandEvent(
+  cardIds: readonly string[],
+  cards: Record<string, Card>,
+): PlaytestLogEvent {
+  return {
+    type: 'crew.reclaimed_to_hand',
+    message: `${describeCards(cardIds, cards)} returned to hand from the board before refilling from Cryo.`,
+    details: {
+      cardIds,
+      cardTitles: cardTitles(cardIds, cards),
+      cardSummaries: cardSummaries(cardIds, cards),
+      cardContents: cardContents(cardIds, cards),
+    },
+  }
+}
+
 export function handCardDroppedEvent(card: Card, stackId: string, x: number, y: number): PlaytestLogEvent {
   return {
     type: 'card.moved_from_hand',
@@ -771,6 +787,72 @@ export function stressClearedEvent(source: string, from: number, to: number): Pl
   }
 }
 
+export function researchOfferedEvent(offers: readonly { id: string, label: string, cost: number }[]): PlaytestLogEvent {
+  return {
+    type: 'research.offered',
+    message: `Research dialog opened with ${offers.length} offer${offers.length === 1 ? '' : 's'}: ${offers.map((o) => `${o.label} (${o.cost} Scraps)`).join(', ')}.`,
+    details: {
+      offerCount: offers.length,
+      offerIds: offers.map((o) => o.id),
+      offerSummary: offers.map((o) => `${o.label}|${o.cost}`),
+    },
+  }
+}
+
+export function researchSkippedEvent(consolation: number, from: number, to: number): PlaytestLogEvent {
+  return {
+    type: 'research.skipped',
+    message: consolation > 0
+      ? `Research dialog closed without a buy: +${consolation} Scrap (${from} → ${to}).`
+      : `Research dialog closed for next sector: no Scrap gained (${from} → ${to}).`,
+    details: { consolation, from, to },
+  }
+}
+
+export function researchRedrawnEvent(
+  cost: number,
+  from: number,
+  to: number,
+  offers: readonly { id: string, label: string, cost: number }[],
+): PlaytestLogEvent {
+  return {
+    type: 'research.redrawn',
+    message: `Research offers re-drawn for ${cost} Scrap${cost === 1 ? '' : 's'} (${from} → ${to}): ${offers.map((o) => `${o.label} (${o.cost} Scraps)`).join(', ')}.`,
+    details: {
+      cost,
+      from,
+      to,
+      offerCount: offers.length,
+      offerIds: offers.map((o) => o.id),
+      offerSummary: offers.map((o) => `${o.label}|${o.cost}`),
+    },
+  }
+}
+
+export function shipPartBoughtEvent(label: string, cost: number, scrapsBefore: number, scrapsAfter: number): PlaytestLogEvent {
+  return {
+    type: 'ship-part.bought',
+    message: `Ship Part bought: ${label} for ${cost} Scrap${cost === 1 ? '' : 's'} (${scrapsBefore} → ${scrapsAfter}).`,
+    details: { label, cost, scrapsBefore, scrapsAfter },
+  }
+}
+
+export function shipPartDiscardedEvent(label: string, refund: number, scrapsBefore: number, scrapsAfter: number): PlaytestLogEvent {
+  return {
+    type: 'ship-part.discarded',
+    message: `Ship Part discarded: ${label} for +${refund} Scrap${refund === 1 ? '' : 's'} refund (${scrapsBefore} → ${scrapsAfter}).`,
+    details: { label, refund, scrapsBefore, scrapsAfter },
+  }
+}
+
+export function scrapsEarnedEvent(source: string, amount: number, from: number, to: number): PlaytestLogEvent {
+  return {
+    type: 'scraps.earned',
+    message: `${source}: +${amount} Scrap${amount === 1 ? '' : 's'} (${from} → ${to}).`,
+    details: { source, amount, from, to },
+  }
+}
+
 export function driftDeckReshuffledEvent(deck: Deck): PlaytestLogEvent {
   return {
     type: 'drift.deck.reshuffled',
@@ -791,6 +873,14 @@ export function fuelDeckReshuffledEvent(deck: Deck, discardCount: number): Playt
       deckTitle: deck.title,
       discardCount,
     },
+  }
+}
+
+export function cryoDeckReshuffledEvent(tiredCount: number): PlaytestLogEvent {
+  return {
+    type: 'cryo.deck.reshuffled',
+    message: `Cryo Deck was empty — ${tiredCount} Tired crew shuffled back into Cryo.`,
+    details: { tiredCount },
   }
 }
 

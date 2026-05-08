@@ -1,6 +1,7 @@
 import { SOLO_PLAYER, createInitialBoardSetup } from './setup'
 import type { BoardState, GamePlayer } from './types'
 import { FUEL_DECK_ID, FUEL_DISCARD_DECK_ID, automaticRewardDeckDraw } from './decks'
+import { shipPartCatalog } from './shipPartCatalog'
 import {
   appendPlaytestEvents,
   type PlaytestLogEntry,
@@ -168,10 +169,17 @@ function migrateBoardState(board: BoardState): BoardState {
         }
       : null,
     pendingShipPartChoice: legacyBoard.pendingShipPartChoice ?? null,
+    pendingResearchChoice: legacyBoard.pendingResearchChoice ?? null,
     pendingDrift: legacyBoard.pendingDrift ?? null,
     heldDriftCount: legacyBoard.heldDriftCount ?? 0,
+    scraps: legacyBoard.scraps ?? 0,
+    activeShipParts: legacyBoard.activeShipParts ?? [],
+    shipPartShopPool: legacyBoard.shipPartShopPool ?? [...shipPartCatalog],
     isRunEnding: legacyBoard.isRunEnding ?? false,
     patternUsageCounts: legacyBoard.patternUsageCounts ?? {},
+    missionsCompletedCount: legacyBoard.missionsCompletedCount ?? 0,
+    lastPatternPlayed: legacyBoard.lastPatternPlayed ?? null,
+    patternStreakCount: legacyBoard.patternStreakCount ?? 0,
   }
 }
 

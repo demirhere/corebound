@@ -18,6 +18,9 @@ import {
   addStackToHandUpdate,
   chooseScoutCardUpdate,
   chooseShipPartUpdate,
+  closeResearchDialogUpdate,
+  discardActiveShipPartUpdate,
+  purchaseShipPartUpdate,
   chooseWakeCrewUpdate,
   clickHandCardToBoardUpdate,
   clearBoardDropTargetUpdate,
@@ -33,6 +36,7 @@ import {
   endTurnUpdate,
   promoteHandCardToStackUpdate,
   reorderHandCardUpdate,
+  redrawResearchOffersUpdate,
   returnOwnedCrewCardToHandUpdate,
   stackOnDropTargetUpdate,
   toggleCardFaceUpdate,
@@ -1020,6 +1024,26 @@ export function useBoardInteractions({
     setBoard(chooseShipPartUpdate(cardId))
   }
 
+  function purchaseShipPart(shipPartId: string) {
+    if (!canMoveBoardFreely) return
+    setBoard(purchaseShipPartUpdate(shipPartId))
+  }
+
+  function closeResearchDialog() {
+    if (!canMoveBoardFreely) return
+    setBoard(closeResearchDialogUpdate)
+  }
+
+  function redrawResearchOffers() {
+    if (!canMoveBoardFreely) return
+    setBoard(redrawResearchOffersUpdate)
+  }
+
+  function discardActiveShipPart(instanceId: string) {
+    if (!canMoveBoardFreely) return
+    setBoard(discardActiveShipPartUpdate(instanceId))
+  }
+
   function completeStackAction(stackId: string, actionId: string) {
     if (!canMoveBoardFreely) {
       return
@@ -1877,6 +1901,10 @@ export function useBoardInteractions({
     onScoutCardChoice: chooseScoutCard,
     onScoutChoiceConfirm: confirmScoutChoice,
     onShipPartChoice: chooseShipPart,
+    onPurchaseShipPart: purchaseShipPart,
+    onRedrawResearchOffers: redrawResearchOffers,
+    onCloseResearchDialog: closeResearchDialog,
+    onDiscardActiveShipPart: discardActiveShipPart,
     onStackAction: completeStackAction,
     onEndTurn: endTurn,
     resetInteractions,

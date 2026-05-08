@@ -20,28 +20,28 @@
 - No test runner, test script, CI workflow, formatter config, or pre-commit hook is currently configured; do not invent `pnpm test` as verification.
 
 ## Simulation
-`scripts/simulate.mjs` is the canonical balance check. It mirrors the live open-mission stacking economy: 5 starting crew, 7-card cryo (1 drawn per action), tired resets at sector start, 3 mission actions per sector, fixed 10-gate ramp sorted ascending, dynamic per-action pattern matching against the highest-fuel hand the stacked crew satisfies.
+`scripts/simulate.mjs` is the canonical balance check. It mirrors the live joker economy: 5 starting crew, 7-card cryo, hand size 5 with Balatro-style tired/cryo cycle (no sector-end auto-reset), 3 mission actions per sector, fixed 10-gate ramp 10/11/12/14/18/22/26/30/33/36 (total 212, calibrated for the v2 catalog and tightened scrap tiers). Pattern fuel rewards are tight: Cross-Trained 1, Common Ground 2, Specialist 2, Common Knowledge 3, Department Heads 4, Common Cause 4, Bridge Crew 6. Scrap reward tiers: 1-3 Fuel → 1 Scrap, 4-5 Fuel → 2, 6+ Fuel → 3. After each gate the player is offered 2 random ship parts from the 25-card un-owned research pool, with a paid re-roll option (cost = cheapest current offer's cost) in the live dialog. Scraps come from missions and from joker triggers (Recovery Drone, Cargo Hold) — there is no bank-style interest and no skip consolation.
 
-**Re-run `pnpm sim` whenever you touch:** crew rosters, hand patterns + their fuel rewards, gate costs, starting fuel, sector / action counts, or the cryo-draw cadence. The simulator's data constants are mirrored at the top of the file with comments pointing at the source files (`src/game/blueprints/crewDecks.ts`, `src/game/rules.ts`, `src/game/blueprints/sectorGates.ts`, `src/game/economyTuning.ts`, `src/game/setup.ts`); update them in lockstep with the game.
+**Re-run `pnpm sim` whenever you touch:** crew rosters, hand patterns + their fuel rewards, gate costs, starting fuel, sector / action counts, ship part catalog, or scrap economy. The simulator's data constants are mirrored at the top of the file with comments pointing at the source files (`src/game/blueprints/crewDecks.ts`, `src/game/rules.ts`, `src/game/blueprints/sectorGates.ts`, `src/game/economyTuning.ts`, `src/game/setup.ts`, `src/game/shipPartCatalog.ts`); update them in lockstep with the game.
 
 **Target metrics** for greedy max-fuel-pattern play (the strategy a competent player approximates):
-- **Sector 1 pass rate ≈ 94–95%.** A small bite at the start so the first gate isn't a free pass, but most runs continue.
-- **Overall win rate ≈ 4–5%.** Roughly 1-in-20 runs should clear all 10 gates. Lower means players bounce off; higher means there's no resource pressure.
+- **Sector 1 pass rate = 100%.** Fuel is deterministic at S1 with the tight rewards (gate cost 10 ≤ greedy earnings ~10.96 Fuel/sector before jokers).
+- **Overall win rate ≈ 4–5%** with jokers ON. Roughly 1-in-20 runs clears all 10 gates with a greedy joker buyer.
+- **Win rate ≈ 0%** with jokers OFF (`NO_JOKERS=1`). The ramp is tuned so a no-joker baseline cannot beat the back-end gates 17/18/19/22/24.
 
-**Target curve shape** (cumulative reach %, sector-by-sector):
-- Sector 1 ≈ 100% (everyone starts), drops to ~95% after gate 1.
-- Mid-sectors (2–8) should drop gradually — ideally 3–10 percentage points per sector — so failures spread across the run instead of bunching at the end.
-- Late-sector (9, 10) drops can be sharper as the Hazard-tier costs eat accumulated buffer.
-- The current fixed-ramp design intentionally clusters most failures at sector 10 against a perfectly greedy strategy because greedy earnings are very consistent (~27 Fuel/sector once cryo fills). Human play with sub-optimal stacking spreads the dropouts naturally. If you want stronger mid-sector pressure even under greedy play, raise sectors 5–8 by ~3–4 Fuel each and re-run the sim.
+**Target curve shape** (per-sector dropout, jokers ON):
+- S1 0% (deterministic pass), S2 ~6%, S3 ~5%, S4 ~5% (gentle warm-up).
+- S5 ~9%, S6 ~14%, S7 ~24%, S8 ~17%, S9 ~9% (monotonic rise then taper).
+- S10 ~5% (last gate cost 36 — winners arrive with thin buffer).
 
 **How to verify a design change:**
-1. Update the source-of-truth file (e.g., `sectorGates.ts`).
+1. Update the source-of-truth file (e.g., `sectorGates.ts`, `shipPartCatalog.ts`).
 2. Mirror the change in `scripts/simulate.mjs`.
 3. Run `pnpm sim --runs=1000000` (~15s).
-4. Confirm S1 reach (≈95%), Win (≈4%), and inspect the per-sector dropout curve.
-5. If the metrics drift, iterate on costs/rewards/starting values until back in range.
+4. Confirm S1 = 100%, Win ≈ 4–5% jokers ON, Win ≈ 0% jokers OFF, and inspect the per-sector dropout curve.
+5. If the metrics drift, iterate on costs/rewards/catalog until back in range.
 
-The previous balance-tuning iterations (gate-tier scaling, starting fuel, hand-pattern fuel rewards) are documented in the playtest-log session messages and the comments inside `sectorGates.ts` / `economyTuning.ts`.
+Previous balance-tuning iterations (gate ramp, pattern rewards, joker catalog) and dominance flags (Fuel Cell Distillery, replacement heuristic) are documented in the TUNING NOTES at the bottom of `scripts/simulate.mjs`.
 
 ## Toolchain Quirks
 - TypeScript uses project references from root `tsconfig.json`; app code is included only from `src`, and `vite.config.ts` is covered by `tsconfig.node.json`.

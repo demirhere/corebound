@@ -27,6 +27,10 @@ function renderGameIcon(kind: GameIconKind) {
       return (
         <path className="icon-line" d="M18.7 4.3 8.2 17.9h7.2l-1.3 9.8 9.9-14.3h-7Z" />
       )
+    case 'scrap':
+      return (
+        <circle className="icon-line" cx="16" cy="16" r="7.2" strokeDasharray="1.7 2.5" />
+      )
     case 'parts':
       return (
         <>

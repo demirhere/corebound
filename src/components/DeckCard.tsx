@@ -62,7 +62,7 @@ export function DeckCard({
           '--card-accent': deck.accent,
           left: `${displayX}%`,
           top: `${displayY}%`,
-          zIndex: isActive || isSharedActive ? 1101 : deck.z,
+          zIndex: isActive || isSharedActive ? 'var(--drag-z-index)' : deck.z,
         } as CSSProperties
       }
       tabIndex={canInteract ? 0 : -1}

@@ -2,6 +2,7 @@ import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from 'react'
 import type { HandZone } from '../game/types'
 import { CardShell, type CardView } from './BoardCard'
@@ -37,11 +38,14 @@ type HandZoneAreaProps = {
   totalSectors?: number
   missionsCompleted?: number
   turnNumber?: number
+  fuel?: number
+  scraps?: number
   waterPairFuelAmount: number
   canInteract: boolean
   onCardPointerDown: HandPointerDownHandler
   onCardKeyDown: HandKeyDownHandler
   subtitle?: string
+  headerControls?: ReactNode
 }
 
 function getHandCards(cardIds: readonly string[], cards: Record<string, CardView>) {
@@ -101,11 +105,14 @@ export function HandZoneArea({
   totalSectors,
   missionsCompleted,
   turnNumber,
+  fuel,
+  scraps,
   waterPairFuelAmount,
   canInteract,
   onCardPointerDown,
   onCardKeyDown,
   subtitle,
+  headerControls,
 }: HandZoneAreaProps) {
   const handCards = getHandCards(cardIds, cards)
   const cardCount = handCards.length
@@ -129,16 +136,21 @@ export function HandZoneArea({
       currentSector !== undefined &&
       totalSectors !== undefined &&
       missionsCompleted !== undefined &&
-      turnNumber !== undefined ? (
+      turnNumber !== undefined &&
+      fuel !== undefined &&
+      scraps !== undefined ? (
         <StressTracker
           currentSector={currentSector}
           totalSectors={totalSectors}
           missionsCompleted={missionsCompleted}
           turnNumber={turnNumber}
+          fuel={fuel}
+          scraps={scraps}
         />
       ) : null}
       <span className="hand-zone-label">{label}</span>
       {subtitle && <span className="hand-zone-subtitle">{subtitle}</span>}
+      {headerControls}
       <div className="hand-strip">
         {previewIndex !== null &&
           Array.from({ length: previewCardCount }, (_, index) => (

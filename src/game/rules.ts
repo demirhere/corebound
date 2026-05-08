@@ -60,14 +60,20 @@ type GateNeedPayment = CrewMotherNeedPayment & {
 
 const requirementIconKinds = ['life', 'star', 'engine', 'signal'] as const
 
-function isMatchedSpecialistCard(card: Card | undefined) {
+// Wild slot (Tachyon Lens): one specific crew counts as if it had all 4
+// icons AND counts as matched/mixed for pattern-matching purposes. The
+// helpers below accept an optional `wildCardId` to opt into that behavior.
+
+function isMatchedSpecialistCard(card: Card | undefined, wildCardId: string | null = null) {
   if (card?.kind !== 'crew') return false
+  if (wildCardId && card.id === wildCardId) return true
   const specs = card.specializations ?? []
   return specs.length === 2 && specs[0] === specs[1]
 }
 
-function isMixedCrewCard(card: Card | undefined) {
+function isMixedCrewCard(card: Card | undefined, wildCardId: string | null = null) {
   if (card?.kind !== 'crew') return false
+  if (wildCardId && card.id === wildCardId) return true
   const specs = card.specializations ?? []
   return specs.length === 2 && specs[0] !== specs[1]
 }
@@ -76,24 +82,49 @@ function crewSpecializations(card: Card | undefined): readonly RequirementIconKi
   return card?.kind === 'crew' ? card.specializations ?? [] : []
 }
 
-function countCrewWithIcon(crewCards: readonly Card[], icon: RequirementIconKind) {
+function crewHasIcon(card: Card | undefined, icon: RequirementIconKind, wildCardId: string | null = null) {
+  if (card?.kind !== 'crew') return false
+  if (wildCardId && card.id === wildCardId) return true
+  return crewSpecializations(card).includes(icon)
+}
+
+function crewSharesIconWith(a: Card | undefined, b: Card | undefined, wildCardId: string | null = null) {
+  if (a?.kind !== 'crew' || b?.kind !== 'crew') return false
+  if (wildCardId && (a.id === wildCardId || b.id === wildCardId)) return true
+  const aSpecs = crewSpecializations(a)
+  const bSpecs = crewSpecializations(b)
+  return aSpecs.some((spec) => bSpecs.includes(spec))
+}
+
+function countCrewWithIcon(crewCards: readonly Card[], icon: RequirementIconKind, wildCardId: string | null = null) {
   let count = 0
   for (const card of crewCards) {
-    if (crewSpecializations(card).includes(icon)) count += 1
+    if (crewHasIcon(card, icon, wildCardId)) count += 1
   }
   return count
 }
 
-function specialistDistinctIcons(crewCards: readonly Card[]) {
-  const icons = new Set<RequirementIconKind>()
+function specialistDistinctIcons(crewCards: readonly Card[], wildCardId: string | null = null) {
+  const realIcons = new Set<RequirementIconKind>()
+  let hasWild = false
   for (const card of crewCards) {
+    if (wildCardId && card.id === wildCardId) {
+      hasWild = true
+      continue
+    }
     if (isMatchedSpecialistCard(card)) {
       const specs = crewSpecializations(card)
       const icon = specs[0]
-      if (icon) icons.add(icon)
+      if (icon) realIcons.add(icon)
     }
   }
-  return icons
+  if (!hasWild) return realIcons
+  // The wild slot fills the first icon not already covered (so it
+  // contributes a distinct entry whenever possible).
+  const filler = requirementIconKinds.find((icon) => !realIcons.has(icon))
+  const result = new Set(realIcons)
+  if (filler) result.add(filler)
+  return result
 }
 
 export function getMissionPatternLabel(pattern: MissionPatternKind): string {
@@ -109,17 +140,34 @@ export function getMissionPatternLabel(pattern: MissionPatternKind): string {
   }
 }
 
-// Patterns ranked by fuel reward. On 1-fuel ties, Cross-Trained (1 crew) is
-// strictly more efficient than Common Ground (2 crew), so it ranks higher.
+// Patterns ranked by fuel reward. Joker-economy "tight" rewards: each
+// pattern's fuel = sum(crew_ranks) × pattern_mult. With every crew at
+// rank 1, the result simplifies to crew_count × mult:
+//   Cross-Trained     1 × 1   = 1
+//   Common Ground     2 × 1   = 2
+//   Specialist        1 × 2   = 2
+//   Common Knowledge  3 × 1   = 3
+//   Department Heads  2 × 2   = 4
+//   Common Cause      4 × 1   = 4
+//   Bridge Crew       4 × 1.5 = 6
+// On 2-fuel ties, Specialist (1 crew) is more efficient than Common
+// Ground (2 crew); on 4-fuel ties, Department Heads (2 crew) beats
+// Common Cause (4 crew). Order reflects that.
 const PATTERN_FUEL_DESC: readonly { pattern: MissionPatternKind, fuel: number }[] = [
-  { pattern: 'bridge-crew',      fuel: 16 },
-  { pattern: 'common-cause',     fuel: 8 },
-  { pattern: 'department-heads', fuel: 5 },
+  { pattern: 'bridge-crew',      fuel: 6 },
+  { pattern: 'department-heads', fuel: 4 },
+  { pattern: 'common-cause',     fuel: 4 },
   { pattern: 'common-knowledge', fuel: 3 },
   { pattern: 'specialist',       fuel: 2 },
+  { pattern: 'common-ground',    fuel: 2 },
   { pattern: 'cross-trained',    fuel: 1 },
-  { pattern: 'common-ground',    fuel: 1 },
 ]
+
+// Largest crew count any pattern uses (Bridge Crew and Common Cause both
+// take 4). A 5th crew on a mission pile cannot improve the pattern score,
+// so we disallow stacks that exceed this cap to keep mission piles tidy
+// and prevent wasted clicks.
+export const MAX_CREW_PER_MISSION_PATTERN = 4
 
 export function getMissionPatternFuel(pattern: MissionPatternKind): number {
   if (pattern === 'open') return 0
@@ -129,9 +177,10 @@ export function getMissionPatternFuel(pattern: MissionPatternKind): number {
 export function findBestPatternForCrew(
   crewCardIds: readonly string[],
   cards: Record<string, Card>,
+  wildCardId: string | null = null,
 ): { pattern: MissionPatternKind, fuel: number } | null {
   for (const { pattern, fuel } of PATTERN_FUEL_DESC) {
-    if (canCompleteHandPattern(crewCardIds, cards, pattern)) {
+    if (canCompleteHandPattern(crewCardIds, cards, pattern, wildCardId)) {
       return { pattern, fuel }
     }
   }
@@ -142,6 +191,7 @@ export function canCompleteHandPattern(
   crewCardIds: readonly string[],
   cards: Record<string, Card>,
   pattern: MissionPatternKind,
+  wildCardId: string | null = null,
 ): boolean {
   const crewCards = crewCardIds
     .map((id) => cards[id])
@@ -150,28 +200,26 @@ export function canCompleteHandPattern(
   switch (pattern) {
     case 'open':
       // Any crew that satisfies any concrete pattern works.
-      return PATTERN_FUEL_DESC.some(({ pattern: p }) => canCompleteHandPattern(crewCardIds, cards, p))
+      return PATTERN_FUEL_DESC.some(({ pattern: p }) => canCompleteHandPattern(crewCardIds, cards, p, wildCardId))
     case 'cross-trained':
-      return crewCards.some(isMixedCrewCard)
+      return crewCards.some((card) => isMixedCrewCard(card, wildCardId))
     case 'common-ground':
       for (let i = 0; i < crewCards.length; i++) {
-        const a = crewSpecializations(crewCards[i])
         for (let j = i + 1; j < crewCards.length; j++) {
-          const b = crewSpecializations(crewCards[j])
-          if (a.some((spec) => b.includes(spec))) return true
+          if (crewSharesIconWith(crewCards[i], crewCards[j], wildCardId)) return true
         }
       }
       return false
     case 'specialist':
-      return crewCards.some(isMatchedSpecialistCard)
+      return crewCards.some((card) => isMatchedSpecialistCard(card, wildCardId))
     case 'common-knowledge':
-      return requirementIconKinds.some((icon) => countCrewWithIcon(crewCards, icon) >= 3)
+      return requirementIconKinds.some((icon) => countCrewWithIcon(crewCards, icon, wildCardId) >= 3)
     case 'department-heads':
-      return specialistDistinctIcons(crewCards).size >= 2
+      return specialistDistinctIcons(crewCards, wildCardId).size >= 2
     case 'common-cause':
-      return requirementIconKinds.some((icon) => countCrewWithIcon(crewCards, icon) >= 4)
+      return requirementIconKinds.some((icon) => countCrewWithIcon(crewCards, icon, wildCardId) >= 4)
     case 'bridge-crew':
-      return specialistDistinctIcons(crewCards).size === 4
+      return specialistDistinctIcons(crewCards, wildCardId).size === 4
   }
 }
 
@@ -606,7 +654,10 @@ function canUseAllCardsInCompletionStack(
 
   if (objectiveCard.kind === 'mission' && objectiveCard.mission) {
     if (objectiveCard.mission.pattern) {
-      return true
+      // Pattern missions accept any crew composition the player builds,
+      // but no current pattern uses more than MAX_CREW_PER_MISSION_PATTERN
+      // crew, so reject piles that exceed the cap.
+      return crewCardIds.length <= MAX_CREW_PER_MISSION_PATTERN
     }
 
     const missionFuelDiscount = countMissionFuelDiscountDiscoveries(cardIds, cards)
@@ -681,6 +732,7 @@ function canStackAsLoosePile(sourceStack: Stack, targetStack: Stack, cards: Reco
 
   return (
     stackedCards.every((card) => card?.kind === 'resource' && card.resource === 'fuel') ||
+    stackedCards.every((card) => card?.kind === 'resource' && card.resource === 'scrap') ||
     stackedCards.every((card) => card?.kind === 'crew') ||
     stackedCards.every((card) => card?.kind === 'discovery') ||
     stackedCards.every((card) => card?.kind === 'mother' && card.spentMother !== true) ||
@@ -693,6 +745,12 @@ function canStackAsLoosePile(sourceStack: Stack, targetStack: Stack, cards: Reco
         isUsableMotherCard(card),
     )
   )
+}
+
+function canStackAsShipPartPile(sourceStack: Stack, targetStack: Stack, cards: Record<string, Card>) {
+  const stackedCards = [...targetStack.cardIds, ...sourceStack.cardIds].map((cardId) => cards[cardId])
+
+  return stackedCards.every((card) => card?.kind === 'active-ship-part')
 }
 
 function canStackAsGateHazardPile(sourceStack: Stack, targetStack: Stack, cards: Record<string, Card>) {
@@ -763,6 +821,7 @@ export function canStackCards(
       isFaceUpStack(sourceStack, cards) &&
       isFaceUpStack(targetStack, cards) &&
       (
+      canStackAsShipPartPile(sourceStack, targetStack, cards) ||
       canStackAsLoosePile(sourceStack, targetStack, cards) ||
       canStackAsBlueprintPrepPile(sourceStack, targetStack, cards) ||
       canUseAllCardsInCompletionStack(
@@ -1532,6 +1591,7 @@ export function getMissionStackCompletion(
   fuelDiscount = 0,
   missionAnyIconSurcharge = 0,
   waterPairFuelAmount = 1,
+  wildCardId: string | null = null,
 ): MissionStackCompletion | null {
   const missionCardIndex = stack.cardIds.findIndex((cardId) => {
     const card = cards[cardId]
@@ -1598,7 +1658,7 @@ export function getMissionStackCompletion(
   )
 
   if (missionCard.mission.pattern === 'open') {
-    const best = findBestPatternForCrew(crewCardIds, cards)
+    const best = findBestPatternForCrew(crewCardIds, cards, wildCardId)
     const fuelPaid = fuelCount >= requiredFuel
 
     return {
@@ -1613,7 +1673,7 @@ export function getMissionStackCompletion(
   }
 
   if (missionCard.mission.pattern) {
-    const patternSatisfied = canCompleteHandPattern(crewCardIds, cards, missionCard.mission.pattern)
+    const patternSatisfied = canCompleteHandPattern(crewCardIds, cards, missionCard.mission.pattern, wildCardId)
     const fuelPaid = fuelCount >= requiredFuel
 
     return {

@@ -7,7 +7,7 @@ import { getDamageDisplayTitle } from '../game/damage'
 import type { Card } from '../game/types'
 import { DeckIcon } from './DeckIcon'
 import { GameIcon } from './GameIcon'
-import { renderGameplayCardContent, renderSectorCardHeaderDetail } from './GameplayCardContent'
+import { renderGameplayCardContent, renderSectorCardHeaderDetail, renderShipPartDescription } from './GameplayCardContent'
 import { pickCardIcons, pickCardNote } from './gameIcons'
 
 export type CardView = Card
@@ -45,6 +45,8 @@ type BoardCardProps = {
   isAcquiredShipPart?: boolean
   onPointerDown: CardPointerDownHandler
   onKeyDown: CardKeyDownHandler
+  onPointerEnter?: (event: ReactPointerEvent<HTMLDivElement>) => void
+  onPointerLeave?: (event: ReactPointerEvent<HTMLDivElement>) => void
 }
 
 type CardShellProps = {
@@ -69,6 +71,8 @@ type CardShellProps = {
   canInteract?: boolean
   onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void
   onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void
+  onPointerEnter?: (event: ReactPointerEvent<HTMLDivElement>) => void
+  onPointerLeave?: (event: ReactPointerEvent<HTMLDivElement>) => void
 }
 
 export function CardShell({
@@ -93,6 +97,8 @@ export function CardShell({
   canInteract = true,
   onPointerDown,
   onKeyDown,
+  onPointerEnter,
+  onPointerLeave,
 }: CardShellProps) {
   const isCrewCard = card.kind === 'crew'
   const isOpenMissionCard =
@@ -115,17 +121,38 @@ export function CardShell({
   )
   const resourceClass = card.kind === 'resource' && card.resource ? `card-resource-${card.resource}` : ''
   const missionDetails = card.kind === 'mission' ? card.mission : undefined
+  const isActiveShipPartCard = card.kind === 'active-ship-part'
+  const activeShipPart = isActiveShipPartCard ? card.shipPart : null
+  const isShipPartMission = missionDetails?.find.kind === 'ship_part'
   const missionFindClass = missionDetails
-    ? (missionDetails.find.kind === 'ship_part' || isOpenMissionCard)
+    ? isShipPartMission
       ? 'card-find-ship-part'
-      : 'card-find-visit-reward'
-    : ''
-  const missionBadge = missionDetails?.find.kind === 'ship_part' ? 'Ship Part' : 'Mission'
+      : isOpenMissionCard
+        ? 'card-find-open-mission'
+        : 'card-find-visit-reward'
+    : isActiveShipPartCard
+      ? 'card-find-ship-part'
+      : ''
+  const missionBadge = isShipPartMission
+    ? 'Ship Part'
+    : isActiveShipPartCard
+      ? 'Ship Part'
+      : 'Mission'
   const missionHeaderTitle = isOpenMissionCard
-    ? 'Crew Mission'
+    ? 'Fuel Mission'
     : missionDetails?.find.itemName ?? ''
-  const headerTitle = missionDetails ? missionHeaderTitle : getDamageDisplayTitle(card)
-  const missionHeaderDetail = missionDetails ? renderSectorCardHeaderDetail(card) : null
+  const headerTitle = missionDetails
+    ? missionHeaderTitle
+    : isActiveShipPartCard
+      ? activeShipPart?.label ?? card.title
+      : getDamageDisplayTitle(card)
+  const sectorHeaderDetail = missionDetails
+    ? renderSectorCardHeaderDetail(card)
+    : isActiveShipPartCard
+      ? activeShipPart ? renderShipPartDescription(activeShipPart.description) : null
+      : null
+  const showSectorHeader = Boolean(missionDetails) || isActiveShipPartCard
+  const showSectorBadge = showSectorHeader && !isOpenMissionCard && !isShipPartMission && !isActiveShipPartCard
   const isGateCard = card.kind === 'gate'
   const gateBackTitle = isGateCard ? `${card.title} Final Gate` : null
 
@@ -157,19 +184,21 @@ export function CardShell({
           onKeyDown(event)
         }
       }}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
     >
       <div className="card-inner">
         <article className="card-face card-front">
           {!usesIntegratedHeader && (
             <header className="card-header">
-              {missionDetails ? (
+              {showSectorHeader ? (
                 <>
-                  {!isOpenMissionCard && (
+                  {showSectorBadge && (
                     <span className="card-destination-title">{missionBadge}</span>
                   )}
-                  <span className="card-title">{missionHeaderTitle}</span>
-                  {missionHeaderDetail && (
-                    <span className="card-rule-text sector-card-header-detail">{missionHeaderDetail}</span>
+                  <span className="card-title">{headerTitle}</span>
+                  {sectorHeaderDetail && (
+                    <span className="card-rule-text sector-card-header-detail">{sectorHeaderDetail}</span>
                   )}
                 </>
               ) : (
@@ -230,6 +259,8 @@ export function BoardCard({
   isAcquiredShipPart = false,
   onPointerDown,
   onKeyDown,
+  onPointerEnter,
+  onPointerLeave,
 }: BoardCardProps) {
   const cardLabel = card.kind === 'mission' && card.mission
     ? `${card.mission.find.itemName} at ${card.title}`
@@ -270,6 +301,8 @@ export function BoardCard({
       ariaLabel={ariaLabel}
       onPointerDown={(event) => onPointerDown(event, stackId, card.id, cardIndex)}
       onKeyDown={(event) => onKeyDown(event, stackId, card.id)}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
     />
   )
 }

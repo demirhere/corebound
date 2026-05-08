@@ -18,34 +18,42 @@ type GuideEntry = {
   pattern: MissionPatternKind
   blurb: string
   crew: readonly CrewIconPair[]
+  sharedIcon?: CrewSpecialization
 }
 
-// Patterns ordered from least to max Fuel reward. Ties broken so the cheaper
-// crew requirement comes first (Cross-Trained needs 1 crew, Common Ground 2).
+// Patterns ordered from max to least Fuel reward. Ties broken so the
+// fewer-crew option ranks higher (Department Heads needs 2 crew vs Common
+// Cause's 4 for the same Fuel; Specialist needs 1 crew vs Common Ground's 2).
 const GUIDE_ENTRIES: readonly GuideEntry[] = [
-  { pattern: 'common-ground',     blurb: 'Two crew share any one icon.',                       crew: [['life', 'star'], ['life', 'engine']] },
-  { pattern: 'cross-trained',     blurb: 'One crew with two different icons.',                 crew: [['life', 'star']] },
-  { pattern: 'specialist',        blurb: 'One crew with two matching icons.',                  crew: [['life', 'life']] },
-  { pattern: 'common-knowledge',  blurb: 'Three crew all carry the same icon.',                crew: [['life', 'life'], ['life', 'star'], ['life', 'engine']] },
-  { pattern: 'department-heads',  blurb: 'Two matched specialists of different icons.',        crew: [['life', 'life'], ['engine', 'engine']] },
-  { pattern: 'common-cause',      blurb: 'Four crew all carry the same icon.',                 crew: [['life', 'life'], ['life', 'star'], ['life', 'engine'], ['life', 'signal']] },
   { pattern: 'bridge-crew',       blurb: 'One matched specialist of every icon.',              crew: [['life', 'life'], ['star', 'star'], ['engine', 'engine'], ['signal', 'signal']] },
+  { pattern: 'department-heads',  blurb: 'Two matched specialists of different icons.',        crew: [['life', 'life'], ['engine', 'engine']] },
+  { pattern: 'common-cause',      blurb: 'Four crew all carry the same icon.',                 crew: [['life', 'life'], ['life', 'star'], ['life', 'engine'], ['life', 'signal']], sharedIcon: 'life' },
+  { pattern: 'common-knowledge',  blurb: 'Three crew all carry the same icon.',                crew: [['life', 'life'], ['life', 'star'], ['life', 'engine']], sharedIcon: 'life' },
+  { pattern: 'specialist',        blurb: 'One crew with two matching icons.',                  crew: [['life', 'life']] },
+  { pattern: 'common-ground',     blurb: 'Two crew share any one icon.',                       crew: [['life', 'star'], ['life', 'engine']], sharedIcon: 'life' },
+  { pattern: 'cross-trained',     blurb: 'One crew with two different icons.',                 crew: [['life', 'star']] },
 ]
 
-function CrewChip({ pair }: { pair: CrewIconPair }) {
+function CrewChip({ pair, sharedIcon }: { pair: CrewIconPair, sharedIcon?: CrewSpecialization }) {
   return (
     <span className="crew-guide-crew-chip" aria-hidden="true">
-      <GameIcon kind={pair[0]} />
-      <GameIcon kind={pair[1]} />
+      {pair.map((icon, index) => (
+        <span
+          key={`${icon}-${index}`}
+          className={sharedIcon && (icon !== sharedIcon || pair.indexOf(icon) !== index) ? 'crew-guide-muted-icon' : undefined}
+        >
+          <GameIcon kind={icon} />
+        </span>
+      ))}
     </span>
   )
 }
 
-function CrewIconRow({ crew }: { crew: readonly CrewIconPair[] }) {
+function CrewIconRow({ crew, sharedIcon }: { crew: readonly CrewIconPair[], sharedIcon?: CrewSpecialization }) {
   return (
     <span className="crew-guide-icon-strip">
       {crew.map((pair, index) => (
-        <CrewChip key={`${pair[0]}-${pair[1]}-${index}`} pair={pair} />
+        <CrewChip key={`${pair[0]}-${pair[1]}-${index}`} pair={pair} sharedIcon={sharedIcon} />
       ))}
     </span>
   )
@@ -100,7 +108,7 @@ export function CrewGuideDialog({ isOpen, onClose, patternUsageCounts }: CrewGui
             return (
               <li key={entry.pattern} className="crew-guide-row">
                 <span className="crew-guide-name">{getMissionPatternLabel(entry.pattern)}</span>
-                <span className="crew-guide-icons"><CrewIconRow crew={entry.crew} /></span>
+                <span className="crew-guide-icons"><CrewIconRow crew={entry.crew} sharedIcon={entry.sharedIcon} /></span>
                 <span className="crew-guide-reward">
                   <span className="crew-guide-reward-amount">{fuel}x</span>
                   <GameIcon kind="fuel" />

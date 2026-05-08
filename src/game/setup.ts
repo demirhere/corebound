@@ -20,6 +20,8 @@ import {
   GATE_DECK_ID,
   MISSION_DECK_ID,
   MOTHER_DECK_ID,
+  SCRAP_DECK_ID,
+  SCRAP_DISCARD_DECK_ID,
   SHIP_PART_DECK_ID,
   automaticRewardDeckDraw,
   manualDeckDraw,
@@ -33,9 +35,11 @@ import {
 import type { PlaytestLogEvent } from './playtestLog'
 import { STARTING_FUEL_SUPPLY } from './economyTuning'
 import { shipPartDeck } from './shipParts'
+import { shipPartCatalog } from './shipPartCatalog'
 
 const FUEL_DECK_SIZE = 50
 const RESOURCE_DECK_SIZE = STARTING_FUEL_SUPPLY + FUEL_DECK_SIZE
+const SCRAP_DECK_SIZE = 80
 // MOTHER, damage, stress and drift are temporarily disabled while the open-
 // mission economy is being tuned. Set deck sizes to 0 to keep the wiring
 // intact but invisible to players.
@@ -63,6 +67,23 @@ export const FUEL_SUPPLY_STACK_ID = 'stack-fuel-supply'
 export const FUEL_SUPPLY_STACK_POSITION = {
   x: 15,
   y: 24,
+}
+export const SCRAP_SUPPLY_STACK_ID = 'stack-scrap-supply'
+export const SCRAP_SUPPLY_STACK_POSITION = {
+  x: 27,
+  y: 24,
+}
+// Joker Ship Parts shelf — column on the right edge of the board, one
+// stack per active slot (max 5 simultaneous).
+export const SHIP_PART_SHELF_POSITIONS = [
+  { x: 88, y: 22 },
+  { x: 88, y: 32 },
+  { x: 88, y: 42 },
+  { x: 88, y: 52 },
+  { x: 88, y: 62 },
+] as const
+export function getShipPartShelfPosition(index: number) {
+  return SHIP_PART_SHELF_POSITIONS[index] ?? SHIP_PART_SHELF_POSITIONS[SHIP_PART_SHELF_POSITIONS.length - 1]!
 }
 export const MOTHER_SUPPLY_STACK_ID = 'stack-mother-supply'
 export const MOTHER_SUPPLY_STACK_POSITION = {
@@ -259,6 +280,7 @@ function createStartingCrewDeal(players: readonly GamePlayer[], shuffledCryoCrew
 export function createInitialBoardSetup(players?: readonly GamePlayer[]): InitialBoardSetup {
   const setupPlayers = normalizeSetupPlayers(players)
   const fuelDeck = shuffleCards(createResourceDeck('fuel', RESOURCE_DECK_SIZE))
+  const scrapDeckCards = shuffleCards(createResourceDeck('scrap', SCRAP_DECK_SIZE))
   const motherDeckCards = createMotherDeck(MOTHER_DECK_SIZE)
   const shuffledCryoCrewDeck = shuffleCards([
     ...startingCrewCards.slice(STARTING_CREW_CARD_COUNT),
@@ -273,8 +295,10 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
   // const initialHullCards = createBoardCards('hull-start', hullDeck.slice(0, 4))
   const handCards = createBoardCards('crew-hand', startingCrewDeal.startingCrewBlueprints)
   const cryoDeckCards = startingCrewDeal.cryoDeckCards
-  const firstTurnCrewCards = createBoardCards('crew-turn-start', cryoDeckCards.slice(0, 1))
-  const remainingCryoDeckCards = cryoDeckCards.slice(firstTurnCrewCards.length)
+  // Hand starts at the size cap (5 starters). The continuous Balatro-style
+  // cycle refills from Cryo after each action — no separate first-turn draw.
+  const firstTurnCrewCards: Card[] = []
+  const remainingCryoDeckCards = cryoDeckCards
   const readyCrewCards = [...handCards, ...firstTurnCrewCards]
   const crewOwnerEntries = readyCrewCards.map((card, index) => {
     const owner = setupPlayers[index % setupPlayers.length] ?? setupPlayers[0]
@@ -312,6 +336,13 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
         x: FUEL_SUPPLY_STACK_POSITION.x,
         y: FUEL_SUPPLY_STACK_POSITION.y,
         z: 1011,
+      },
+      {
+        id: SCRAP_SUPPLY_STACK_ID,
+        cardIds: [],
+        x: SCRAP_SUPPLY_STACK_POSITION.x,
+        y: SCRAP_SUPPLY_STACK_POSITION.y,
+        z: 1010,
       },
       ...(gateCard
         ? [
@@ -354,6 +385,30 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
         x: OFFSCREEN_DECK_POSITION.x,
         y: OFFSCREEN_DECK_POSITION.y,
         z: 1011,
+        draw: automaticRewardDeckDraw,
+        cards: [],
+      },
+      {
+        id: SCRAP_DECK_ID,
+        title: 'Scrap Deck',
+        icon: resourceArt.scrap.icon,
+        hue: resourceArt.scrap.hue,
+        accent: resourceArt.scrap.accent,
+        x: OFFSCREEN_DECK_POSITION.x,
+        y: OFFSCREEN_DECK_POSITION.y,
+        z: 1010,
+        draw: automaticRewardDeckDraw,
+        cards: scrapDeckCards,
+      },
+      {
+        id: SCRAP_DISCARD_DECK_ID,
+        title: 'Scrap Discard',
+        icon: resourceArt.scrap.icon,
+        hue: resourceArt.scrap.hue,
+        accent: resourceArt.scrap.accent,
+        x: OFFSCREEN_DECK_POSITION.x,
+        y: OFFSCREEN_DECK_POSITION.y,
+        z: 1009,
         draw: automaticRewardDeckDraw,
         cards: [],
       },
@@ -448,6 +503,8 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
     ),
     routeSlots: Array.from({ length: ROUTE_SLOT_COUNT }, () => null),
     shipPartSlots: [],
+    activeShipParts: [],
+    shipPartShopPool: [...shipPartCatalog],
     archivedRouteCardIds: [],
     handCardIds: readyCrewCards.map((card) => card.id),
     tiredCardIds: [],
@@ -456,6 +513,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
     pendingWakeChoice: null,
     pendingScoutChoice: null,
     pendingShipPartChoice: null,
+    pendingResearchChoice: null,
     pendingDrift: null,
     forcedDestinationCardId: null,
     pendingEffects: [],
@@ -467,6 +525,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
     gateStartedSector: null,
     heldDriftCount: 0,
     stressCount: 0,
+    scraps: 0,
     currentSector: 1,
     totalSectors: TOTAL_SECTORS,
     isRunEnding: false,
@@ -480,6 +539,9 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
     crewOwnerIds: Object.fromEntries(crewOwnerEntries),
     discoveryOwnerIds: {},
     patternUsageCounts: {},
+    missionsCompletedCount: 0,
+    lastPatternPlayed: null,
+    patternStreakCount: 0,
   }
   const predealBoard: BoardState = {
     ...board,
@@ -529,6 +591,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
     predealBoard,
     events: [
       setupDeckCreatedEvent(FUEL_DECK_ID, 'Fuel Deck', fuelDeckCards),
+      setupDeckCreatedEvent(SCRAP_DECK_ID, 'Scrap Deck', scrapDeckCards),
       setupDeckCreatedEvent(MOTHER_DECK_ID, 'MOTHER Deck', motherDeckCards),
       // setupDeckCreatedEvent('hull-deck', 'Hull Deck', hullDeckCards),
       setupDeckCreatedEvent(MISSION_DECK_ID, 'Missions', missionDeckCards),

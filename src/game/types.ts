@@ -19,7 +19,7 @@ export type CardIconKind =
   | 'mother'
   | 'gate'
 
-export type ResourceKind = 'fuel' | 'hull'
+export type ResourceKind = 'fuel' | 'hull' | 'scrap'
 
 export type CrewSpecialization = 'life' | 'star' | 'engine' | 'signal'
 
@@ -91,7 +91,7 @@ export type HazardDetails = {
   effectImplemented: boolean
 }
 
-export type CardKind = 'resource' | 'crew' | 'mission' | 'mother' | 'gate' | 'discovery' | 'drift' | 'hazard'
+export type CardKind = 'resource' | 'crew' | 'mission' | 'mother' | 'gate' | 'discovery' | 'drift' | 'hazard' | 'active-ship-part'
 
 export type GameLossReason = 'sector-stranded' | 'gate-failed' | 'fuel-depleted'
 
@@ -104,6 +104,164 @@ export type ShipPartKind =
   | 'fuel-synthesizer'
 
 export type ShipPartStatus = 'available' | 'spent'
+
+// === Joker-economy ship parts (Phase 2 of the joker rebalance) =================
+// These are passive bonuses bought from the post-gate research dialog. They
+// live in `BoardState.activeShipParts` (max 5). Distinct from the legacy
+// drafted-from-mission system (`shipPartSlots` / `ShipPartKind` above), which
+// is being phased out and currently sits dormant.
+export type ShipPartCategory =
+  | 'icon'
+  | 'pattern'
+  | 'first-mission'
+  | 'last-mission'
+  | 'scrap'
+  | 'converter'
+  | 'hand'
+  | 'wild'
+  | 'special'
+
+export type ShipPartIconBoost = {
+  kind: 'icon'
+  icon: CrewSpecialization
+  fuel: number
+}
+
+export type ShipPartPatternBoost = {
+  kind: 'pattern'
+  patterns: readonly MissionPatternKind[]
+  fuel: number
+}
+
+export type ShipPartFirstMissionBoost = {
+  kind: 'first-mission'
+  fuel: number
+}
+
+export type ShipPartLastMissionBoost = {
+  kind: 'last-mission'
+  fuel: number
+}
+
+export type ShipPartScrapBoost = {
+  kind: 'scrap'
+  // Per mission action.
+  perMission?: number
+  // First mission of sector only.
+  perFirstMission?: number
+  // Last mission of sector only.
+  perLastMission?: number
+  // Once at end of sector (after the gate clears).
+  perSectorEnd?: number
+}
+
+export type ShipPartConverter = {
+  kind: 'converter'
+  trigger: 'sector-end' | 'first-mission'
+  scrapsSpent: number
+  fuelGained: number
+}
+
+export type ShipPartHandBoost = {
+  kind: 'hand'
+  handSizeDelta: number
+}
+
+export type ShipPartWildSlot = {
+  kind: 'wild'
+}
+
+export type ShipPartSectorEndFuel = {
+  kind: 'sector-end-fuel'
+  // Sector indices (0-based) when the bonus fires; empty = always.
+  sectors: readonly number[]
+  fuel: number
+}
+
+// Lean Manifest: +fuel when crew used <= maxCrew. Rewards small-stack patterns.
+export type ShipPartCrewCountCap = {
+  kind: 'crew-count-cap'
+  maxCrew: number
+  fuel: number
+}
+
+// Crew Synergy: +fuelPerCrew × crew used in the mission, capped at maxFuel.
+// Rewards big stacks. Cap prevents 4-crew patterns from dominating.
+export type ShipPartPerCrewUsed = {
+  kind: 'per-crew-used'
+  fuelPerCrew: number
+  maxFuel: number
+}
+
+// Compounding Drive: scales with total missions completed run-wide. Bonus =
+// min(maxStacks, floor(completedBefore / interval)) applied to every mission.
+export type ShipPartMissionCounter = {
+  kind: 'mission-counter'
+  interval: number
+  fuelPerStack: number
+  maxStacks: number
+}
+
+// Reserve Capacitor: end-of-sector +fuelPerCrew per Ready (unused) crew at the
+// time the gate is faced; capped at maxCrew.
+export type ShipPartSectorEndReadyCrew = {
+  kind: 'sector-end-ready-crew'
+  fuelPerCrew: number
+  maxCrew: number
+}
+
+// Mission Streak: pattern fuel +fuelPerStreak × (streakLength-1), capped at
+// maxBonus. Streak resets when the pattern played changes.
+export type ShipPartPatternStreak = {
+  kind: 'pattern-streak'
+  fuelPerStreak: number
+  maxBonus: number
+}
+
+// Pattern Ladder: +fuel when the played pattern is one of the listed mid/high
+// tiers. Use to bump the patterns that actually get played in greedy hand-of-5
+// play, without affecting unused low-tier ones.
+export type ShipPartPatternTier = {
+  kind: 'pattern-tier'
+  patterns: readonly MissionPatternKind[]
+  fuel: number
+}
+
+export type ShipPartEffect =
+  | ShipPartIconBoost
+  | ShipPartPatternBoost
+  | ShipPartFirstMissionBoost
+  | ShipPartLastMissionBoost
+  | ShipPartScrapBoost
+  | ShipPartConverter
+  | ShipPartHandBoost
+  | ShipPartWildSlot
+  | ShipPartSectorEndFuel
+  | ShipPartCrewCountCap
+  | ShipPartPerCrewUsed
+  | ShipPartMissionCounter
+  | ShipPartSectorEndReadyCrew
+  | ShipPartPatternStreak
+  | ShipPartPatternTier
+
+export type ShipPartId = string
+
+export type ShipPartBlueprint = {
+  id: ShipPartId
+  label: string
+  description: string
+  cost: number
+  refund: number
+  category: ShipPartCategory
+  effects: readonly ShipPartEffect[]
+}
+
+export type ActiveShipPart = ShipPartBlueprint & {
+  // Each owned ship part gets a per-instance id. Unique ids let a future
+  // upgrade system reference a specific copy if duplicates are ever allowed.
+  instanceId: string
+  acquiredSector: number
+}
 
 export type GamePlayer = {
   id: string
@@ -227,12 +385,18 @@ export type CardBlueprint = {
   kind: CardKind
   resource?: ResourceKind
   specializations?: CrewSpecialization[]
+  // Crew rank multiplies pattern Fuel rewards. Reserved for future per-crew
+  // upgrades; currently every crew is rank 1, so reward = crew_count × mult.
+  rank?: number
   portraitIndex?: number
   mission?: MissionDetails
   gate?: GateDetails
   discovery?: DiscoveryDetails
   drift?: DriftDetails
   hazard?: HazardDetails
+  // Joker Ship Part owned by the run, presented on the board as a card.
+  // Refers to the catalog blueprint plus an instance id.
+  shipPart?: ActiveShipPart
   specimenIndex?: number
 }
 
@@ -306,6 +470,7 @@ export type CompletedStarSummary = {
   playerId: string | null
   crewCardIds: string[]
   crewTitles: string[]
+  fuelReward?: number
   fuelSpent: number
   motherSpent: number
 }
@@ -317,6 +482,12 @@ export type BoardState = {
   mapSlots: (string | null)[]
   routeSlots: (RouteSlot | null)[]
   shipPartSlots: ShipPartSlot[]
+  // Joker-economy: active ship parts owned (max 5) and the pool of un-owned
+  // blueprints the research dialog can offer. Initialized from the 25-card
+  // catalog at setup; an entry is removed from the pool when bought, but
+  // never returned (stacking-discard refunds Scraps instead).
+  activeShipParts: ActiveShipPart[]
+  shipPartShopPool: ShipPartBlueprint[]
   archivedRouteCardIds: string[]
   handCardIds: string[]
   tiredCardIds: string[]
@@ -338,6 +509,12 @@ export type BoardState = {
     x: number
     y: number
   } | null
+  // Joker-economy research dialog: opens after each gate clear with up to 2
+  // un-owned Ship Part offers. Player may buy affordable offers, pay to
+  // re-draw, or continue to the next sector without Scrap consolation.
+  pendingResearchChoice: {
+    offers: ShipPartBlueprint[]
+  } | null
   pendingDrift: {
     cardId: string
     stackId: string
@@ -352,6 +529,7 @@ export type BoardState = {
   gateStartedSector: number | null
   heldDriftCount: number
   stressCount: number
+  scraps: number
   currentSector: number
   totalSectors: number
   isRunEnding: boolean
@@ -365,6 +543,12 @@ export type BoardState = {
   crewOwnerIds: Record<string, string>
   discoveryOwnerIds: Record<string, string>
   patternUsageCounts: Partial<Record<MissionPatternKind, number>>
+  // Run-wide stats consumed by stateful ship parts (Compounding Drive,
+  // Mission Streak). Persisted on the board so reducers / sim can update
+  // them deterministically when missions resolve.
+  missionsCompletedCount: number
+  lastPatternPlayed: MissionPatternKind | null
+  patternStreakCount: number
 }
 
 export type BoardMetrics = {

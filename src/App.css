@@ -321,7 +321,7 @@
     radial-gradient(circle at 78% 72%, rgba(115, 255, 214, 0.1), transparent 30%),
     repeating-linear-gradient(0deg, rgba(255, 248, 232, 0.07) 0 1px, transparent 1px 26px),
     repeating-linear-gradient(90deg, rgba(100, 243, 255, 0.045) 0 1px, transparent 1px 34px),
-    rgba(5, 7, 19, 0.76);
+    rgba(5, 7, 19, 0.5);
   backdrop-filter: blur(3px) saturate(0.82);
 
   &::before {
@@ -330,8 +330,8 @@
     inset: 0;
     pointer-events: none;
     background:
-      radial-gradient(ellipse at center, transparent 42%, rgba(0, 0, 0, 0.34));
-    opacity: 0.82;
+      radial-gradient(ellipse at center, transparent 42%, rgba(0, 0, 0, 0.24));
+    opacity: 0.5;
   }
 }
 
@@ -790,11 +790,17 @@
   display: inline-flex;
   align-items: center;
   gap: 1px;
+  line-height: 0;
   padding: 2px 5px;
   border: 1.6px solid rgba(17, 19, 26, 0.32);
   border-radius: 7px 9px 8px 6px / 8px 6px 9px 7px;
   background: rgba(255, 248, 232, 0.7);
   transform: rotate(-1.2deg);
+}
+
+.crew-guide-crew-chip > span {
+  display: inline-grid;
+  place-items: center;
 }
 
 .crew-guide-crew-chip:nth-child(2n) {
@@ -803,6 +809,11 @@
 
 .crew-guide-crew-chip .game-icon {
   width: clamp(14px, 1.4vw, 18px);
+}
+
+.crew-guide-muted-icon .game-icon {
+  filter: grayscale(1);
+  opacity: 0.34;
 }
 
 .crew-guide-reward {
@@ -845,12 +856,12 @@
     radial-gradient(circle at 24% 44%, rgba(255, 155, 170, 0.2), transparent 34%),
     radial-gradient(circle at 74% 54%, rgba(255, 207, 138, 0.1), transparent 32%),
     repeating-linear-gradient(0deg, rgba(255, 248, 232, 0.055) 0 1px, transparent 1px 24px),
-    linear-gradient(90deg, rgba(6, 5, 14, 0.82) 0 57%, rgba(39, 9, 18, 0.9) 57% 100%),
-    rgba(5, 7, 19, 0.86);
+    linear-gradient(90deg, rgba(6, 5, 14, 0.5) 0 57%, rgba(39, 9, 18, 0.5) 57% 100%),
+    rgba(5, 7, 19, 0.5);
 
   &::before {
     background:
-      radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.42));
+      radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.28));
   }
 }
 
@@ -920,7 +931,7 @@
 
 .loss-panel {
   justify-self: end;
-  width: min(500px, calc(100vw - 32px));
+  width: min(560px, calc(100vw - 32px));
   background:
     linear-gradient(90deg, #ff4f64 0 8px, transparent 8px),
     radial-gradient(circle at 80% 68%, rgba(255, 79, 100, 0.2), transparent 34%),
@@ -939,7 +950,7 @@
   }
 
   button {
-    justify-self: start;
+    justify-self: auto;
     background:
       repeating-linear-gradient(180deg, transparent 0 9px, rgba(17, 19, 26, 0.055) 9px 10px),
       color-mix(in srgb, #ff9baa 74%, #fff8e8);
@@ -953,29 +964,51 @@
   }
 }
 
+.loss-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+
+  button {
+    margin-top: 0;
+  }
+
+  .loss-menu-button {
+    background:
+      repeating-linear-gradient(180deg, transparent 0 9px, rgba(17, 19, 26, 0.055) 9px 10px),
+      color-mix(in srgb, #fff8e8 70%, #ff9baa);
+  }
+}
+
 .loss-stats {
   position: relative;
   z-index: 1;
   display: grid;
-  gap: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
   margin: 4px 0 0;
-  padding: 4px 0;
-  border-block: 2px solid rgba(17, 19, 26, 0.24);
-  background:
-    repeating-linear-gradient(180deg, transparent 0 37px, rgba(17, 19, 26, 0.08) 37px 38px),
-    rgba(255, 248, 232, 0.2);
+  padding: 0;
 }
 
 .loss-stat {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  min-height: 34px;
-  gap: 12px;
-  padding: 7px 2px 7px 0;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: space-between;
+  min-height: 72px;
+  gap: 8px;
+  padding: 10px 11px 9px;
+  border: 2px solid rgba(17, 19, 26, 0.18);
+  border-radius: 16px 14px 17px 15px / 14px 17px 15px 16px;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 18px, rgba(17, 19, 26, 0.055) 18px 19px),
+    rgba(255, 248, 232, 0.28);
 
-  + .loss-stat {
-    border-top: 1px dashed rgba(17, 19, 26, 0.18);
+  &.is-wide {
+    grid-column: 1 / -1;
+    min-height: 64px;
   }
 
   dt,
@@ -997,11 +1030,11 @@
     font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
     display: inline-flex;
     align-items: center;
-    justify-content: flex-end;
-    min-width: max-content;
+    justify-content: flex-start;
+    min-width: 0;
     gap: 6px;
     color: #11131a;
-    font-size: clamp(22px, 2.5vw, 32px);
+    font-size: clamp(21px, 2.1vw, 30px);
     font-style: italic;
     font-weight: 950;
     letter-spacing: -0.07em;
@@ -1014,7 +1047,9 @@
     }
 
     span {
+      min-width: 0;
       font-weight: 1000;
+      overflow-wrap: anywhere;
     }
   }
 }
@@ -1132,6 +1167,310 @@
 
 .ship-part-choice-panel {
   width: min(560px, calc(100vw - 32px));
+}
+
+.research-panel {
+  --research-card-width: clamp(110px, 11.5vw, 168px);
+  --research-card-height: calc(var(--research-card-width) * 1.42);
+
+  width: min(880px, calc(100vw - 32px));
+  max-height: min(88svh, 820px);
+  overflow: auto;
+  transform: none;
+
+  &::before {
+    content: none;
+  }
+}
+
+.research-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px 18px;
+}
+
+.research-title-lockup {
+  display: grid;
+  gap: 5px;
+  justify-items: start;
+
+  h2,
+  p {
+    margin: 0;
+  }
+
+  h2 {
+    font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+    font-size: clamp(25px, 4vw, 43px);
+    font-style: italic;
+    font-weight: 950;
+    letter-spacing: -0.07em;
+    line-height: 0.95;
+    text-shadow: 0 1px 0 rgba(255, 248, 232, 0.52);
+    transform: rotate(0.4deg);
+  }
+
+  p {
+    color: rgba(17, 19, 26, 0.74);
+    font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+    font-size: clamp(13px, 1.3vw, 17px);
+    font-style: italic;
+    font-weight: 850;
+    letter-spacing: -0.035em;
+    line-height: 1.2;
+  }
+}
+
+.research-status-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: clamp(18px, 2vw, 28px);
+  align-items: flex-start;
+  justify-content: flex-end;
+  color: #11131a;
+  font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+  font-size: clamp(13px, 1.25vw, 19px);
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.08;
+  transform: rotate(1.2deg);
+}
+
+.research-status-tracker {
+  color: #11131a;
+
+  .stress-label,
+  .stress-history,
+  .stress-current {
+    color: #11131a;
+  }
+
+  .sector-total {
+    color: rgba(17, 19, 26, 0.72);
+  }
+}
+
+.research-offer-cards,
+.research-active-cards {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(18px, 3vw, 30px);
+  margin: clamp(14px, 2vw, 20px) 0;
+}
+
+.research-active-cards {
+  margin-top: 8px;
+}
+
+.research-offer-card-wrap,
+.research-active-card-wrap {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 8px;
+  width: var(--research-card-width);
+  min-width: 0;
+}
+
+.research-scrap-cost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32em;
+  color: currentColor;
+  font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+  font-size: clamp(14px, 1.35vw, 18px);
+  font-style: italic;
+  font-weight: 950;
+  letter-spacing: 0.09em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.research-offer-price {
+  color: #11131a;
+  font-size: clamp(16px, 1.7vw, 22px);
+}
+
+.research-scrap-cost .game-icon[data-kind='scrap'] {
+  --icon-color: currentColor;
+  --icon-stroke: currentColor;
+  --icon-paper: transparent;
+  --icon-frame-width: 0.12em;
+
+  display: inline-grid;
+  width: 1em;
+  background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.36), transparent 40%);
+  box-shadow: inset 0 0 0 0.1em rgba(17, 19, 26, 0.12);
+  transform: rotate(-4deg);
+
+  .icon-line {
+    stroke-width: 2.35;
+    opacity: 0.58;
+  }
+}
+
+.research-card-frame {
+  position: relative;
+  width: var(--research-card-width);
+  height: var(--research-card-height);
+  max-width: 100%;
+  isolation: isolate;
+}
+
+.research-offer-card,
+.research-active-card {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  --card-width: var(--research-card-width);
+  --card-height: var(--research-card-height);
+  transform: none;
+}
+
+.research-offer-card {
+  cursor: pointer;
+  transition:
+    filter 140ms ease,
+    opacity 140ms ease,
+    transform 140ms ease;
+
+  &:not([aria-disabled='true']):hover,
+  &:not([aria-disabled='true']):focus-visible {
+    outline: none;
+    transform: translateY(-6px) rotate(-1deg);
+    filter: brightness(1.04);
+  }
+
+  &[aria-disabled='true'] {
+    cursor: default;
+    filter: grayscale(0.42);
+    opacity: 0.62;
+  }
+
+  &.is-researched {
+    filter: saturate(0.72);
+    opacity: 0.64;
+  }
+}
+
+.research-active-card {
+  cursor: default;
+  pointer-events: none;
+}
+
+.research-offer-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  padding: 7px 11px 6px;
+  border: 2px solid #11131a;
+  border-radius: 13px 16px 12px 15px / 15px 12px 16px 13px;
+  color: #11131a;
+  background: rgba(255, 248, 232, 0.88);
+  box-shadow: 3px 3px 0 rgba(17, 19, 26, 0.18);
+  font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+  font-size: clamp(11px, 1.05vw, 14px);
+  font-style: italic;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  pointer-events: none;
+  text-transform: uppercase;
+  transform: translate(-50%, -50%) rotate(-4deg);
+}
+
+.research-offer-buy,
+.research-redraw-button,
+.research-skip-button {
+  border: 2px solid #11131a;
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  background: #11131a;
+  color: #fff7dc;
+  font-family: inherit;
+  font-size: clamp(12px, 1.35vw, 14px);
+  font-weight: 1000;
+  box-shadow: 3px 3px 0 rgba(17, 19, 26, 0.18);
+  transition:
+    filter 140ms ease,
+    transform 140ms ease;
+
+  &:not(:disabled):hover,
+  &:not(:disabled):focus-visible {
+    transform: translateY(-1px);
+    filter: brightness(1.12);
+  }
+}
+
+.research-offer-buy {
+  width: 100%;
+}
+
+.research-redraw-button {
+  background:
+    repeating-linear-gradient(180deg, transparent 0 9px, rgba(17, 19, 26, 0.06) 9px 10px),
+    color-mix(in srgb, #ff9f4a 78%, #fff8e8);
+  color: #11131a;
+}
+
+.research-skip-button {
+  background:
+    repeating-linear-gradient(180deg, transparent 0 9px, rgba(17, 19, 26, 0.055) 9px 10px),
+    color-mix(in srgb, #ff9f4a 78%, #fff8e8);
+  color: #11131a;
+  box-shadow: 4px 5px 0 rgba(17, 19, 26, 0.26);
+}
+
+.research-redraw-button .research-scrap-cost {
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+.research-offer-buy:disabled,
+.research-redraw-button:disabled,
+.research-skip-button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.8);
+  opacity: 0.52;
+  transform: none;
+}
+
+.research-active-section {
+  position: relative;
+  z-index: 1;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 2px dashed rgba(17, 19, 26, 0.24);
+}
+
+.research-active-label {
+  margin: 0 0 4px 0;
+  color: rgba(17, 19, 26, 0.76);
+  font-size: clamp(12px, 1.25vw, 14px);
+  font-weight: 900;
+}
+
+.research-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 14px;
 }
 
 .card-shell[aria-disabled='true'],
@@ -1610,7 +1949,7 @@
 }
 
 .hand.is-dragging-card {
-  z-index: 1300;
+  z-index: var(--drag-z-index, 1300);
 }
 
 .hand-zone {
@@ -1694,6 +2033,124 @@
   opacity: 0.8;
 }
 
+.hand-sort-controls {
+  --stack-accent: #73ffd6;
+
+  position: absolute;
+  top: clamp(-30px, -2.2vw, -24px);
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: max-content;
+  max-width: min(100%, 320px);
+  gap: clamp(7px, 0.75vw, 10px);
+  color: #fff;
+  font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+  pointer-events: auto;
+  transform: translateX(-50%);
+}
+
+.hand-sort-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 0;
+  max-width: 100%;
+  gap: 6px;
+  padding: 0 2px 2px 0;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: clamp(13px, 0.95vw, 16px);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.05;
+  text-align: center;
+  text-shadow:
+    0 0 1px rgba(255, 255, 255, 0.92),
+    0 0 9px color-mix(in srgb, var(--stack-accent) 50%, transparent),
+    0 2px 3px rgba(5, 7, 19, 0.8);
+  text-transform: none;
+  white-space: nowrap;
+  transform: rotate(-1.4deg);
+  transform-origin: center;
+  transition:
+    color 140ms ease,
+    opacity 140ms ease,
+    text-shadow 140ms ease,
+    transform 140ms ease;
+
+  &::before {
+    content: '';
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-radius: 38% 62% 47% 53% / 54% 42% 58% 46%;
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.1),
+      0 0 8px color-mix(in srgb, var(--stack-accent) 34%, transparent);
+    transform: rotate(-2deg);
+    transition:
+      background 140ms ease,
+      border-color 140ms ease,
+      box-shadow 140ms ease,
+      transform 140ms ease;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 4px;
+    width: 7px;
+    height: 4px;
+    border-bottom: 2px solid #fff;
+    border-left: 2px solid #fff;
+    opacity: 0.86;
+    transform: translateY(-68%) rotate(-45deg);
+    transition:
+      border-color 140ms ease,
+      opacity 140ms ease;
+  }
+
+  &:hover:not(:disabled),
+  &:focus-visible:not(:disabled) {
+    color: #fff;
+    outline: none;
+    transform: translateY(-2px) rotate(-1.4deg);
+    text-shadow:
+      0 0 1px #fff,
+      0 0 14px color-mix(in srgb, var(--stack-accent) 72%, transparent),
+      0 2px 3px rgba(5, 7, 19, 0.88);
+
+    &::before {
+      border-color: #b7ffd1;
+      background: #38d66b;
+      box-shadow:
+        0 0 0 2px rgba(56, 214, 107, 0.16),
+        0 0 14px rgba(56, 214, 107, 0.62);
+      transform: rotate(2deg);
+    }
+
+    &::after {
+      opacity: 1;
+    }
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+}
+
 .hand-strip {
   position: relative;
   display: grid;
@@ -1710,7 +2167,7 @@
   width: var(--hand-card-width);
   height: var(--hand-card-height);
   transform-origin: center bottom;
-  transition: transform 160ms ease;
+  transition: transform 220ms cubic-bezier(0.2, 0.86, 0.24, 1);
 }
 
 .hand-card-slot {
@@ -2084,6 +2541,27 @@
   will-change: transform;
 }
 
+.stack-hover-count {
+  position: absolute;
+  left: 50%;
+  top: -28px;
+  z-index: 31;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(5, 7, 19, 0.78);
+  color: #fff;
+  font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
+  font-size: clamp(13px, 1vw, 16px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  pointer-events: none;
+  text-shadow:
+    0 0 6px color-mix(in srgb, var(--stack-accent, #73ffd6) 55%, transparent);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
 .stack-action-bar {
   position: absolute;
   left: 50%;
@@ -2210,6 +2688,25 @@
     &::after {
       opacity: 1;
     }
+  }
+
+  .stack-action-resource-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .stack-action-resource-plus {
+    margin-right: 2px;
+  }
+
+  .stack-action-resource-count {
+    font-weight: 750;
+  }
+
+  .game-icon {
+    width: 1.15em;
+    --icon-frame-width: 1px;
   }
 }
 
@@ -3431,7 +3928,8 @@
   font-weight: 500;
 }
 
-.card-kind-mission {
+.card-kind-mission,
+.card-kind-active-ship-part {
   .card-face.card-front {
     border-width: 0;
     border-color: transparent;
@@ -3506,8 +4004,8 @@
   .sector-card-header-detail {
     display: block;
     box-sizing: border-box;
-    width: 80%;
-    max-width: 80%;
+    width: 100%;
+    max-width: 100%;
     min-width: 0;
     margin-top: 0;
     overflow-wrap: normal;
@@ -3532,6 +4030,13 @@
   .sector-card-header-detail,
   .sector-card-footer {
     text-shadow: none;
+  }
+}
+
+.card-kind-active-ship-part,
+.card-find-ship-part {
+  .card-title {
+    margin-top: 6px;
   }
 }
 
@@ -3778,13 +4283,237 @@
   white-space: nowrap;
 }
 
+/* === Scrap Token =================================================
+   Designed to read as a stamped salvage chit — clearly distinct
+   from the gold beveled Fuel Cell. Uses a circular "coin" stamp
+   visual with copper/bronze tones and a notched-corner shape. */
+
+.card-shell.card-resource-scrap {
+  --scrap-card-shape: polygon(
+    0 12%, 5% 7%, 5% 0,
+    95% 0, 95% 7%, 100% 12%,
+    100% 88%, 95% 93%, 95% 100%,
+    5% 100%, 5% 93%, 0 88%
+  );
+  --scrap-card-radius: 6px;
+  --scrap-paper: #2a1909;
+  --scrap-stamp: #4a2c0f;
+  --scrap-edge: rgba(74, 44, 15, 0.5);
+
+  .card-face.card-front {
+    border-width: 0;
+    border-color: transparent;
+    border-radius: var(--scrap-card-radius);
+    clip-path: var(--scrap-card-shape);
+    color: var(--scrap-paper);
+    background:
+      radial-gradient(circle at 28% 22%, rgba(255, 235, 200, 0.32), transparent 32%),
+      radial-gradient(circle at 78% 80%, rgba(70, 36, 8, 0.28), transparent 42%),
+      repeating-linear-gradient(
+        130deg,
+        rgba(120, 76, 32, 0.05) 0 2px,
+        transparent 2px 6px
+      ),
+      linear-gradient(150deg, #c08454, #9c6235 48%, #6b3f1c 100%);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 222, 178, 0.42),
+      inset 0 0 22px rgba(40, 18, 4, 0.34);
+  }
+
+  .card-front::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    z-index: 2;
+    pointer-events: none;
+    border: 1.4px dashed rgba(74, 44, 15, 0.45);
+    border-radius: 4px;
+    opacity: 0.7;
+  }
+
+  .card-front::after {
+    content: none;
+  }
+
+  .card-inner::before,
+  .card-inner::after {
+    content: none;
+  }
+
+  .card-header {
+    align-items: stretch;
+    min-height: 0;
+    padding: clamp(8px, 1vw, 12px) 12px 6px;
+    color: var(--scrap-paper);
+    background: transparent;
+    font-family: ui-monospace, 'SFMono-Regular', 'Roboto Mono', 'Cascadia Mono', monospace;
+    text-shadow: 0 1px 0 rgba(255, 222, 178, 0.36);
+
+    &::before,
+    &::after {
+      content: none;
+    }
+  }
+
+  .card-title {
+    padding-right: 0;
+    font-size: clamp(10px, 1vw, 13px);
+    font-weight: 950;
+    letter-spacing: 0.18em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .card-art {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    align-content: stretch;
+    gap: clamp(4px, 0.45vw, 7px);
+    padding: clamp(4px, 0.55vw, 8px) 12px clamp(8px, 0.85vw, 12px);
+    background: none;
+
+    &::before,
+    &::after {
+      content: none;
+    }
+  }
+}
+
+.scrap-token-eyebrow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1.5px solid rgba(74, 44, 15, 0.4);
+  color: rgba(40, 22, 8, 0.78);
+  font-family: ui-monospace, 'SFMono-Regular', 'Roboto Mono', 'Cascadia Mono', monospace;
+  font-size: clamp(6px, 0.58vw, 8px);
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.scrap-token-stamp {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  justify-self: center;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  align-items: end;
+  justify-items: center;
+  width: clamp(54px, 6.4vw, 88px);
+  aspect-ratio: 1;
+  padding: 6px 0 8px;
+  border-radius: 50%;
+  border: 2px solid rgba(40, 22, 8, 0.55);
+  background:
+    radial-gradient(circle at 50% 32%, rgba(255, 222, 178, 0.42), transparent 60%),
+    linear-gradient(160deg, #d59866, #a06a36 60%, #6b3f1c);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 222, 178, 0.32),
+    inset 0 0 12px rgba(40, 18, 4, 0.36),
+    0 1px 0 rgba(40, 18, 4, 0.32);
+  color: var(--scrap-paper);
+  font-family: 'Playpen Sans', ui-monospace, monospace;
+  text-shadow: 0 1px 0 rgba(255, 222, 178, 0.42);
+}
+
+.scrap-token-stamp::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px dashed rgba(255, 222, 178, 0.5);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.scrap-token-stamp-numeral {
+  grid-row: 1;
+  font-size: clamp(20px, 2.2vw, 32px);
+  font-weight: 950;
+  line-height: 0.9;
+  letter-spacing: 0.02em;
+}
+
+.scrap-token-stamp-label {
+  grid-row: 2;
+  font-size: clamp(7px, 0.65vw, 9px);
+  font-weight: 950;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(40, 22, 8, 0.82);
+}
+
+.scrap-token-rule {
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  margin: 0;
+  padding-top: 4px;
+  border-top: 1px dashed rgba(74, 44, 15, 0.4);
+  color: rgba(40, 22, 8, 0.86);
+  font-family: ui-monospace, 'SFMono-Regular', 'Roboto Mono', 'Cascadia Mono', monospace;
+  font-size: clamp(8px, 0.72vw, 10px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.scrap-token-serial {
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 0;
+  color: rgba(40, 22, 8, 0.6);
+}
+
+.scrap-token-serial span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font-family: ui-monospace, 'SFMono-Regular', 'Roboto Mono', 'Cascadia Mono', monospace;
+  font-size: clamp(5px, 0.5vw, 7px);
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  text-overflow: clip;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .card-find-ship-part {
   --blueprint-text: #f4ead4;
   --blueprint-paper: var(--blueprint-text);
   --blueprint-ink: var(--blueprint-text);
   --blueprint-grid: rgba(149, 210, 238, 0.08);
   --blueprint-grid-strong: rgba(180, 228, 247, 0.14);
+  --blueprint-gradient: linear-gradient(145deg, #165992, #0f4778 56%, #0a2e55);
+  --blueprint-edge-glow: rgba(232, 246, 255, 0.48);
+  --blueprint-shadow: rgba(4, 17, 31, 0.26);
+}
 
+.card-find-open-mission {
+  --blueprint-text: #f4ead4;
+  --blueprint-paper: var(--blueprint-text);
+  --blueprint-ink: var(--blueprint-text);
+  --blueprint-grid: rgba(214, 184, 245, 0.10);
+  --blueprint-grid-strong: rgba(228, 200, 252, 0.16);
+  --blueprint-gradient: linear-gradient(145deg, #5b3a8a, #432872 56%, #2a1755);
+  --blueprint-edge-glow: rgba(244, 232, 255, 0.48);
+  --blueprint-shadow: rgba(20, 8, 32, 0.28);
+}
+
+.card-find-ship-part,
+.card-find-open-mission {
   .card-face {
     border-color: transparent;
     border-radius: 14px;
@@ -3792,14 +4521,14 @@
     background:
       linear-gradient(90deg, var(--blueprint-grid) 1px, transparent 1px),
       linear-gradient(var(--blueprint-grid) 1px, transparent 1px),
-      linear-gradient(145deg, #165992, #0f4778 56%, #0a2e55);
+      var(--blueprint-gradient);
     background-size:
       12px 12px,
       12px 12px,
       auto;
     box-shadow:
-      inset 0 0 0 1px rgba(232, 246, 255, 0.48),
-      inset 0 0 24px rgba(4, 17, 31, 0.26);
+      inset 0 0 0 1px var(--blueprint-edge-glow),
+      inset 0 0 24px var(--blueprint-shadow);
   }
 
   .card-front::before {
@@ -3890,6 +4619,11 @@
     -webkit-mask-repeat: no-repeat;
             mask-repeat: no-repeat;
   }
+}
+
+.card-find-open-mission .sector-card-header-detail {
+  width: 100%;
+  max-width: 100%;
 }
 
 .card-art {
@@ -4034,6 +4768,34 @@
 
 .sector-card-discount {
   margin-top: -3px;
+}
+
+.ship-part-effect-art {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: clamp(48px, 7vw, 96px);
+}
+
+.ship-part-effect-art .sector-card-art-layer {
+  position: relative;
+  inset: auto;
+  flex: none;
+}
+
+.ship-part-effect-art .sector-card-art-layer.is-blueprint {
+  width: clamp(52px, 6vw, 84px);
+  margin-left: -6px;
+  transform: translateY(clamp(4px, 0.6vw, 8px));
+}
+
+.ship-part-effect-art .sector-card-art-layer.is-route {
+  width: clamp(38px, 4.5vw, 64px);
+  margin-left: -8px;
+  transform: translateY(clamp(-8px, -0.6vw, -4px));
 }
 
 .open-mission-description {
@@ -4569,6 +5331,22 @@
 
     .icon-line {
       stroke-width: 1.65;
+    }
+  }
+
+  &[data-kind='scrap'] {
+    --icon-color: #d58b42;
+    --icon-stroke: #2a1909;
+
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.36), transparent 40%),
+      color-mix(in srgb, var(--icon-color) 38%, var(--icon-paper));
+    box-shadow: inset 0 0 0 0.1em rgba(17, 19, 26, 0.12);
+
+    .icon-line {
+      stroke-width: 1.85;
+      opacity: 0.64;
     }
   }
 
@@ -5166,8 +5944,8 @@
     background:
       radial-gradient(circle at 50% 22%, rgba(255, 155, 170, 0.18), transparent 34%),
       repeating-linear-gradient(0deg, rgba(255, 248, 232, 0.055) 0 1px, transparent 1px 24px),
-      linear-gradient(180deg, rgba(6, 5, 14, 0.86) 0 38%, rgba(39, 9, 18, 0.9) 38% 100%),
-      rgba(5, 7, 19, 0.88);
+      linear-gradient(180deg, rgba(6, 5, 14, 0.5) 0 38%, rgba(39, 9, 18, 0.5) 38% 100%),
+      rgba(5, 7, 19, 0.5);
   }
 
   .crashed-ship-art {
@@ -5179,8 +5957,16 @@
     justify-self: center;
   }
 
+  .loss-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .loss-stat {
-    min-height: 38px;
+    min-height: 62px;
+
+    &.is-wide {
+      grid-column: auto;
+    }
   }
 
   .board-status-area {
@@ -5238,6 +6024,27 @@
     top: 24px;
     left: 12px;
     font-size: 10px;
+  }
+
+  .hand-sort-controls {
+    top: -24px;
+    gap: 6px;
+  }
+
+  .hand-sort-button {
+    gap: 5px;
+    font-size: 12px;
+
+    &::before {
+      width: 14px;
+      height: 14px;
+    }
+
+    &::after {
+      left: 3px;
+      width: 6px;
+      height: 3px;
+    }
   }
 
   .hand-zone-stress {

@@ -8,6 +8,8 @@ import {
   GATE_DECK_ID,
   MISSION_DECK_ID,
   MOTHER_DECK_ID,
+  SCRAP_DECK_ID,
+  SCRAP_DISCARD_DECK_ID,
   SHIP_PART_DECK_ID,
   canManuallyDrawDeck,
   manualDeckDraw,
@@ -48,6 +50,7 @@ import {
   cardsMovedToHandEvent,
   cardsReturnedToDeckEvent,
   cardsStackedEvent,
+  crewReclaimedToHandEvent,
   deckCreatedFromStacksEvent,
   decksMergedEvent,
   discoveryEarnedEvent,
@@ -70,9 +73,16 @@ import {
   motherSpentEvent,
   mapRefilledEvent,
   readyRewardAppliedEvent,
+  researchOfferedEvent,
+  researchRedrawnEvent,
+  researchSkippedEvent,
+  cryoDeckReshuffledEvent,
   routeArchivedEvent,
   scoutUsedEvent,
+  scrapsEarnedEvent,
   sectorRevealedEvent,
+  shipPartBoughtEvent,
+  shipPartDiscardedEvent,
   sectorResetCrewReadiedEvent,
   medbayRehydratorReadiedEvent,
   shipPartAvailableEvent,
@@ -114,6 +124,15 @@ import {
   getStackActions,
 } from '../game/stackActions'
 import { withPlaytestEvents, type BoardUpdateResult, type BoardUpdater } from '../game/state'
+import { getMissionScrapReward } from '../game/economyTuning'
+import {
+  SHIP_PART_SLOT_CAP,
+  applyShipPartMissionEffects,
+  applyShipPartSectorEndEffects,
+  getShipPartHandSizeLimit,
+  hasShipPartWildSlot,
+} from '../game/shipPartEffects'
+import { createActiveShipPartBlueprint } from '../game/blueprints/factories'
 import {
   canTravelToAnyVisibleMission,
   canResearchShipPart,
@@ -128,7 +147,9 @@ import {
   MAP_SLOT_POSITIONS,
   MOTHER_SUPPLY_STACK_ID,
   MOTHER_SUPPLY_STACK_POSITION,
+  SCRAP_SUPPLY_STACK_ID,
   SECTOR_GATE_STACK_POSITION,
+  getShipPartShelfPosition,
   createDriftDeckCards,
   createSectorMissionDeckCards,
   getSectorDeckArt,
@@ -154,6 +175,7 @@ import {
   isGateClearConditionMet,
 } from '../game/blueprints/sectorGates'
 import type {
+  ActiveShipPart,
   BoardMetrics,
   BoardState,
   Card,
@@ -169,8 +191,10 @@ import type {
 import {
   canPutCardIdsInHand,
   canUseManualHandZone,
+  type HandCrewSortKind,
   getCardHandZone,
   removeCardFromHandZones,
+  sortHandCrewCardIds,
 } from './handState'
 import { clamp } from '../game/geometry'
 import { getOwnedHandCardOwnerId } from '../game/players'
@@ -187,6 +211,24 @@ function createCardFromBlueprint(blueprint: CardBlueprint, id: string, faceUp = 
     id,
     faceUp,
   }
+}
+
+function drawResearchOffers(
+  pool: readonly import('../game/types').ShipPartBlueprint[],
+  count: number,
+  excludedIds: ReadonlySet<string> = new Set(),
+): import('../game/types').ShipPartBlueprint[] {
+  if (pool.length === 0 || count <= 0) {
+    return []
+  }
+  const remaining = pool.filter((blueprint) => !excludedIds.has(blueprint.id))
+  const offers: import('../game/types').ShipPartBlueprint[] = []
+  for (let i = 0; i < count && remaining.length > 0; i += 1) {
+    const idx = Math.floor(Math.random() * remaining.length)
+    const [picked] = remaining.splice(idx, 1)
+    if (picked) offers.push(picked)
+  }
+  return offers
 }
 
 type ActivateStackDragUpdateArgs = {
@@ -1322,6 +1364,178 @@ function drawFuelCardsFromDecks(
   }
 }
 
+// === Scrap deck/supply helpers ====================================================
+// Mirrors the fuel deck/discard cycle with a separate Scrap Deck +
+// Scrap Discard pile and a fixed `SCRAP_SUPPLY_STACK_ID` supply stack.
+// `BoardState.scraps` remains the canonical counter; helpers update both
+// the counter and the physical cards in lockstep.
+
+function prepareScrapDeckForDraw(decks: readonly Deck[], z: number) {
+  const scrapDeck = decks.find((deck) => deck.id === SCRAP_DECK_ID) ?? null
+  if (!scrapDeck) return { decks: [...decks], scrapDeck: null, events: [] as PlaytestLogEvent[] }
+  if (scrapDeck.cards.length > 0) return { decks: [...decks], scrapDeck, events: [] as PlaytestLogEvent[] }
+
+  const scrapDiscardDeck = decks.find((deck) => deck.id === SCRAP_DISCARD_DECK_ID) ?? null
+  if (!scrapDiscardDeck || scrapDiscardDeck.cards.length === 0) {
+    return { decks: [...decks], scrapDeck, events: [] as PlaytestLogEvent[] }
+  }
+
+  const reshuffled = shuffleCards(scrapDiscardDeck.cards)
+  const nextScrapDeck = { ...scrapDeck, cards: reshuffled, z }
+  const nextDecks = decks.map((deck) => {
+    if (deck.id === SCRAP_DECK_ID) return nextScrapDeck
+    if (deck.id === SCRAP_DISCARD_DECK_ID) return { ...deck, cards: [], z }
+    return deck
+  })
+  return { decks: nextDecks, scrapDeck: nextScrapDeck, events: [] as PlaytestLogEvent[] }
+}
+
+function drawScrapCardsFromDecks(
+  decks: readonly Deck[],
+  nextCardId: number,
+  count: number,
+  idPrefix: string,
+  z: number,
+) {
+  const scrapCards: Card[] = []
+  let nextDecks = [...decks]
+  let nextCardIdCursor = nextCardId
+
+  for (let drawIndex = 0; drawIndex < count; drawIndex += 1) {
+    const prepared = prepareScrapDeckForDraw(nextDecks, z)
+    nextDecks = prepared.decks
+    const scrapDeck = prepared.scrapDeck
+    const scrapBlueprint = scrapDeck?.cards[0]
+    if (!scrapDeck || !scrapBlueprint) break
+
+    const card = createCardFromBlueprint(scrapBlueprint, `${idPrefix}-${nextCardIdCursor}`)
+    nextCardIdCursor += 1
+    scrapCards.push(card)
+    nextDecks = nextDecks.map((deck) =>
+      deck.id === SCRAP_DECK_ID
+        ? { ...deck, cards: deck.cards.slice(1), z }
+        : deck,
+    )
+  }
+
+  return { decks: nextDecks, nextCardId: nextCardIdCursor, scrapCards }
+}
+
+function isScrapResourceCard(card: Card | undefined) {
+  return card?.kind === 'resource' && card.resource === 'scrap'
+}
+
+function appendScrapCardsToSupplyStack(stacks: readonly Stack[], scrapCards: readonly Card[], z: number) {
+  if (scrapCards.length === 0) return [...stacks]
+  let saw = false
+  const next = stacks.map((stack) => {
+    if (stack.id !== SCRAP_SUPPLY_STACK_ID) return stack
+    saw = true
+    return { ...stack, cardIds: [...stack.cardIds, ...scrapCards.map((card) => card.id)], z }
+  })
+  if (!saw) {
+    next.push({
+      id: SCRAP_SUPPLY_STACK_ID,
+      cardIds: scrapCards.map((card) => card.id),
+      x: 27,
+      y: 24,
+      z,
+    })
+  }
+  return next
+}
+
+function getScrapSupplyCardIds(current: BoardState) {
+  const stack = current.stacks.find((s) => s.id === SCRAP_SUPPLY_STACK_ID)
+  if (!stack) return [] as string[]
+  return stack.cardIds.filter((cardId) => isScrapResourceCard(current.cards[cardId]))
+}
+
+function gainScrapsAsCards(current: BoardState, amount: number, idPrefix: string) {
+  if (amount <= 0) return { board: current, drewCount: 0 }
+  const z = current.topZ + 1
+  const draw = drawScrapCardsFromDecks(current.decks, current.nextCardId, amount, idPrefix, z)
+  if (draw.scrapCards.length === 0) return { board: current, drewCount: 0 }
+
+  const nextCards = { ...current.cards }
+  for (const card of draw.scrapCards) nextCards[card.id] = card
+
+  const nextStacks = appendScrapCardsToSupplyStack(current.stacks, draw.scrapCards, z)
+
+  return {
+    board: {
+      ...current,
+      topZ: z,
+      nextCardId: draw.nextCardId,
+      decks: draw.decks,
+      cards: nextCards,
+      stacks: nextStacks,
+      scraps: current.scraps + draw.scrapCards.length,
+    },
+    drewCount: draw.scrapCards.length,
+  }
+}
+
+function spendScrapsFromCards(current: BoardState, amount: number) {
+  if (amount <= 0) return { board: current, spentCount: 0 }
+  const supplyIds = getScrapSupplyCardIds(current)
+  const spendIds = supplyIds.slice(0, Math.min(amount, supplyIds.length))
+  if (spendIds.length === 0) return { board: current, spentCount: 0 }
+
+  const z = current.topZ + 1
+  const spendIdSet = new Set(spendIds)
+  const discardedBlueprints = cardsToDeckBlueprints(spendIds, current.cards)
+  const nextStacks = current.stacks.map((stack) =>
+    stack.id === SCRAP_SUPPLY_STACK_ID
+      ? { ...stack, cardIds: stack.cardIds.filter((cardId) => !spendIdSet.has(cardId)), z }
+      : stack,
+  )
+  const nextCards = withoutCards(current.cards, spendIds)
+  const nextDecks = current.decks.map((deck) =>
+    deck.id === SCRAP_DISCARD_DECK_ID
+      ? { ...deck, cards: [...deck.cards, ...discardedBlueprints], z }
+      : deck,
+  )
+
+  return {
+    board: {
+      ...current,
+      topZ: z,
+      cards: nextCards,
+      stacks: nextStacks,
+      decks: nextDecks,
+      scraps: Math.max(0, current.scraps - spendIds.length),
+    },
+    spentCount: spendIds.length,
+  }
+}
+
+function applyScrapDelta(current: BoardState, delta: number, idPrefix: string) {
+  if (delta > 0) {
+    const result = gainScrapsAsCards(current, delta, idPrefix)
+    return result.board
+  }
+  if (delta < 0) {
+    const result = spendScrapsFromCards(current, -delta)
+    return result.board
+  }
+  return current
+}
+
+// Reconciles physical Scrap cards with the canonical `scraps` counter on
+// the board. Call after a state-mutating path that updated the counter so
+// the supply stack / decks reflect the new total.
+function syncScrapSupplyToCounter(current: BoardState, idPrefix: string) {
+  const supplyCount = getScrapSupplyCardIds(current).length
+  const target = current.scraps
+  if (supplyCount === target) return current
+
+  // Reset counter to supply count, then apply the delta — this lets the
+  // helpers manage the counter consistently with the card movement.
+  const rebased: BoardState = { ...current, scraps: supplyCount }
+  return applyScrapDelta(rebased, target - supplyCount, idPrefix)
+}
+
 function getNextTurnPlayerIndex(current: BoardState) {
   const playerCount = current.players.length
 
@@ -1345,7 +1559,33 @@ function advanceTurn(current: BoardState) {
   }
 }
 
-function drawTurnStartCryoCrew(current: BoardState) {
+// Reshuffles tired crew back into the cryo deck (Balatro-style discard
+// recycle). Returns the board and an event when work was done.
+function reshuffleTiredIntoCryo(current: BoardState) {
+  if (current.tiredCardIds.length === 0) {
+    return { board: current, events: [] as PlaytestLogEvent[] }
+  }
+  const tiredCardIds = current.tiredCardIds
+  const tiredBlueprints = cardsToDeckBlueprints([...tiredCardIds], current.cards)
+  const shuffledBlueprints = shuffleCards(tiredBlueprints)
+  const board: BoardState = {
+    ...current,
+    tiredCardIds: [],
+    roundStartTiredCardIds: removeRoundStartTiredCardIds(current, tiredCardIds),
+    cards: withoutCards(current.cards, tiredCardIds),
+    decks: current.decks.map((deck) =>
+      deck.id === CRYO_DECK_ID
+        ? { ...deck, cards: [...deck.cards, ...shuffledBlueprints] }
+        : deck,
+    ),
+  }
+  return { board, events: [cryoDeckReshuffledEvent(tiredBlueprints.length)] }
+}
+
+// Draws a single crew card from the cryo deck into the active player's hand.
+// Returns the unchanged board if the deck is empty (caller is responsible
+// for triggering reshuffle first).
+function drawOneCryoIntoHand(current: BoardState) {
   const cryoDeck = current.decks.find((deck) => deck.id === CRYO_DECK_ID)
   const crewBlueprint = cryoDeck?.cards[0]
 
@@ -1380,6 +1620,116 @@ function drawTurnStartCryoCrew(current: BoardState) {
     board,
     events: [turnStartCrewDrawnEvent(crewCard, cryoDeck, currentPlayer?.name ?? null)],
   }
+}
+
+// A "limbo" crew stack is one the player parked on the board (e.g. a partial
+// pattern) that isn't yet attached to any destination/gate/hazard/ship-part.
+// Crew sitting in such stacks should come back to hand before Cryo fills the
+// remaining slots — otherwise the Cryo top-up would orphan them on the board.
+function isCommittedBoardStack(stack: Stack, board: BoardState) {
+  if (stackContainsRouteCard(stack, board.routeSlots, board.shipPartSlots)) return true
+  for (const cardId of stack.cardIds) {
+    const card = board.cards[cardId]
+    if (card?.kind === 'gate' || card?.kind === 'hazard') return true
+    if (board.mapSlots.includes(cardId)) return true
+  }
+  return false
+}
+
+function reclaimLimboCrewToHand(current: BoardState, capacity: number) {
+  if (capacity <= 0) {
+    return { board: current, reclaimed: [] as string[] }
+  }
+
+  const reclaimed: string[] = []
+  let remaining = capacity
+  const updatedStacks: Stack[] = []
+
+  for (const stack of current.stacks) {
+    if (remaining <= 0 || isCommittedBoardStack(stack, current)) {
+      updatedStacks.push(stack)
+      continue
+    }
+
+    const reclaimedFromStack: string[] = []
+    const keptCardIds: string[] = []
+    for (const cardId of stack.cardIds) {
+      if (remaining > 0 && current.cards[cardId]?.kind === 'crew') {
+        reclaimedFromStack.push(cardId)
+        remaining -= 1
+      } else {
+        keptCardIds.push(cardId)
+      }
+    }
+
+    if (reclaimedFromStack.length === 0) {
+      updatedStacks.push(stack)
+      continue
+    }
+
+    reclaimed.push(...reclaimedFromStack)
+    if (keptCardIds.length > 0) {
+      updatedStacks.push({ ...stack, cardIds: keptCardIds })
+    }
+  }
+
+  if (reclaimed.length === 0) {
+    return { board: current, reclaimed }
+  }
+
+  return {
+    board: {
+      ...current,
+      stacks: updatedStacks,
+      handCardIds: [...current.handCardIds, ...reclaimed],
+      dropTargetStackId: null,
+      dropTargetDeckId: null,
+    },
+    reclaimed,
+  }
+}
+
+// Locked Balatro-style cycle: refill the hand to its current size cap. First
+// reclaim any crew the player parked on uncommitted board stacks, then top up
+// from the cryo deck. When cryo runs out, reshuffle the tired pile into cryo
+// and keep drawing. Hand size cap = 5 + Adrenal Implants.
+function refillHandFromCryo(current: BoardState) {
+  const handLimit = getShipPartHandSizeLimit(current.activeShipParts)
+  let board = current
+  const events: PlaytestLogEvent[] = []
+
+  const reclaimResult = reclaimLimboCrewToHand(board, handLimit - board.handCardIds.length)
+  if (reclaimResult.reclaimed.length > 0) {
+    events.push(crewReclaimedToHandEvent(reclaimResult.reclaimed, reclaimResult.board.cards))
+    board = reclaimResult.board
+  }
+
+  let safety = 0
+
+  while (board.handCardIds.length < handLimit) {
+    if (safety > 64) break // belt-and-suspenders against pathological loops
+    safety += 1
+
+    const cryoDeck = board.decks.find((deck) => deck.id === CRYO_DECK_ID)
+    if (!cryoDeck || cryoDeck.cards.length === 0) {
+      const reshuffled = reshuffleTiredIntoCryo(board)
+      if (reshuffled.events.length === 0) break // both cryo and tired empty
+      board = reshuffled.board
+      events.push(...reshuffled.events)
+      continue
+    }
+
+    const drawn = drawOneCryoIntoHand(board)
+    if (drawn.board === board) break
+    board = drawn.board
+    events.push(...drawn.events)
+  }
+
+  return { board, events }
+}
+
+function drawTurnStartCryoCrew(current: BoardState) {
+  return refillHandFromCryo(current)
 }
 
 function advanceTurnAndCheckLoss(current: BoardState) {
@@ -1624,12 +1974,19 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
     return { board: current, events: [] }
   }
 
+  // Tachyon Lens: the first crew stacked on the mission counts as wild for
+  // pattern matching. Auto-bind keeps the mechanic frictionless until a
+  // proper picker UI lands (open decision B in the implementation plan).
+  const wildCardId = hasShipPartWildSlot(current.activeShipParts)
+    ? sourceStack.cardIds.find((cardId) => current.cards[cardId]?.kind === 'crew') ?? null
+    : null
   const completion = getMissionStackCompletion(
     sourceStack,
     current.cards,
     getNextStopFuelDiscount(current.pendingEffects),
     getMissionAnyIconSurcharge(current.cards, current.routeSlots),
     getWaterPairFuelAmount(current.shipPartSlots),
+    wildCardId,
   )
 
   if (!completion?.isReady) {
@@ -1701,11 +2058,36 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
     )
   const rewardCards: Card[] = []
   let nextCardId = current.nextCardId
-  const fuelRewardCount = rewards.reduce((count, reward) => (
+  const baseFuelRewardCount = rewards.reduce((count, reward) => (
     reward.kind === 'resource' && reward.resource === 'fuel'
       ? count + reward.count
       : count
   ), 0)
+  const missionsCompletedInSector = current.completedStarSummaries.filter(
+    (summary) => summary.sector === current.currentSector,
+  ).length
+  const missionPatternForEffects = missionCard.mission.pattern === 'open'
+    ? completion.dynamicPattern ?? null
+    : missionCard.mission.pattern ?? null
+  const usedCrewCardsForEffects = spentCrewCardIds
+    .map((cardId) => current.cards[cardId])
+    .filter((card): card is Card => card?.kind === 'crew')
+  const shipPartMissionEffects = applyShipPartMissionEffects(current.activeShipParts, {
+    usedCrewCards: usedCrewCardsForEffects,
+    missionIndexInSector: missionsCompletedInSector,
+    isLastMissionInSector: missionsCompletedInSector >= MAP_SLOT_COUNT - 1,
+    sectorIndex: current.currentSector - 1,
+    pattern: missionPatternForEffects,
+    scrapsAvailable: current.scraps,
+    missionsCompletedBefore: current.missionsCompletedCount,
+    lastPatternPlayed: current.lastPatternPlayed,
+    patternStreakBefore: current.patternStreakCount,
+  })
+  const fuelRewardCount = Math.max(0, baseFuelRewardCount + shipPartMissionEffects.fuelDelta)
+  const baseMissionScrapReward = getMissionScrapReward(fuelRewardCount)
+  const totalMissionScrapDelta = baseMissionScrapReward + shipPartMissionEffects.scrapDelta
+  const scrapsAfterMission = Math.max(0, current.scraps + totalMissionScrapDelta)
+  const missionScrapReward = scrapsAfterMission - current.scraps
   const fuelRewardDraw = drawFuelCardsFromDecks(current.decks, nextCardId, fuelRewardCount, 'reward', nextZ)
 
   nextCardId = fuelRewardDraw.nextCardId
@@ -1926,6 +2308,15 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
         [usedPattern]: (current.patternUsageCounts[usedPattern] ?? 0) + 1,
       }
     : current.patternUsageCounts
+  // Run-wide counters consumed by stateful jokers (Compounding Drive,
+  // Mission Streak). Update AFTER the effects fire — the bonus for the
+  // current mission was already computed against the pre-mission values.
+  const nextMissionsCompletedCount = current.missionsCompletedCount + 1
+  const streakPattern = missionPatternForEffects ?? null
+  const nextPatternStreakCount = streakPattern && streakPattern === current.lastPatternPlayed
+    ? current.patternStreakCount + 1
+    : 1
+  const nextLastPatternPlayed = streakPattern ?? current.lastPatternPlayed
 
   const nextBoard = {
     ...current,
@@ -1935,6 +2326,9 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
     dropTargetStackId: null,
     dropTargetDeckId: null,
     patternUsageCounts: nextPatternUsageCounts,
+    missionsCompletedCount: nextMissionsCompletedCount,
+    lastPatternPlayed: nextLastPatternPlayed,
+    patternStreakCount: nextPatternStreakCount,
     mapSlots: current.mapSlots.map((cardId, index) => index === mapSlotIndex ? null : cardId),
     forcedDestinationCardId: missionCard.id === current.forcedDestinationCardId
       ? null
@@ -1958,6 +2352,7 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
         playerId: missionLeadId,
         crewCardIds: spentCrewCardIds,
         crewTitles: spentCrewCardIds.map((cardId) => current.cards[cardId]?.title ?? cardId),
+        fuelReward: fuelRewardCount,
         fuelSpent: spentFuelCount,
         motherSpent: spentMotherCardIds.length,
       },
@@ -1965,6 +2360,7 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
     pendingWakeChoice,
     pendingScoutChoice,
     stressCount: current.stressCount + spentMotherCardIds.length * (1 + getMotherStressEcho(current.cards)),
+    scraps: scrapsAfterMission,
     pendingEffects: [
       ...consumeNextStopFuelDiscount(current.pendingEffects),
       ...createBoardEffectsForVisitRewards(rewards),
@@ -2008,7 +2404,6 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
     sourceStack.id,
     `unused after ${missionCard.title} completion`,
   )
-  const followUpLoss = resolveSectorStrandedLossIfNeeded(returnedMother.board)
   const readyRewardEvents = readyCrewResult.readiedCrewCardIds.length > 0
     ? [readyRewardAppliedEvent(missionCard, readyCrewResult.readiedCrewCardIds, current.cards)]
     : []
@@ -2024,6 +2419,9 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
     stressCountBefore,
     missionCard,
   )
+  const missionScrapEvents = missionScrapReward > 0
+    ? [scrapsEarnedEvent(`${missionCard.title} mission`, missionScrapReward, current.scraps, scrapsAfterMission)]
+    : []
   const stressEchoCount = spentMotherCardIds.length * getMotherStressEcho(current.cards)
   const stressEchoEvents = stressEchoCount > 0
     ? [
@@ -2047,8 +2445,10 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
       ? [discoveryMissedEvent(earnedDiscoveryDeck, missionCard)]
       : []
 
+  // Loss checks run after auto-advancing and refilling the hand; checking here
+  // would treat crew spent on this mission as unavailable for the next turn.
   return {
-    board: followUpLoss.board,
+    board: syncScrapSupplyToCounter(returnedMother.board, `mission-scrap-${missionCard.id}`),
     events: [
       ...motherCommittedEvents,
       missionCompletedEvent(missionCard, sourceStack, rewardCards, current.cards, {
@@ -2056,6 +2456,7 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
         dynamicFuelReward: completion.dynamicFuelReward,
       }),
       ...fuelRewardDraw.events,
+      ...missionScrapEvents,
       ...discoveryEvents,
       ...motherSpentEvents,
       ...stressEchoEvents,
@@ -2064,7 +2465,6 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
       ...progressed.events,
       ...gatePrep.events,
       ...returnedMother.events,
-      ...followUpLoss.events,
     ],
   }
 }
@@ -2095,7 +2495,7 @@ function isGateClearedCleanly(
   )
 }
 
-function completeReadyGateStack(initial: BoardState, stackId: string) {
+function completeReadyGateStack(initial: BoardState, stackId: string, metrics: BoardMetrics) {
   const initialSourceStack = initial.stacks.find((stack) => stack.id === stackId)
 
   if (
@@ -2257,22 +2657,16 @@ function completeReadyGateStack(initial: BoardState, stackId: string) {
     ...current.tiredCardIds.filter((cardId) => !spentCrewCardIdSet.has(cardId)),
     ...spentCrewCardIds,
   ]
-  const medbaySlotIndices = getAvailableShipPartSlotIndices(current, 'medbay-rehydrator')
-  // All tired crew become ready at sector start (after gate clears) — the
-  // open-mission economy assumes a fresh crew pool every sector. Medbay
-  // remains a ship-part bonus during a sector but no longer determines the
-  // sector reset.
+  // Joker-economy hand cycle: no sector-end auto-reset. Tired stays tired
+  // and is recycled into Cryo (via reshuffle) only when Cryo runs out
+  // during the per-action refill. Hand is refilled from Cryo to its size
+  // cap by `advanceTurnAndCheckLoss` after the action resolves.
   const readyCrewResult = readyTiredCrew(
     handCardIdsWithoutSpentCrew,
     tiredCardIdsWithSpentCrew,
-    tiredCardIdsWithSpentCrew.length,
+    0,
   )
-  const medbayCards = medbaySlotIndices.flatMap((index) => {
-    const shipPartSlot = current.shipPartSlots[index]
-    const card = shipPartSlot ? current.cards[shipPartSlot.cardId] : null
-
-    return card ? [card] : []
-  })
+  const medbayCards: Card[] = []
 
   const nextStacksBeforeDamage = current.stacks.flatMap((stack) => {
     if (nextGateCard && stack.cardIds.some((cardId) => archivedRouteCardIdSet.has(cardId))) {
@@ -2285,6 +2679,15 @@ function completeReadyGateStack(initial: BoardState, stackId: string) {
       const keptCardIds = stack.cardIds.filter((cardId) => (
         !mapCardIdSet.has(cardId)
       ))
+
+      // Preserve the persistent supply stacks even when momentarily empty
+      // — they anchor the deck draw/discard flow across sectors.
+      if (
+        keptCardIds.length === 0 &&
+        (stack.id === FUEL_SUPPLY_STACK_ID || stack.id === SCRAP_SUPPLY_STACK_ID)
+      ) {
+        return [{ ...stack, cardIds: [] }]
+      }
 
       return keptCardIds.length > 0 ? [{ ...stack, cardIds: keptCardIds }] : []
     }
@@ -2311,10 +2714,54 @@ function completeReadyGateStack(initial: BoardState, stackId: string) {
         ]
       : []
   })
-  const nextStacks = damageCard
-    ? placeDamageCard(nextStacksBeforeDamage, nextCards, damageCard.id, nextZ)
-    : nextStacksBeforeDamage
   const decksWithFuelDiscard = discardFuelCardsToPile(current.decks, current.cards, spentFuelCardIds, nextZ)
+  // Apply active ship-part sector-end effects (Quartermaster, Scrap Forge,
+  // Fuel Cell Distillery, Sector Engine, Veteran's Insignia, Reserve
+  // Capacitor). `readyCrewCount` is the count of crew cards still in hand
+  // when the gate is faced — used by Reserve Capacitor to award fuel for
+  // unused Ready crew.
+  const readyCrewCount = current.handCardIds.filter(
+    (cardId) => current.cards[cardId]?.kind === 'crew',
+  ).length
+  const sectorEndShipPartEffects = applyShipPartSectorEndEffects(current.activeShipParts, {
+    sectorIndex: current.currentSector - 1,
+    scrapsAfterGate: current.scraps,
+    readyCrewCount,
+  })
+  const scrapsAfterShipPartEffects = Math.max(
+    0,
+    current.scraps + sectorEndShipPartEffects.scrapDelta,
+  )
+  // Sector-end fuel bonus (Scrap Forge, Fuel Cell Distillery, Sector Engine,
+  // Veteran's Insignia) draws extra Fuel cards into the supply stack so the
+  // bonus is visible as physical cards for the next sector.
+  const sectorEndFuelDraw = drawFuelCardsFromDecks(
+    decksWithFuelDiscard,
+    nextCardIdCursor,
+    sectorEndShipPartEffects.fuelDelta,
+    'sector-end',
+    nextZ,
+  )
+  nextCardIdCursor = sectorEndFuelDraw.nextCardId
+  for (const card of sectorEndFuelDraw.fuelCards) {
+    nextCards[card.id] = card
+  }
+  const decksAfterSectorEndFuel = sectorEndFuelDraw.decks
+  const nextStacksWithSectorEndFuel = placeFuelCardsInSupplyStack(
+    nextStacksBeforeDamage,
+    nextCards,
+    sectorEndFuelDraw.fuelCards,
+    nextZ,
+    metrics,
+  )
+  const nextStacks = damageCard
+    ? placeDamageCard(nextStacksWithSectorEndFuel, nextCards, damageCard.id, nextZ)
+    : nextStacksWithSectorEndFuel
+  // Research dialog: draw up to 2 random offers from the un-owned shop pool.
+  // Skip silently on the final gate (run is ending) or when the pool is
+  // empty (player owns all 25). Pool is unaffected here — only `purchase`
+  // removes from it.
+  const research = !isFinalGate ? drawResearchOffers(current.shipPartShopPool, 2) : null
   const nextBoard = {
     ...current,
     topZ: nextZ,
@@ -2343,6 +2790,7 @@ function completeReadyGateStack(initial: BoardState, stackId: string) {
     tiredCardIds: readyCrewResult.tiredCardIds,
     roundStartTiredCardIds: removeRoundStartTiredCardIds(current, readyCrewResult.readiedCrewCardIds),
     stressCount: nextStressCount,
+    scraps: scrapsAfterShipPartEffects,
     cards: nextCards,
     stacks: [
       ...nextStacks,
@@ -2365,7 +2813,7 @@ function completeReadyGateStack(initial: BoardState, stackId: string) {
           ]
         : []),
     ],
-    decks: decksWithFuelDiscard.map((deck) =>
+    decks: decksAfterSectorEndFuel.map((deck) =>
       nextGateCard && deck.id === MISSION_DECK_ID
         ? {
             ...deck,
@@ -2383,6 +2831,9 @@ function completeReadyGateStack(initial: BoardState, stackId: string) {
             : deck,
     ),
     pendingEffects: nextGateCard ? [] : consumeNextGateFuelDiscount(current.pendingEffects),
+    pendingResearchChoice: research && research.length > 0
+      ? { offers: research }
+      : current.pendingResearchChoice,
   }
   const returnedMother = returnMotherCardsToDeck(
     nextBoard,
@@ -2453,9 +2904,26 @@ function completeReadyGateStack(initial: BoardState, stackId: string) {
           : []),
       ]
     : []
-
+  const sectorEndShipPartFuelEvents = sectorEndShipPartEffects.fuelDelta > 0
+    ? [scrapsEarnedEvent(
+        'Ship Parts: sector-end Fuel',
+        // Repurpose the scrap event helper for any +N delta surfacing.
+        // The "from/to" pair tracks sector-end fuel draws via card count.
+        sectorEndShipPartEffects.fuelDelta,
+        0,
+        sectorEndShipPartEffects.fuelDelta,
+      )]
+    : []
+  const sectorEndShipPartScrapEvents = sectorEndShipPartEffects.scrapDelta !== 0
+    ? [scrapsEarnedEvent(
+        'Ship Parts: sector-end Scraps',
+        sectorEndShipPartEffects.scrapDelta,
+        current.scraps,
+        scrapsAfterShipPartEffects,
+      )]
+    : []
   return {
-    board: returnedMother.board,
+    board: syncScrapSupplyToCounter(returnedMother.board, `sector-end-scrap-${current.currentSector}`),
     events: [
       ...gatePrep.events,
       gateCrewStateBeforeEvent(current.cards, getReadyCrewCardIds(current), current.tiredCardIds),
@@ -2481,6 +2949,9 @@ function completeReadyGateStack(initial: BoardState, stackId: string) {
         : []),
       ...gateDamageEvents,
       ...sectorEndMedbayEvents,
+      ...sectorEndShipPartScrapEvents,
+      ...sectorEndShipPartFuelEvents,
+      ...(research && research.length > 0 ? [researchOfferedEvent(research)] : []),
       routeArchivedEvent(current.currentSector, routeCardIds, current.cards),
       starsCompletedSummaryEvent(
         current.completedStarSummaries,
@@ -2727,7 +3198,7 @@ export function completeStackActionUpdate(
     } else if (action.kind === 'travel') {
       actionResult = completeReadyMissionStack(current, stackId, metrics)
     } else if (action.kind === 'pass-gate') {
-      actionResult = completeReadyGateStack(current, stackId)
+      actionResult = completeReadyGateStack(current, stackId, metrics)
     } else {
       return current
     }
@@ -2739,6 +3210,7 @@ export function completeStackActionUpdate(
     const blocked =
       resolved.board === current ||
       resolved.board.pendingShipPartChoice ||
+      resolved.board.pendingResearchChoice ||
       resolved.board.pendingWakeChoice ||
       resolved.board.pendingScoutChoice ||
       resolved.board.pendingDrift ||
@@ -3439,6 +3911,163 @@ export function chooseShipPartUpdate(cardId: string): BoardUpdater {
   }
 }
 
+function findActiveShipPartStack(stacks: readonly Stack[], cards: Record<string, Card>) {
+  let target: Stack | null = null
+
+  for (const stack of stacks) {
+    const containsOnlyShipParts = stack.cardIds.length > 0 && stack.cardIds.every(
+      (cardId) => cards[cardId]?.kind === 'active-ship-part',
+    )
+
+    if (containsOnlyShipParts && (!target || stack.z > target.z)) {
+      target = stack
+    }
+  }
+
+  return target
+}
+
+export function purchaseShipPartUpdate(shipPartId: string): BoardUpdater {
+  return (current) => {
+    const offers = current.pendingResearchChoice?.offers ?? []
+    const offer = offers.find((entry) => entry.id === shipPartId)
+    if (!offer) return current
+    if (current.scraps < offer.cost) return current
+    if (current.activeShipParts.length >= SHIP_PART_SLOT_CAP) return current
+    if (current.activeShipParts.some((part) => part.id === offer.id)) return current
+
+    const scrapsBefore = current.scraps
+    const scrapsAfter = scrapsBefore - offer.cost
+    const newSlotIndex = current.activeShipParts.length
+    const newInstance: ActiveShipPart = {
+      ...offer,
+      instanceId: `ship-part-${offer.id}-${current.currentSector}-${newSlotIndex}-${current.nextCardId}`,
+      acquiredSector: current.currentSector,
+    }
+    const nextActive = [...current.activeShipParts, newInstance]
+    const shipPartCardId = `active-ship-part-${current.nextCardId}`
+    const shipPartCard: Card = {
+      ...createActiveShipPartBlueprint(newInstance),
+      id: shipPartCardId,
+      faceUp: true,
+    }
+    const nextZ = current.topZ + 1
+    const shipPartStack = findActiveShipPartStack(current.stacks, current.cards)
+    const nextStacks = shipPartStack
+      ? current.stacks.map((stack) =>
+          stack.id === shipPartStack.id
+            ? { ...stack, cardIds: [...stack.cardIds, shipPartCardId], z: nextZ }
+            : stack,
+        )
+      : [
+          ...current.stacks,
+          {
+            id: `stack-${shipPartCardId}`,
+            cardIds: [shipPartCardId],
+            ...getShipPartShelfPosition(newSlotIndex),
+            z: nextZ,
+          },
+        ]
+    const boardAfterBuy: BoardState = {
+      ...current,
+      nextCardId: current.nextCardId + 1,
+      topZ: nextZ,
+      scraps: scrapsAfter,
+      activeShipParts: nextActive,
+      shipPartShopPool: current.shipPartShopPool.filter((blueprint) => blueprint.id !== offer.id),
+      pendingResearchChoice: { offers },
+      cards: { ...current.cards, [shipPartCardId]: shipPartCard },
+      stacks: nextStacks,
+    }
+    const synced = syncScrapSupplyToCounter(boardAfterBuy, `buy-${offer.id}`)
+
+    return withPlaytestEvents(synced, [
+      shipPartBoughtEvent(offer.label, offer.cost, scrapsBefore, scrapsAfter),
+    ])
+  }
+}
+
+export function redrawResearchOffersUpdate(current: BoardState): BoardUpdateResult {
+  const offers = current.pendingResearchChoice?.offers ?? []
+  if (offers.length === 0) return current
+
+  const redrawCost = Math.min(...offers.map((offer) => offer.cost))
+  if (current.scraps < redrawCost) return current
+
+  const excludedIds = new Set([
+    ...offers.map((offer) => offer.id),
+    ...current.activeShipParts.map((part) => part.id),
+  ])
+  const newOffers = drawResearchOffers(current.shipPartShopPool, 2, excludedIds)
+  if (newOffers.length === 0) return current
+
+  const scrapsBefore = current.scraps
+  const scrapsAfter = scrapsBefore - redrawCost
+  const boardAfterRedraw: BoardState = {
+    ...current,
+    scraps: scrapsAfter,
+    pendingResearchChoice: { offers: newOffers },
+  }
+  const synced = syncScrapSupplyToCounter(boardAfterRedraw, `research-redraw-${current.currentSector}`)
+
+  return withPlaytestEvents(synced, [
+    researchRedrawnEvent(redrawCost, scrapsBefore, scrapsAfter, newOffers),
+  ])
+}
+
+export function closeResearchDialogUpdate(current: BoardState): BoardUpdateResult {
+  if (!current.pendingResearchChoice) return current
+  const consolation = 0
+  const scrapsBefore = current.scraps
+  const scrapsAfter = scrapsBefore + consolation
+  const boardAfterClose: BoardState = {
+    ...current,
+    scraps: scrapsAfter,
+    pendingResearchChoice: null,
+  }
+  const synced = syncScrapSupplyToCounter(boardAfterClose, `research-skip-${current.currentSector}`)
+  // Gate completion deferred the usual auto-advance while research was open.
+  const advanced = advanceTurnAndCheckLoss(synced)
+
+  return withPlaytestEvents(advanced.board, [
+    researchSkippedEvent(consolation, scrapsBefore, scrapsAfter),
+    ...advanced.events,
+  ])
+}
+
+export function discardActiveShipPartUpdate(instanceId: string): BoardUpdater {
+  return (current) => {
+    const part = current.activeShipParts.find((entry) => entry.instanceId === instanceId)
+    if (!part) return current
+    const scrapsBefore = current.scraps
+    const scrapsAfter = scrapsBefore + part.refund
+    // Find and remove the matching board card + stack.
+    const cardEntry = Object.values(current.cards).find(
+      (card) => card.kind === 'active-ship-part' && card.shipPart?.instanceId === instanceId,
+    )
+    const removeCardId = cardEntry?.id ?? null
+    const remainingCards = removeCardId ? withoutCards(current.cards, [removeCardId]) : current.cards
+    const remainingStacks = removeCardId
+      ? current.stacks.flatMap((stack) => {
+          if (!stack.cardIds.includes(removeCardId)) return [stack]
+          const kept = stack.cardIds.filter((cardId) => cardId !== removeCardId)
+          return kept.length > 0 ? [{ ...stack, cardIds: kept }] : []
+        })
+      : current.stacks
+    const updatedBoard: BoardState = {
+      ...current,
+      scraps: scrapsAfter,
+      activeShipParts: current.activeShipParts.filter((entry) => entry.instanceId !== instanceId),
+      cards: remainingCards,
+      stacks: remainingStacks,
+    }
+    return withPlaytestEvents(
+      syncScrapSupplyToCounter(updatedBoard, `discard-${part.instanceId}`),
+      shipPartDiscardedEvent(part.label, part.refund, scrapsBefore, scrapsAfter),
+    )
+  }
+}
+
 export function dropHandCardToBoardUpdate(cardId: string, position: Position): BoardUpdater {
   return (current) => {
     const card = current.cards[cardId]
@@ -3767,6 +4396,26 @@ export function reorderHandCardUpdate(cardId: string, zone: HandZone, insertInde
     if (
       nextHandCardIds.length === current.handCardIds.length &&
       nextHandCardIds.every((candidateId, index) => candidateId === current.handCardIds[index])
+    ) {
+      return current
+    }
+
+    return {
+      ...current,
+      dropTargetStackId: null,
+      dropTargetDeckId: null,
+      handCardIds: nextHandCardIds,
+    }
+  }
+}
+
+export function sortHandCrewUpdate(sortKind: HandCrewSortKind, playerId: string | null): BoardUpdater {
+  return (current) => {
+    const nextHandCardIds = sortHandCrewCardIds(current, sortKind, playerId)
+
+    if (
+      nextHandCardIds.length === current.handCardIds.length &&
+      nextHandCardIds.every((cardId, index) => cardId === current.handCardIds[index])
     ) {
       return current
     }

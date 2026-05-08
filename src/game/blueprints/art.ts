@@ -17,6 +17,11 @@ export const resourceArt: Record<ResourceKind, DeckArt> = {
     hue: 48,
     accent: '#ffe073',
   },
+  scrap: {
+    icon: 'hex',
+    hue: 24,
+    accent: '#c89060',
+  },
 }
 
 export const missionArt: Record<MissionKind, DeckArt> = {

@@ -1,6 +1,7 @@
 export const GAME_ICON_KINDS = [
   'hull',
   'fuel',
+  'scrap',
   'parts',
   'engine',
   'star',
@@ -14,11 +15,14 @@ export const GAME_ICON_KINDS = [
 
 export type GameIconKind = (typeof GAME_ICON_KINDS)[number]
 
-const CARD_ART_ICON_KINDS = GAME_ICON_KINDS.filter((kind) => kind !== 'tired-person' && kind !== 'any')
+const CARD_ART_ICON_KINDS = GAME_ICON_KINDS.filter((kind) => (
+  kind !== 'tired-person' && kind !== 'any' && kind !== 'scrap'
+))
 
 export const GAME_ICON_LABELS: Record<GameIconKind, string> = {
   hull: 'Hull',
   fuel: 'Fuel',
+  scrap: 'Scrap',
   parts: 'Parts',
   engine: 'Engine',
   star: 'Nav',

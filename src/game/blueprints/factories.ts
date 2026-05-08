@@ -1,4 +1,5 @@
 import type {
+  ActiveShipPart,
   CardBlueprint,
   CardIconKind,
   CrewSpecialization,
@@ -29,7 +30,12 @@ import {
 
 export function createResourceDeck(resource: ResourceKind, count: number) {
   const art = resourceArt[resource]
-  const title = resource === 'fuel' ? 'Fuel Cell' : 'Hull Plate'
+  const title =
+    resource === 'fuel'
+      ? 'Fuel Cell'
+      : resource === 'scrap'
+        ? 'Scrap'
+        : 'Hull Plate'
 
   return Array.from({ length: count }, (): CardBlueprint => ({
     title,
@@ -55,6 +61,7 @@ export function createCrewCard(
   title: string,
   specializations: [CrewSpecialization, CrewSpecialization],
   portraitIndex: number,
+  rank: number = 1,
 ): CardBlueprint {
   return {
     title,
@@ -63,6 +70,7 @@ export function createCrewCard(
     accent: crewArt.accent,
     kind: 'crew',
     specializations,
+    rank,
     portraitIndex,
   }
 }
@@ -211,6 +219,18 @@ export function visitRewardFind(itemName: string, rewards: VisitReward[]): Desti
     kind: 'visit_reward',
     itemName,
     rewards,
+  }
+}
+
+export function createActiveShipPartBlueprint(shipPart: ActiveShipPart): CardBlueprint {
+  return {
+    title: shipPart.label,
+    // Blue counterpart to the purple deep-space mission art (hue 282).
+    icon: 'hex',
+    hue: 210,
+    accent: '#7ab8ff',
+    kind: 'active-ship-part',
+    shipPart,
   }
 }
 

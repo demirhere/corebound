@@ -46,19 +46,35 @@ export function countFuelCardsInPlay(current: BoardState) {
 }
 
 export function countFuelCardsInSupply(current: BoardState) {
-  const supplyStack = current.stacks.find((stack) =>
-    stack.cardIds.some((cardId) => {
+  // Sum across all fuel-only stacks. Auto-placement caps stacks at 9 cards
+  // and overflows into a sibling stack, so a single supply can be split.
+  // (See AUTO_FUEL_SUPPLY_STACK_LIMIT in board/boardUpdaters.ts.)
+  let total = 0
+
+  for (const stack of current.stacks) {
+    if (stack.cardIds.length === 0) continue
+
+    let allFuel = true
+    let fuelCount = 0
+
+    for (const cardId of stack.cardIds) {
       const card = current.cards[cardId]
+      const isFuel = card?.kind === 'resource' && card.resource === 'fuel'
 
-      return card?.kind === 'resource' && card.resource === 'fuel'
-    }),
-  )
+      if (!isFuel) {
+        allFuel = false
+        break
+      }
 
-  return supplyStack?.cardIds.filter((cardId) => {
-    const card = current.cards[cardId]
+      fuelCount += 1
+    }
 
-    return card?.kind === 'resource' && card.resource === 'fuel'
-  }).length ?? 0
+    if (allFuel) {
+      total += fuelCount
+    }
+  }
+
+  return total
 }
 
 export function countFuelCardsInDeckAndDiscard(current: BoardState) {

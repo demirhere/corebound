@@ -1,6 +1,7 @@
 import {
   type Ref,
 } from 'react'
+import type { HandCrewSortKind } from '../board/handState'
 import { StressTracker } from './BoardPanels'
 import { type CardView } from './BoardCard'
 import {
@@ -10,6 +11,7 @@ import {
   type HandPointerDownHandler,
 } from './HandZoneArea'
 
+export type { HandCrewSortKind } from '../board/handState'
 export type {
   HandInsertPreview,
   HandKeyDownHandler,
@@ -25,6 +27,8 @@ type HandProps = {
   totalSectors: number
   missionsCompleted: number
   turnNumber: number
+  fuel: number
+  scraps: number
   waterPairFuelAmount: number
   endTurnAttentionKey: number
   handRef: Ref<HTMLElement>
@@ -34,6 +38,7 @@ type HandProps = {
   endTurnSublabel: string | null
   onEndTurn: () => void
   onShowCrewGuide: () => void
+  onSortCrew: (sortKind: HandCrewSortKind) => void
   onCardPointerDown: HandPointerDownHandler
   onCardKeyDown: HandKeyDownHandler
 }
@@ -47,6 +52,8 @@ export function Hand({
   totalSectors,
   missionsCompleted,
   turnNumber,
+  fuel,
+  scraps,
   waterPairFuelAmount,
   endTurnAttentionKey,
   handRef,
@@ -56,10 +63,13 @@ export function Hand({
   endTurnSublabel,
   onEndTurn,
   onShowCrewGuide,
+  onSortCrew,
   onCardPointerDown,
   onCardKeyDown,
 }: HandProps) {
   const activeCardIdSet = new Set(activeCardIds)
+  const sortableCrewCount = crewCardIds.filter((cardId) => cards[cardId]?.kind === 'crew').length
+  const canSortCrew = canInteract && activeCardIdSet.size === 0 && sortableCrewCount > 1
   let attentionClass = ''
 
   if (endTurnAttentionKey > 0) {
@@ -82,6 +92,8 @@ export function Hand({
         totalSectors={totalSectors}
         missionsCompleted={missionsCompleted}
         turnNumber={turnNumber}
+        fuel={fuel}
+        scraps={scraps}
       />
       <HandZoneArea
         zone="crew"
@@ -92,6 +104,30 @@ export function Hand({
         insertPreview={insertPreview}
         canInteract={canInteract}
         waterPairFuelAmount={waterPairFuelAmount}
+        headerControls={(
+          <div className="hand-sort-controls" aria-label="Sort crew hand">
+            <button
+              type="button"
+              className="hand-sort-button"
+              disabled={!canSortCrew}
+              aria-label="Sort crew by role"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={() => onSortCrew('role')}
+            >
+              Sort Role
+            </button>
+            <button
+              type="button"
+              className="hand-sort-button"
+              disabled={!canSortCrew}
+              aria-label="Sort crew by specialty"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={() => onSortCrew('specialty')}
+            >
+              Sort Specialty
+            </button>
+          </div>
+        )}
         onCardPointerDown={onCardPointerDown}
         onCardKeyDown={onCardKeyDown}
       />

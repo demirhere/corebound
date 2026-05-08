@@ -11,6 +11,8 @@ type StressTrackerProps = {
   totalSectors: number
   missionsCompleted: number
   turnNumber: number
+  fuel: number
+  scraps: number
 }
 
 export function StressTracker({
@@ -18,6 +20,8 @@ export function StressTracker({
   totalSectors,
   missionsCompleted,
   turnNumber,
+  fuel,
+  scraps,
 }: StressTrackerProps) {
   return (
     <aside className="stress-area hand-zone-stress" aria-label="Sector area" aria-live="polite">
@@ -38,6 +42,18 @@ export function StressTracker({
         <span className="stress-label">Turns</span>
         <span className="stress-history sector-history" aria-label={`Turn ${turnNumber}`}>
           <span className="stress-current">{turnNumber}</span>
+        </span>
+      </p>
+      <p className="stress-tracker">
+        <span className="stress-label">Fuel</span>
+        <span className="stress-history sector-history" aria-label={`${fuel} fuel in supply`}>
+          <span className="stress-current">{fuel}</span>
+        </span>
+      </p>
+      <p className="stress-tracker">
+        <span className="stress-label">Scraps</span>
+        <span className="stress-history sector-history" aria-label={`${scraps} scraps`}>
+          <span className="stress-current">{scraps}</span>
         </span>
       </p>
     </aside>

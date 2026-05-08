@@ -23,20 +23,22 @@ function fuelGate(title: string, fuel: number): CardBlueprint {
 // Fixed 10-gate sequence with monotonically increasing Fuel cost. The deck
 // is shuffled + sorted at setup, but with 10 cards (one per sector) the
 // shuffle is a no-op — every run sees the same difficulty ramp. Total cost
-// 250 Fuel, tuned so sector 1 is ~95% pass and overall win rate is ~4%
-// against a greedy max-fuel stacking strategy. Re-run `pnpm sim` after any
-// change here.
+// 212 Fuel, calibrated for the v2 catalog AND the tightened scrap tiers
+// (Common Knowledge 3 Fuel → 1 scrap; previously 2). Players now buy ~5-6
+// ship parts/run instead of ~10, so each shop offer is a real decision.
+// ~4.8% win rate with greedy joker buys, 0% without. Re-run `pnpm sim`
+// after any change here; mirror the numbers in `scripts/simulate.mjs`.
 export const sectorGates: CardBlueprint[] = [
-  fuelGate('Narrow Crossing', 9),
-  fuelGate('Old Pass',        12),
-  fuelGate('Lost Beacon',     15),
-  fuelGate('Dust Reach',      18),
-  fuelGate('Cold Mirror',     22),
-  fuelGate('Echo Vault',      26),
-  fuelGate('Hollow Span',     30),
-  fuelGate('Iron Shoal',      34),
-  fuelGate('Black Threshold', 38),
-  fuelGate('Drowned Comm',    46),
+  fuelGate('Narrow Crossing', 10),
+  fuelGate('Old Pass',        11),
+  fuelGate('Lost Beacon',     12),
+  fuelGate('Dust Reach',      14),
+  fuelGate('Cold Mirror',     18),
+  fuelGate('Echo Vault',      22),
+  fuelGate('Hollow Span',     26),
+  fuelGate('Iron Shoal',      30),
+  fuelGate('Black Threshold', 33),
+  fuelGate('Drowned Comm',    36),
 ]
 
 const blockedIconByEffect: Partial<Record<GateDetails['effectKind'], RequirementIconKind>> = {

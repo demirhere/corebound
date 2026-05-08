@@ -21,6 +21,20 @@ const BLUEPRINT_ART_GRID_SIZE = 4
 const ROUTE_ART_GRID_SIZE = 4
 type NeedIconKind = RequirementIconKind | CrewSpecialization | ResourceKind | 'person' | 'any'
 
+const shipPartDescriptionIcons = {
+  Fuel: 'fuel',
+  Engine: 'engine',
+  Life: 'life',
+  Nav: 'star',
+  Science: 'signal',
+  Hull: 'hull',
+  Scrap: 'scrap',
+  Scraps: 'scrap',
+  MOTHER: 'mother',
+} as const satisfies Record<string, GameIconKind>
+
+const shipPartDescriptionIconPattern = /(Fuel|Engine|Life|Nav|Science|Hull|Scraps?|MOTHER)/g
+
 function titleCase(value: string) {
   return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`
 }
@@ -328,6 +342,26 @@ function renderVisitReward(find: Extract<DestinationFind, { kind: 'visit_reward'
   return find.rewards.flatMap(renderReward)
 }
 
+function renderShipPartDescriptionText(description: string) {
+  return description.split(shipPartDescriptionIconPattern).map((part, index) => {
+    const icon = shipPartDescriptionIcons[part as keyof typeof shipPartDescriptionIcons]
+
+    if (!icon) {
+      return part
+    }
+
+    return <GameIcon key={`${part}-${index}`} kind={icon} />
+  })
+}
+
+export function renderShipPartDescription(description: string) {
+  return (
+    <span className="sector-card-detail">
+      {renderShipPartDescriptionText(description)}
+    </span>
+  )
+}
+
 function renderShipPartUse(shipPart: ShipPartKind) {
   if (shipPart === 'medbay-rehydrator') {
     return (
@@ -337,7 +371,15 @@ function renderShipPartUse(shipPart: ShipPartKind) {
     )
   }
 
-  return getShipPartUseText(shipPart)
+  if (shipPart === 'service-drone-bay') {
+    return (
+      <span className="sector-card-detail">
+        Reduce Sector Gate <GameIcon kind="person" /> need by 1.
+      </span>
+    )
+  }
+
+  return renderShipPartDescription(getShipPartUseText(shipPart))
 }
 
 export function renderSectorCardHeaderDetail(card: Card) {
@@ -348,7 +390,7 @@ export function renderSectorCardHeaderDetail(card: Card) {
   if (card.mission.pattern === 'open') {
     return (
       <span className="open-mission-description">
-        Stack crew here to send them on a fuel mission. Their composition matters.
+        Stack crew here to recover fuel. Better crew = more fuel.
       </span>
     )
   }
@@ -561,6 +603,25 @@ function renderFuelCellContent(card: Card) {
   )
 }
 
+function renderScrapTokenContent(card: Card) {
+  return (
+    <>
+      <div className="scrap-token-eyebrow">
+        <span>Salvage Token</span>
+        <span>1 UNIT</span>
+      </div>
+      <div className="scrap-token-stamp" aria-hidden="true">
+        <span className="scrap-token-stamp-numeral">1</span>
+        <span className="scrap-token-stamp-label">SCR</span>
+      </div>
+      <p className="scrap-token-rule">Spend at Research to buy Ship Parts.</p>
+      <div className="scrap-token-serial">
+        <span>{`SLVG-${card.id.toUpperCase()}`}</span>
+      </div>
+    </>
+  )
+}
+
 function getDiscoveryDisplayIcon(card: Card): GameIconKind {
   if (card.discovery?.icon) {
     return card.discovery.icon
@@ -697,6 +758,21 @@ function renderHazardContent(card: Card) {
   )
 }
 
+function renderActiveShipPartContent(card: Card) {
+  const part = card.shipPart
+  if (!part) return null
+
+  const blueprintIndex = hashString(`${card.id}:blueprint`) % (BLUEPRINT_ART_GRID_SIZE * BLUEPRINT_ART_GRID_SIZE)
+  const routeIndex = hashString(`${card.id}:route`) % (ROUTE_ART_GRID_SIZE * ROUTE_ART_GRID_SIZE)
+
+  return (
+    <div className="ship-part-effect-art">
+      <SectorCardArt variant="blueprint" index={blueprintIndex} gridSize={BLUEPRINT_ART_GRID_SIZE} />
+      <SectorCardArt variant="route" index={routeIndex} gridSize={ROUTE_ART_GRID_SIZE} />
+    </div>
+  )
+}
+
 export function renderGameplayCardContent(
   card: Card,
   fuelDiscount: number,
@@ -713,6 +789,10 @@ export function renderGameplayCardContent(
   if (card.kind === 'resource' && card.resource) {
     if (card.resource === 'fuel') {
       return renderFuelCellContent(card)
+    }
+
+    if (card.resource === 'scrap') {
+      return renderScrapTokenContent(card)
     }
 
     return (
@@ -756,6 +836,10 @@ export function renderGameplayCardContent(
         </p>
       </>
     )
+  }
+
+  if (card.kind === 'active-ship-part' && card.shipPart) {
+    return renderActiveShipPartContent(card)
   }
 
   if (card.kind === 'mission' && card.mission) {

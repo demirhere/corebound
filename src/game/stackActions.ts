@@ -1,6 +1,8 @@
 import { FUEL_DECK_ID, FUEL_DISCARD_DECK_ID, SHIP_PART_DECK_ID } from './decks'
 import { getMissionAnyIconSurcharge } from './damage'
+import { getMissionScrapReward } from './economyTuning'
 import { getNextGateFuelDiscount, getNextStopFuelDiscount } from './effects'
+import { applyShipPartMissionEffects, hasShipPartWildSlot } from './shipPartEffects'
 import { isGateClearConditionMet } from './blueprints/sectorGates'
 import { getShipPartResearchPayment, getWaterPairFuelAmount } from './shipParts'
 import {
@@ -12,6 +14,7 @@ import type {
   BoardState,
   Card,
   CrewSpecialization,
+  ResourceKind,
   ShipPartKind,
   ShipPartSlot,
   Stack,
@@ -24,10 +27,16 @@ export type StackActionKind =
   | 'use-ration'
   | 'draft-ship-part'
 
+export type StackActionResourceReward = {
+  resource: Extract<ResourceKind, 'fuel' | 'scrap'>
+  count: number
+}
+
 export type StackAction = {
   id: string
   kind: StackActionKind
   label: string
+  resourceRewards?: StackActionResourceReward[]
   attentionKey: string
   stackId: string
 }
@@ -48,6 +57,7 @@ function isBoardActionBlocked(current: BoardState) {
       current.pendingWakeChoice ||
       current.pendingScoutChoice ||
       current.pendingShipPartChoice ||
+      current.pendingResearchChoice ||
       current.pendingDrift,
   )
 }
@@ -98,6 +108,82 @@ function getCrewCards(stack: Stack, cards: Record<string, Card>) {
   })
 }
 
+function getShipPartWildCardId(current: BoardState, stack: Stack) {
+  return hasShipPartWildSlot(current.activeShipParts)
+    ? stack.cardIds.find((cardId) => current.cards[cardId]?.kind === 'crew') ?? null
+    : null
+}
+
+function getResourceRewardLabel(resource: StackActionResourceReward['resource']) {
+  return resource === 'fuel' ? 'Fuel' : 'Scrap'
+}
+
+function getRewardActionLabel(resourceRewards: readonly StackActionResourceReward[]) {
+  return resourceRewards.length > 0
+    ? `Recover ${resourceRewards.map((reward) => (
+        `${reward.count} ${getResourceRewardLabel(reward.resource)}`
+      )).join(' + ')}`
+    : 'Complete'
+}
+
+function getMissionResourceRewards(
+  current: BoardState,
+  stack: Stack,
+  completion: NonNullable<ReturnType<typeof getMissionStackCompletion>>,
+) {
+  const missionCard = current.cards[completion.missionCardId]
+  const find = missionCard?.mission?.find
+
+  if (!missionCard?.mission || !find) {
+    return []
+  }
+
+  const baseRewards = find.kind === 'visit_reward' ? find.rewards : find.rewards ?? []
+  const rewards = missionCard.mission.pattern === 'open' &&
+    completion.dynamicFuelReward !== undefined &&
+    completion.dynamicFuelReward > 0
+    ? [{ kind: 'resource' as const, resource: 'fuel' as const, count: completion.dynamicFuelReward }]
+    : baseRewards
+  const baseFuelRewardCount = rewards.reduce((count, reward) => (
+    reward.kind === 'resource' && reward.resource === 'fuel'
+      ? count + reward.count
+      : count
+  ), 0)
+  const missionsCompletedInSector = current.completedStarSummaries.filter(
+    (summary) => summary.sector === current.currentSector,
+  ).length
+  const missionPatternForEffects = missionCard.mission.pattern === 'open'
+    ? completion.dynamicPattern ?? null
+    : missionCard.mission.pattern ?? null
+  const shipPartMissionEffects = applyShipPartMissionEffects(current.activeShipParts, {
+    usedCrewCards: getCrewCards(stack, current.cards),
+    missionIndexInSector: missionsCompletedInSector,
+    isLastMissionInSector: missionsCompletedInSector >= current.mapSlots.length - 1,
+    sectorIndex: current.currentSector - 1,
+    pattern: missionPatternForEffects,
+    scrapsAvailable: current.scraps,
+    missionsCompletedBefore: current.missionsCompletedCount,
+    lastPatternPlayed: current.lastPatternPlayed,
+    patternStreakBefore: current.patternStreakCount,
+  })
+  const fuelRewardCount = Math.max(0, baseFuelRewardCount + shipPartMissionEffects.fuelDelta)
+  const baseMissionScrapReward = getMissionScrapReward(fuelRewardCount)
+  const totalMissionScrapDelta = baseMissionScrapReward + shipPartMissionEffects.scrapDelta
+  const scrapsAfterMission = Math.max(0, current.scraps + totalMissionScrapDelta)
+  const scrapRewardCount = Math.max(0, scrapsAfterMission - current.scraps)
+  const resourceRewards: StackActionResourceReward[] = []
+
+  if (fuelRewardCount > 0) {
+    resourceRewards.push({ resource: 'fuel', count: fuelRewardCount })
+  }
+
+  if (scrapRewardCount > 0) {
+    resourceRewards.push({ resource: 'scrap', count: scrapRewardCount })
+  }
+
+  return resourceRewards
+}
+
 function getDrawFuelAction(current: BoardState, stack: Stack): StackAction[] {
   const fuelDeck = current.decks.find((deck) => deck.id === FUEL_DECK_ID)
   const fuelDiscard = current.decks.find((deck) => deck.id === FUEL_DISCARD_DECK_ID)
@@ -122,6 +208,7 @@ function getTravelAction(current: BoardState, stack: Stack): StackAction[] {
     getNextStopFuelDiscount(current.pendingEffects),
     getMissionAnyIconSurcharge(current.cards, current.routeSlots),
     getWaterPairFuelAmount(current.shipPartSlots),
+    getShipPartWildCardId(current, stack),
   )
 
   if (
@@ -137,16 +224,15 @@ function getTravelAction(current: BoardState, stack: Stack): StackAction[] {
     return []
   }
 
-  const dynamicFuel = completion.dynamicFuelReward
-  const label = dynamicFuel !== undefined && dynamicFuel > 0
-    ? `Recover ${dynamicFuel} Fuel`
-    : 'Complete'
+  const resourceRewards = getMissionResourceRewards(current, stack, completion)
+  const label = getRewardActionLabel(resourceRewards)
 
   return [
     createStackAction({
       id: 'travel',
       kind: 'travel',
       label,
+      resourceRewards,
       stackId: stack.id,
     }),
   ]

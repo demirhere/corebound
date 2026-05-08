@@ -10,7 +10,7 @@ Each sector deals 3 Mission cards. Stack Ready crew on a Mission to recover Fuel
 
 ## Objective
 
-Pass 10 sector Gates. At setup, 23 Gates shuffle, 10 are picked and ordered easiest → hardest by Fuel cost. The first (cheapest) Gate is dealt face up; each successful Gate clear draws the next from the visible Gate Deck.
+Pass 10 sector Gates. The 10-card ramp is fixed (10/11/12/13/15/17/18/19/22/24 Fuel) and shown in ascending order — every run faces the same difficulty curve. The first Gate is dealt face up; each successful Gate clear flips the next.
 
 Solo: you win after the 10th Gate is cleared and **End run** is pressed.
 
@@ -36,18 +36,20 @@ On load or restart, setup is staged as an animated deal. After the animation, th
 | Fuel Deck | 50 Fuel Cell cards | Off-screen. Fuel rewards draw from here. If empty when Fuel would be drawn, shuffle the Fuel Discard back in first. |
 | Fuel Discard | 0 Fuel Cell cards | Off-screen. Spent Fuel goes here, then can be reshuffled. |
 | Starting Crew | 5 crew in solo, even hands in multiplayer | Deal 5 starting crew Ready. Multiplayer pads from the Cryo deck if 5 doesn't divide evenly. |
-| Tired Crew | 0 crew | Starts empty. Crew used on Missions or the Gate go here. **All Tired crew untire automatically when a sector ends (after the Gate clears).** |
+| Tired Crew | 0 crew | Starts empty. Crew used on Missions or the Gate go here. **Tired carries across sectors — there is no auto-reset.** When the Cryo Deck empties, the entire Tired pile reshuffles back into Cryo. |
 | Missions | 30 Open Mission placeholders | Off-screen. 3 are auto-dealt to the Map at sector 1 setup; another 3 are auto-dealt at the start of each subsequent sector. After 10 sectors the deck is empty by design. |
 | Map | 3 Mission cards (auto-dealt) | The Map starts each sector with 3 face-up Mission placeholders. Each Mission is consumed by exactly one stack action. After all 3 are consumed, only the Gate is reachable. |
-| Ship Parts | 4 Ship Part cards | Shuffle Medbay Rehydrator, Service Drone Bay, Adaptive Control Console, and Fuel Synthesizer. Research draws the top 2 for a draft choice. |
-| Gate | 1 Gate card | Shuffle 23 Gates, pick 10, order them easiest → hardest by Fuel cost. The cheapest sits face up below the Map; the rest stack in the visible Gate Deck. |
+| Ship Parts (Research Pool) | 25 unique blueprints | The joker-economy research pool. After each Gate clears, 2 random un-owned parts are offered for purchase with Scraps. Bought parts are removed from the pool for the rest of the run. You may pay the cheapest visible offer's cost to re-draw 2 new offers. |
+| Active Ship Parts | 0 (max 5) | Passive bonuses owned by the run. Click *Discard* to refund `floor(cost/2)` Scraps and free the slot. |
+| Scraps | 0 | The run's currency. Earned per mission (1–2 Fuel → 1, 3–4 → 2, 5+ → 3) plus any joker scrap triggers (Salvage Sifter, Quartermaster, Recovery Drone, Cargo Hold). |
+| Gate | 1 Gate card | The 10 Gates are dealt in fixed ascending order. The cheapest sits face up below the Map; the rest stack in the visible Gate Deck. |
 | Gate Deck | 9 remaining Gates | Visible deck, ordered easiest → hardest. Each Gate clear draws the next. |
 | MOTHER Deck | Disabled (0 cards) | Temporarily empty. MOTHER substitution and Stress are off. |
 | Discovery Deck | Disabled | Not set up. Completing a Mission does not award a Discovery. |
 | Drift Deck | 10 Drift cards | Shuffle 7 Burn + 3 Fatigue. Currently inert: no Gate carries an extra-Drift effect in this build. |
 | Damage Deck | Disabled (0 cards) | Temporarily empty. Gates always clear cleanly; no Damage drawn. |
 | Stress | Always 0 | Disabled. No source of Stress increment in this build. |
-| Cryo Deck | 7 Cryo crew | Off-screen. After every action, the player draws 1 Cryo crew into Ready. After ~3 sectors (9 actions) the deck typically empties; from then on no replenishment until cryo wakes resume in a future build. |
+| Cryo Deck | 7 Cryo crew | Off-screen. After every action, the hand refills to its size cap (5, plus +1 with Adrenal Implants). Refill first reclaims any crew you parked on the board in stacks that aren't yet attached to a destination, gate, or hazard, then draws from Cryo for the rest. When Cryo runs out, the entire Tired pile reshuffles back into Cryo and refilling continues. |
 
 ## Crew Icons
 
@@ -80,17 +82,17 @@ A Scientist + Mechanic stack still makes 1 Fuel (or 2 with Fuel Synthesizer draf
 
 Mission cards are identical "Open Mission" placeholders. They do not display a specific icon requirement — the Fuel reward is computed dynamically when crew is stacked on them, based on the best hand pattern that crew satisfies.
 
-**Hand patterns** (the system picks the highest-paying one your stacked crew matches):
+**Hand patterns** (the system picks the highest-paying one your stacked crew matches). Reward = `sum(crew_ranks) × pattern_mult`; with every crew at rank 1 this simplifies to `crew_count × mult`:
 
-| Pattern | Crew Need | Fuel |
-| --- | --- | ---: |
-| Cross-Trained | 1 crew with 2 different icons | 1 |
-| Common Ground | 2 crew sharing at least 1 icon | 1 |
-| Specialist | 1 crew with matched icons | 2 |
-| Common Knowledge | 3 crew that all share 1 icon | 3 |
-| Department Heads | 2 different Specialists (different doubled icons) | 5 |
-| Common Cause | 4 crew that all share 1 icon | 8 |
-| Bridge Crew | 4 Specialists, one per icon (Mara + Sana + Malik + Oren) | 16 |
+| Pattern | Crew Need | Crew × Mult | Fuel |
+| --- | --- | --- | ---: |
+| Cross-Trained | 1 crew with 2 different icons | 1 × 1 | 1 |
+| Common Ground | 2 crew sharing at least 1 icon | 2 × 1 | 2 |
+| Specialist | 1 crew with matched icons | 1 × 2 | 2 |
+| Common Knowledge | 3 crew that all share 1 icon | 3 × 1 | 3 |
+| Department Heads | 2 different Specialists (different doubled icons) | 2 × 2 | 4 |
+| Common Cause | 4 crew that all share 1 icon | 4 × 1 | 4 |
+| Bridge Crew | 4 Specialists, one per icon (Mara + Sana + Malik + Oren) | 4 × 1.5 | 6 |
 
 When you stack crew on a Mission, the action button above the stack reads `Recover N Fuel` where N is the highest pattern your crew matches. Click the action to confirm.
 
@@ -98,7 +100,8 @@ When you stack crew on a Mission, the action button above the stack reads `Recov
 1. The Mission card is consumed (removed from the Map).
 2. All crew on the stack become Tired.
 3. The active player draws 1 crew from the Cryo deck (if any remain).
-4. The fuel reward draws N Fuel Cells from the Fuel Deck into the Fuel Supply. Automatic Fuel placement fills fuel-only stacks up to 9 cards, then uses the next largest fuel-only stack or starts a new stack; manual stacking can exceed 9 cards.
+4. The fuel reward draws N Fuel Cells from the Fuel Deck into the Fuel Supply. Active Ship Parts (jokers) can add bonus Fuel — see the Ship Parts section below. Automatic Fuel placement fills fuel-only stacks up to 9 cards, then uses the next largest fuel-only stack or starts a new stack; manual stacking can exceed 9 cards.
+5. The mission also pays Scraps — the run's currency for buying Ship Parts. Scrap reward tier: 1–2 Fuel earned → 1 Scrap, 3–4 → 2, 5+ → 3. Zero Fuel earns no Scraps.
 
 A sector has at most 3 Mission actions because only 3 Mission placeholders are dealt. After all 3 are consumed (or skipped), only the Gate remains.
 
@@ -108,15 +111,15 @@ Greedy strategy is to maximize Fuel per crew used, because crew tire on use:
 
 | Pattern | Crew Used | Fuel | Fuel/Crew |
 | --- | ---: | ---: | ---: |
-| Bridge Crew | 4 | 16 | 4.0 |
-| Department Heads | 2 | 5 | 2.5 |
+| Bridge Crew | 4 | 6 | 1.5 |
+| Department Heads | 2 | 4 | 2.0 |
 | Specialist | 1 | 2 | 2.0 |
-| Common Cause | 4 | 8 | 2.0 |
-| Cross-Trained | 1 | 1 | 1.0 |
+| Common Cause | 4 | 4 | 1.0 |
+| Common Ground | 2 | 2 | 1.0 |
 | Common Knowledge | 3 | 3 | 1.0 |
-| Common Ground | 2 | 1 | 0.5 |
+| Cross-Trained | 1 | 1 | 1.0 |
 
-Sim shows greedy max-fuel-pattern play earns ~7 Fuel in sector 1 (limited starting crew), rising to ~27 Fuel/sector once Cryo fills out by sector 4+.
+Sim shows greedy max-fuel-pattern play earns ~10–11 Fuel/sector (without joker bonuses). Without ship parts the back-end gates 17/18/19/22/24 are unreachable; with a greedy joker buyer, ~5% of runs win.
 
 ## Sector Loop
 
@@ -128,48 +131,71 @@ At sector start the Map already has 3 face-up Mission cards and the Gate sits fa
    - **Make 1 Fuel / Make 2 Fuel** — Scientist + Mechanic pair.
    - **Draft ship part** — 2 Engine icons + 2 Fuel Cells.
    - **Complete sector** — Gate stack satisfies the Fuel cost.
-3. Click the action to resolve. Used crew become Tired and the next Cryo crew comes off the deck into Ready.
+3. Click the action to resolve. Used crew become Tired and the hand immediately refills back to its size cap (5, +1 with Adrenal Implants). Refill first reclaims any crew you parked on the board in stacks that aren't yet attached to a destination, gate, or hazard, then draws from Cryo for the rest. When Cryo is empty, the entire Tired pile reshuffles back into Cryo before refilling continues.
 
-The sector ends when the Gate clears. All Tired crew untire (return to Ready) automatically; the next sector deals 3 fresh Mission cards.
+The sector ends when the Gate clears. **There is no Tired-to-Ready auto-reset** — the Balatro-style cycle keeps running across sectors. The next sector deals 3 fresh Mission cards and opens the Research Dialog.
 
 ## Gate Cards
 
 Gate requirements are Fuel-only checks. **None of the current Gates carry a special effect or extra clean-clear cost** — passing always clears cleanly. Damage is not drawn in this build.
 
-Gates form a fixed 10-card sequence with monotonically increasing Fuel cost — every run faces the same difficulty ramp from sector 1 to sector 10. Total cost 250 Fuel. Tuned so sector-1 pass rate is ~95% and overall win rate is ~4% with greedy stack play (verified by `pnpm sim`).
+Gates form a fixed 10-card sequence with monotonically increasing Fuel cost — every run faces the same difficulty ramp from sector 1 to sector 10. Total cost 160 Fuel. Tuned for the joker economy so that sector-1 pass rate is 100% but the back-end gates require Ship-Part bonuses to clear; overall win rate is ~4.6% with greedy joker buying, 0% without (verified by `pnpm sim`).
 
 | Sector | Gate | Pass Fuel |
 | ---: | --- | ---: |
-| 1 | Narrow Crossing | 9 |
-| 2 | Old Pass | 12 |
-| 3 | Lost Beacon | 15 |
-| 4 | Dust Reach | 18 |
-| 5 | Cold Mirror | 22 |
-| 6 | Echo Vault | 26 |
-| 7 | Hollow Span | 30 |
-| 8 | Iron Shoal | 34 |
-| 9 | Black Threshold | 38 |
-| 10 | Drowned Comm | 46 |
+| 1 | Narrow Crossing | 10 |
+| 2 | Old Pass | 11 |
+| 3 | Lost Beacon | 12 |
+| 4 | Dust Reach | 13 |
+| 5 | Cold Mirror | 15 |
+| 6 | Echo Vault | 17 |
+| 7 | Hollow Span | 18 |
+| 8 | Iron Shoal | 19 |
+| 9 | Black Threshold | 22 |
+| 10 | Drowned Comm | 23 |
 
 Gate resolution:
 1. Stack Fuel Cells (and optionally Scientist + Mechanic pairs to make Fuel) on the Gate.
 2. Click **Complete sector** when the stack covers the Fuel cost.
-3. The Gate clears, the next Gate flips face up, all Tired crew reset to Ready, and the Map deals 3 new Mission cards automatically.
+3. The Gate clears, all Tired crew reset to Ready, and the Map deals 3 new Mission cards. Active Ship Parts then apply their sector-end effects (extra Scraps from Quartermaster, extra Fuel from Sector Engine / Veteran's Insignia, Scraps→Fuel from Scrap Forge / Fuel Cell Distillery), and the **Research Dialog** opens with 2 random Ship Part offers from the un-owned pool.
 
 If you can't pay the Fuel cost and there's no productive Mission left, the run ends.
 
 ## Ship Parts
 
-Research costs 2 Engine icons + 2 Fuel Cells. When that stack is ready, click **Draft ship part**, draw the top 2 Ship Parts, choose 1, and bottom the other.
+Ship Parts are passive bonuses bought with Scraps from the Research Dialog after each gate. Click an offer card to research it. The pool has **25 unique parts**; once owned, a part is removed from the pool for the rest of the run, so each shop draw gets steadily rarer cards. You can hold at most **5 active Ship Parts**. Clicking **Next Sector** closes the dialog without a default Scrap consolation. Clicking **Re-draw** spends Scraps equal to the cheapest visible offer and replaces the visible offers with up to 2 new un-owned parts.
 
-| Ship Part | Effect |
-| --- | --- |
-| Medbay Rehydrator | Ready +1 crew after each sector (additive on top of the automatic Tired reset). |
-| Service Drone Bay | Reduce Sector Gate crew need by 1 (currently irrelevant — Gates have 0 crew need). |
-| Adaptive Control Console | Reduce required Gate Fuel by 1. |
-| Fuel Synthesizer | Scientist + Mechanic pair makes 2 Fuel instead of 1. |
+**Stacking discard** — clicking *Discard* on an active Ship Part frees the slot and refunds `floor(cost/2)` Scraps. Use this when a stronger offer appears and your slots are full.
 
-In multiplayer, drafted Ship Parts are credited to the current Mission Lead for tie-break scoring; their effects help the whole ship.
+**Catalog (25 unique parts):**
+
+| Name | Cost | Refund | Category | Effect |
+| --- | ---: | ---: | --- | --- |
+| Reinforced Manifold | 3 | 1 | Icon (Engine) | +1 Fuel when used crew has Engine |
+| Hydroponics Bay | 3 | 1 | Icon (Life) | +1 Fuel when used crew has Life |
+| Stellar Cartographer | 3 | 1 | Icon (Nav) | +1 Fuel when used crew has Nav |
+| Lab Centrifuge | 3 | 1 | Icon (Science) | +1 Fuel when used crew has Science |
+| Cross-Brace Couplers | 4 | 2 | Pattern | Cross-Trained: +1 Fuel |
+| Crew Stim Packs | 4 | 2 | Pattern | Common Ground: +1 Fuel |
+| Specialist Gauntlets | 5 | 2 | Pattern | Specialist & Department Heads: +1 Fuel |
+| Cluster Dynamo | 5 | 2 | Pattern | Common Knowledge: +1 Fuel |
+| Common Cause Banner | 6 | 3 | Pattern | Common Cause: +1 Fuel |
+| Bridge Uplink | 7 | 3 | Pattern | Bridge Crew: +2 Fuel |
+| Ration Optimizer | 3 | 1 | First-mission | First mission of sector: +1 Fuel |
+| Pre-Flight Tune-Up | 5 | 2 | First-mission | First mission of sector: +2 Fuel |
+| Ablative Plating | 4 | 2 | Last-mission | Last mission of sector: +1 Fuel |
+| Final Burn | 6 | 3 | Last-mission | Last mission of sector: +2 Fuel |
+| Salvage Sifter | 4 | 2 | Scrap | +1 Scrap per mission |
+| Quartermaster | 4 | 2 | Scrap | +2 Scraps at end of sector |
+| Recovery Drone | 5 | 2 | Scrap | First mission of sector: +2 Scraps |
+| Cargo Hold | 5 | 2 | Scrap | Last mission of sector: +2 Scraps |
+| Scrap Forge | 6 | 3 | Converter | End of sector: spend 2 Scraps → +1 Fuel (auto) |
+| Fuel Cell Distillery | 9 | 4 | Converter | End of sector: spend 4 Scraps → +2 Fuel (auto) |
+| Emergency Reserves | 5 | 2 | Converter | First mission of sector: spend 1 Scrap → +1 Fuel (auto) |
+| Adrenal Implants | 8 | 4 | Hand | Hand size +1 |
+| Tachyon Lens | 9 | 4 | Wild | First crew stacked counts as having all 4 icons |
+| Sector Engine | 6 | 3 | Special | Sectors 3, 6, 9: +2 Fuel at end of sector |
+| Veteran's Insignia | 7 | 3 | Special | Sector 10 only: +3 Fuel at end of sector |
 
 ## Disabled Systems
 
