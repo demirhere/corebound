@@ -689,12 +689,12 @@ export function renderGameplayCardContent(
   fuelSurcharge: number,
   missionAnyIconSurcharge: number,
   _stressCount: number,
-  _gateExtraCrewCount = 0,
-  _gateCrewSlotDiscount = 0,
-  _gateIconDiscount = 0,
+  _gateExtraCrewCount: number,
+  _gateCrewSlotDiscount: number,
+  _gateIconDiscount: number,
   gateFuelDiscount = 0,
   isAcquiredShipPart = false,
-  waterPairFuelAmount = 1,
+  _waterPairFuelAmount = 1,
 ) {
   if (card.kind === 'resource' && card.resource) {
     if (card.resource === 'fuel') {
@@ -717,7 +717,7 @@ export function renderGameplayCardContent(
   }
 
   if (card.kind === 'crew') {
-    return renderCrewCardContent(card, waterPairFuelAmount)
+    return renderCrewCardContent(card)
   }
 
   if (card.kind === 'discovery') {
@@ -781,7 +781,7 @@ export function renderGameplayCardContent(
 
     return (
       <div className="gate-fuel-summary" title={`Cost: ${currentGateFuelCost} Fuel. Spent from Fuel Supply when the Gate is passed.`}>
-        <GameIcon kind="fuel" variant="glyph" />
+        <GameIcon kind="fuel" />
         <span>{`x${currentGateFuelCost}`}</span>
       </div>
     )

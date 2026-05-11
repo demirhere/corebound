@@ -1,5 +1,5 @@
-import { useId } from 'react'
-import { GAME_ICON_LABELS, type GameIconKind } from './gameIcons'
+import { useId, type CSSProperties } from 'react'
+import { GAME_ICON_LABELS, GAME_ICON_PALETTE, type GameIconKind } from './gameIcons'
 
 type GameIconProps = {
   kind: GameIconKind
@@ -10,9 +10,14 @@ export function GameIcon({ kind, variant = 'badge' }: GameIconProps) {
   const iconId = useId().replace(/:/g, '')
   const usesFuelGlyph = kind === 'fuel' && variant === 'glyph'
   const fuelGradientId = `${iconId}-fuel-glyph-gradient`
+  const iconPalette = GAME_ICON_PALETTE[kind]
+  const style = {
+    '--icon-color': iconPalette.color,
+    '--icon-stroke': iconPalette.stroke,
+  } as CSSProperties
 
   return (
-    <span className={`game-icon game-icon-${variant}`} data-kind={kind} title={GAME_ICON_LABELS[kind]}>
+    <span className={`game-icon game-icon-${variant}`} data-kind={kind} title={GAME_ICON_LABELS[kind]} style={style}>
       <svg viewBox={usesFuelGlyph ? '6 3 20 26' : '0 0 32 32'} focusable="false" aria-hidden="true">
         {usesFuelGlyph && (
           <defs>

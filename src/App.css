@@ -2952,9 +2952,9 @@
 .card-shell.card-kind-gate .card-title {
   overflow: visible;
   padding-right: 0;
-  font-family: 'Acme', sans-serif;
-  font-size: 26px;
-  font-weight: 400;
+  font-family: var(--card-title-font-family);
+  font-size: 21px;
+  font-weight: 600;
   text-overflow: clip;
   -webkit-text-stroke: var(--gate-text-outline-width) var(--gate-text-outline-color);
   paint-order: stroke fill;
@@ -3022,9 +3022,9 @@
   border: 0;
   color: #0B1418;
   background: none;
-  font-family: 'Acme', sans-serif;
-  font-size: 26px;
-  font-weight: 400;
+  font-family: var(--card-title-font-family);
+  font-size: 22px;
+  font-weight: 500;
   letter-spacing: 0.04em;
   line-height: 1;
   -webkit-text-stroke: var(--gate-text-outline-width) var(--gate-text-outline-color);
@@ -3032,31 +3032,30 @@
   text-shadow: none;
 }
 
-.gate-fuel-summary .game-icon.game-icon-glyph[data-kind='fuel'] {
+.gate-fuel-summary .game-icon[data-kind='fuel'] {
   --icon-color: currentColor;
   --icon-stroke: currentColor;
 
   box-sizing: border-box;
-  width: 1.12em;
-  height: 1.12em;
+  width: 28px;
   padding: 0;
-  border: 2px solid currentColor;
-  border-radius: 999px;
   background: #E7BE5E;
 }
 
-.gate-fuel-summary .game-icon.game-icon-glyph[data-kind='fuel'] svg {
+.gate-fuel-summary .game-icon[data-kind='fuel'] svg {
   width: 70%;
   height: 70%;
 }
 
-.gate-fuel-summary .game-icon.game-icon-glyph[data-kind='fuel'] .icon-line {
+.gate-fuel-summary .game-icon[data-kind='fuel'] .icon-line {
   fill: currentColor !important;
   stroke: currentColor !important;
   filter: none;
 }
 
 .card-shell.card-kind-crew {
+  --gate-text-outline-color: #EECF9F;
+  --gate-text-outline-width: 12px;
   --crew-paper: #f2e9cf;
   --crew-paper-dark: #d8c9a5;
   --crew-ink: #1b1d1c;
@@ -3093,7 +3092,7 @@
 
   .crew-card-art {
     display: block;
-    padding: clamp(8px, 0.9vw, 12px) 9px 7px clamp(14px, 1.4vw, 18px);
+    padding: clamp(7px, 0.72vw, 11px) clamp(8px, 0.85vw, 13px);
     background: none;
 
     &::before {
@@ -3116,110 +3115,78 @@
 }
 
 .crew-nametag {
-  position: relative;
+  position: absolute;
+  inset: clamp(7px, 0.72vw, 11px) clamp(8px, 0.85vw, 13px);
   z-index: 1;
+  isolation: isolate;
   display: grid;
-  grid-template-rows: auto auto auto 1fr auto;
-  height: 100%;
+  grid-template-rows: auto auto 1fr auto;
+  align-content: start;
   min-width: 0;
-  gap: clamp(2px, 0.3vw, 4px);
+  gap: clamp(5px, 0.55vw, 8px);
 }
 
-.crew-photo-panel {
-  position: relative;
-  display: grid;
-  min-height: clamp(58px, 6.3vw, 84px);
-  place-items: center;
-  margin: 0;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  overflow: visible;
-  transform: none;
-}
-
-.crew-photo {
-  position: relative;
-  width: clamp(54px, 5.9vw, 80px);
+.crew-nametag::before {
+  content: '';
+  position: absolute;
+  right: calc(var(--card-width) * -0.11);
+  bottom: calc(var(--card-width) * -0.14);
+  z-index: 0;
+  width: clamp(84px, calc(var(--card-width) * 0.76), 124px);
   aspect-ratio: 1;
   background-image: url('/assets/crew-photos.png');
   background-repeat: no-repeat;
-  background-size: 432% 432%;
-  background-position: var(--crew-photo-x, 0%) var(--crew-photo-y, 0%);
+  background-size: 400% 400%;
+  background-position:
+    calc(var(--crew-photo-col, 0) * 100% / 3)
+    calc(var(--crew-photo-row, 0) * 100% / 3 + var(--crew-photo-nudge-y, 0%) + 1.5%);
+  filter: drop-shadow(-7px -6px 0 color-mix(in srgb, var(--crew-paper) 58%, transparent));
+  opacity: 0.98;
+  pointer-events: none;
 }
 
 .crew-nameplate {
   position: relative;
+  z-index: 1;
   display: grid;
+  grid-row: 1;
   justify-items: start;
   gap: 0;
   min-width: 0;
-  padding: 0 4px clamp(4px, 0.36vw, 6px);
+  padding: 0;
 }
 
-.crew-name {
+.card-shell.card-kind-crew .crew-name {
   max-width: 100%;
   overflow: hidden;
-  color: #101112;
-  font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
-  font-size: var(--card-title-font-size);
-  font-weight: 500;
-  letter-spacing: -0.025em;
+  color: #0B1418;
+  background: none;
+  box-shadow: none;
+  font-family: var(--card-title-font-family);
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   line-height: 1;
   text-align: left;
   text-overflow: clip;
-  text-shadow: 0 1px 0 rgba(255, 248, 232, 0.42);
-  white-space: nowrap;
-  transform: rotate(-1.1deg);
-}
-
-.crew-name-rule {
-  display: block;
-  width: min(94%, clamp(84px, 8.4vw, 128px));
-  height: 6px;
-  margin-top: -1px;
-  margin-bottom: 0;
-  border-radius: 999px;
-  background: #3b65bc;
-  clip-path: polygon(0 51%, 12% 42%, 27% 55%, 42% 43%, 58% 56%, 75% 42%, 100% 53%, 100% 75%, 0 72%);
-  opacity: 0.9;
-  transform: rotate(-0.6deg);
-}
-
-.crew-role {
-  display: inline-block;
-  max-width: 100%;
-  margin-top: -2px;
-  margin-left: 3px;
-  padding: 4px 8px 4px;
-  overflow: hidden;
-  color: #fff8e3;
-  font-family: 'Playpen Sans', 'Pangolin', 'Marker Felt', 'Segoe Print', 'Bradley Hand', cursive, sans-serif;
-  font-size: var(--card-label-font-size);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  line-height: 1;
-  text-align: left;
-  text-overflow: clip;
+  text-shadow: none;
   text-transform: uppercase;
+  text-wrap: balance;
   white-space: nowrap;
-  background: #3b65bc;
-  clip-path: polygon(
-    0% 0%, 100% 0%,
-    99% 12%, 100% 26%, 98.5% 40%, 100% 54%, 98% 68%, 100% 82%, 99% 94%,
-    100% 100%, 0% 100%,
-    1% 94%, 0% 82%, 2% 68%, 0% 54%, 1.5% 40%, 0% 26%, 1% 12%
-  );
-  transform: rotate(-0.8deg);
+  -webkit-text-stroke: 0 transparent;
+  paint-order: normal;
+  transform: none;
 }
 
 .crew-specialties {
+  position: relative;
+  z-index: 1;
   display: grid;
+  grid-row: 2;
   justify-items: start;
   gap: clamp(2px, 0.28vw, 4px);
   min-width: 0;
-  padding: 0 4px;
+  padding: 0;
 }
 
 .crew-specialties-label {
@@ -3233,27 +3200,31 @@
 }
 
 .crew-specialty-icons {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
+  display: grid;
+  align-items: start;
+  justify-content: start;
+  justify-items: start;
   min-width: 0;
-  gap: 4px;
+  gap: clamp(4px, 0.42vw, 6px);
+  line-height: 1;
 
   .game-icon {
-    --icon-frame-width: 1.2px;
-
-    width: clamp(14px, 2.7vw, 23px);
+    width: 28px;
   }
 }
 
 .crew-rule-note {
   position: relative;
+  z-index: 1;
   display: grid;
+  grid-row: 4;
+  align-self: end;
   align-content: center;
   justify-items: start;
+  max-width: 72%;
   min-height: auto;
   margin: 0;
-  padding: clamp(3px, 0.34vw, 5px) 4px 0;
+  padding: clamp(3px, 0.34vw, 5px) 0 0;
   border: 0;
   border-radius: 0;
   background: none;
@@ -3277,10 +3248,8 @@
   }
 
   .game-icon {
-    --icon-frame-width: 1.2px;
-
     display: inline-grid;
-    width: 1.25em;
+    width: 1.22em;
     margin: 0 0.05em;
     vertical-align: -0.26em;
   }
@@ -5354,10 +5323,10 @@
 }
 
 .game-icon {
-  --icon-color: var(--card-accent);
-  --icon-stroke: color-mix(in srgb, var(--icon-color) 72%, #11131a);
+  --icon-color: #f2c556;
+  --icon-stroke: #3a2108;
   --icon-paper: #fff8e8;
-  --icon-ink: #11131a;
+  --icon-ink: color-mix(in srgb, var(--icon-stroke) 82%, #11131a);
   --icon-frame-width: 1px;
 
   position: relative;
@@ -5370,22 +5339,12 @@
   border-radius: 38% 62% 47% 53% / 54% 42% 58% 46%;
   background:
     radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.48), transparent 38%),
-    color-mix(in srgb, var(--icon-color) 38%, var(--icon-paper));
+    color-mix(in srgb, var(--icon-color) 72%, var(--icon-paper));
   transform: rotate(-2deg);
 
-  &[data-kind='hull'] {
-    --icon-color: #f5d85f;
-  }
-
   &[data-kind='fuel'] {
-    --icon-color: #ffbd3d;
-    --icon-stroke: #1b1308;
-
     border: var(--icon-frame-width) solid var(--icon-ink);
-    border-radius: 50%;
-    background:
-      radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.48), transparent 38%),
-      color-mix(in srgb, var(--icon-color) 38%, var(--icon-paper));
+    border-radius: 38% 62% 47% 53% / 54% 42% 58% 46%;
 
     svg {
       width: 86%;
@@ -5398,13 +5357,10 @@
   }
 
   &[data-kind='scrap'] {
-    --icon-color: #d58b42;
-    --icon-stroke: #2a1909;
-
     border-radius: 50%;
     background:
       radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.36), transparent 40%),
-      color-mix(in srgb, var(--icon-color) 38%, var(--icon-paper));
+      color-mix(in srgb, var(--icon-color) 72%, var(--icon-paper));
     box-shadow: inset 0 0 0 0.1em rgba(17, 19, 26, 0.12);
 
     .icon-line {
@@ -5413,42 +5369,7 @@
     }
   }
 
-  &[data-kind='parts'] {
-    --icon-color: #f08a4b;
-  }
-
-  &[data-kind='engine'] {
-    --icon-color: #f4a83a;
-  }
-
-  &[data-kind='star'] {
-    --icon-color: #b66dff;
-  }
-
-  &[data-kind='life'] {
-    --icon-color: #3fcf72;
-  }
-
-  &[data-kind='signal'] {
-    --icon-color: #28d8cf;
-  }
-
-  &[data-kind='mother'] {
-    --icon-color: #ff5f72;
-  }
-
-  &[data-kind='person'] {
-    --icon-color: #76d6ff;
-  }
-
-  &[data-kind='tired-person'] {
-    --icon-color: #aab5c8;
-  }
-
   &[data-kind='any'] {
-    --icon-color: #aab5c8;
-    --icon-stroke: #11131a;
-
     border-radius: 50%;
 
     .icon-line {
@@ -5481,11 +5402,11 @@
   }
 
   .icon-fill {
-    fill: color-mix(in srgb, var(--icon-color) 82%, var(--icon-paper));
+    fill: color-mix(in srgb, var(--icon-color) 46%, var(--icon-stroke));
   }
 
   .icon-cutout {
-    fill: rgba(255, 248, 232, 0.92);
+    fill: color-mix(in srgb, var(--icon-color) 18%, var(--icon-paper));
   }
 
   .icon-line {
