@@ -80,12 +80,6 @@ function getLossStats(board: BoardView): LossStat[] {
 
   return [
     {
-      label: 'Best Mission',
-      value: String(bestMissionFuel),
-      iconKind: 'fuel',
-      iconLabel: `${bestMissionFuel} Fuel`,
-    },
-    {
       label: 'Most used crew',
       value: getMostUsedCrewComposition(board),
       isWide: true,
@@ -110,22 +104,13 @@ function getLossStats(board: BoardView): LossStat[] {
       label: 'Ship Parts',
       value: String(board.activeShipParts.length),
     },
+    {
+      label: 'Best Mission',
+      value: String(bestMissionFuel),
+      iconKind: 'fuel',
+      iconLabel: `${bestMissionFuel} Fuel`,
+    },
   ]
-}
-
-function FailureFlameIcon() {
-  return (
-    <figure className="crashed-ship-art" aria-hidden="true">
-      <svg viewBox="0 0 420 330" focusable="false">
-        <path className="flame-icon-fill" d="M214 38c-60 66-93 116-93 170 0 58 40 98 89 98 52 0 91-39 91-96 0-47-25-87-67-126 3 37-9 67-35 91 5-48-3-91 15-137Z" />
-        <path className="flame-icon-cutout" d="M206 154c-29 34-45 59-45 88 0 28 20 48 47 48 29 0 49-21 49-50 0-24-13-45-36-69 1 23-6 40-22 54 3-28-3-52 7-71Z" />
-        <path className="flame-icon-line" d="M179 91c-24 35-36 70-36 106M270 164c8 19 11 38 8 58M191 279c17 6 37 6 55 0M137 238c9 23 27 41 52 53" />
-        <path className="flame-icon-spark" d="M95 144l28 5M315 116l21-18M322 229l28 12M108 231l-24 18" />
-        <circle className="flame-icon-dot" cx="303" cy="78" r="6" />
-        <circle className="flame-icon-dot" cx="101" cy="91" r="4.8" />
-      </svg>
-    </figure>
-  )
 }
 
 export function LossDialog({ board, onResetGame, onReturnToMainMenu, canReset }: {
@@ -142,7 +127,6 @@ export function LossDialog({ board, onResetGame, onReturnToMainMenu, canReset }:
 
   return (
     <div className="dialog-overlay failure-overlay">
-      <FailureFlameIcon />
       <section
         className="arrival-panel loss-panel"
         role="dialog"

@@ -190,7 +190,10 @@ export function Board({
     <section
       ref={boardRef}
       className="board"
-      style={{ '--drag-z-index': String(board.topZ + 1000) } as CSSProperties}
+      style={{
+        '--drag-z-index': String(board.topZ + 1000),
+        '--hand-z-index': String(board.topZ + 1),
+      } as CSSProperties}
       aria-label="Galaxy card board"
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

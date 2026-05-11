@@ -245,6 +245,7 @@ function App() {
             isOpen={isCrewGuideOpen}
             onClose={() => setIsCrewGuideOpen(false)}
             patternUsageCounts={board.patternUsageCounts}
+            activeShipParts={board.activeShipParts}
           />
         </>
       ) : (

@@ -766,7 +766,12 @@ function canCoverGateFuelWithPotentialSupport(
   gate: NonNullable<Card['gate']>,
   shipPartFuelDiscount = 0,
 ) {
-  const requiredFuel = Math.max(0, gate.need.fuel - getNextGateFuelDiscount(current.pendingEffects) - shipPartFuelDiscount)
+  const gateStack = getSectorGateStack(current)?.stack
+  const committedGateFuel = gateStack ? getFuelCardIds(gateStack, current.cards).length : 0
+  const requiredFuel = Math.max(
+    0,
+    gate.need.fuel - getNextGateFuelDiscount(current.pendingEffects) - shipPartFuelDiscount - committedGateFuel,
+  )
 
   return countFuelCardsInSupply(current) + countWaterPairFuel(current, crewCardIds) >= requiredFuel
 }
