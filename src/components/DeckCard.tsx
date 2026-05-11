@@ -4,7 +4,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import type { Deck } from '../game/types'
-import { canManuallyDrawDeck } from '../game/decks'
+import { CRYO_DECK_ID, canManuallyDrawDeck } from '../game/decks'
 import { DeckIcon } from './DeckIcon'
 
 export type DeckCardView = Deck
@@ -17,6 +17,11 @@ type DeckCardProps = {
   sharedPosition: { x: number; y: number } | null
   onPointerDown: DeckPointerDownHandler
   onKeyDown: DeckKeyDownHandler
+}
+
+type DeckCardStyle = CSSProperties & {
+  '--card-hue': string
+  '--card-accent': string
 }
 
 export type DeckPointerDownHandler = (
@@ -43,6 +48,19 @@ export function DeckCard({
   const displayX = sharedPosition?.x ?? deck.x
   const displayY = sharedPosition?.y ?? deck.y
   const displayTitle = getDeckDisplayTitle(deck.title)
+  const usesAnchoredPosition = deck.id === CRYO_DECK_ID
+  const positionStyle: CSSProperties = usesAnchoredPosition
+    ? {}
+    : {
+        left: `${displayX}%`,
+        top: `${displayY}%`,
+      }
+  const style: DeckCardStyle = {
+    '--card-hue': String(deck.hue),
+    '--card-accent': deck.accent,
+    ...positionStyle,
+    zIndex: isActive || isSharedActive ? 'var(--drag-z-index)' : deck.z,
+  }
   const actionLabel = canDraw
     ? 'Click to draw or drag to move.'
     : 'Reward-only draw; drag to move.'
@@ -56,15 +74,7 @@ export function DeckCard({
         isDropTarget ? 'is-drop-target' : ''
       }`}
       data-deck-id={deck.id}
-      style={
-        {
-          '--card-hue': String(deck.hue),
-          '--card-accent': deck.accent,
-          left: `${displayX}%`,
-          top: `${displayY}%`,
-          zIndex: isActive || isSharedActive ? 'var(--drag-z-index)' : deck.z,
-        } as CSSProperties
-      }
+      style={style}
       tabIndex={canInteract ? 0 : -1}
       aria-disabled={!canInteract}
       onPointerDown={(event) => {

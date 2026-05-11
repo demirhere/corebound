@@ -1,5 +1,5 @@
 import { type CSSProperties } from 'react'
-import { type CardView } from './BoardCard'
+import { CardShell, type CardView } from './BoardCard'
 import { DeckIcon } from './DeckIcon'
 
 type TiredCrewDeckProps = {
@@ -14,6 +14,8 @@ function getTiredCards(cardIds: readonly string[], cards: Record<string, CardVie
     return card ? [card] : []
   })
 }
+
+function ignoreCardInteraction() {}
 
 export function TiredCrewDeck({ cardIds, cards }: TiredCrewDeckProps) {
   const tiredCards = getTiredCards(cardIds, cards)
@@ -31,12 +33,12 @@ export function TiredCrewDeck({ cardIds, cards }: TiredCrewDeckProps) {
       {tiredCards.map((card, index) => {
         const cappedIndex = Math.min(index, 7)
         const isTopCard = index === cardCount - 1
+        const tiredCard = { ...card, faceUp: false }
 
         return (
           <div
             key={card.id}
             className="tired-crew-deck-card"
-            data-motion-card-id={card.id}
             style={
               {
                 '--tired-card-x': `${cappedIndex * 2}px`,
@@ -46,22 +48,31 @@ export function TiredCrewDeck({ cardIds, cards }: TiredCrewDeckProps) {
               } as CSSProperties
             }
           >
-            <div
-              className={`deck-card tired-crew-deck-cover is-automatic-reward ${isTopCard ? 'is-top-card' : ''}`}
-              aria-hidden={!isTopCard}
-            >
-              {isTopCard && (
-                <>
-                  <span className="deck-badge" aria-hidden="true">
-                    {cardCount}
-                  </span>
-                  <span className="deck-title-lockup">
-                    <DeckIcon kind={card.icon} className="deck-mark-icon" />
-                    <span className="deck-title">Tired</span>
-                  </span>
-                </>
-              )}
-            </div>
+            <CardShell
+              card={tiredCard}
+              className={`tired-crew-card-shell ${isTopCard ? 'is-top-card' : ''}`}
+              style={{ top: 0 } as CSSProperties}
+              ariaLabel={`${card.title}. Tired crew card in the face-down tired deck.`}
+              motionCardId={card.id}
+              canInteract={false}
+              backContent={
+                isTopCard ? (
+                  <>
+                    <span className="deck-badge" aria-hidden="true">
+                      {cardCount}
+                    </span>
+                    <span className="deck-title-lockup">
+                      <DeckIcon kind={card.icon} className="deck-mark-icon" />
+                      <span className="deck-title">Tired</span>
+                    </span>
+                  </>
+                ) : (
+                  <span className="tired-crew-deck-blank-back" aria-hidden="true" />
+                )
+              }
+              onPointerDown={ignoreCardInteraction}
+              onKeyDown={ignoreCardInteraction}
+            />
           </div>
         )
       })}

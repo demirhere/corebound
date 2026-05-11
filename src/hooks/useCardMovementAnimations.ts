@@ -24,6 +24,8 @@ type ActiveCardAnimation = {
   timeoutId: number
 }
 
+type FlipDirection = 'reveal' | 'hide'
+
 type DrawOrigin = {
   deckId: string
   drawIndex: number
@@ -453,7 +455,7 @@ function startCardAnimation(
     kind: 'draw' | 'move'
     delay?: number
     duration?: number
-    flip?: boolean
+    flip?: FlipDirection
   },
   activeAnimations: Map<string, ActiveCardAnimation>,
 ) {
@@ -489,6 +491,8 @@ function startCardAnimation(
   const innerElement = options.flip
     ? target.element.querySelector<HTMLElement>('.card-inner')
     : null
+  const initialFlipTransform = options.flip === 'hide' ? 'rotateY(0deg)' : 'rotateY(180deg)'
+  const finalFlipTransform = options.flip === 'hide' ? 'rotateY(180deg)' : 'rotateY(0deg)'
   const endAfter = Math.max(
     movedFarEnough ? moveDelay + moveDuration : 0,
     innerElement ? flipDelay + flipDuration : 0,
@@ -505,7 +509,7 @@ function startCardAnimation(
 
   if (innerElement) {
     innerElement.style.transition = 'none'
-    innerElement.style.transform = 'rotateY(180deg)'
+    innerElement.style.transform = initialFlipTransform
     innerElement.style.willChange = 'transform'
   }
 
@@ -519,7 +523,7 @@ function startCardAnimation(
   if (innerElement) {
     innerElement.style.transition =
       `transform ${flipDuration}ms cubic-bezier(0.2, 0.75, 0.2, 1) ${flipDelay}ms`
-    innerElement.style.transform = 'rotateY(0deg)'
+    innerElement.style.transform = finalFlipTransform
   }
 
   const activeAnimation = {
@@ -594,7 +598,7 @@ export function useCardMovementAnimations({ board, boardRef }: UseCardMovementAn
           {
             kind: 'draw',
             delay: origin.drawIndex * CARD_DRAW_STAGGER_MS,
-            flip: card.faceUp,
+            flip: card.faceUp ? 'reveal' : undefined,
           },
           activeAnimationsRef.current,
         )
@@ -618,6 +622,10 @@ export function useCardMovementAnimations({ board, boardRef }: UseCardMovementAn
           continue
         }
 
+        const flip = currentLocation?.kind === 'hand' && currentLocation.zone === 'tired'
+          ? 'hide'
+          : undefined
+
         startCardAnimation(
           cardId,
           target,
@@ -625,6 +633,7 @@ export function useCardMovementAnimations({ board, boardRef }: UseCardMovementAn
           {
             kind: 'move',
             duration: getExistingMoveDuration(previousLocation, currentLocation),
+            flip,
           },
           activeAnimationsRef.current,
         )

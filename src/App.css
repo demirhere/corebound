@@ -530,7 +530,7 @@
     radial-gradient(circle at 72% 22%, color-mix(in srgb, var(--manual-card-accent) 28%, transparent), transparent 34%);
   box-shadow:
     3px 4px 0 rgba(17, 19, 26, 0.22),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.62),
+    inset 0 0 0 1px color-mix(in srgb, var(--manual-card-accent) 12%, rgba(255, 255, 255, 0.34)),
     inset 0 0 24px rgba(17, 19, 26, 0.08);
   transform: rotate(-1deg);
 }
@@ -768,30 +768,9 @@
     rgba(139, 54, 255, 0.16);
 }
 
-.crew-guide-reward-upgraded {
-  position: relative;
-  display: inline-block;
-  min-width: 1.6em;
-  padding-right: 0.1em;
-}
-
-.crew-guide-reward-old {
-  color: rgba(17, 19, 26, 0.5);
-  text-decoration: line-through;
-  text-decoration-color: #8b36ff;
-  text-decoration-thickness: 2px;
-}
-
-.crew-guide-reward-new {
-  position: absolute;
-  top: -0.55em;
-  right: -0.45em;
+.crew-guide-reward-boosted {
   color: #8b36ff;
-  font-size: 1.25em;
-  font-weight: 1000;
-  line-height: 1;
   text-shadow: 0 1px 0 rgba(255, 248, 232, 0.78);
-  transform: rotate(-9deg);
 }
 
 .crew-guide-boost-source {
@@ -1917,7 +1896,7 @@
   right: clamp(10px, 2vw, 24px);
   bottom: clamp(10px, 2vh, 22px);
   left: clamp(10px, 2vw, 24px);
-  z-index: var(--hand-z-index, 1300);
+  z-index: auto;
   display: grid;
   grid-template-columns: minmax(clamp(92px, 16vw, 220px), 0.34fr) minmax(0, 1fr) minmax(clamp(92px, 16vw, 220px), 0.34fr);
   align-items: stretch;
@@ -1933,7 +1912,7 @@
 }
 
 .hand.is-dragging-card {
-  z-index: var(--drag-z-index, 1300);
+  z-index: auto;
 }
 
 .hand-zone {
@@ -2137,6 +2116,7 @@
 
 .hand-strip {
   position: relative;
+  z-index: var(--hand-z-index, 1300);
   display: grid;
   place-items: center;
   min-height: var(--hand-card-height);
@@ -2293,40 +2273,54 @@
   --deck-ink: #151916;
 
   position: absolute;
-  bottom: clamp(10px, 2vh, 22px);
-  left: clamp(12px, 2vw, 26px);
+  top: calc((var(--tired-card-height) + 22px) * -1);
+  left: 50%;
   z-index: 1002;
   width: calc(var(--tired-card-width) + 32px);
-  height: calc(var(--tired-card-height) + 18px);
+  height: var(--tired-card-height);
   color: var(--deck-letter);
   pointer-events: none;
+  transform: translateX(-50%);
 }
 
 .tired-crew-deck-card {
   position: absolute;
   bottom: 0;
   left: 0;
-  width: var(--tired-card-width);
-  height: var(--tired-card-height);
-  transform: translate(var(--tired-card-x), var(--tired-card-y)) rotate(var(--tired-card-rotation));
-  transform-origin: center bottom;
-}
-
-.tired-crew-deck-cover.deck-card {
-  position: absolute;
-  left: 0;
-  top: auto;
-  bottom: 0;
-  --card-hue: 198;
-  --card-accent: #82d8ff;
   width: var(--card-width);
   height: var(--card-height);
-  cursor: default;
-  transform: scale(var(--tired-card-scale));
+  transform: translate(var(--tired-card-x), var(--tired-card-y)) scale(var(--tired-card-scale)) rotate(var(--tired-card-rotation));
   transform-origin: left bottom;
 }
 
-.tired-crew-deck-cover:not(.is-top-card) {
+.tired-crew-card-shell.card-shell {
+  top: 0;
+  cursor: default;
+  filter:
+    drop-shadow(0 3px 2px rgba(0, 0, 0, 0.32))
+    drop-shadow(0 13px 12px rgba(0, 0, 0, 0.34));
+}
+
+.tired-crew-card-shell .card-face.card-back {
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--deck-letter);
+  background:
+    radial-gradient(circle at 22% 12%, rgba(255, 255, 255, 0.11), transparent 33%),
+    radial-gradient(circle at 70% 86%, rgba(0, 0, 0, 0.22), transparent 46%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.085) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, transparent 0 8px, rgba(255, 255, 255, 0.026) 8px 9px, transparent 9px 16px),
+    linear-gradient(145deg, var(--deck-cover-light), var(--deck-cover) 49%, var(--deck-cover-dark));
+  box-shadow:
+    inset 0 0 0 1px var(--deck-edge),
+    inset 0 11px 18px rgba(255, 255, 255, 0.045),
+    inset 0 -18px 28px rgba(0, 0, 0, 0.18),
+    0 13px 12px rgba(0, 0, 0, 0.34);
+}
+
+.tired-crew-card-shell:not(.is-top-card) .card-face.card-back {
   box-shadow:
     inset 0 0 0 1px var(--deck-edge),
     inset 0 11px 18px rgba(255, 255, 255, 0.045),
@@ -2839,7 +2833,7 @@
     repeating-linear-gradient(0deg, rgba(255, 79, 100, 0.12) 0 1px, transparent 1px 7px),
     linear-gradient(150deg, #1a0710, #2a0b16 62%, #070913);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 240, 232, 0.46),
+    inset 0 0 0 1px color-mix(in srgb, #ff4f64 24%, rgba(255, 240, 232, 0.28)),
     inset 0 0 28px rgba(255, 79, 100, 0.14);
 }
 
@@ -2982,7 +2976,7 @@
   --crew-paper-dark: #d8c9a5;
   --crew-ink: #1b1d1c;
   --crew-muted-ink: rgba(27, 29, 28, 0.62);
-  --crew-paper-bright: #fff7df;
+  --crew-paper-bright: color-mix(in srgb, var(--crew-paper) 82%, rgba(255, 247, 223, 0.42));
   --crew-margin-line: rgba(67, 89, 84, 0.18);
 
   .card-face.card-front {
@@ -3260,7 +3254,7 @@
       13px 13px,
       auto;
     box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.48),
+      inset 0 0 0 1px color-mix(in srgb, var(--discovery-paper) 76%, rgba(255, 255, 255, 0.3)),
       inset 0 0 28px rgba(78, 54, 27, 0.14);
   }
 
@@ -3533,7 +3527,7 @@
       repeating-linear-gradient(0deg, transparent 0 17px, rgba(42, 74, 85, 0.16) 17px 18px),
       linear-gradient(160deg, #eef7f9 0%, var(--drift-paper) 64%, #b7c7cf 100%);
     box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.58),
+      inset 0 0 0 1px color-mix(in srgb, var(--drift-paper) 74%, rgba(255, 255, 255, 0.32)),
       inset 0 -18px 20px rgba(23, 35, 42, 0.08);
     clip-path: polygon(5% 0, 90% 0, 100% 7%, 100% 100%, 0 100%, 0 5%);
   }
@@ -3583,7 +3577,7 @@
       radial-gradient(circle at 78% 14%, color-mix(in srgb, var(--card-accent) 25%, transparent), transparent 26%),
       linear-gradient(155deg, #fff4de 0%, var(--hazard-paper) 58%, #c8b7a2 100%);
     box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.42),
+      inset 0 0 0 1px color-mix(in srgb, var(--hazard-paper) 76%, rgba(255, 255, 255, 0.26)),
       inset 0 -20px 26px rgba(25, 23, 25, 0.1);
   }
 
@@ -3817,7 +3811,7 @@
     linear-gradient(150deg, hsl(var(--card-hue) 70% 88%), #fff0c9 64%, hsl(var(--card-hue) 78% 74%));
   color: #11131a;
   box-shadow:
-    inset 0 0 0 1px rgba(255, 248, 232, 0.62),
+    inset 0 0 0 1px color-mix(in srgb, var(--card-accent) 14%, rgba(255, 248, 232, 0.34)),
     inset 0 0 24px rgba(17, 19, 26, 0.08);
 }
 
@@ -4051,7 +4045,7 @@
       auto,
       auto;
     box-shadow:
-      inset 0 0 0 1px rgba(255, 248, 232, 0.62),
+      inset 0 0 0 1px color-mix(in srgb, #ffd766 62%, rgba(255, 248, 232, 0.3)),
       inset 0 0 28px rgba(93, 57, 8, 0.14);
   }
 
@@ -4300,7 +4294,7 @@
       ),
       linear-gradient(150deg, #c08454, #9c6235 48%, #6b3f1c 100%);
     box-shadow:
-      inset 0 0 0 1px rgba(255, 222, 178, 0.42),
+      inset 0 0 0 1px color-mix(in srgb, #c08454 72%, rgba(255, 222, 178, 0.24)),
       inset 0 0 22px rgba(40, 18, 4, 0.34);
   }
 
@@ -4492,7 +4486,7 @@
   --blueprint-grid: rgba(214, 184, 245, 0.10);
   --blueprint-grid-strong: rgba(228, 200, 252, 0.16);
   --blueprint-gradient: linear-gradient(145deg, #5b3a8a, #432872 56%, #2a1755);
-  --blueprint-edge-glow: rgba(244, 232, 255, 0.48);
+  --blueprint-edge-glow: color-mix(in srgb, #5b3a8a 52%, rgba(244, 232, 255, 0.3));
   --blueprint-shadow: rgba(20, 8, 32, 0.28);
 }
 
@@ -5455,7 +5449,7 @@
     repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.075) 0 1px, transparent 1px 6px),
     linear-gradient(145deg, hsl(var(--card-hue) 48% 32%), hsl(var(--card-hue) 54% 22%));
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+    inset 0 0 0 1px var(--deck-edge),
     inset 0 10px 18px rgba(255, 255, 255, 0.04);
 }
 
@@ -5479,7 +5473,7 @@
   --deck-cover: hsl(var(--card-hue) 45% 29%);
   --deck-cover-dark: hsl(var(--card-hue) 46% 25%);
   --deck-letter: color-mix(in srgb, var(--card-accent) 34%, #f4d9a4);
-  --deck-edge: color-mix(in srgb, var(--deck-cover-light) 88%, #fff8e8);
+  --deck-edge: color-mix(in srgb, var(--deck-cover-light) 76%, var(--deck-cover));
   --deck-line: color-mix(in srgb, var(--deck-letter) 74%, var(--deck-cover-light));
   --deck-ink: #151916;
 
@@ -5604,7 +5598,7 @@
   --deck-cover: #ffc84b;
   --deck-cover-dark: #db8f1f;
   --deck-letter: #1b1308;
-  --deck-edge: rgba(255, 248, 232, 0.56);
+  --deck-edge: color-mix(in srgb, var(--deck-cover-light) 78%, var(--deck-cover));
   --deck-line: rgba(93, 57, 8, 0.26);
   --deck-ink: #1b1308;
 
@@ -5650,12 +5644,20 @@
   }
 }
 
+.deck-card[data-deck-id='cryo-deck'] {
+  left: clamp(12px, 2vw, 26px);
+  top: auto;
+  bottom: clamp(10px, 2vh, 22px);
+  scale: 0.58;
+  transform-origin: left bottom;
+}
+
 .deck-card[data-deck-id='drift-deck'] {
   --deck-cover-light: #eef7f9;
   --deck-cover: #d7e3e7;
   --deck-cover-dark: #a9bbc4;
   --deck-letter: #17232a;
-  --deck-edge: rgba(255, 255, 255, 0.62);
+  --deck-edge: color-mix(in srgb, var(--deck-cover-light) 78%, var(--deck-cover));
   --deck-line: rgba(23, 35, 42, 0.2);
   --deck-ink: #17232a;
 
@@ -5718,7 +5720,7 @@
   --deck-cover: #ece2d2;
   --deck-cover-dark: #c8b7a2;
   --deck-letter: #191719;
-  --deck-edge: rgba(255, 255, 255, 0.52);
+  --deck-edge: color-mix(in srgb, var(--deck-cover-light) 78%, var(--deck-cover));
   --deck-line: rgba(25, 23, 25, 0.22);
   --deck-ink: #191719;
 
@@ -5973,8 +5975,13 @@
   .tired-crew-deck {
     --tired-card-scale: 0.52;
 
-    bottom: 8px;
+    top: calc((var(--tired-card-height) + 16px) * -1);
+  }
+
+  .deck-card[data-deck-id='cryo-deck'] {
     left: 8px;
+    bottom: 8px;
+    scale: 0.52;
   }
 
   .hand-zone {

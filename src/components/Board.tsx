@@ -47,7 +47,7 @@ import {
 } from './Hand'
 import { TiredCrewDeck } from './TiredCrewDeck'
 import type { SharedDragPreview } from '../realtime/types'
-import { DRIFT_DECK_ID } from '../game/decks'
+import { CRYO_DECK_ID, DRIFT_DECK_ID } from '../game/decks'
 
 type BoardView = BoardState
 
@@ -216,7 +216,7 @@ export function Board({
             deck={deck}
             isActive={activeDeckIds.includes(deck.id)}
             isDropTarget={board.dropTargetDeckId === deck.id}
-            canInteract={canMoveBoardFreely}
+            canInteract={canMoveBoardFreely && deck.id !== CRYO_DECK_ID}
             sharedPosition={
               sharedDrag?.kind === 'deck' && sharedDrag.deckId === deck.id
                 ? { x: sharedDrag.x, y: sharedDrag.y }

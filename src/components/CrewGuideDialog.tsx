@@ -146,14 +146,12 @@ export function CrewGuideDialog({ isOpen, onClose, patternUsageCounts, activeShi
                 <span className="crew-guide-name">{getMissionPatternLabel(entry.pattern)}</span>
                 <span className="crew-guide-icons"><CrewIconRow crew={entry.crew} sharedIcon={entry.sharedIcon} /></span>
                 <span className="crew-guide-reward">
-                  {isBoosted ? (
-                    <span className="crew-guide-reward-amount crew-guide-reward-upgraded" aria-label={`${totalFuel}x (was ${baseFuel}x)`}>
-                      <span className="crew-guide-reward-old" aria-hidden="true">{baseFuel}x</span>
-                      <span className="crew-guide-reward-new" aria-hidden="true">{totalFuel}x</span>
-                    </span>
-                  ) : (
-                    <span className="crew-guide-reward-amount">{baseFuel}x</span>
-                  )}
+                  <span
+                    className={`crew-guide-reward-amount${isBoosted ? ' crew-guide-reward-boosted' : ''}`}
+                    aria-label={isBoosted ? `${totalFuel}x (boosted from ${baseFuel}x)` : undefined}
+                  >
+                    {totalFuel}x
+                  </span>
                   <GameIcon kind="fuel" />
                 </span>
                 <span className="crew-guide-count">#{used}</span>

@@ -2,6 +2,7 @@ import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from 'react'
 import { getDamageDisplayTitle } from '../game/damage'
 import type { Card } from '../game/types'
@@ -68,6 +69,7 @@ type CardShellProps = {
   ariaLabel: string
   motionCardId?: string
   dataHandCardId?: string
+  backContent?: ReactNode
   canInteract?: boolean
   onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void
   onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void
@@ -94,6 +96,7 @@ export function CardShell({
   ariaLabel,
   motionCardId,
   dataHandCardId,
+  backContent,
   canInteract = true,
   onPointerDown,
   onKeyDown,
@@ -155,6 +158,14 @@ export function CardShell({
   const showSectorBadge = showSectorHeader && !isOpenMissionCard && !isShipPartMission && !isActiveShipPartCard
   const isGateCard = card.kind === 'gate'
   const gateBackTitle = isGateCard ? `${card.title} Final Gate` : null
+  const defaultBackContent = isGateCard ? (
+    <span className="deck-title-lockup sector-gate-back-lockup">
+      <DeckIcon kind={card.icon} className="deck-mark-icon" />
+      <span className="deck-title">{gateBackTitle}</span>
+    </span>
+  ) : (
+    <DeckIcon kind={card.icon} className="back-mark" />
+  )
 
   return (
     <div
@@ -225,14 +236,7 @@ export function CardShell({
         </article>
 
         <article className="card-face card-back" aria-hidden="true">
-          {isGateCard ? (
-            <span className="deck-title-lockup sector-gate-back-lockup">
-              <DeckIcon kind={card.icon} className="deck-mark-icon" />
-              <span className="deck-title">{gateBackTitle}</span>
-            </span>
-          ) : (
-            <DeckIcon kind={card.icon} className="back-mark" />
-          )}
+          {backContent ?? defaultBackContent}
         </article>
       </div>
     </div>
