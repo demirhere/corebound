@@ -192,6 +192,7 @@ export function Board({
       className="board"
       style={{
         '--drag-z-index': String(board.topZ + 1000),
+        '--dialog-z-index': String(board.topZ + 2000),
         '--hand-z-index': String(board.topZ + 1),
       } as CSSProperties}
       aria-label="Galaxy card board"

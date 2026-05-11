@@ -4153,6 +4153,56 @@ function getExistingCrewStackTarget(current: BoardState, sourceStack: Stack) {
   return target
 }
 
+function hasCrewStack(current: BoardState) {
+  return current.stacks.some((stack) =>
+    stack.cardIds.some((cardId) => current.cards[cardId]?.kind === 'crew'),
+  )
+}
+
+function getInitialMissionStackTarget(current: BoardState, sourceStack: Stack) {
+  const gateFuelShipPartDiscount = countSpentShipParts(
+    current.shipPartSlots,
+    'adaptive-control-console',
+    current.currentSector,
+  )
+  const missionAnyIconSurcharge = getMissionAnyIconSurcharge(current.cards, current.routeSlots)
+  let target: Stack | null = null
+
+  for (const targetStack of current.stacks) {
+    const hasMissionCard = targetStack.cardIds.some((targetCardId) => {
+      const targetCard = current.cards[targetCardId]
+
+      return targetCard?.kind === 'mission' && Boolean(targetCard.mission)
+    })
+
+    if (
+      !hasMissionCard ||
+      stackContainsRouteCard(targetStack, current.routeSlots, current.shipPartSlots) ||
+      !canStackCards(
+        sourceStack,
+        targetStack,
+        current.cards,
+        getNextStopFuelDiscount(current.pendingEffects),
+        current.stressCount,
+        countSpentShipParts(current.shipPartSlots, 'service-drone-bay', current.currentSector),
+        0,
+        0,
+        getNextGateFuelDiscount(current.pendingEffects) + gateFuelShipPartDiscount,
+        missionAnyIconSurcharge,
+        getWaterPairFuelAmount(current.shipPartSlots),
+      )
+    ) {
+      continue
+    }
+
+    if (!target || targetStack.z > target.z) {
+      target = targetStack
+    }
+  }
+
+  return target
+}
+
 export function clickHandCardToBoardUpdate(cardId: string, position: Position): BoardUpdater {
   return (current) => {
     const card = current.cards[cardId]
@@ -4180,7 +4230,9 @@ export function clickHandCardToBoardUpdate(cardId: string, position: Position): 
       y: position.y,
       z: nextZ,
     }
-    const targetStack = getExistingCrewStackTarget(current, sourceStack)
+    const targetStack = getExistingCrewStackTarget(current, sourceStack) ?? (
+      hasCrewStack(current) ? null : getInitialMissionStackTarget(current, sourceStack)
+    )
 
     if (!targetStack) {
       return dropHandCardToBoardUpdate(cardId, position)(current)
