@@ -6,7 +6,7 @@ const noGateEffectText = 'No special effect.'
 const zeroClear: GateDetails['clear'] = { extraFuel: 0, extraCrew: 0 }
 const zeroClearText = 'No extra cost.'
 
-function fuelGate(title: string, fuel: number): CardBlueprint {
+function fuelGate(title: string, fuel: number, backgroundIndex: number): CardBlueprint {
   return createGateCard(
     title,
     'SECTOR GATE',
@@ -17,28 +17,31 @@ function fuelGate(title: string, fuel: number): CardBlueprint {
     noGateEffectText,
     zeroClear,
     zeroClearText,
+    backgroundIndex,
   )
 }
 
 // Fixed 10-gate sequence with monotonically increasing Fuel cost. The deck
 // is shuffled + sorted at setup, but with 10 cards (one per sector) the
 // shuffle is a no-op — every run sees the same difficulty ramp. Total cost
-// 212 Fuel, calibrated for the v2 catalog AND the tightened scrap tiers
-// (Common Knowledge 3 Fuel → 1 scrap; previously 2). Players now buy ~5-6
-// ship parts/run instead of ~10, so each shop offer is a real decision.
-// ~4.8% win rate with greedy joker buys, 0% without. Re-run `pnpm sim`
-// after any change here; mirror the numbers in `scripts/simulate.mjs`.
+// 171 Fuel, recalibrated for the 45-card crew roster (5 starters + 40
+// cryo = 4 copies of 10 unique cryo blueprints). The bigger cryo means
+// fewer tired→cryo reshuffles per run; Mara/Sana (the only E/L
+// specialists) are now 1 of 45 cards, so high-tier specialist patterns
+// appear less often than before. ~5% win rate with greedy joker buys,
+// 0% without. Re-run `pnpm sim` after any change here; mirror the
+// numbers in `scripts/simulate.mjs`.
 export const sectorGates: CardBlueprint[] = [
-  fuelGate('Narrow Crossing', 10),
-  fuelGate('Old Pass',        11),
-  fuelGate('Lost Beacon',     12),
-  fuelGate('Dust Reach',      14),
-  fuelGate('Cold Mirror',     18),
-  fuelGate('Echo Vault',      22),
-  fuelGate('Hollow Span',     26),
-  fuelGate('Iron Shoal',      30),
-  fuelGate('Black Threshold', 33),
-  fuelGate('Drowned Comm',    36),
+  fuelGate('Narrow Crossing',  8,  0),
+  fuelGate('Old Pass',         8,  1),
+  fuelGate('Lost Beacon',      9, 10),
+  fuelGate('Dust Reach',      10,  8),
+  fuelGate('Cold Mirror',     12,  9),
+  fuelGate('Echo Vault',      17,  7),
+  fuelGate('Hollow Span',     21, 11),
+  fuelGate('Iron Shoal',      25,  2),
+  fuelGate('Black Threshold', 29, 12),
+  fuelGate('Drowned Comm',    32,  5),
 ]
 
 const blockedIconByEffect: Partial<Record<GateDetails['effectKind'], RequirementIconKind>> = {

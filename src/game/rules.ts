@@ -923,6 +923,7 @@ export function cardsToDeckBlueprints(cardIds: string[], cards: Record<string, C
         gate: card.gate
           ? {
               label: card.gate.label,
+              backgroundIndex: card.gate.backgroundIndex,
               need: {
                 fuel: card.gate.need.fuel,
                 icons: [...card.gate.need.icons],

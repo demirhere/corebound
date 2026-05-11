@@ -10,7 +10,7 @@ Each sector deals 3 Mission cards. Stack Ready crew on a Mission to recover Fuel
 
 ## Objective
 
-Pass 10 sector Gates. The 10-card ramp is fixed (10/11/12/13/15/17/18/19/22/24 Fuel) and shown in ascending order — every run faces the same difficulty curve. The first Gate is dealt face up; each successful Gate clear flips the next.
+Pass 10 sector Gates. The 10-card ramp is fixed (8/8/9/10/12/17/21/25/29/32 Fuel, total 171) and shown in ascending order — every run faces the same difficulty curve. The first Gate is dealt face up; each successful Gate clear flips the next.
 
 Solo: you win after the 10th Gate is cleared and **End run** is pressed.
 
@@ -49,14 +49,19 @@ On load or restart, setup is staged as an animated deal. After the animation, th
 | Drift Deck | 10 Drift cards | Shuffle 7 Burn + 3 Fatigue. Currently inert: no Gate carries an extra-Drift effect in this build. |
 | Damage Deck | Disabled (0 cards) | Temporarily empty. Gates always clear cleanly; no Damage drawn. |
 | Stress | Always 0 | Disabled. No source of Stress increment in this build. |
-| Cryo Deck | 7 Cryo crew | Off-screen. After every action, the hand refills to its size cap (5, plus +1 with Adrenal Implants). Refill first reclaims any crew you parked on the board in stacks that aren't yet attached to a destination, gate, or hazard, then draws from Cryo for the rest. When Cryo runs out, the entire Tired pile reshuffles back into Cryo and refilling continues. |
+| Cryo Deck | 40 Cryo crew | Off-screen. 10 unique crew blueprints with varied copy counts (Juno/Priya ×5, Oren/Malik ×3, the rest ×4) so the 45-card roster lands on exactly 16 of each icon. After every action, the hand refills to its size cap (5, plus +1 with Adrenal Implants). Refill first reclaims any crew you parked on the board in stacks that aren't yet attached to a destination, gate, or hazard, then draws from Cryo for the rest. When Cryo runs out, the entire Tired pile reshuffles back into Cryo and refilling continues. |
 
 ## Crew Icons
 
-Each crew card has two specialization icons. Icons are Engine, Life, Nav (formerly Star), and Science (beaker). Crew types are derived from the icon pair:
+Crew cards have **1 or 2** specialization icons. Icons are Engine, Life, Nav (formerly Star), and Science (beaker). Crew types are derived from how many icons a card carries:
 
 - 2 same icons → **Specialist** (Engineer, Medic, Pilot, Operator).
 - 2 different icons → **Generalist** (Mechanic, Scientist, Helmsman, Doctor, Recon, Pilot).
+- 1 icon → **Single-icon crew**. Cannot satisfy Specialist, Cross-Trained, Department Heads, or Bridge Crew. They only contribute to shared-icon patterns (Common Ground, Common Knowledge, Common Cause).
+
+Single-icon crew make up the majority of the Cryo deck (26 of 40), so the hand cycles toward shared-icon patterns once the starter doubles tire. The 4 matched specialists (Mara, Sana, Oren, Malik) are split across the starter + cryo decks so Bridge Crew remains reachable — though Mara and Sana are each 1 of 45 cards, so the high-tier specialist patterns are harder to assemble after sector 1.
+
+The overall 45-card roster is exactly icon-balanced: 16 Engine, 16 Life, 16 Nav, 16 Science.
 
 A Scientist + Mechanic stack still makes 1 Fuel (or 2 with Fuel Synthesizer drafted). A stack with 2 Engine icons + 2 Fuel Cells can still draft a Ship Part.
 
@@ -68,15 +73,18 @@ A Scientist + Mechanic stack still makes 1 Fuel (or 2 with Fuel Synthesizer draf
 | Sana Iqbal | Life, Life | Medic |
 | Nia Okonkwo | Science, Nav | Recon |
 
-| Cryo Crew | Icons | Role |
-| --- | --- | --- |
-| Juno Pike | Engine, Nav | Helmsman |
-| Tomas Hale | Engine, Life | Mechanic |
-| Priya Shah | Life, Engine | Mechanic |
-| Elise Tan | Life, Science | Doctor |
-| Ilya Rao | Nav, Science | Recon |
-| Oren Vale | Science, Science | Operator |
-| Malik Ortega | Nav, Nav | Pilot |
+| Cryo Crew | Icons | Role | Copies |
+| --- | --- | --- | --- |
+| Juno Pike | Engine | Engineer | 5 |
+| Priya Shah | Life | Medic | 5 |
+| Ilya Rao | Nav | Pilot | 4 |
+| Kade Solis | Nav | Pilot | 4 |
+| Beni Akpan | Science | Operator | 4 |
+| Vera Kross | Science | Operator | 4 |
+| Calla Reyes | Engine, Life | Mechanic | 4 |
+| Davin Mori | Engine, Life | Mechanic | 4 |
+| Oren Vale | Science, Science | Operator | 3 |
+| Malik Ortega | Nav, Nav | Pilot | 3 |
 
 ## Missions
 
@@ -119,7 +127,7 @@ Greedy strategy is to maximize Fuel per crew used, because crew tire on use:
 | Common Knowledge | 3 | 3 | 1.0 |
 | Cross-Trained | 1 | 1 | 1.0 |
 
-Sim shows greedy max-fuel-pattern play earns ~10–11 Fuel/sector (without joker bonuses). Without ship parts the back-end gates 17/18/19/22/24 are unreachable; with a greedy joker buyer, ~5% of runs win.
+Sim shows greedy max-fuel-pattern play earns ~6.5 Fuel/sector (without joker bonuses) — single-icon crew dilute the hand once starters tire, and with cryo at 40 cards Mara/Sana are each 1 of 45, so high-tier specialist patterns appear less often. Without ship parts the back-end gates 21/25/29/32 are unreachable; with a greedy joker buyer, ~5% of runs win.
 
 ## Sector Loop
 

@@ -20,19 +20,19 @@
 - No test runner, test script, CI workflow, formatter config, or pre-commit hook is currently configured; do not invent `pnpm test` as verification.
 
 ## Simulation
-`scripts/simulate.mjs` is the canonical balance check. It mirrors the live joker economy: 5 starting crew, 7-card cryo, hand size 5 with Balatro-style tired/cryo cycle (no sector-end auto-reset), 3 mission actions per sector, fixed 10-gate ramp 10/11/12/14/18/22/26/30/33/36 (total 212, calibrated for the v2 catalog and tightened scrap tiers). Pattern fuel rewards are tight: Cross-Trained 1, Common Ground 2, Specialist 2, Common Knowledge 3, Department Heads 4, Common Cause 4, Bridge Crew 6. Scrap reward tiers: 1-3 Fuel → 1 Scrap, 4-5 Fuel → 2, 6+ Fuel → 3. After each gate the player is offered 2 random ship parts from the 25-card un-owned research pool, with a paid re-roll option (cost = cheapest current offer's cost) in the live dialog. Scraps come from missions and from joker triggers (Recovery Drone, Cargo Hold) — there is no bank-style interest and no skip consolation.
+`scripts/simulate.mjs` is the canonical balance check. It mirrors the live joker economy: 5 starting crew, 40-card cryo (10 unique blueprints with per-template copy counts tuned for exact icon balance — Juno/Priya ×5, Oren/Malik ×3, the rest ×4), hand size 5 with Balatro-style tired/cryo cycle (no sector-end auto-reset), 3 mission actions per sector, fixed 10-gate ramp 8/8/9/10/12/17/21/25/29/32 (total 171, recalibrated for the quadrupled cryo). Crew cards carry 1 or 2 specialization icons; single-icon cards cannot satisfy Specialist / Cross-Trained / Department Heads / Bridge Crew (those patterns require length-2 specializations) — they only contribute to shared-icon patterns. The 45-card roster is exactly icon-balanced at 16 each (E=L=N=S=16). Pattern fuel rewards are tight: Cross-Trained 1, Common Ground 2, Specialist 2, Common Knowledge 3, Department Heads 4, Common Cause 4, Bridge Crew 6. Scrap reward tiers: 1-3 Fuel → 1 Scrap, 4-5 Fuel → 2, 6+ Fuel → 3. After each gate the player is offered 2 random ship parts from the 25-card un-owned research pool, with a paid re-roll option (cost = cheapest current offer's cost) in the live dialog. Scraps come from missions and from joker triggers (Recovery Drone, Cargo Hold) — there is no bank-style interest and no skip consolation.
 
 **Re-run `pnpm sim` whenever you touch:** crew rosters, hand patterns + their fuel rewards, gate costs, starting fuel, sector / action counts, ship part catalog, or scrap economy. The simulator's data constants are mirrored at the top of the file with comments pointing at the source files (`src/game/blueprints/crewDecks.ts`, `src/game/rules.ts`, `src/game/blueprints/sectorGates.ts`, `src/game/economyTuning.ts`, `src/game/setup.ts`, `src/game/shipPartCatalog.ts`); update them in lockstep with the game.
 
 **Target metrics** for greedy max-fuel-pattern play (the strategy a competent player approximates):
-- **Sector 1 pass rate = 100%.** Fuel is deterministic at S1 with the tight rewards (gate cost 10 ≤ greedy earnings ~10.96 Fuel/sector before jokers).
+- **Sector 1 pass rate = 100%.** Greedy earnings comfortably clear gate cost 8 with the starter doubles still in hand.
 - **Overall win rate ≈ 4–5%** with jokers ON. Roughly 1-in-20 runs clears all 10 gates with a greedy joker buyer.
-- **Win rate ≈ 0%** with jokers OFF (`NO_JOKERS=1`). The ramp is tuned so a no-joker baseline cannot beat the back-end gates 17/18/19/22/24.
+- **Win rate ≈ 0%** with jokers OFF (`NO_JOKERS=1`). The ramp is tuned so a no-joker baseline cannot beat the back-end gates 21/25/29/32.
 
-**Target curve shape** (per-sector dropout, jokers ON):
-- S1 0% (deterministic pass), S2 ~6%, S3 ~5%, S4 ~5% (gentle warm-up).
-- S5 ~9%, S6 ~14%, S7 ~24%, S8 ~17%, S9 ~9% (monotonic rise then taper).
-- S10 ~5% (last gate cost 36 — winners arrive with thin buffer).
+**Target curve shape** (per-sector dropout, jokers ON, current 45-card icon-balanced roster):
+- S1 0% (deterministic pass), S2 ~2%, S3 ~7%, S4 ~8%, S5 ~10% (gentle warm-up).
+- S6 ~18%, S7 ~17%, S8 ~17% (steep plateau mid-run).
+- S9 ~11%, S10 ~5% (taper — winners arrive with thin buffer).
 
 **How to verify a design change:**
 1. Update the source-of-truth file (e.g., `sectorGates.ts`, `shipPartCatalog.ts`).

@@ -200,10 +200,6 @@ function renderMissionIcons(
   ))
 }
 
-function renderSortedNeedItems(items: readonly { count: number, node: ReturnType<typeof renderNeedIcon> }[]) {
-  return sortNeedIconGroups(items).map(({ node }) => node)
-}
-
 function renderRemovedNeedIcon(
   icon: NeedIconKind,
   key: string,
@@ -499,92 +495,6 @@ function renderVisitRewardSector(
   )
 }
 
-function getGateCrewNeedItems(
-  baseCrewCount: number,
-  stressCrewCount: number,
-  coveredCrewSlots: number,
-  keyPrefix: string,
-) {
-  const removedCrewCount = Math.min(Math.max(0, coveredCrewSlots), baseCrewCount)
-  const activeCrewCount = baseCrewCount - removedCrewCount + stressCrewCount
-
-  return [
-    {
-      count: activeCrewCount,
-      node: renderNeedIcon('person', activeCrewCount, `${keyPrefix}-crew`),
-    },
-    {
-      count: removedCrewCount,
-      node: removedCrewCount > 0
-        ? renderRemovedNeedIcon('person', `${keyPrefix}-removed-crew`, 'Crew need reduced by Service Drone Bay', removedCrewCount)
-        : null,
-    },
-  ]
-}
-
-function getGateIconNeedItems(
-  icons: readonly RequirementIconKind[],
-  coveredIconCount: number,
-  keyPrefix: string,
-) {
-  const removedIconCount = Math.min(Math.max(0, coveredIconCount), icons.length)
-  const activeIcons = icons.slice(0, icons.length - removedIconCount)
-  const removedIcons = icons.slice(activeIcons.length)
-
-  return [
-    ...countNeedIcons(activeIcons).map(({ icon, count }) => ({
-      count,
-      node: renderNeedIcon(icon, count, `${keyPrefix}-active-${icon}`),
-    })),
-    ...countNeedIcons(removedIcons).map(({ icon, count }) => (
-      {
-        count,
-        node: renderRemovedNeedIcon(icon, `${keyPrefix}-removed-${icon}`, 'Icon covered by Adaptive Control Console', count),
-      }
-    )),
-  ]
-}
-
-function getGateFuelNeedItem(
-  printedFuel: number,
-  currentFuelCost: number,
-  keyPrefix: string,
-) {
-  const visibleFuelCount = currentFuelCost > 0 ? currentFuelCost : Math.max(0, printedFuel - currentFuelCost)
-
-  return {
-    count: visibleFuelCount,
-    node: (
-      <span
-        key={`${keyPrefix}-gate-fuel-cost`}
-        className="gate-fuel-cost"
-        title={`Cost: ${currentFuelCost} Fuel. Spent from Fuel Supply when the Gate is passed.`}
-      >
-        {renderFuelNeed(printedFuel, currentFuelCost, `${keyPrefix}-gate-fuel-need`)}
-      </span>
-    ),
-  }
-}
-
-function renderGateClearCost(extraFuel: number, extraCrew: number, keyPrefix: string) {
-  const items = [
-    { icon: 'fuel', count: extraFuel, label: 'Fuel' },
-    { icon: 'person', count: extraCrew, label: 'Crew' },
-  ] as const
-
-  return renderSortedNeedItems(items.map(({ icon, count, label }) => ({
-    count,
-    node: count > 0
-      ? (
-          <span key={`${keyPrefix}-${icon}`} className="need-icon-count" title={`Extra ${label} to avoid Damage`}>
-            <span className="need-icon-count-label">+{count}</span>
-            <GameIcon kind={icon} />
-          </span>
-        )
-      : null,
-  })))
-}
-
 function renderFuelCellContent(card: Card) {
   return (
     <>
@@ -779,9 +689,9 @@ export function renderGameplayCardContent(
   fuelSurcharge: number,
   missionAnyIconSurcharge: number,
   _stressCount: number,
-  gateExtraCrewCount = 0,
-  gateCrewSlotDiscount = 0,
-  gateIconDiscount = 0,
+  _gateExtraCrewCount = 0,
+  _gateCrewSlotDiscount = 0,
+  _gateIconDiscount = 0,
   gateFuelDiscount = 0,
   isAcquiredShipPart = false,
   waterPairFuelAmount = 1,
@@ -867,36 +777,13 @@ export function renderGameplayCardContent(
   }
 
   if (card.kind === 'gate' && card.gate) {
-    const stressCrewCount = gateExtraCrewCount
     const currentGateFuelCost = Math.max(0, card.gate.need.fuel - gateFuelDiscount)
-    const hasGateClearCost = card.gate.clear.extraFuel > 0 || card.gate.clear.extraCrew > 0
 
     return (
-      <>
-        {card.gate.effectKind !== 'none' && <p className="card-rule-text">{card.gate.effectText}</p>}
-        <div className="card-rule-row card-gate-section">
-          <span>Need to pass:</span>
-          <div className="card-rule-icons">
-            {renderSortedNeedItems([
-              ...getGateIconNeedItems(card.gate.need.icons, gateIconDiscount, `${card.id}-gate-icon-need`),
-              ...getGateCrewNeedItems(
-                card.gate.need.crew,
-                stressCrewCount,
-                gateCrewSlotDiscount,
-                `${card.id}-gate-crew-need`,
-              ),
-              getGateFuelNeedItem(card.gate.need.fuel, currentGateFuelCost, `${card.id}-gate-fuel-need`),
-            ])}
-          </div>
-        </div>
-        <div className="card-rule-row card-gate-section">
-          <span>Without damage:</span>
-          <div className="card-rule-icons">
-            {renderGateClearCost(card.gate.clear.extraFuel, card.gate.clear.extraCrew, `${card.id}-gate-clear`)}
-            {!hasGateClearCost && <span className="card-rule-text">{card.gate.clearText}</span>}
-          </div>
-        </div>
-      </>
+      <div className="gate-fuel-summary" title={`Cost: ${currentGateFuelCost} Fuel. Spent from Fuel Supply when the Gate is passed.`}>
+        <GameIcon kind="fuel" variant="glyph" />
+        <span>{`x${currentGateFuelCost}`}</span>
+      </div>
     )
   }
 

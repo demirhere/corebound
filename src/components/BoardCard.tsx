@@ -11,6 +11,24 @@ import { GameIcon } from './GameIcon'
 import { renderGameplayCardContent, renderSectorCardHeaderDetail, renderShipPartDescription } from './GameplayCardContent'
 import { pickCardIcons, pickCardNote } from './gameIcons'
 
+const GATE_BACKGROUND_GRID_SIZE = 4
+
+function getGateBackgroundStyle(index: number): CSSProperties {
+  const cellCount = GATE_BACKGROUND_GRID_SIZE * GATE_BACKGROUND_GRID_SIZE
+  const safeIndex = ((index % cellCount) + cellCount) % cellCount
+  const col = safeIndex % GATE_BACKGROUND_GRID_SIZE
+  const row = Math.floor(safeIndex / GATE_BACKGROUND_GRID_SIZE)
+  const denominator = GATE_BACKGROUND_GRID_SIZE - 1
+  const xPercent = denominator <= 0 ? 0 : (col / denominator) * 100
+  const yPercent = denominator <= 0 ? 0 : (row / denominator) * 100
+
+  return {
+    '--gate-background-x': `${xPercent}%`,
+    '--gate-background-y': `${yPercent}%`,
+    '--gate-background-size': `${GATE_BACKGROUND_GRID_SIZE * 100}%`,
+  } as CSSProperties
+}
+
 export type CardView = Card
 
 export type CardPointerDownHandler = (
@@ -104,9 +122,11 @@ export function CardShell({
   onPointerLeave,
 }: CardShellProps) {
   const isCrewCard = card.kind === 'crew'
+  const isGateCard = card.kind === 'gate'
   const isOpenMissionCard =
     card.kind === 'mission' && card.mission?.pattern === 'open'
   const usesIntegratedHeader = isCrewCard || card.kind === 'drift' || card.kind === 'hazard'
+  const gateBackgroundStyle = isGateCard ? getGateBackgroundStyle(card.gate?.backgroundIndex ?? 0) : undefined
   const sampledIcons = pickCardIcons(`${card.id}:${card.title}`)
   const noteLines = pickCardNote(`${card.id}:${card.title}`)
   const gameplayContent = renderGameplayCardContent(
@@ -156,7 +176,6 @@ export function CardShell({
       : null
   const showSectorHeader = Boolean(missionDetails) || isActiveShipPartCard
   const showSectorBadge = showSectorHeader && !isOpenMissionCard && !isShipPartMission && !isActiveShipPartCard
-  const isGateCard = card.kind === 'gate'
   const gateBackTitle = isGateCard ? `${card.title} Final Gate` : null
   const defaultBackContent = isGateCard ? (
     <span className="deck-title-lockup sector-gate-back-lockup">
@@ -178,6 +197,7 @@ export function CardShell({
         {
           '--card-hue': String(card.hue),
           '--card-accent': card.accent,
+          ...gateBackgroundStyle,
           ...style,
         } as CSSProperties
       }

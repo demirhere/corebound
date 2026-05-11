@@ -59,7 +59,7 @@ export function createMotherDeck(count: number) {
 
 export function createCrewCard(
   title: string,
-  specializations: [CrewSpecialization, CrewSpecialization],
+  specializations: [CrewSpecialization] | [CrewSpecialization, CrewSpecialization],
   portraitIndex: number,
   rank: number = 1,
 ): CardBlueprint {
@@ -244,6 +244,7 @@ export function createGateCard(
   effectText: string,
   clear: GateDetails['clear'],
   clearText: string,
+  backgroundIndex: number,
 ): CardBlueprint {
   return {
     title,
@@ -253,6 +254,7 @@ export function createGateCard(
     kind: 'gate',
     gate: {
       label,
+      backgroundIndex,
       need: {
         fuel,
         icons,

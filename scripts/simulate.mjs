@@ -3,10 +3,17 @@
   Corebound simulation — canonical balance check for the joker economy.
 
   Models the live game's joker-economy design:
-    - Crew & hand cycle: 12 crew (5 starters + 7 cryo). Hand size cap = 5
-      (+1 with Adrenal Implants). Used crew → tired. Hand refills from
-      cryo. Cryo empty → tired reshuffles into cryo. No sector-end
-      auto-reset.
+    - Crew & hand cycle: 45 crew (5 starters + 40 cryo, where the cryo
+      is 10 unique blueprints with copy counts tuned for exact icon
+      balance: Juno/Priya ×5, Oren/Malik ×3, everything else ×4). Hand
+      size cap = 5 (+1 with Adrenal Implants). Used crew → tired. Hand
+      refills from cryo. Cryo empty → tired reshuffles into cryo. No
+      sector-end auto-reset.
+    - Crew icons: a card has 1 or 2 specializations. Doubles (e.g. ['E','E'])
+      can fill Specialist / Cross-Trained / Department Heads / Bridge Crew.
+      Singles (e.g. ['E']) only contribute to shared-icon patterns
+      (Common Ground / Common Knowledge / Common Cause). 26 of 40 cryo
+      cards are singles in the current roster.
     - 10 sectors, 3 mission actions per sector, then a Gate.
     - Per action: stack crew, score Fuel = sum(crew_ranks) × pattern_mult.
       With every crew at rank 1 this is crew_count × mult.
@@ -44,7 +51,17 @@
           greedy buyer unless explicitly modeled in a future tuning pass.
 */
 
-// === Crew deck — same 12 crew as the live game (specs only) =========================
+// === Crew deck — same 45 crew as the live game (specs only) =========================
+// Cards have 1 OR 2 specializations. Single-icon crew can fill shared-icon
+// patterns but NOT Specialist / Cross-Trained / Department Heads / Bridge
+// Crew (those branches in the rules require length === 2 entries).
+//
+// Cryo is 40 cards across 10 unique blueprints with per-template copies
+// chosen so the entire 45-card roster is exactly icon-balanced at 16 each
+// (E=L=N=S=16). Juno/Priya are at 5×, Oren/Malik at 3×, everything else
+// at 4× — those nudges cancel the starter's E/L surplus (3,3 vs 2,2) and
+// the natural N/S surplus from quadrupling Oren (S,S) and Malik (N,N).
+// Singles still outnumber doubles in cryo (26 of 40).
 const startingCrew = [
   ['L', 'N'], // Lei
   ['E', 'E'], // Mara (specialist)
@@ -52,15 +69,24 @@ const startingCrew = [
   ['L', 'L'], // Sana (specialist)
   ['S', 'N'], // Nia
 ]
-const cryoCrew = [
-  ['E', 'N'], // Juno
-  ['E', 'L'], // Tomas
-  ['L', 'E'], // Priya
-  ['L', 'S'], // Elise
-  ['N', 'S'], // Ilya
-  ['S', 'S'], // Oren (specialist)
-  ['N', 'N'], // Malik (specialist)
+const cryoCrewTemplateCopies = [
+  { spec: ['E'],      copies: 5 }, // Juno
+  { spec: ['L'],      copies: 5 }, // Priya
+  { spec: ['N'],      copies: 4 }, // Ilya
+  { spec: ['N'],      copies: 4 }, // Kade
+  { spec: ['S'],      copies: 4 }, // Beni
+  { spec: ['S'],      copies: 4 }, // Vera
+  { spec: ['E', 'L'], copies: 4 }, // Calla
+  { spec: ['E', 'L'], copies: 4 }, // Davin
+  { spec: ['S', 'S'], copies: 3 }, // Oren (specialist)
+  { spec: ['N', 'N'], copies: 3 }, // Malik (specialist)
 ]
+// Each copy is a fresh array so the WILD_CREW_REFERENCE === check (used
+// by Tachyon Lens to mark a single physical card as wild) doesn't end up
+// marking every copy of a template at once.
+const cryoCrew = cryoCrewTemplateCopies.flatMap(
+  ({ spec, copies }) => Array.from({ length: copies }, () => spec.slice()),
+)
 
 // === Patterns — tight rewards = crew_count × pattern_mult ===========================
 // Per the spec, all crew rank = 1, so reward depends purely on the pattern
@@ -85,24 +111,24 @@ const PATTERN_ORDER = [
 ]
 
 // === Gate ramp ======================================================================
-// Tight rewards (~10.96 fuel/sector greedy avg) make per-sector earnings very
-// consistent. With integer gate costs, S1 dropout can only land at 0%
-// (cost ≤ 10) or ~30% (cost = 11), so "≈95% S1 pass" isn't reachable
-// with these rewards — see TUNING NOTES at the bottom of this file.
+// With the expanded 45-card crew roster (4× cryo), greedy fuel/sector
+// averages ~6.5 fuel/sector. Singles can't fill specialist-based patterns,
+// and Mara/Sana (only E/L specialists) are now 1 of 45 cards each, so
+// Bridge Crew / Department Heads land less often after the first sector.
 //
 // Reference ramps (sweep-derived, see TUNING NOTES):
-//   Baseline  (NO_JOKERS=1): [9,10,10,11,11,12,12,12,13,14]  total=114, win≈4.4%
-//   Joker-on  (default)    : [10,11,12,13,15,17,18,19,22,24] total=161, win≈4.77%
+//   Joker-on  (default)    : [8,8,9,10,12,17,21,25,29,32] total=171, win≈5.0%
 //
 // On the joker-on ramp, the no-jokers baseline run rate is **0%** by design
-// (the back-end gates 17/18/19/22/24 outpace greedy fuel earnings without
-// joker support). The 25-joker pool gives ~5% wins for greedy buyers.
+// (the back-end gates outpace greedy fuel earnings without joker support).
+// The 25-joker pool gives ~5% wins for greedy buyers.
 const GATE_TUNING_OVERRIDE = process.env.GATE_TUNING ? process.env.GATE_TUNING.split(',').map(Number) : null
-// Total 212, calibrated for the v2 catalog AND the tightened scrap tiers
-// (Common Knowledge 3 Fuel now → 1 scrap, was 2). Tightened scraps drop
-// avg parts/run from ~10 to ~6, so gates ease back slightly to keep ~5%
-// win rate. Curve: S1-S4 gentle (cost 10/11/12/14), then steep S5-S10.
-const GATE_COSTS = GATE_TUNING_OVERRIDE ?? [10, 11, 12, 14, 18, 22, 26, 30, 33, 36]
+// Total 171, recalibrated for the 45-card crew roster (5 starters + 40
+// cryo, where the cryo is 4 copies of 10 unique blueprints). The bigger
+// cryo lowers reshuffle frequency; Mara/Sana (only E/L specialists) are
+// now 1 of 45 cards, so Bridge Crew / Department Heads land less often.
+// Curve: S1-S5 gentle (cost 8/8/9/10/12), then steep S6-S10.
+const GATE_COSTS = GATE_TUNING_OVERRIDE ?? [8, 8, 9, 10, 12, 17, 21, 25, 29, 32]
 const GATES_PER_RUN = 10
 if (GATE_COSTS.length !== GATES_PER_RUN) {
   console.error(`GATE_TUNING must specify exactly ${GATES_PER_RUN} costs (got ${GATE_COSTS.length})`)
@@ -379,29 +405,31 @@ function buildIsMatched(slot) {
   const wildOn = slot.some((j) => j.wildCrew)
   return (c) => {
     if (wildOn && c === WILD_CREW_REFERENCE) return true
-    return c[0] === c[1]
+    // Mirror live game: only length-2 matched specs count as a specialist.
+    return c.length === 2 && c[0] === c[1]
   }
 }
 function buildIsMixed(slot) {
-  // Wild can also fill mixed (it matches everything).
+  // Wild can also fill mixed (it matches everything). Live game requires
+  // length === 2 with two distinct specs — singles do NOT count as mixed.
   const wildOn = slot.some((j) => j.wildCrew)
   return (c) => {
     if (wildOn && c === WILD_CREW_REFERENCE) return true
-    return c[0] !== c[1]
+    return c.length === 2 && c[0] !== c[1]
   }
 }
 function buildSharesIcon(slot) {
   const wildOn = slot.some((j) => j.wildCrew)
   return (a, b) => {
     if (wildOn && (a === WILD_CREW_REFERENCE || b === WILD_CREW_REFERENCE)) return true
-    return a[0] === b[0] || a[0] === b[1] || a[1] === b[0] || a[1] === b[1]
+    return a.some((icon) => b.includes(icon))
   }
 }
 function buildHasIcon(slot) {
   const wildOn = slot.some((j) => j.wildCrew)
   return (c, icon) => {
     if (wildOn && c === WILD_CREW_REFERENCE) return true
-    return c[0] === icon || c[1] === icon
+    return c.includes(icon)
   }
 }
 
@@ -1049,12 +1077,25 @@ if (!quiet) {
  *   last-mission (2), scrap (2), interest (2), converter (3), hand (1),
  *   wild (1), special (2). Total = 25.
  *
- * Greedy fuel-per-sector distribution under tight rewards (1M runs, no
- * jokers): same as previous catalog — S1 = 100% pass at gate cost ≤ 10,
- * average ~10.96 fuel/sector. "≈95% S1 pass" remains infeasible with
- * integer gate costs.
+ * --- Quadrupled, icon-balanced cryo (current build) ---
  *
- * --- Joker-mode sweep at total ≈ 161 (1M runs unless noted) ---
+ * The cryo deck has 40 cards across 10 unique blueprints with copy
+ * counts tuned for exact icon balance: Juno/Priya ×5, Oren/Malik ×3,
+ * the rest ×4. The 45-card roster is exactly E=L=N=S=16. Singles still
+ * outnumber doubles (26:14 in cryo, 26:19 overall) and cannot satisfy
+ * Specialist / Cross-Trained / Department Heads / Bridge Crew. Mara/Sana
+ * (the only E/L matched specialists) are still 1 of 45 cards each, so
+ * high-tier specialist patterns land less often than the 15-card roster.
+ *
+ * 1M-run results with ramp [8,8,9,10,12,17,21,25,29,32]:
+ *   S1 = 100.00% pass (deterministic — gate cost 8 ≤ greedy earnings)
+ *   Win = 4.5% jokers ON, 0% jokers OFF
+ *   Dropout: S2 2.3%, S3 7.1%, S4 8.0%, S5 10.3%, S6 17.7%, S7 16.6%,
+ *            S8 17.0%, S9 11.0%, S10 ~5.5%
+ *
+ * --- Pre-singles results (historical, 12-card roster) ---
+ *
+ * --- Historical joker-mode sweep on the old 12-card roster, total ≈ 161 ---
  *
  *   total=160 [10,11,12,13,14,16,17,20,22,25]   win≈6.12%   too easy
  *   total=160 [10,11,12,13,14,16,18,20,22,24]   win≈6.09%   too easy

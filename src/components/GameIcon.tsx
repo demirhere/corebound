@@ -1,20 +1,36 @@
+import { useId } from 'react'
 import { GAME_ICON_LABELS, type GameIconKind } from './gameIcons'
 
 type GameIconProps = {
   kind: GameIconKind
+  variant?: 'badge' | 'glyph'
 }
 
-export function GameIcon({ kind }: GameIconProps) {
+export function GameIcon({ kind, variant = 'badge' }: GameIconProps) {
+  const iconId = useId().replace(/:/g, '')
+  const usesFuelGlyph = kind === 'fuel' && variant === 'glyph'
+  const fuelGradientId = `${iconId}-fuel-glyph-gradient`
+
   return (
-    <span className="game-icon" data-kind={kind} title={GAME_ICON_LABELS[kind]}>
-      <svg viewBox="0 0 32 32" focusable="false" aria-hidden="true">
-        {renderGameIcon(kind)}
+    <span className={`game-icon game-icon-${variant}`} data-kind={kind} title={GAME_ICON_LABELS[kind]}>
+      <svg viewBox={usesFuelGlyph ? '6 3 20 26' : '0 0 32 32'} focusable="false" aria-hidden="true">
+        {usesFuelGlyph && (
+          <defs>
+            <linearGradient id={fuelGradientId} x1="7" x2="25" y1="4" y2="28" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stopColor="#f0a742" />
+              <stop offset="0.46" stopColor="#E49221" />
+              <stop offset="0.72" stopColor="#c7771b" />
+              <stop offset="1" stopColor="#9f5513" />
+            </linearGradient>
+          </defs>
+        )}
+        {renderGameIcon(kind, usesFuelGlyph ? fuelGradientId : undefined)}
       </svg>
     </span>
   )
 }
 
-function renderGameIcon(kind: GameIconKind) {
+function renderGameIcon(kind: GameIconKind, fuelGradientId?: string) {
   switch (kind) {
     case 'hull':
       return (
@@ -25,7 +41,11 @@ function renderGameIcon(kind: GameIconKind) {
       )
     case 'fuel':
       return (
-        <path className="icon-line" d="M18.7 4.3 8.2 17.9h7.2l-1.3 9.8 9.9-14.3h-7Z" />
+        <path
+          className="icon-line"
+          d="M18.7 4.3 8.2 17.9h7.2l-1.3 9.8 9.9-14.3h-7Z"
+          style={fuelGradientId ? { fill: `url(#${fuelGradientId})`, stroke: `url(#${fuelGradientId})` } : undefined}
+        />
       )
     case 'scrap':
       return (

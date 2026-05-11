@@ -9,6 +9,8 @@ export const STACK_OFFSET_RATIO = 0.26
 const DRAW_RADIUS_PERCENT = 18
 const DRAW_MIN_RADIUS_PERCENT = 8
 const DRAW_ROW_GAP_PX = 12
+const DEFAULT_CARD_WIDTH = 112
+const DEFAULT_CARD_HEIGHT = DEFAULT_CARD_WIDTH / 1.03
 
 type Position = {
   x: number
@@ -20,8 +22,8 @@ export function readBoardMetrics(boardElement: HTMLElement | null): BoardMetrics
   const cardRect = boardElement
     ?.querySelector<HTMLElement>('.card-stack .card-shell, .deck-card')
     ?.getBoundingClientRect()
-  const cardWidth = cardRect?.width ?? 112
-  const cardHeight = cardRect?.height ?? 158
+  const cardWidth = cardRect?.width ?? DEFAULT_CARD_WIDTH
+  const cardHeight = cardRect?.height ?? DEFAULT_CARD_HEIGHT
 
   return {
     width: boardRect?.width ?? 1000,

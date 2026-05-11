@@ -331,6 +331,7 @@ export type MissionDetails = {
 
 export type GateDetails = {
   label: string
+  backgroundIndex: number
   need: {
     fuel: number
     icons: RequirementIconKind[]
