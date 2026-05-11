@@ -2925,7 +2925,7 @@
 
 .card-shell.card-kind-gate .card-face.card-front {
   --gate-text-outline-color: #EECF9F;
-  --gate-text-outline-width: 2.2px;
+  --gate-text-outline-width: 12px;
 
   color: #0B1418;
   font-family: 'Acme', sans-serif;
@@ -3017,7 +3017,7 @@
   z-index: 2;
   display: inline-flex;
   align-items: center;
-  gap: 0.32em;
+  gap: 0.14em;
   padding: 0;
   border: 0;
   color: #0B1418;
@@ -3032,16 +3032,27 @@
   text-shadow: none;
 }
 
-.gate-fuel-summary .game-icon {
-  --icon-color: #C47709;
-  --icon-stroke: #C47709;
+.gate-fuel-summary .game-icon.game-icon-glyph[data-kind='fuel'] {
+  --icon-color: currentColor;
+  --icon-stroke: currentColor;
 
-  width: 1em;
+  box-sizing: border-box;
+  width: 1.12em;
+  height: 1.12em;
+  padding: 0;
+  border: 2px solid currentColor;
+  border-radius: 999px;
+  background: #E7BE5E;
 }
 
-.gate-fuel-summary .game-icon .icon-line {
-  fill: #C47709 !important;
-  stroke: #C47709 !important;
+.gate-fuel-summary .game-icon.game-icon-glyph[data-kind='fuel'] svg {
+  width: 70%;
+  height: 70%;
+}
+
+.gate-fuel-summary .game-icon.game-icon-glyph[data-kind='fuel'] .icon-line {
+  fill: currentColor !important;
+  stroke: currentColor !important;
   filter: none;
 }
 
