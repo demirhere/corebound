@@ -123,13 +123,13 @@ const PATTERN_ORDER = [
 // (the back-end gates outpace greedy fuel earnings without joker support).
 // The 25-joker pool gives ~5% wins for greedy buyers.
 const GATE_TUNING_OVERRIDE = process.env.GATE_TUNING ? process.env.GATE_TUNING.split(',').map(Number) : null
-// Total 201, recalibrated to make Sector 3 a hard wall for unaided play
-// (without ship parts you should not be able to pass S3). S1-S2 stay
-// gentle so the player can learn the patterns; S3 jumps so a no-joker
-// greedy run averages <1% pass rate at S3. Late gates ramp steeply so
-// even a joker-buying greedy run lands around 0.5-1.5% — winning
-// requires deliberate ship part choices, not random buys.
-const GATE_COSTS = GATE_TUNING_OVERRIDE ?? [8, 9, 14, 16, 18, 21, 24, 27, 30, 34]
+// Total 245, recalibrated for the Ship Parts + Crew Quarters economy.
+// Crew Quarters are cheap (4-8 Scraps) and stack pattern bonuses, so a
+// fully-built winner researches 5-8 quarters (≈ +35-50 Fuel across a run)
+// on top of their 5-slot Ship Part loadout. The late gates ramp steeply
+// enough that even that fully-built greedy run wins only ~1.5-2.5%.
+// S3 stays the wall — a no-joker, no-quarters run cannot clear cost 16.
+const GATE_COSTS = GATE_TUNING_OVERRIDE ?? [8, 9, 16, 17, 20, 23, 26, 30, 33, 37]
 const GATES_PER_RUN = 10
 if (GATE_COSTS.length !== GATES_PER_RUN) {
   console.error(`GATE_TUNING must specify exactly ${GATES_PER_RUN} costs (got ${GATE_COSTS.length})`)
@@ -146,8 +146,9 @@ const STARTING_SCRAPS = 0
 const ACTIONS_PER_SECTOR = 3
 const HAND_SIZE_LIMIT_BASE = 5
 
-// Joker behavior switches.
-const NO_JOKERS = process.env.NO_JOKERS === '1' || process.env.NO_JOKERS === 'true'
+// Joker behavior switches. Mutable so `runSimulation` can toggle modes
+// within a single process when --write-metrics asks for both passes.
+let NO_JOKERS = process.env.NO_JOKERS === '1' || process.env.NO_JOKERS === 'true'
 const SLOT_CAP = 5
 const SKIP_RESEARCH_CONSOLATION = 0
 
@@ -371,13 +372,13 @@ for (const j of JOKERS) {
 //
 // Mirrored in `src/game/crewQuartersCatalog.ts`. Update both in lockstep.
 const CREW_QUARTERS = [
-  { id: 'cross-training-quarters',  label: 'Cross-Training Quarters',  cost: 12, pattern: 'cross-trained',     fuelPerPlay: 1 },
-  { id: 'common-ground-quarters',   label: 'Common Ground Quarters',   cost: 12, pattern: 'common-ground',     fuelPerPlay: 1 },
-  { id: 'specialist-quarters',      label: 'Specialist Quarters',      cost: 12, pattern: 'specialist',        fuelPerPlay: 1 },
-  { id: 'common-knowledge-quarters', label: 'Common Knowledge Quarters', cost: 12, pattern: 'common-knowledge', fuelPerPlay: 1 },
-  { id: 'department-heads-quarters', label: 'Department Heads Quarters', cost: 14, pattern: 'department-heads', fuelPerPlay: 1 },
-  { id: 'common-cause-quarters',    label: 'Common Cause Quarters',    cost: 14, pattern: 'common-cause',      fuelPerPlay: 1 },
-  { id: 'bridge-crew-quarters',     label: 'Bridge Crew Quarters',     cost: 16, pattern: 'bridge-crew',       fuelPerPlay: 2 },
+  { id: 'cross-training-quarters',  label: 'Cross-Training Quarters',  cost: 4, pattern: 'cross-trained',     fuelPerPlay: 1 },
+  { id: 'common-ground-quarters',   label: 'Common Ground Quarters',   cost: 4, pattern: 'common-ground',     fuelPerPlay: 1 },
+  { id: 'specialist-quarters',      label: 'Specialist Quarters',      cost: 5, pattern: 'specialist',        fuelPerPlay: 1 },
+  { id: 'common-knowledge-quarters', label: 'Common Knowledge Quarters', cost: 5, pattern: 'common-knowledge', fuelPerPlay: 1 },
+  { id: 'department-heads-quarters', label: 'Department Heads Quarters', cost: 6, pattern: 'department-heads', fuelPerPlay: 1 },
+  { id: 'common-cause-quarters',    label: 'Common Cause Quarters',    cost: 6, pattern: 'common-cause',      fuelPerPlay: 1 },
+  { id: 'bridge-crew-quarters',     label: 'Bridge Crew Quarters',     cost: 8, pattern: 'bridge-crew',       fuelPerPlay: 2 },
 ]
 if (CREW_QUARTERS.length !== 7) {
   console.error(`Expected 7 crew quarters, got ${CREW_QUARTERS.length}`)
@@ -953,99 +954,137 @@ function computeFinalMissionFuel(choice, slot, quarters, missionIndexInSector, i
 
 // === CLI args =======================================================================
 function parseArgs(argv) {
-  const out = { runs: 1_000_000, quiet: false }
+  const out = { runs: 1_000_000, quiet: false, writeMetrics: false }
   for (const arg of argv.slice(2)) {
     const match = arg.match(/^--([^=]+)(?:=(.*))?$/)
     if (!match) continue
     const [, key, rawValue] = match
     if (key === 'runs') out.runs = Number(rawValue)
     if (key === 'quiet') out.quiet = true
+    if (key === 'write-metrics') out.writeMetrics = true
   }
   return out
 }
 
-// === Main ===========================================================================
-const { runs, quiet } = parseArgs(process.argv)
-if (!Number.isFinite(runs) || runs <= 0) {
-  console.error(`Invalid --runs=${runs}`)
-  process.exit(1)
-}
+// === Aggregation =====================================================================
+// Run `runs` simulated runs with the current NO_JOKERS setting and return a
+// structured metrics object. Caller is responsible for flipping NO_JOKERS
+// between passes when --write-metrics asks for both modes.
+function runSimulation(runs) {
+  const passedCount = new Array(GATES_PER_RUN + 1).fill(0)
+  let cumFinalFuelWon = 0
+  let cumScraps = 0
+  let cumScrapsWon = 0
+  let cumJokersBought = 0
+  let cumJokersBoughtWon = 0
+  let runsWithAnyJoker = 0
+  let runsWithNoJoker = 0
+  let winsWithAnyJoker = 0
+  let winsWithNoJoker = 0
+  let s1WithAnyJoker = 0
+  let s1WithNoJoker = 0
+  let runsWithAnyJokerCount = 0
+  let minWon = Infinity
+  let maxWon = -Infinity
+  const winnerCategoryTotals = {}
+  const winnerJokerIdTotals = {}
+  const allRunCategoryTotals = {}
+  let cumCrewQuartersBought = 0
+  let cumCrewQuartersBoughtWon = 0
+  const winnerCrewQuartersTotals = {}
 
-const passedCount = new Array(GATES_PER_RUN + 1).fill(0)
-let cumFinalFuelWon = 0
-let cumScraps = 0
-let cumScrapsWon = 0
-let cumJokersBought = 0
-let cumJokersBoughtWon = 0
-let runsWithAnyJoker = 0
-let runsWithNoJoker = 0
-let winsWithAnyJoker = 0
-let winsWithNoJoker = 0
-let s1WithAnyJoker = 0
-let s1WithNoJoker = 0
-let runsWithAnyJokerCount = 0
-let minWon = Infinity
-let maxWon = -Infinity
-const winnerCategoryTotals = {}
-const winnerJokerIdTotals = {}
-const allRunCategoryTotals = {}
-let cumCrewQuartersBought = 0
-let cumCrewQuartersBoughtWon = 0
-const winnerCrewQuartersTotals = {}
-
-const t0 = Date.now()
-for (let i = 0; i < runs; i++) {
-  const result = simulateRun()
-  passedCount[result.sectorsPassed] += 1
-  cumScraps += result.totalScrapsEarned
-  cumJokersBought += result.totalJokersBought
-  cumCrewQuartersBought += result.totalCrewQuartersBought
-  for (const [cat, n] of Object.entries(result.jokerCategoryCounts)) {
-    allRunCategoryTotals[cat] = (allRunCategoryTotals[cat] || 0) + n
-  }
-  if (result.totalJokersBought > 0) {
-    runsWithAnyJoker++
-    runsWithAnyJokerCount += result.totalJokersBought
-    if (result.won) winsWithAnyJoker++
-    if (result.sectorsPassed >= 1) s1WithAnyJoker++
-  } else {
-    runsWithNoJoker++
-    if (result.won) winsWithNoJoker++
-    if (result.sectorsPassed >= 1) s1WithNoJoker++
-  }
-  if (result.won) {
-    cumFinalFuelWon += result.finalFuel
-    cumScrapsWon += result.totalScrapsEarned
-    cumJokersBoughtWon += result.totalJokersBought
-    cumCrewQuartersBoughtWon += result.totalCrewQuartersBought
-    if (result.finalFuel < minWon) minWon = result.finalFuel
-    if (result.finalFuel > maxWon) maxWon = result.finalFuel
+  const t0 = Date.now()
+  for (let i = 0; i < runs; i++) {
+    const result = simulateRun()
+    passedCount[result.sectorsPassed] += 1
+    cumScraps += result.totalScrapsEarned
+    cumJokersBought += result.totalJokersBought
+    cumCrewQuartersBought += result.totalCrewQuartersBought
     for (const [cat, n] of Object.entries(result.jokerCategoryCounts)) {
-      winnerCategoryTotals[cat] = (winnerCategoryTotals[cat] || 0) + n
+      allRunCategoryTotals[cat] = (allRunCategoryTotals[cat] || 0) + n
     }
-    for (const j of result.slot) {
-      winnerJokerIdTotals[j.id] = (winnerJokerIdTotals[j.id] || 0) + 1
+    if (result.totalJokersBought > 0) {
+      runsWithAnyJoker++
+      runsWithAnyJokerCount += result.totalJokersBought
+      if (result.won) winsWithAnyJoker++
+      if (result.sectorsPassed >= 1) s1WithAnyJoker++
+    } else {
+      runsWithNoJoker++
+      if (result.won) winsWithNoJoker++
+      if (result.sectorsPassed >= 1) s1WithNoJoker++
     }
-    for (const q of result.crewQuarters) {
-      winnerCrewQuartersTotals[q.id] = (winnerCrewQuartersTotals[q.id] || 0) + 1
+    if (result.won) {
+      cumFinalFuelWon += result.finalFuel
+      cumScrapsWon += result.totalScrapsEarned
+      cumJokersBoughtWon += result.totalJokersBought
+      cumCrewQuartersBoughtWon += result.totalCrewQuartersBought
+      if (result.finalFuel < minWon) minWon = result.finalFuel
+      if (result.finalFuel > maxWon) maxWon = result.finalFuel
+      for (const [cat, n] of Object.entries(result.jokerCategoryCounts)) {
+        winnerCategoryTotals[cat] = (winnerCategoryTotals[cat] || 0) + n
+      }
+      for (const j of result.slot) {
+        winnerJokerIdTotals[j.id] = (winnerJokerIdTotals[j.id] || 0) + 1
+      }
+      for (const q of result.crewQuarters) {
+        winnerCrewQuartersTotals[q.id] = (winnerCrewQuartersTotals[q.id] || 0) + 1
+      }
     }
   }
+  const elapsedSec = (Date.now() - t0) / 1000
+
+  const reach = new Array(GATES_PER_RUN + 1).fill(0)
+  for (let n = 1; n <= GATES_PER_RUN; n++) {
+    let count = 0
+    for (let p = n - 1; p <= GATES_PER_RUN; p++) count += passedCount[p]
+    reach[n] = count
+  }
+  const won = passedCount[GATES_PER_RUN]
+
+  return {
+    mode: NO_JOKERS ? 'no-jokers' : 'jokers-on',
+    runs,
+    elapsedSec,
+    passedCount,
+    reach,
+    won,
+    cumFinalFuelWon,
+    cumScraps,
+    cumScrapsWon,
+    cumJokersBought,
+    cumJokersBoughtWon,
+    cumCrewQuartersBought,
+    cumCrewQuartersBoughtWon,
+    runsWithAnyJoker,
+    runsWithNoJoker,
+    winsWithAnyJoker,
+    winsWithNoJoker,
+    s1WithAnyJoker,
+    s1WithNoJoker,
+    runsWithAnyJokerCount,
+    minWon: Number.isFinite(minWon) ? minWon : null,
+    maxWon: Number.isFinite(maxWon) ? maxWon : null,
+    winnerCategoryTotals,
+    winnerJokerIdTotals,
+    winnerCrewQuartersTotals,
+  }
 }
-const elapsed = ((Date.now() - t0) / 1000).toFixed(2)
 
-const reach = new Array(GATES_PER_RUN + 1).fill(0)
-for (let n = 1; n <= GATES_PER_RUN; n++) {
-  let count = 0
-  for (let p = n - 1; p <= GATES_PER_RUN; p++) count += passedCount[p]
-  reach[n] = count
-}
-const won = passedCount[GATES_PER_RUN]
+// === Console output =================================================================
+function printMetrics(metrics, quiet) {
+  const { runs, elapsedSec, passedCount, reach, won } = metrics
+  const elapsed = elapsedSec.toFixed(2)
+  const maxBar = 60
+  const fmtPct = (n) => `${(n * 100).toFixed(2).padStart(6)}%`
+  const fmtCount = (n) => String(n).padStart(String(runs).length)
 
-const maxBar = 60
-const fmtPct = (n) => `${(n * 100).toFixed(2).padStart(6)}%`
-const fmtCount = (n) => String(n).padStart(String(runs).length)
+  if (quiet) {
+    const winRatio = won / runs
+    const s1Ratio = reach[1] / runs
+    console.log(`gates=[${GATE_COSTS.join(',')}] total=${GATE_COSTS.reduce((a,b)=>a+b,0)} S1=${(s1Ratio*100).toFixed(2)}% win=${(winRatio*100).toFixed(2)}% scraps=${(metrics.cumScraps/runs).toFixed(2)} jokers=${(metrics.cumJokersBought/runs).toFixed(3)} jokers=${NO_JOKERS?'OFF':'ON'}`)
+    return
+  }
 
-if (!quiet) {
   console.log(`Corebound simulation (joker economy)`)
   console.log(`  jokers   : ${NO_JOKERS ? 'DISABLED (baseline mode)' : 'enabled'}`)
   console.log(`  pool     : ${JOKERS.length} unique parts (no duplicates)`)
@@ -1073,28 +1112,28 @@ if (!quiet) {
   }
   console.log()
   console.log('Economy:')
-  console.log(`  Avg scraps earned/run     : ${(cumScraps / runs).toFixed(2)}`)
-  console.log(`  Avg jokers bought/run     : ${(cumJokersBought / runs).toFixed(3)}`)
-  console.log(`  Avg quarters researched/run: ${(cumCrewQuartersBought / runs).toFixed(3)}`)
+  console.log(`  Avg scraps earned/run     : ${(metrics.cumScraps / runs).toFixed(2)}`)
+  console.log(`  Avg jokers bought/run     : ${(metrics.cumJokersBought / runs).toFixed(3)}`)
+  console.log(`  Avg quarters researched/run: ${(metrics.cumCrewQuartersBought / runs).toFixed(3)}`)
   if (won > 0) {
-    console.log(`  Avg scraps earned/win     : ${(cumScrapsWon / won).toFixed(2)}`)
-    console.log(`  Avg jokers bought/win     : ${(cumJokersBoughtWon / won).toFixed(3)}`)
-    console.log(`  Avg quarters researched/win: ${(cumCrewQuartersBoughtWon / won).toFixed(3)}`)
-    console.log(`  Winners' final-fuel range : ${minWon} – ${maxWon}  (avg ${(cumFinalFuelWon / won).toFixed(2)})`)
+    console.log(`  Avg scraps earned/win     : ${(metrics.cumScrapsWon / won).toFixed(2)}`)
+    console.log(`  Avg jokers bought/win     : ${(metrics.cumJokersBoughtWon / won).toFixed(3)}`)
+    console.log(`  Avg quarters researched/win: ${(metrics.cumCrewQuartersBoughtWon / won).toFixed(3)}`)
+    console.log(`  Winners' final-fuel range : ${metrics.minWon} – ${metrics.maxWon}  (avg ${(metrics.cumFinalFuelWon / won).toFixed(2)})`)
   }
   console.log()
   console.log('Joker impact split:')
-  console.log(`  Runs with no jokers bought: ${runsWithNoJoker.toLocaleString()} (${fmtPct(runsWithNoJoker / runs)})`)
-  console.log(`    S1 pass rate: ${runsWithNoJoker > 0 ? fmtPct(s1WithNoJoker / runsWithNoJoker) : 'n/a'}`)
-  console.log(`    Win rate    : ${runsWithNoJoker > 0 ? fmtPct(winsWithNoJoker / runsWithNoJoker) : 'n/a'}`)
-  console.log(`  Runs with ≥1 joker bought : ${runsWithAnyJoker.toLocaleString()} (${fmtPct(runsWithAnyJoker / runs)})`)
-  console.log(`    S1 pass rate: ${runsWithAnyJoker > 0 ? fmtPct(s1WithAnyJoker / runsWithAnyJoker) : 'n/a'}`)
-  console.log(`    Win rate    : ${runsWithAnyJoker > 0 ? fmtPct(winsWithAnyJoker / runsWithAnyJoker) : 'n/a'}`)
-  console.log(`    Avg jokers/run (in this group): ${runsWithAnyJoker > 0 ? (runsWithAnyJokerCount / runsWithAnyJoker).toFixed(3) : 'n/a'}`)
+  console.log(`  Runs with no jokers bought: ${metrics.runsWithNoJoker.toLocaleString()} (${fmtPct(metrics.runsWithNoJoker / runs)})`)
+  console.log(`    S1 pass rate: ${metrics.runsWithNoJoker > 0 ? fmtPct(metrics.s1WithNoJoker / metrics.runsWithNoJoker) : 'n/a'}`)
+  console.log(`    Win rate    : ${metrics.runsWithNoJoker > 0 ? fmtPct(metrics.winsWithNoJoker / metrics.runsWithNoJoker) : 'n/a'}`)
+  console.log(`  Runs with ≥1 joker bought : ${metrics.runsWithAnyJoker.toLocaleString()} (${fmtPct(metrics.runsWithAnyJoker / runs)})`)
+  console.log(`    S1 pass rate: ${metrics.runsWithAnyJoker > 0 ? fmtPct(metrics.s1WithAnyJoker / metrics.runsWithAnyJoker) : 'n/a'}`)
+  console.log(`    Win rate    : ${metrics.runsWithAnyJoker > 0 ? fmtPct(metrics.winsWithAnyJoker / metrics.runsWithAnyJoker) : 'n/a'}`)
+  console.log(`    Avg jokers/run (in this group): ${metrics.runsWithAnyJoker > 0 ? (metrics.runsWithAnyJokerCount / metrics.runsWithAnyJoker).toFixed(3) : 'n/a'}`)
   console.log()
   console.log('Joker category usage in WINNING runs (count of buys, total over all wins):')
   if (won > 0) {
-    const cats = Object.entries(winnerCategoryTotals).sort((a, b) => b[1] - a[1])
+    const cats = Object.entries(metrics.winnerCategoryTotals).sort((a, b) => b[1] - a[1])
     for (const [cat, n] of cats) {
       const perWin = n / won
       console.log(`  ${cat.padEnd(15)} : ${String(n).padStart(8)}  (${perWin.toFixed(3)} per win)`)
@@ -1103,10 +1142,9 @@ if (!quiet) {
     console.log('  (no winners)')
   }
   console.log()
-  console.log()
   console.log('Crew Quarters researched by winners (total stacks held at end of winning runs):')
   if (won > 0) {
-    const top = Object.entries(winnerCrewQuartersTotals).sort((a, b) => b[1] - a[1])
+    const top = Object.entries(metrics.winnerCrewQuartersTotals).sort((a, b) => b[1] - a[1])
     if (top.length === 0) {
       console.log('  (none — try increasing scrap availability or lowering quarters costs)')
     }
@@ -1118,28 +1156,188 @@ if (!quiet) {
   console.log()
   console.log('Top jokers held by winners (count of winning runs that ended with this joker in slot):')
   if (won > 0) {
-    const top = Object.entries(winnerJokerIdTotals).sort((a, b) => b[1] - a[1]).slice(0, 25)
+    const top = Object.entries(metrics.winnerJokerIdTotals).sort((a, b) => b[1] - a[1]).slice(0, 25)
     for (const [id, n] of top) {
       const ratio = n / won
       console.log(`  ${id.padEnd(24)} : ${String(n).padStart(8)}  (${(ratio * 100).toFixed(1)}% of wins)`)
     }
   }
+}
+
+// === Markdown report ===============================================================
+function fmtPercent(ratio) {
+  return `${(ratio * 100).toFixed(2)}%`
+}
+
+function formatMetricsSection(metrics) {
+  const { runs, elapsedSec, reach, passedCount, won } = metrics
+  const lines = []
+  lines.push(`- Runs: ${runs.toLocaleString()} (${elapsedSec.toFixed(2)}s)`)
+  lines.push(`- **Win rate: ${fmtPercent(won / runs)}** (${won.toLocaleString()} wins)`)
+  lines.push('')
+  lines.push('### Sector reach (cumulative)')
+  lines.push('')
+  lines.push('| Sector | Reached | Pct |')
+  lines.push('|--------|---------|-----|')
+  for (let n = 1; n <= GATES_PER_RUN; n++) {
+    lines.push(`| S${n} | ${reach[n].toLocaleString()} | ${fmtPercent(reach[n] / runs)} |`)
+  }
+  lines.push(`| WIN | ${won.toLocaleString()} | ${fmtPercent(won / runs)} |`)
+  lines.push('')
+  lines.push('### Per-sector dropout')
+  lines.push('')
+  lines.push('| Sector | Failed | Pct |')
+  lines.push('|--------|--------|-----|')
+  for (let n = 1; n <= GATES_PER_RUN; n++) {
+    const count = passedCount[n - 1]
+    lines.push(`| S${n} | ${count.toLocaleString()} | ${fmtPercent(count / runs)} |`)
+  }
+  lines.push('')
+  lines.push('### Economy')
+  lines.push('')
+  lines.push(`- Avg scraps earned/run: ${(metrics.cumScraps / runs).toFixed(2)}`)
+  lines.push(`- Avg ship parts bought/run: ${(metrics.cumJokersBought / runs).toFixed(3)}`)
+  lines.push(`- Avg crew quarters researched/run: ${(metrics.cumCrewQuartersBought / runs).toFixed(3)}`)
+  if (won > 0) {
+    lines.push(`- Avg scraps earned/win: ${(metrics.cumScrapsWon / won).toFixed(2)}`)
+    lines.push(`- Avg ship parts bought/win: ${(metrics.cumJokersBoughtWon / won).toFixed(3)}`)
+    lines.push(`- Avg crew quarters researched/win: ${(metrics.cumCrewQuartersBoughtWon / won).toFixed(3)}`)
+    lines.push(`- Winners' final-fuel range: ${metrics.minWon} – ${metrics.maxWon} (avg ${(metrics.cumFinalFuelWon / won).toFixed(2)})`)
+  }
+  if (won > 0) {
+    lines.push('')
+    lines.push('### Crew Quarters researched by winners')
+    lines.push('')
+    lines.push('| Quarters | Total stacks | Per win |')
+    lines.push('|----------|--------------|---------|')
+    const sorted = Object.entries(metrics.winnerCrewQuartersTotals).sort((a, b) => b[1] - a[1])
+    for (const [id, n] of sorted) {
+      lines.push(`| ${id} | ${n.toLocaleString()} | ${(n / won).toFixed(3)} |`)
+    }
+    lines.push('')
+    lines.push('### Top ship parts held by winners')
+    lines.push('')
+    lines.push('| Ship Part | Wins held | Pct of wins |')
+    lines.push('|-----------|-----------|-------------|')
+    const top = Object.entries(metrics.winnerJokerIdTotals).sort((a, b) => b[1] - a[1])
+    for (const [id, n] of top) {
+      lines.push(`| ${id} | ${n.toLocaleString()} | ${fmtPercent(n / won)} |`)
+    }
+  }
+  return lines.join('\n')
+}
+
+function formatMetricsReport(metricsOn, metricsOff) {
+  const today = new Date().toISOString().slice(0, 10)
+  const sections = [
+    '# Simulation Metrics',
+    '',
+    'Latest snapshot of `scripts/simulate.mjs`. Re-generate with `pnpm sim:metrics` after touching any source-of-truth file (gate ramp, ship part catalog, crew quarters catalog, scrap economy, crew rosters). Commit the updated file alongside the gameplay change so the snapshot stays in sync.',
+    '',
+    `- Generated: ${today}`,
+    `- Gate ramp: \`[${GATE_COSTS.join(', ')}]\` (total ${GATE_COSTS.reduce((a, b) => a + b, 0)})`,
+    `- Ship parts catalog: ${JOKERS.length} unique`,
+    `- Crew quarters catalog: ${CREW_QUARTERS.length} unique (costs ${CREW_QUARTERS.map((q) => q.cost).join(', ')})`,
+    '',
+    '## Target metrics (do not regress)',
+    '',
+    '| Metric | Target |',
+    '|--------|--------|',
+    '| Win rate, jokers ON | 1.5 – 2.5% |',
+    '| Win rate, jokers OFF (`NO_JOKERS=1`) | 0% |',
+    '| S1 pass rate (deterministic) | 100% |',
+    '| S4 reach, jokers OFF (S3 wall) | < 1% |',
+    '| Avg crew quarters researched per winning run | 5 – 8 |',
+    '| Avg ship parts bought per winning run | ≈ 10 (5 in slot after replacement) |',
+    '',
+    '## Jokers ON',
+    '',
+    formatMetricsSection(metricsOn),
+    '',
+    '## Jokers OFF (`NO_JOKERS=1`)',
+    '',
+    formatMetricsSection(metricsOff),
+    '',
+  ]
+  return sections.join('\n')
+}
+
+// === Main ===========================================================================
+const args = parseArgs(process.argv)
+if (!Number.isFinite(args.runs) || args.runs <= 0) {
+  console.error(`Invalid --runs=${args.runs}`)
+  process.exit(1)
+}
+
+const userSetNoJokers = NO_JOKERS
+
+if (args.writeMetrics) {
+  // Run both passes regardless of NO_JOKERS env so the snapshot is complete.
+  NO_JOKERS = false
+  const metricsOn = runSimulation(args.runs)
+  printMetrics(metricsOn, args.quiet)
+  console.log()
+  console.log('--- baseline pass (NO_JOKERS=1) ---')
+  console.log()
+  NO_JOKERS = true
+  const metricsOff = runSimulation(args.runs)
+  printMetrics(metricsOff, args.quiet)
+  NO_JOKERS = userSetNoJokers
+
+  const report = formatMetricsReport(metricsOn, metricsOff)
+  const url = new URL('./sim-metrics.md', import.meta.url)
+  const fs = await import('node:fs')
+  fs.writeFileSync(url, report)
+  console.log()
+  console.log(`Wrote metrics snapshot to ${url.pathname}`)
 } else {
-  // Compact summary line for sweep automation.
-  const winRatio = won / runs
-  const s1Ratio = reach[1] / runs
-  console.log(`gates=[${GATE_COSTS.join(',')}] total=${GATE_COSTS.reduce((a,b)=>a+b,0)} S1=${(s1Ratio*100).toFixed(2)}% win=${(winRatio*100).toFixed(2)}% scraps=${(cumScraps/runs).toFixed(2)} jokers=${(cumJokersBought/runs).toFixed(3)} jokers=${NO_JOKERS?'OFF':'ON'}`)
+  const metrics = runSimulation(args.runs)
+  printMetrics(metrics, args.quiet)
 }
 
 /* === TUNING NOTES =================================================================
  *
- * Catalog: 25 unique ship parts. Each part can be bought at most once per
- * run; the research pool removes a part once it's purchased. The shop
- * draws 2 cards from the *remaining* pool after each gate.
+ * Catalog: 20 unique ship parts + 7 stackable Crew Quarters. Each ship
+ * part can be bought at most once per run; the research pool removes a
+ * part once it's purchased. Crew Quarters are NEVER removed — duplicates
+ * stack pattern fuel bonuses. The shop draws 2 ship parts AND 2 Crew
+ * Quarters after each gate.
  *
- * Categories (count): icon (4), pattern (6), first-mission (2),
- *   last-mission (2), scrap (2), interest (2), converter (3), hand (1),
- *   wild (1), special (2). Total = 25.
+ * Ship Part categories (count): icon (4), pattern (2), first-mission (2),
+ *   last-mission (1), scrap (4), converter (3), hand (1), wild (1),
+ *   special (2). Total = 20.
+ *
+ * The 5 pattern-specific ship parts that previously lived here
+ * (Specialist Gauntlets, Cluster Dynamo, Common Cause Banner, Bridge
+ * Uplink, Pattern Ladder) were extracted into the Crew Quarters catalog
+ * so players can research the same pattern repeatedly. Each pattern has
+ * its own Crew Quarters: Cross-Training / Common Ground (cost 4),
+ * Specialist / Common Knowledge (cost 5), Department Heads / Common Cause
+ * (cost 6), Bridge Crew (cost 8, +2 fuel/play — keeps the original +3
+ * power on a stackable ramp). Costs are cheap so winners can stack 5-8
+ * quarters; the gate ramp is tightened to keep win rate at 1.5-2.5%.
+ *
+ * 1M-run results with the current tuning (gate ramp 219, quarters costs
+ * 4-8):
+ *   S1 = 100.00% pass, S2 = 100.00% pass
+ *   S3 reach = 93.8% (S3 wall: 62% dropout)
+ *   S4 reach = 31.5%, S5 = 19.7%, S6 = 14.4%
+ *   S7 reach = 11.1%, S8 = 7.8%, S9 = 5.1%, S10 = 3.4%
+ *   Win = 2.17% jokers ON, 0% jokers OFF
+ *   Avg jokers bought/win    = 10.2 (5 in slot due to replacement)
+ *   Avg quarters researched/win = 5.5 (spread across cheap common patterns)
+ *   Quarter distribution (per win): common-ground 2.08, cross-training
+ *     1.21, common-knowledge 0.79, specialist 0.70, common-cause 0.33,
+ *     department-heads 0.32, bridge-crew 0.06 — players invest in the
+ *     less-rare compositions that trigger most often.
+ *   Top jokers held by winners: compounding-drive (96%+), crew-synergy
+ *     (~80%), adrenal-implants (~60%), fuel-cell-distillery (~55%),
+ *     veterans-insignia (~50%).
+ *
+ * No-jokers (NO_JOKERS=1) baseline on the same ramp:
+ *   S3 reach = 85.7%, S4 reach = 0.12%, Win = 0% — confirms the design
+ *   intent that a player who never buys ship parts AND never researches
+ *   crew quarters cannot pass Sector 3.
  *
  * --- Quadrupled, icon-balanced cryo (current build) ---
  *
@@ -1301,15 +1499,20 @@ if (!quiet) {
  *
  * --- How to re-sweep ---
  *
- *   Edit the JOKERS catalog above, then:
- *     pnpm sim:tight                              # 1M runs default
- *     GATE_TUNING=10,11,12,13,15,17,18,19,22,24 \
- *       node scripts/simulate-tight.mjs --runs=1000000
- *     NO_JOKERS=1 node scripts/simulate-tight.mjs # baseline check
+ *   Edit the JOKERS / CREW_QUARTERS / GATE_COSTS arrays above, then:
+ *     pnpm sim                                   # 1M runs default
+ *     GATE_TUNING=8,9,16,17,20,23,26,30,33,37 \
+ *       node scripts/simulate.mjs --runs=1000000
+ *     NO_JOKERS=1 node scripts/simulate.mjs      # baseline check
  *
- *   Target metrics:
- *     - Win rate jokers-on   ≈ 4-5%
+ *   Target metrics (current Ship Parts + Crew Quarters economy):
+ *     - Win rate jokers-on   ≈ 1.5-2.5%
  *     - Win rate no-jokers   = 0% on the same ramp
  *     - S1 pass = 100% (accepted; fuel is deterministic at S1)
+ *     - S3 wall: < 1% of no-joker runs reach Sector 4
+ *     - Avg crew quarters/win in 5-8 range — winners actively use the
+ *       Crew Quarters axis, not just Ship Parts.
+ *     - Quarter distribution skews toward the cheap common patterns
+ *       (common-ground, cross-training, common-knowledge).
  *     - Per-sector dropout   monotonically rising S5→S9
  */

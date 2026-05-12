@@ -11,7 +11,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "sim": "node scripts/simulate.mjs"
+    "sim": "node scripts/simulate.mjs",
+    "sim:metrics": "node scripts/simulate.mjs --write-metrics --runs=1000000"
   },
   "dependencies": {
     "partysocket": "^1.1.18",
