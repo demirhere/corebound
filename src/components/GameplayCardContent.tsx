@@ -384,11 +384,7 @@ export function renderSectorCardHeaderDetail(card: Card) {
   }
 
   if (card.mission.pattern === 'open') {
-    return (
-      <span className="open-mission-description">
-        Stack crew here to recover fuel. Better crew = more fuel.
-      </span>
-    )
+    return null
   }
 
   if (card.mission.find.kind === 'ship_part') {
@@ -443,23 +439,6 @@ function renderShipPartSector(
       )}
       showCost={showCost}
     />
-  )
-}
-
-function renderOpenMissionContent(card: Card) {
-  const blueprintIndex =
-    hashString(`${card.id}:blueprint`) % (BLUEPRINT_ART_GRID_SIZE * BLUEPRINT_ART_GRID_SIZE)
-  const routeIndex =
-    hashString(`${card.id}:route`) % (ROUTE_ART_GRID_SIZE * ROUTE_ART_GRID_SIZE)
-
-  // Wrap the blueprint + route layers in a flex container so they sit
-  // centered in whatever vertical space is left below the header description,
-  // instead of pinning to the corners like ship-part cards.
-  return (
-    <div className="open-mission-art">
-      <SectorCardArt variant="blueprint" index={blueprintIndex} gridSize={BLUEPRINT_ART_GRID_SIZE} />
-      <SectorCardArt variant="route" index={routeIndex} gridSize={ROUTE_ART_GRID_SIZE} />
-    </div>
   )
 }
 
@@ -696,6 +675,8 @@ export function renderGameplayCardContent(
   isAcquiredShipPart = false,
   _waterPairFuelAmount = 1,
 ) {
+  void _waterPairFuelAmount
+
   if (card.kind === 'resource' && card.resource) {
     if (card.resource === 'fuel') {
       return renderFuelCellContent(card)
@@ -754,7 +735,7 @@ export function renderGameplayCardContent(
 
   if (card.kind === 'mission' && card.mission) {
     if (card.mission.pattern === 'open') {
-      return renderOpenMissionContent(card)
+      return null
     }
 
     const currentFuelCost = Math.max(0, card.mission.need.fuel + fuelSurcharge - fuelDiscount)

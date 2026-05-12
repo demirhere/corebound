@@ -5,13 +5,15 @@ import { GameIcon } from '../GameIcon'
 import { PlayerStatsRows } from './PlayerResultRows'
 import type { BoardView } from './types'
 
-type LossStat = {
+type RunStat = {
   label: string
   value: string
   iconKind?: 'fuel' | 'hull'
   iconLabel?: string
   isWide?: boolean
 }
+
+type MissionCountScope = 'current-sector' | 'run'
 
 type CompletedMissionSummary = BoardView['completedStarSummaries'][number]
 
@@ -75,7 +77,13 @@ function getAssignedCrewCount(board: BoardView) {
   )
 }
 
-function getLossStats(board: BoardView): LossStat[] {
+function getMissionCount(board: BoardView, scope: MissionCountScope) {
+  return scope === 'run'
+    ? board.completedStarSummaries.length
+    : getCurrentSectorMissionCount(board)
+}
+
+function getRunStats(board: BoardView, missionCountScope: MissionCountScope): RunStat[] {
   const bestMissionFuel = getBestMissionFuel(board)
 
   return [
@@ -90,7 +98,7 @@ function getLossStats(board: BoardView): LossStat[] {
     },
     {
       label: 'Missions',
-      value: String(getCurrentSectorMissionCount(board)),
+      value: String(getMissionCount(board, missionCountScope)),
     },
     {
       label: 'Turns',
@@ -111,6 +119,26 @@ function getLossStats(board: BoardView): LossStat[] {
       iconLabel: `${bestMissionFuel} Fuel`,
     },
   ]
+}
+
+export function RunStatsRows({ board, ariaLabel, missionCountScope = 'current-sector' }: {
+  board: BoardView
+  ariaLabel: string
+  missionCountScope?: MissionCountScope
+}) {
+  return (
+    <dl className="loss-stats" aria-label={ariaLabel}>
+      {getRunStats(board, missionCountScope).map((stat) => (
+        <div className={`loss-stat${stat.isWide ? ' is-wide' : ''}`} key={stat.label}>
+          <dt>{stat.label}</dt>
+          <dd aria-label={stat.iconLabel ?? stat.value}>
+            {stat.iconKind && <GameIcon kind={stat.iconKind} />}
+            <span>{stat.value}</span>
+          </dd>
+        </div>
+      ))}
+    </dl>
+  )
 }
 
 export function LossDialog({ board, onResetGame, onReturnToMainMenu, canReset }: {
@@ -135,19 +163,9 @@ export function LossDialog({ board, onResetGame, onReturnToMainMenu, canReset }:
       >
         <p className="arrival-kicker">Game Over</p>
         <h2 id="loss-title">Stranded</h2>
-        <dl className="loss-stats" aria-label="Failed run stats">
-          {getLossStats(board).map((stat) => (
-            <div className={`loss-stat${stat.isWide ? ' is-wide' : ''}`} key={stat.label}>
-              <dt>{stat.label}</dt>
-              <dd aria-label={stat.iconLabel ?? stat.value}>
-                {stat.iconKind && <GameIcon kind={stat.iconKind} />}
-                <span>{stat.value}</span>
-              </dd>
-            </div>
-          ))}
-        </dl>
+        <RunStatsRows board={board} ariaLabel="Failed run stats" />
         {isMultiplayer ? <PlayerStatsRows stats={getPlayerCrewStats(board)} /> : null}
-        <div className="loss-actions">
+        <div className="result-actions loss-actions">
           <button type="button" onClick={onResetGame} disabled={!canReset}>
             Launch Again
           </button>

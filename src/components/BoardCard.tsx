@@ -7,6 +7,7 @@ import {
 import { getDamageDisplayTitle } from '../game/damage'
 import type { Card } from '../game/types'
 import { DeckIcon } from './DeckIcon'
+import { FuelMissionCard } from './FuelMissionCard'
 import { GameIcon } from './GameIcon'
 import { renderGameplayCardContent, renderSectorCardHeaderDetail, renderShipPartDescription } from './GameplayCardContent'
 import { pickCardIcons, pickCardNote } from './gameIcons'
@@ -123,25 +124,26 @@ export function CardShell({
 }: CardShellProps) {
   const isCrewCard = card.kind === 'crew'
   const isGateCard = card.kind === 'gate'
-  const isOpenMissionCard =
-    card.kind === 'mission' && card.mission?.pattern === 'open'
+  const isFuelMission = card.kind === 'mission' && card.mission?.pattern === 'open'
   const usesIntegratedHeader = isCrewCard || card.kind === 'drift' || card.kind === 'hazard'
   const gateBackgroundStyle = isGateCard ? getGateBackgroundStyle(card.gate?.backgroundIndex ?? 0) : undefined
   const sampledIcons = pickCardIcons(`${card.id}:${card.title}`)
   const noteLines = pickCardNote(`${card.id}:${card.title}`)
-  const gameplayContent = renderGameplayCardContent(
-    card,
-    fuelDiscount,
-    fuelSurcharge,
-    missionAnyIconSurcharge,
-    stressCount,
-    gateExtraCrewCount,
-    gateCrewSlotDiscount,
-    gateIconDiscount,
-    gateFuelDiscount,
-    isAcquiredShipPart,
-    waterPairFuelAmount,
-  )
+  const gameplayContent = isFuelMission
+    ? null
+    : renderGameplayCardContent(
+        card,
+        fuelDiscount,
+        fuelSurcharge,
+        missionAnyIconSurcharge,
+        stressCount,
+        gateExtraCrewCount,
+        gateCrewSlotDiscount,
+        gateIconDiscount,
+        gateFuelDiscount,
+        isAcquiredShipPart,
+        waterPairFuelAmount,
+      )
   const resourceClass = card.kind === 'resource' && card.resource ? `card-resource-${card.resource}` : ''
   const missionDetails = card.kind === 'mission' ? card.mission : undefined
   const isActiveShipPartCard = card.kind === 'active-ship-part'
@@ -150,7 +152,7 @@ export function CardShell({
   const missionFindClass = missionDetails
     ? isShipPartMission
       ? 'card-find-ship-part'
-      : isOpenMissionCard
+      : isFuelMission
         ? 'card-find-open-mission'
         : 'card-find-visit-reward'
     : isActiveShipPartCard
@@ -161,21 +163,19 @@ export function CardShell({
     : isActiveShipPartCard
       ? 'Ship Part'
       : 'Mission'
-  const missionHeaderTitle = isOpenMissionCard
-    ? 'Fuel Mission'
-    : missionDetails?.find.itemName ?? ''
+  const missionHeaderTitle = missionDetails?.find.itemName ?? ''
   const headerTitle = missionDetails
     ? missionHeaderTitle
     : isActiveShipPartCard
       ? activeShipPart?.label ?? card.title
       : getDamageDisplayTitle(card)
   const sectorHeaderDetail = missionDetails
-    ? renderSectorCardHeaderDetail(card)
+    ? isFuelMission ? null : renderSectorCardHeaderDetail(card)
     : isActiveShipPartCard
       ? activeShipPart ? renderShipPartDescription(activeShipPart.description) : null
       : null
   const showSectorHeader = Boolean(missionDetails) || isActiveShipPartCard
-  const showSectorBadge = showSectorHeader && !isOpenMissionCard && !isShipPartMission && !isActiveShipPartCard
+  const showSectorBadge = showSectorHeader && !isFuelMission && !isShipPartMission && !isActiveShipPartCard
   const gateBackTitle = isGateCard ? `${card.title} Final Gate` : null
   const defaultBackContent = isGateCard ? (
     <span className="deck-title-lockup sector-gate-back-lockup">
@@ -220,39 +220,45 @@ export function CardShell({
     >
       <div className="card-inner">
         <article className="card-face card-front">
-          {!usesIntegratedHeader && (
-            <header className="card-header">
-              {showSectorHeader ? (
-                <>
-                  {showSectorBadge && (
-                    <span className="card-destination-title">{missionBadge}</span>
+          {isFuelMission ? (
+            <FuelMissionCard />
+          ) : (
+            <>
+              {!usesIntegratedHeader && (
+                <header className="card-header">
+                  {showSectorHeader ? (
+                    <>
+                      {showSectorBadge && (
+                        <span className="card-destination-title">{missionBadge}</span>
+                      )}
+                      <span className="card-title" data-title={typeof headerTitle === 'string' ? headerTitle : undefined}>{headerTitle}</span>
+                      {sectorHeaderDetail && (
+                        <span className="card-rule-text sector-card-header-detail">{sectorHeaderDetail}</span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="card-title" data-title={typeof headerTitle === 'string' ? headerTitle : undefined}>{headerTitle}</span>
                   )}
-                  <span className="card-title">{headerTitle}</span>
-                  {sectorHeaderDetail && (
-                    <span className="card-rule-text sector-card-header-detail">{sectorHeaderDetail}</span>
-                  )}
-                </>
-              ) : (
-                <span className="card-title">{headerTitle}</span>
+                </header>
               )}
-            </header>
+              <div className={`card-art ${gameplayContent ? 'card-art-gameplay' : ''} ${isCrewCard ? 'crew-card-art' : ''} ${card.kind === 'drift' ? 'drift-card-art' : ''}`} aria-hidden="true">
+                {gameplayContent ?? (
+                  <>
+                    <div className="card-icon-row">
+                      {sampledIcons.map((icon) => (
+                        <GameIcon key={icon} kind={icon} />
+                      ))}
+                    </div>
+                    <p className="card-note">
+                      {noteLines.map((line, index) => (
+                        <span key={`${line}-${index}`}>{line}</span>
+                      ))}
+                    </p>
+                  </>
+                )}
+              </div>
+            </>
           )}
-          <div className={`card-art ${gameplayContent ? 'card-art-gameplay' : ''} ${isCrewCard ? 'crew-card-art' : ''} ${card.kind === 'drift' ? 'drift-card-art' : ''}`} aria-hidden="true">
-            {gameplayContent ?? (
-              <>
-                <div className="card-icon-row">
-                  {sampledIcons.map((icon) => (
-                    <GameIcon key={icon} kind={icon} />
-                  ))}
-                </div>
-                <p className="card-note">
-                  {noteLines.map((line, index) => (
-                    <span key={`${line}-${index}`}>{line}</span>
-                  ))}
-                </p>
-              </>
-            )}
-          </div>
         </article>
 
         <article className="card-face card-back" aria-hidden="true">

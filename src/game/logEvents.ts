@@ -1101,7 +1101,7 @@ export function gateCompletedEvent(
 ): PlaytestLogEvent {
   return {
     type: 'gate.completed',
-    message: `${describeCard(gateCard, gateCard.id)} completed from ${sourceStack.id}; ${isFinalGate ? 'End run will score the run' : 'next sector begins'}.`,
+    message: `${describeCard(gateCard, gateCard.id)} completed from ${sourceStack.id}; ${isFinalGate ? 'run complete' : 'next sector begins'}.`,
     details: {
       gateCardId: gateCard.id,
       gateTitle: gateCard.title,

@@ -932,7 +932,55 @@
   }
 }
 
-.loss-actions {
+.victory-overlay {
+  background:
+    radial-gradient(circle at 26% 40%, rgba(115, 255, 214, 0.2), transparent 34%),
+    radial-gradient(circle at 76% 58%, rgba(255, 207, 138, 0.16), transparent 32%),
+    repeating-linear-gradient(0deg, rgba(255, 248, 232, 0.06) 0 1px, transparent 1px 24px),
+    linear-gradient(180deg, rgba(5, 17, 24, 0.5), rgba(8, 34, 35, 0.5)),
+    rgba(5, 7, 19, 0.5);
+
+  &::before {
+    background:
+      radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.24));
+  }
+}
+
+.victory-panel {
+  width: min(560px, calc(100vw - 32px));
+  background:
+    linear-gradient(90deg, #28d6a0 0 8px, transparent 8px),
+    radial-gradient(circle at 82% 68%, rgba(115, 255, 214, 0.22), transparent 34%),
+    repeating-linear-gradient(180deg, transparent 0 18px, rgba(17, 19, 26, 0.07) 18px 19px, transparent 19px 27px),
+    linear-gradient(150deg, #fff7dc, #f2f0c7 58%, #bfffe8);
+  text-align: left;
+  transform: rotate(-0.4deg);
+
+  .arrival-kicker {
+    background: rgba(115, 255, 214, 0.2);
+  }
+
+  > h2,
+  > p:not(.arrival-kicker) {
+    justify-self: stretch;
+  }
+
+  button {
+    justify-self: auto;
+    background:
+      repeating-linear-gradient(180deg, transparent 0 9px, rgba(17, 19, 26, 0.055) 9px 10px),
+      color-mix(in srgb, #73ffd6 72%, #fff8e8);
+
+    &:hover,
+    &:focus-visible {
+      box-shadow:
+        4px 5px 0 rgba(17, 19, 26, 0.3),
+        0 0 0 4px rgba(115, 255, 214, 0.24);
+    }
+  }
+}
+
+.result-actions {
   position: relative;
   z-index: 1;
   display: flex;
@@ -943,11 +991,21 @@
   button {
     margin-top: 0;
   }
+}
 
+.loss-actions {
   .loss-menu-button {
     background:
       repeating-linear-gradient(180deg, transparent 0 9px, rgba(17, 19, 26, 0.055) 9px 10px),
       color-mix(in srgb, #fff8e8 70%, #ff9baa);
+  }
+}
+
+.victory-actions {
+  .result-menu-button {
+    background:
+      repeating-linear-gradient(180deg, transparent 0 9px, rgba(17, 19, 26, 0.055) 9px 10px),
+      color-mix(in srgb, #fff8e8 70%, #73ffd6);
   }
 }
 
@@ -2950,15 +3008,29 @@
 }
 
 .card-shell.card-kind-gate .card-title {
+  position: relative;
   overflow: visible;
   padding-right: 0;
   font-family: var(--card-title-font-family);
   font-size: 21px;
   font-weight: 600;
   text-overflow: clip;
+  -webkit-text-stroke: 0 transparent;
+  text-shadow: none;
+  text-wrap: balance;
+  white-space: normal;
+  isolation: isolate;
+}
+
+.card-shell.card-kind-gate .card-title::before {
+  content: attr(data-title);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  color: transparent;
   -webkit-text-stroke: var(--gate-text-outline-width) var(--gate-text-outline-color);
   paint-order: stroke fill;
-  text-shadow: none;
+  pointer-events: none;
   text-wrap: balance;
   white-space: normal;
 }
@@ -3114,7 +3186,8 @@
   }
 }
 
-.crew-nametag {
+.crew-nametag,
+.fuel-mission-card {
   position: absolute;
   inset: clamp(7px, 0.72vw, 11px) clamp(8px, 0.85vw, 13px);
   z-index: 1;
@@ -3156,7 +3229,8 @@
   padding: 0;
 }
 
-.card-shell.card-kind-crew .crew-name {
+.card-shell.card-kind-crew .crew-name,
+.card-shell.card-find-open-mission .crew-name {
   max-width: 100%;
   overflow: hidden;
   color: #0B1418;
@@ -3176,6 +3250,61 @@
   -webkit-text-stroke: 0 transparent;
   paint-order: normal;
   transform: none;
+}
+
+.card-shell.card-find-open-mission .crew-name {
+  position: relative;
+  display: block;
+  overflow: visible;
+  white-space: normal;
+  isolation: isolate;
+}
+
+.card-shell.card-find-open-mission .crew-name::before,
+.fuel-mission-crew-count-label::before {
+  content: attr(data-title);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  color: transparent;
+  -webkit-text-stroke: var(--fuel-mission-text-outline-width) var(--fuel-mission-text-outline-color);
+  paint-order: stroke fill;
+  pointer-events: none;
+  text-wrap: inherit;
+  white-space: inherit;
+}
+
+.fuel-mission-crew-count {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  grid-row: 4;
+  align-self: end;
+  justify-self: start;
+  align-items: center;
+  gap: clamp(4px, 0.42vw, 6px);
+  color: #0B1418;
+  font-family: var(--card-title-font-family);
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-shadow: none;
+  white-space: nowrap;
+}
+
+.fuel-mission-crew-count .game-icon {
+  width: 28px;
+}
+
+.fuel-mission-crew-count-label {
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+}
+
+.fuel-mission-crew-count-label::before {
+  content: attr(data-label);
 }
 
 .crew-specialties {
@@ -4534,18 +4663,32 @@
 }
 
 .card-find-open-mission {
-  --blueprint-text: #f4ead4;
-  --blueprint-paper: var(--blueprint-text);
-  --blueprint-ink: var(--blueprint-text);
-  --blueprint-grid: rgba(214, 184, 245, 0.10);
-  --blueprint-grid-strong: rgba(228, 200, 252, 0.16);
-  --blueprint-gradient: linear-gradient(145deg, #5b3a8a, #432872 56%, #2a1755);
-  --blueprint-edge-glow: color-mix(in srgb, #5b3a8a 52%, rgba(244, 232, 255, 0.3));
-  --blueprint-shadow: rgba(20, 8, 32, 0.28);
+  --fuel-mission-text-outline-color: #B8E2D3;
+  --fuel-mission-text-outline-width: 12px;
+
+  .card-face.card-front {
+    border-width: 0;
+    border-color: transparent;
+    color: #0B1418;
+    background-image: url('/assets/fuel-mission-card.jpeg');
+    background-position: left center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.42),
+      inset 0 0 0 1.6px rgba(17, 19, 26, 0.10),
+      inset 0 0 28px rgba(93, 70, 38, 0.13);
+  }
+
+  .card-front::before,
+  .card-front::after,
+  .card-inner::before,
+  .card-inner::after {
+    content: none;
+  }
 }
 
-.card-find-ship-part,
-.card-find-open-mission {
+.card-find-ship-part {
   .card-face {
     border-color: transparent;
     border-radius: 14px;
@@ -4651,11 +4794,6 @@
     -webkit-mask-repeat: no-repeat;
             mask-repeat: no-repeat;
   }
-}
-
-.card-find-open-mission .sector-card-header-detail {
-  width: 100%;
-  max-width: 100%;
 }
 
 .card-art {
@@ -4827,43 +4965,6 @@
 .ship-part-effect-art .sector-card-art-layer.is-route {
   width: clamp(38px, 4.5vw, 64px);
   margin-left: -8px;
-  transform: translateY(clamp(-8px, -0.6vw, -4px));
-}
-
-.open-mission-description {
-  display: inline-block;
-  font-weight: 500;
-  line-height: 1.35;
-  opacity: 0.85;
-}
-
-.open-mission-art {
-  position: relative;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-height: clamp(40px, 6vw, 90px);
-}
-
-.open-mission-art .sector-card-art-layer {
-  position: relative;
-  inset: auto;
-  flex: none;
-}
-
-.open-mission-art .sector-card-art-layer.is-blueprint {
-  width: clamp(46px, 5.4vw, 78px);
-  margin-left: -6px;
-  /* Left image — nudged slightly lower for staggered composition. */
-  transform: translateY(clamp(4px, 0.6vw, 8px));
-}
-
-.open-mission-art .sector-card-art-layer.is-route {
-  width: clamp(34px, 4vw, 58px);
-  margin-left: -8px;
-  /* Right image — nudged slightly higher to mirror the left offset. */
   transform: translateY(clamp(-8px, -0.6vw, -4px));
 }
 
@@ -5981,6 +6082,14 @@
       radial-gradient(circle at 50% 22%, rgba(255, 155, 170, 0.18), transparent 34%),
       repeating-linear-gradient(0deg, rgba(255, 248, 232, 0.055) 0 1px, transparent 1px 24px),
       linear-gradient(180deg, rgba(6, 5, 14, 0.5) 0 38%, rgba(39, 9, 18, 0.5) 38% 100%),
+      rgba(5, 7, 19, 0.5);
+  }
+
+  .victory-overlay {
+    background:
+      radial-gradient(circle at 50% 22%, rgba(115, 255, 214, 0.18), transparent 34%),
+      repeating-linear-gradient(0deg, rgba(255, 248, 232, 0.055) 0 1px, transparent 1px 24px),
+      linear-gradient(180deg, rgba(5, 17, 24, 0.5) 0 38%, rgba(8, 34, 35, 0.5) 38% 100%),
       rgba(5, 7, 19, 0.5);
   }
 

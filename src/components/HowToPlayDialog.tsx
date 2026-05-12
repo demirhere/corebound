@@ -91,7 +91,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
         <p className="arrival-kicker">Corebound Rulebook</p>
         <h2 id="how-to-play-title">How To Play</h2>
         <p className="how-to-play-summary">
-          Pass each sector Gate. Draw optional Map Destinations when you want extra preparation.
+          Pass each sector Gate. Click the 3-card Mission deck to draw Map Destinations as needed.
         </p>
 
         <div className="how-to-play-flow" aria-label="Sector route summary">
@@ -133,11 +133,11 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
           <section className="how-to-play-wide-section">
             <h3>Core Loop</h3>
             <ol>
-              <li>Read the face-up Gate, then click Missions to reveal Map Destinations.</li>
+              <li>Read the face-up Gate, then click the Mission deck to draw Map Destinations.</li>
               <li>Travel to only 1 Destination per turn. Stack its crew-icon payment, then click Travel.</li>
               <li>Used crew move to Tired. Rewards recover Fuel, ready Tired crew, or wake Cryo crew for the Mission Lead.</li>
               <li>Each Gate costs 3-6 Fuel to pass, with extra Fuel to clear cleanly.</li>
-              <li>After a non-final Gate succeeds, the next sector starts with an empty Map.</li>
+              <li>After a non-final Gate succeeds, the next sector starts with a fresh Mission deck and empty Map.</li>
               <li>Each new turn starts by drawing 1 Cryo crew into Ready, if Cryo remains.</li>
               <li>Unchosen Map Destinations clear. End turn before drawing again unless that was the 3rd Destination.</li>
             </ol>
@@ -211,7 +211,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
           <section className="how-to-play-wide-section how-to-play-warning-section">
             <h3>Win And Loss</h3>
             <p>
-              Solo wins after passing the final Gate (10th sector) and pressing End run. Multiplayer scores after End run:
+              Solo wins immediately after passing the final Gate (10th sector). Multiplayer scores immediately after the final Gate:
               most crew wins, then Blueprints, then Ready crew. Any ship loss means everyone loses.
               You lose if no reachable Mission or Research remains and the Gate cannot be passed, or if the Gate cannot be passed
               with required Gate Fuel, crew-made Fuel, and available Gate Fuel discounts.

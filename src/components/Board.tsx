@@ -294,6 +294,7 @@ export function Board({
         hasArrived={board.hasArrived}
         board={board}
         onResetGame={onResetGame}
+        onReturnToMainMenu={onReturnToMainMenu}
         canReset={canUseOwnCrew}
       />
       <LossDialog

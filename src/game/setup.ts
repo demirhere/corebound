@@ -29,7 +29,6 @@ import {
 import {
   cardContent,
   cardRulesText,
-  mapInitializedEvent,
   turnStartCrewDrawnEvent,
 } from './logEvents'
 import type { PlaytestLogEvent } from './playtestLog'
@@ -58,6 +57,10 @@ export const MAP_SLOT_POSITIONS = [
   { x: 58, y: 8 },
   { x: 71, y: 8 },
 ] as const
+export const MISSION_DECK_POSITION = {
+  x: 32,
+  y: 8,
+}
 export const TRAVELED_STOP_POSITIONS = [
   { x: 56, y: 39 },
   { x: 61, y: 47 },
@@ -190,7 +193,7 @@ function setupGatePlacedEvent(card: Card, stackId: string): PlaytestLogEvent {
 }
 
 export function createSectorMissionDeckCards() {
-  return shuffleCards(missionDeck)
+  return shuffleCards(missionDeck).slice(0, MAP_SLOT_COUNT)
 }
 
 export function createShipPartDeckCards() {
@@ -310,20 +313,12 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
   const fuelDeckCards = fuelDeck.slice(STARTING_FUEL_SUPPLY)
   // const hullDeckCards = hullDeck.slice(4)
   const missionDeckCards = createSectorMissionDeckCards()
-  const initialMapMissionBlueprints = missionDeckCards.slice(0, MAP_SLOT_COUNT)
-  const initialMapMissionCards = initialMapMissionBlueprints.map((blueprint, index) => ({
-    ...blueprint,
-    id: `map-1-${index + 1}`,
-    faceUp: true,
-  }))
-  const remainingMissionDeckCards = missionDeckCards.slice(initialMapMissionBlueprints.length)
   const shipPartDeckCards = createShipPartDeckCards()
 
   const initialCards = [
     ...initialFuelCards,
     ...readyCrewCards,
     ...(gateCard ? [gateCard] : []),
-    ...initialMapMissionCards,
   ]
   const initialSectorDeckArt = getSectorDeckArt(1)
 
@@ -355,13 +350,6 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
             },
           ]
         : []),
-      ...initialMapMissionCards.map((card, index) => ({
-        id: `stack-map-${index + 1}`,
-        cardIds: [card.id],
-        x: MAP_SLOT_POSITIONS[index]?.x ?? 50,
-        y: MAP_SLOT_POSITIONS[index]?.y ?? 8,
-        z: 1015 + index,
-      })),
     ],
     decks: [
       {
@@ -414,15 +402,15 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
       },
       {
         id: MISSION_DECK_ID,
-        title: 'Missions',
+        title: getSectorDeckTitle(1),
         icon: initialSectorDeckArt.icon,
         hue: initialSectorDeckArt.hue,
         accent: initialSectorDeckArt.accent,
-        x: OFFSCREEN_DECK_POSITION.x,
-        y: OFFSCREEN_DECK_POSITION.y,
+        x: MISSION_DECK_POSITION.x,
+        y: MISSION_DECK_POSITION.y,
         z: 1014,
-        draw: automaticRewardDeckDraw,
-        cards: remainingMissionDeckCards,
+        draw: manualDeckDraw,
+        cards: missionDeckCards,
       },
       {
         id: SHIP_PART_DECK_ID,
@@ -499,7 +487,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
     ],
     mapSlots: Array.from(
       { length: MAP_SLOT_COUNT },
-      (_, index) => initialMapMissionCards[index]?.id ?? null,
+      () => null,
     ),
     routeSlots: Array.from({ length: ROUTE_SLOT_COUNT }, () => null),
     shipPartSlots: [],
@@ -601,7 +589,6 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
       setupDeckCreatedEvent(GATE_DECK_ID, 'Gate Deck', remainingGateDeckCards),
       setupDeckCreatedEvent(DAMAGE_DECK_ID, 'Damage Deck', damageDeckCards),
       ...(gateCard ? [setupGatePlacedEvent(gateCard, 'stack-sector-gate')] : []),
-      ...(initialMapMissionCards.length > 0 ? [mapInitializedEvent(1, initialMapMissionCards)] : []),
       ...initialFuelCards.map((card, index) => setupResourceDrawnEvent(card, 'Fuel Deck', index + 1)),
       // ...initialHullCards.map((card, index) => setupResourceDrawnEvent(card, 'Hull Deck', index + 1)),
       ...handCards.map((card, index) => (

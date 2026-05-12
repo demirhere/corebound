@@ -123,12 +123,13 @@ const PATTERN_ORDER = [
 // (the back-end gates outpace greedy fuel earnings without joker support).
 // The 25-joker pool gives ~5% wins for greedy buyers.
 const GATE_TUNING_OVERRIDE = process.env.GATE_TUNING ? process.env.GATE_TUNING.split(',').map(Number) : null
-// Total 171, recalibrated for the 45-card crew roster (5 starters + 40
-// cryo, where the cryo is 4 copies of 10 unique blueprints). The bigger
-// cryo lowers reshuffle frequency; Mara/Sana (only E/L specialists) are
-// now 1 of 45 cards, so Bridge Crew / Department Heads land less often.
-// Curve: S1-S5 gentle (cost 8/8/9/10/12), then steep S6-S10.
-const GATE_COSTS = GATE_TUNING_OVERRIDE ?? [8, 8, 9, 10, 12, 17, 21, 25, 29, 32]
+// Total 201, recalibrated to make Sector 3 a hard wall for unaided play
+// (without ship parts you should not be able to pass S3). S1-S2 stay
+// gentle so the player can learn the patterns; S3 jumps so a no-joker
+// greedy run averages <1% pass rate at S3. Late gates ramp steeply so
+// even a joker-buying greedy run lands around 0.5-1.5% — winning
+// requires deliberate ship part choices, not random buys.
+const GATE_COSTS = GATE_TUNING_OVERRIDE ?? [8, 9, 14, 16, 18, 21, 24, 27, 30, 34]
 const GATES_PER_RUN = 10
 if (GATE_COSTS.length !== GATES_PER_RUN) {
   console.error(`GATE_TUNING must specify exactly ${GATES_PER_RUN} costs (got ${GATE_COSTS.length})`)
@@ -200,11 +201,13 @@ const JOKERS = [
   // Cause = +4, Common Knowledge = +3, Department Heads = +2.
   // EXPECTED: ≥35% of winning slots; lifts fuel/sector by ~1.0–1.5.
   {
-    id: 'crew-synergy', label: 'Crew Synergy', cost: 9, refund: 4,
+    id: 'crew-synergy', label: 'Crew Synergy', cost: 10, refund: 5,
     category: 'pattern',
-    // +1 fuel per crew used, capped at +3 (Bridge Crew/Common Cause/Common
-    // Knowledge max out; Department Heads = +2; Specialist = +1).
-    onMission: ({ usedCrew }) => ({ fuelDelta: Math.min(3, usedCrew.length) }),
+    // +1 fuel per crew used, capped at +4 (Bridge Crew/Common Cause hit
+    // the cap; Common Knowledge = +3; Department Heads = +2; Specialist =
+    // +1). The +1 cap bump is what makes the 4-crew patterns the most
+    // valuable late-game targets.
+    onMission: ({ usedCrew }) => ({ fuelDelta: Math.min(4, usedCrew.length) }),
   },
   {
     id: 'specialist-gauntlets', label: 'Specialist Gauntlets', cost: 5, refund: 2,
@@ -225,7 +228,7 @@ const JOKERS = [
   {
     id: 'bridge-uplink', label: 'Bridge Uplink', cost: 7, refund: 3,
     category: 'pattern',
-    patternFuelDelta: (pattern) => (pattern === 'bridge-crew' ? 2 : 0),
+    patternFuelDelta: (pattern) => (pattern === 'bridge-crew' ? 3 : 0),
   },
 
   // ---- First-mission triggers (2) --------------------------------------------------
@@ -257,14 +260,14 @@ const JOKERS = [
   // +1. Doesn't compound with Lean Manifest / Crew Synergy on low-tier.
   // EXPECTED: ≥40% of winning slots; lifts fuel/sector by ~1.0.
   {
-    id: 'pattern-ladder', label: 'Pattern Ladder', cost: 6, refund: 3,
+    id: 'pattern-ladder', label: 'Pattern Ladder', cost: 7, refund: 3,
     category: 'last-mission',
     patternFuelDelta: (pattern) => (
       pattern === 'common-knowledge' ||
         pattern === 'department-heads' ||
         pattern === 'common-cause' ||
         pattern === 'bridge-crew'
-        ? 1
+        ? 2
         : 0
     ),
   },
@@ -283,10 +286,11 @@ const JOKERS = [
   {
     id: 'compounding-drive', label: 'Compounding Drive', cost: 8, refund: 4,
     category: 'scrap',
-    // Every 5 missions completed: permanent +1 Fuel/mission, capped at +2.
-    // (Was +3 cap at every 3 — too dominant; nerfed for balance.)
+    // Every 4 missions completed: permanent +1 Fuel/mission, capped at +3.
+    // Bought before S3 it scales to +1 by mid-S2 and helps clear the S3=14
+    // wall. Bought late it still provides +2-3 fuel for the back-end gates.
     onMission: ({ missionsCompletedBefore }) => ({
-      fuelDelta: Math.min(2, Math.floor(missionsCompletedBefore / 5)),
+      fuelDelta: Math.min(3, Math.floor(missionsCompletedBefore / 4)),
     }),
   },
   // DESIGN INTENT (Reserve Capacitor): replaces Quartermaster. Sector-end
@@ -627,12 +631,13 @@ function pickGreedyAction(ready, slot, missionIndexInSector, isLastMission, scra
 }
 
 function computeMissionScraps(fuel) {
-  // Tightened tiers (was 1-2/3-4/5+ → 1/2/3) — see economyTuning.ts. The
-  // change halves greedy scrap supply because Common Knowledge (3 Fuel,
-  // greedy's most common mid-tier pick) drops from 2 → 1 scrap.
+  // Loosened tiers (1-2/3-4/5+ instead of 1-3/4-5/6+) so greedy gets
+  // enough Scraps to buy 4-6 ship parts. Common Knowledge (3 Fuel,
+  // greedy's most common mid-tier pick) now yields 2 Scraps; Bridge
+  // Crew (6) and pattern-boosted plays land in the 3-Scrap tier.
   if (fuel <= 0) return 0
-  if (fuel <= 3) return 1
-  if (fuel <= 5) return 2
+  if (fuel <= 2) return 1
+  if (fuel <= 4) return 2
   return 3
 }
 

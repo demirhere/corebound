@@ -66,21 +66,21 @@ export const shipPartCatalog: readonly ShipPartBlueprint[] = [
     effects: [{ kind: 'crew-count-cap', maxCrew: 2, fuel: 2 }],
   },
   // DESIGN INTENT: Crew Synergy replaces Crew Stim Packs (Common Ground +1
-  // was dead). Balatro-mult: each crew used adds +1 Fuel, capped at +3.
-  // Bridge Crew / Common Cause / Common Knowledge all hit the cap;
-  // Department Heads = +2; Specialist = +1. Cap was added to keep it from
-  // dominating; even with the cap it ends up in 90%+ of winning slots.
-  // EXPECTED: appears in ≥60% of winning slots; lifts avg fuel/sector by
-  // ~1.5–2.0 when held. Future test: Crew Synergy owners shift toward 3-4
-  // crew patterns vs non-owners.
+  // was dead). Balatro-mult: each crew used adds +1 Fuel, capped at +4.
+  // Bridge Crew / Common Cause hit the cap (+4); Common Knowledge = +3;
+  // Department Heads = +2; Specialist = +1. The cap pushes players toward
+  // the 4-crew patterns (Common Cause, Bridge Crew) for maximum value.
+  // EXPECTED: appears in ≥65% of winning slots; lifts avg fuel/sector by
+  // ~2.0–2.5 when held. Cost bumped to 10 (refund 5) so it doesn't get
+  // bought trivially in the first sector.
   {
     id: 'crew-synergy',
     label: 'Crew Synergy',
-    description: '+1 Fuel per crew used in mission (max +3).',
-    cost: 9,
-    refund: 4,
+    description: '+1 Fuel per crew used in mission (max +4).',
+    cost: 10,
+    refund: 5,
     category: 'pattern',
-    effects: [{ kind: 'per-crew-used', fuelPerCrew: 1, maxFuel: 3 }],
+    effects: [{ kind: 'per-crew-used', fuelPerCrew: 1, maxFuel: 4 }],
   },
   {
     id: 'specialist-gauntlets',
@@ -112,11 +112,11 @@ export const shipPartCatalog: readonly ShipPartBlueprint[] = [
   {
     id: 'bridge-uplink',
     label: 'Bridge Uplink',
-    description: 'Bridge Crew: +2 Fuel.',
+    description: 'Bridge Crew: +3 Fuel.',
     cost: 7,
     refund: 3,
     category: 'pattern',
-    effects: [{ kind: 'pattern', patterns: ['bridge-crew'], fuel: 2 }],
+    effects: [{ kind: 'pattern', patterns: ['bridge-crew'], fuel: 3 }],
   },
 
   // ---- First-mission triggers (2) --------------------------------------------------
@@ -151,24 +151,22 @@ export const shipPartCatalog: readonly ShipPartBlueprint[] = [
   // ---- Last-mission triggers (2) ---------------------------------------------------
   // DESIGN INTENT: Pattern Ladder replaces Ablative Plating (Last mission +1
   // was dominated by Final Burn). Boosts the patterns greedy actually picks
-  // (Common Knowledge, Department Heads, Common Cause, Bridge Crew) by +1
-  // each. Skips low-tier (Cross-Trained, Specialist, Common Ground) so it
-  // doesn't compound with Lean Manifest / Crew Synergy. Power-curve part:
-  // 2nd-tier boost on every successful mission.
-  // EXPECTED: appears in ≥18% of winning slots (higher cost than initial
-  // estimate); lifts avg fuel/sector by ~1.0 when held. Future test: Pattern
-  // Ladder owners win-rate is 1.5× baseline.
+  // (Common Knowledge, Department Heads, Common Cause, Bridge Crew) by +2
+  // each (was +1). The +2 makes it a key mid-game pickup that pulls a
+  // greedy player through the S3=14 wall when bought after S1 or S2.
+  // EXPECTED: appears in ≥50% of winning slots; lifts avg fuel/sector by
+  // ~2.0 when held.
   {
     id: 'pattern-ladder',
     label: 'Pattern Ladder',
-    description: 'Common Knowledge / Department Heads / Common Cause / Bridge Crew: +1 Fuel.',
-    cost: 6,
+    description: 'Common Knowledge / Department Heads / Common Cause / Bridge Crew: +2 Fuel.',
+    cost: 7,
     refund: 3,
     category: 'last-mission',
     effects: [{
       kind: 'pattern-tier',
       patterns: ['common-knowledge', 'department-heads', 'common-cause', 'bridge-crew'],
-      fuel: 1,
+      fuel: 2,
     }],
   },
   {
@@ -184,24 +182,22 @@ export const shipPartCatalog: readonly ShipPartBlueprint[] = [
   // ---- Economy / scraps (2) --------------------------------------------------------
   // DESIGN INTENT: Compounding Drive replaces Salvage Sifter (+1 scrap/mission
   // got displaced by greedy slot replacement and was 0% in winning slots).
-  // Late-game scaling joker — gain a permanent +1 fuel/mission for every 5
-  // missions completed run-wide, capped at +2. Bought early it pays off:
-  // by mission 10 (sector 4) it's at +2 forever. Bought late it's a smaller
-  // bump but still real. Inspired by Balatro's Hiker / Constellation:
-  // scaling effects that snowball with play. Initial design (every 3
-  // missions, max +3) was way too dominant; this nerf keeps it strong but
-  // not auto-include.
-  // EXPECTED: appears in ≥80% of winning slots when bought before sector 4;
-  // lifts late-game fuel/sector by +2 (capped). Future test: among players
-  // who buy this in S1-S3, win rate is 1.5× the no-Compounding baseline.
+  // Late-game scaling joker — gain a permanent +1 Fuel/mission for every
+  // 4 missions completed run-wide, capped at +3. Bought before S3 it
+  // scales to +1 by mid-S2 and helps clear the S3=14 wall. Bought late
+  // it still provides +2-3 fuel for the back-end gates. Inspired by
+  // Balatro's Hiker / Constellation.
+  // EXPECTED: appears in ≥90% of winning slots; lifts late-game
+  // fuel/sector by +3 (capped). Future test: among players who buy this
+  // before S3, win rate is 3× the no-Compounding baseline.
   {
     id: 'compounding-drive',
     label: 'Compounding Drive',
-    description: 'Every 5 missions completed: permanent +1 Fuel/mission (max +2).',
+    description: 'Every 4 missions completed: permanent +1 Fuel/mission (max +3).',
     cost: 8,
     refund: 4,
     category: 'scrap',
-    effects: [{ kind: 'mission-counter', interval: 5, fuelPerStack: 1, maxStacks: 2 }],
+    effects: [{ kind: 'mission-counter', interval: 4, fuelPerStack: 1, maxStacks: 3 }],
   },
   // DESIGN INTENT: Reserve Capacitor replaces Quartermaster (+2 scrap/sector
   // was 0% in winning slots). Implements the user's Balatro-leftover-hands

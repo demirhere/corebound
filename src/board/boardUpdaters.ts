@@ -144,7 +144,7 @@ import {
   FUEL_SUPPLY_STACK_ID,
   FUEL_SUPPLY_STACK_POSITION,
   MAP_SLOT_COUNT,
-  MAP_SLOT_POSITIONS,
+  MISSION_DECK_POSITION,
   MOTHER_SUPPLY_STACK_ID,
   MOTHER_SUPPLY_STACK_POSITION,
   SCRAP_SUPPLY_STACK_ID,
@@ -153,11 +153,11 @@ import {
   createDriftDeckCards,
   createSectorMissionDeckCards,
   getSectorDeckArt,
+  getSectorDeckTitle,
 } from '../game/setup'
 import {
   blocksFirstMissionDiscovery,
   blocksPeeking,
-  getMissionMapDrawCount,
   getMissionAnyIconSurcharge,
   getMotherStressEcho,
   isDamageCard,
@@ -1768,66 +1768,55 @@ function getDrawnRouteStackId(stacks: readonly Stack[], slotIndex: number, cardI
     : preferredStackId
 }
 
-function drawNextMapChoices(current: BoardState, metrics: BoardMetrics) {
-  const missionDeck = current.decks.find((deck) => deck.id === MISSION_DECK_ID)
-  const mapPositions = missionDeck ? getDeckDrawPositions(missionDeck, MAP_SLOT_COUNT, metrics) : null
-  const forcedDestinationCardId = current.forcedDestinationCardId
-  const preservedMapSlotEntries = current.mapSlots.flatMap((cardId, index) => (
-    cardId && cardId === forcedDestinationCardId ? [{ cardId, index }] : []
-  ))
-  const drawSlotIndexes = current.mapSlots.flatMap((_cardId, index) => (
-    preservedMapSlotEntries.some((entry) => entry.index === index) ? [] : [index]
-  )).slice(0, getMissionMapDrawCount(current.cards, MAP_SLOT_COUNT))
-  const blueprints = missionDeck?.cards.slice(0, drawSlotIndexes.length) ?? []
-  const preservedMapCardIds = new Set(preservedMapSlotEntries.map((entry) => entry.cardId))
-  const discardedMapCardIds = getVisibleMissionCardIds(current).filter((cardId) => !preservedMapCardIds.has(cardId))
-  const isInitialMapOffer = discardedMapCardIds.length === 0 && current.routeSlots.every((slot) => slot === null)
-  const baseStacks = removeCardIdsFromStacks(current.stacks, discardedMapCardIds)
-  const drawnMapCards: Card[] = []
-  let nextCardId = current.nextCardId
+function getNextMapDrawSlotIndex(current: BoardState) {
+  const nextRouteSlotIndex = current.routeSlots.findIndex((slot) => slot === null)
 
-  for (const [index, blueprint] of blueprints.entries()) {
-    drawnMapCards.push(createCardFromBlueprint(
-      blueprint,
-      `map-${current.currentSector}-${index + 1}-${nextCardId}`,
-    ))
-    nextCardId += 1
+  if (nextRouteSlotIndex >= 0 && current.mapSlots[nextRouteSlotIndex] === null) {
+    return nextRouteSlotIndex
   }
 
-  const drawnCardEntries = Object.fromEntries(drawnMapCards.map((card) => [card.id, card]))
-  const nextTopZ = current.topZ + drawnMapCards.length
+  return current.mapSlots.findIndex((cardId) => cardId === null)
+}
+
+function drawNextMapChoice(current: BoardState) {
+  const missionDeck = current.decks.find((deck) => deck.id === MISSION_DECK_ID)
+  const blueprint = missionDeck?.cards[0]
+  const slotIndex = getNextMapDrawSlotIndex(current)
+
+  if (!missionDeck || !blueprint || slotIndex === -1) {
+    return { board: current, events: [] as PlaytestLogEvent[] }
+  }
+
+  const drawnMapCard = createCardFromBlueprint(
+    blueprint,
+    `map-${current.currentSector}-${slotIndex + 1}-${current.nextCardId}`,
+  )
+  const position = getMapStackPosition(slotIndex)
+  const stackId = getDrawnMapStackId(current.stacks, slotIndex, drawnMapCard.id)
+  const drawnStack = {
+    id: stackId,
+    cardIds: [drawnMapCard.id],
+    x: position.x,
+    y: position.y,
+    z: current.topZ + 1,
+  }
+  const isInitialMapOffer = current.routeSlots.every((slot) => slot === null) && getVisibleMissionCardIds(current).length === 0
   const nextBoard = {
     ...current,
-    topZ: nextTopZ,
-    nextCardId,
-    mapSlots: Array.from({ length: MAP_SLOT_COUNT }, (_, index) => {
-      const preservedEntry = preservedMapSlotEntries.find((entry) => entry.index === index)
-      const drawnIndex = drawSlotIndexes.indexOf(index)
-
-      return preservedEntry?.cardId ?? (drawnIndex >= 0 ? drawnMapCards[drawnIndex]?.id ?? null : null)
-    }),
+    topZ: drawnStack.z,
+    nextCardId: current.nextCardId + 1,
+    mapSlots: current.mapSlots.map((cardId, index) => index === slotIndex ? drawnMapCard.id : cardId),
     cards: {
-      ...withoutCards(current.cards, discardedMapCardIds),
-      ...drawnCardEntries,
+      ...current.cards,
+      [drawnMapCard.id]: drawnMapCard,
     },
     stacks: [
-      ...baseStacks,
-      ...drawnMapCards.map((card, index) => {
-        const slotIndex = drawSlotIndexes[index] ?? index
-        const position = mapPositions?.[slotIndex] ?? getMapStackPosition(slotIndex)
-
-        return {
-          id: getDrawnMapStackId(baseStacks, slotIndex, card.id),
-          cardIds: [card.id],
-          x: position.x,
-          y: position.y,
-          z: current.topZ + index + 1,
-        }
-      }),
+      ...current.stacks,
+      drawnStack,
     ],
     decks: current.decks.map((deck) =>
       deck.id === MISSION_DECK_ID
-        ? { ...deck, cards: deck.cards.slice(drawnMapCards.length), z: drawnMapCards.length > 0 ? nextTopZ : deck.z }
+        ? { ...deck, cards: deck.cards.slice(1), z: drawnStack.z }
         : deck,
     ),
   }
@@ -1835,12 +1824,10 @@ function drawNextMapChoices(current: BoardState, metrics: BoardMetrics) {
   return {
     board: nextBoard,
     events: [
-      ...(discardedMapCardIds.length > 0
-        ? [cardsDiscardedEvent(discardedMapCardIds, current.cards, 'unchosen Map Destinations')]
-        : []),
+      cardDrawnEvent(drawnMapCard, missionDeck, stackId, position.x, position.y),
       isInitialMapOffer
-        ? mapInitializedEvent(current.currentSector, drawnMapCards)
-        : mapRefilledEvent(current.currentSector, drawnMapCards),
+        ? mapInitializedEvent(current.currentSector, [drawnMapCard])
+        : mapRefilledEvent(current.currentSector, [drawnMapCard]),
     ],
   }
 }
@@ -2587,15 +2574,6 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
     : null
   const damageDeck = current.decks.find((deck) => deck.id === DAMAGE_DECK_ID)
   const nextSectorMissionCards = nextGateCard ? createSectorMissionDeckCards() : []
-  // Auto-deal 3 missions to the map at sector start. The remainder stays in
-  // the off-screen mission deck (only used to feed the next sector's draws).
-  const nextMapMissionBlueprints = nextSectorMissionCards.slice(0, MAP_SLOT_COUNT)
-  const nextMapMissionCards = nextMapMissionBlueprints.map((blueprint, index) => ({
-    ...blueprint,
-    id: `map-${nextSector}-${index + 1}-${nextCardIdCursor++}`,
-    faceUp: true,
-  }))
-  const nextStopDeckCards = nextSectorMissionCards.slice(nextMapMissionBlueprints.length)
   const nextSectorDeckArt = getSectorDeckArt(nextSector)
   const nextZ = current.topZ + 1
   const cardsWithSpentMother = markMotherCardsSpent(current.cards, spentMotherCardIds)
@@ -2645,10 +2623,6 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
     }
 
     nextCards[nextGateCard.id] = nextGateCard
-
-    for (const mapCard of nextMapMissionCards) {
-      nextCards[mapCard.id] = mapCard
-    }
   }
 
   if (damageCard) {
@@ -2763,7 +2737,7 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
     ? placeDamageCard(nextStacksWithSectorEndFuel, nextCards, damageCard.id, nextZ)
     : nextStacksWithSectorEndFuel
   // Research dialog: draw up to 2 random offers from the un-owned shop pool.
-  // Skip silently on the final gate (run is ending) or when the pool is
+  // Skip silently on the final gate (run completes) or when the pool is
   // empty (player owns all 25). Pool is unaffected here — only `purchase`
   // removes from it.
   const research = !isFinalGate ? drawResearchOffers(current.shipPartShopPool, 2) : null
@@ -2772,19 +2746,15 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
     topZ: nextZ,
     nextCardId: nextCardIdCursor,
     currentSector: isFinalGate ? current.currentSector : nextSector,
-    isRunEnding: isFinalGate,
-    hasArrived: false,
+    isRunEnding: false,
+    hasArrived: isFinalGate,
+    sectorDrawnThisTurn: false,
     traveledThisTurn: true,
     gateStartedSector: nextGateCard ? null : current.gateStartedSector,
     heldDriftCount: 0,
     dropTargetStackId: null,
     dropTargetDeckId: null,
-    mapSlots: nextGateCard
-      ? Array.from(
-          { length: MAP_SLOT_COUNT },
-          (_, index) => nextMapMissionCards[index]?.id ?? null,
-        )
-      : createEmptyMapSlots(),
+    mapSlots: createEmptyMapSlots(),
     forcedDestinationCardId: null,
     routeSlots: isFinalGate ? current.routeSlots : createEmptyRouteSlots(),
     shipPartSlots: current.shipPartSlots,
@@ -2808,13 +2778,6 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
               y: SECTOR_GATE_STACK_POSITION.y,
               z: nextZ,
             },
-            ...nextMapMissionCards.map((card, index) => ({
-              id: `stack-map-${nextSector}-${index + 1}`,
-              cardIds: [card.id],
-              x: MAP_SLOT_POSITIONS[index]?.x ?? 50,
-              y: MAP_SLOT_POSITIONS[index]?.y ?? 8,
-              z: nextZ + index,
-            })),
           ]
         : []),
     ],
@@ -2822,23 +2785,29 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
       nextGateCard && deck.id === MISSION_DECK_ID
         ? {
             ...deck,
-            title: 'Missions',
+            title: getSectorDeckTitle(nextSector),
             icon: nextSectorDeckArt.icon,
             hue: nextSectorDeckArt.hue,
             accent: nextSectorDeckArt.accent,
+            x: MISSION_DECK_POSITION.x,
+            y: MISSION_DECK_POSITION.y,
             z: nextZ,
-            cards: nextStopDeckCards,
+            cards: nextSectorMissionCards,
           }
-        : nextGateCard && deck.id === GATE_DECK_ID
-          ? { ...deck, cards: deck.cards.slice(1), z: nextZ }
-          : damageCard && deck.id === DAMAGE_DECK_ID
+        : isFinalGate && deck.id === MISSION_DECK_ID
+          ? { ...deck, cards: [] }
+          : nextGateCard && deck.id === GATE_DECK_ID
             ? { ...deck, cards: deck.cards.slice(1), z: nextZ }
-            : deck,
+            : damageCard && deck.id === DAMAGE_DECK_ID
+              ? { ...deck, cards: deck.cards.slice(1), z: nextZ }
+              : deck,
     ),
     pendingEffects: nextGateCard ? [] : consumeNextGateFuelDiscount(current.pendingEffects),
-    pendingResearchChoice: research && research.length > 0
-      ? { offers: research }
-      : current.pendingResearchChoice,
+    pendingResearchChoice: isFinalGate
+      ? null
+      : research && research.length > 0
+        ? { offers: research }
+        : current.pendingResearchChoice,
   }
   const returnedMother = returnMotherCardsToDeck(
     nextBoard,
@@ -2967,7 +2936,7 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
       ),
       ...(nextGateCard
         ? [
-            sectorRevealedEvent(nextSector, nextGateCard, nextSectorMissionCards, nextMapMissionCards),
+            sectorRevealedEvent(nextSector, nextGateCard, nextSectorMissionCards),
           ]
         : []),
       ...returnedMother.events,
@@ -3561,13 +3530,14 @@ export function drawFromDeckUpdate(deckId: string, metrics: BoardMetrics): Board
       if (
         current.sectorDrawnThisTurn ||
         current.traveledThisTurn ||
+        deck.cards.length === 0 ||
         (visibleMissionCardIds.length > 0 && !onlyForcedDestinationVisible) ||
         isSectorMissionFinished(current)
       ) {
         return current
       }
 
-      const mapDraw = drawNextMapChoices({ ...current, sectorDrawnThisTurn: true }, metrics)
+      const mapDraw = drawNextMapChoice({ ...current, sectorDrawnThisTurn: true })
       const loss = resolveSectorStrandedLossIfNeeded(mapDraw.board)
 
       return withPlaytestEvents(loss.board, [...mapDraw.events, ...loss.events])
