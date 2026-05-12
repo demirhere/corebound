@@ -20,6 +20,7 @@ import {
   chooseShipPartUpdate,
   closeResearchDialogUpdate,
   discardActiveShipPartUpdate,
+  purchaseCrewQuartersUpdate,
   purchaseShipPartUpdate,
   chooseWakeCrewUpdate,
   clickHandCardToBoardUpdate,
@@ -1029,6 +1030,11 @@ export function useBoardInteractions({
     setBoard(purchaseShipPartUpdate(shipPartId))
   }
 
+  function purchaseCrewQuarters(crewQuartersId: string) {
+    if (!canMoveBoardFreely) return
+    setBoard(purchaseCrewQuartersUpdate(crewQuartersId))
+  }
+
   function closeResearchDialog() {
     if (!canMoveBoardFreely) return
     setBoard(closeResearchDialogUpdate)
@@ -1902,6 +1908,7 @@ export function useBoardInteractions({
     onScoutChoiceConfirm: confirmScoutChoice,
     onShipPartChoice: chooseShipPart,
     onPurchaseShipPart: purchaseShipPart,
+    onPurchaseCrewQuarters: purchaseCrewQuarters,
     onRedrawResearchOffers: redrawResearchOffers,
     onCloseResearchDialog: closeResearchDialog,
     onDiscardActiveShipPart: discardActiveShipPart,

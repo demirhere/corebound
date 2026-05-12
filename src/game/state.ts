@@ -169,12 +169,19 @@ function migrateBoardState(board: BoardState): BoardState {
         }
       : null,
     pendingShipPartChoice: legacyBoard.pendingShipPartChoice ?? null,
-    pendingResearchChoice: legacyBoard.pendingResearchChoice ?? null,
+    pendingResearchChoice: legacyBoard.pendingResearchChoice
+      ? {
+          offers: legacyBoard.pendingResearchChoice.offers ?? [],
+          crewQuartersOffers:
+            legacyBoard.pendingResearchChoice.crewQuartersOffers ?? [],
+        }
+      : null,
     pendingDrift: legacyBoard.pendingDrift ?? null,
     heldDriftCount: legacyBoard.heldDriftCount ?? 0,
     scraps: legacyBoard.scraps ?? 0,
     activeShipParts: legacyBoard.activeShipParts ?? [],
     shipPartShopPool: legacyBoard.shipPartShopPool ?? [...shipPartCatalog],
+    activeCrewQuarters: legacyBoard.activeCrewQuarters ?? [],
     isRunEnding: legacyBoard.isRunEnding ?? false,
     patternUsageCounts: legacyBoard.patternUsageCounts ?? {},
     missionsCompletedCount: legacyBoard.missionsCompletedCount ?? 0,

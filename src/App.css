@@ -4680,6 +4680,21 @@
       inset 0 0 28px rgba(93, 70, 38, 0.13);
   }
 
+  .card-face.card-back {
+    border-width: 0;
+    border-radius: 9px;
+    border-color: transparent;
+    background-color: #092C2B;
+    background-image: url('/assets/fuel-mission-back.jpeg');
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 95%;
+  }
+
+  .card-back .back-mark {
+    display: none;
+  }
+
   .card-front::before,
   .card-front::after,
   .card-inner::before,
@@ -5767,15 +5782,44 @@
   .deck-title {
     font-family: ui-monospace, 'SFMono-Regular', 'Roboto Mono', 'Cascadia Mono', monospace;
     letter-spacing: 0.12em;
-    text-shadow: 0 1px 0 rgba(255, 248, 232, 0.5);
+    text-shadow: none;
   }
 
   .deck-badge {
-    text-shadow: 0 1px 0 rgba(255, 248, 232, 0.5);
+    text-shadow: none;
   }
 
   .deck-mark-icon .deck-icon-line {
     stroke-width: 1.7;
+  }
+}
+
+.deck-card[data-deck-id='sector-deck'] {
+  --deck-letter: #CEDCC2;
+  --deck-edge: rgba(255, 255, 255, 0.38);
+  --deck-ink: #081f22;
+
+  border-radius: 9px;
+  background-color: #092C2B;
+  background-image: url('/assets/fuel-mission-back.jpeg');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 95%;
+
+  &::after {
+    content: none;
+  }
+
+  .deck-mark-icon {
+    display: none;
+  }
+
+  .deck-title-lockup {
+    position: absolute;
+    top: 39%;
+    left: 50%;
+    width: 80%;
+    transform: translate(-50%, -50%);
   }
 }
 
@@ -5877,9 +5921,7 @@
   font-size: clamp(10px, 1.08vw, 17px);
   font-weight: 950;
   line-height: 1;
-  text-shadow:
-    0 -2px 0 color-mix(in srgb, var(--deck-ink) 58%, transparent),
-    0 2px 0 color-mix(in srgb, var(--deck-edge) 62%, transparent);
+  text-shadow: none;
 }
 
 .deck-title-lockup {
@@ -5905,9 +5947,7 @@
   letter-spacing: 0.16em;
   line-height: 1.18;
   text-align: center;
-  text-shadow:
-    0 -2px 0 color-mix(in srgb, var(--deck-ink) 58%, transparent),
-    0 2px 0 color-mix(in srgb, var(--deck-edge) 62%, transparent);
+  text-shadow: none;
   text-wrap: balance;
   text-transform: uppercase;
   white-space: normal;
@@ -5929,6 +5969,19 @@
   letter-spacing: 0.04em;
   line-height: 1.02;
   text-transform: uppercase;
+}
+
+.deck-card[data-deck-id='sector-deck'] .deck-title {
+  color: #CEDCC2;
+  font-family: var(--card-title-font-family);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-align: center;
+  text-shadow: none;
+  text-transform: uppercase;
+  white-space: normal;
 }
 
 .deck-card .deck-mark-icon,

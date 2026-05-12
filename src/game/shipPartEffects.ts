@@ -1,4 +1,5 @@
 import type {
+  ActiveCrewQuarters,
   ActiveShipPart,
   Card,
   CrewSpecialization,
@@ -9,6 +10,30 @@ import type {
 
 export const BASE_HAND_SIZE_LIMIT = 5
 export const SHIP_PART_SLOT_CAP = 5
+
+// === Crew Quarters ================================================================
+
+// Sum fuel granted by all Crew Quarters whose pattern matches the one just
+// played. Each researched copy contributes its own `fuelPerPlay`, so the
+// same blueprint researched twice doubles its bonus on that pattern.
+export function getCrewQuartersFuelBonus(
+  quarters: readonly ActiveCrewQuarters[],
+  pattern: MissionPatternKind | null,
+): number {
+  if (!pattern) return 0
+  let bonus = 0
+  for (const entry of quarters) {
+    if (entry.pattern === pattern) bonus += entry.fuelPerPlay
+  }
+  return bonus
+}
+
+export function countCrewQuartersForPattern(
+  quarters: readonly ActiveCrewQuarters[],
+  pattern: MissionPatternKind,
+): number {
+  return quarters.reduce((count, entry) => (entry.pattern === pattern ? count + 1 : count), 0)
+}
 
 // === Mission context ==============================================================
 

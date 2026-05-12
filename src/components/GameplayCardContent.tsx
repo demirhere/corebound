@@ -662,6 +662,21 @@ function renderActiveShipPartContent(card: Card) {
   )
 }
 
+function renderCrewQuartersContent(card: Card) {
+  const quarters = card.crewQuarters
+  if (!quarters) return null
+
+  const blueprintIndex = hashString(`${card.id}:blueprint`) % (BLUEPRINT_ART_GRID_SIZE * BLUEPRINT_ART_GRID_SIZE)
+  const routeIndex = hashString(`${card.id}:route`) % (ROUTE_ART_GRID_SIZE * ROUTE_ART_GRID_SIZE)
+
+  return (
+    <div className="ship-part-effect-art crew-quarters-effect-art">
+      <SectorCardArt variant="blueprint" index={blueprintIndex} gridSize={BLUEPRINT_ART_GRID_SIZE} />
+      <SectorCardArt variant="route" index={routeIndex} gridSize={ROUTE_ART_GRID_SIZE} />
+    </div>
+  )
+}
+
 export function renderGameplayCardContent(
   card: Card,
   fuelDiscount: number,
@@ -731,6 +746,10 @@ export function renderGameplayCardContent(
 
   if (card.kind === 'active-ship-part' && card.shipPart) {
     return renderActiveShipPartContent(card)
+  }
+
+  if (card.kind === 'crew-quarters' && card.crewQuarters) {
+    return renderCrewQuartersContent(card)
   }
 
   if (card.kind === 'mission' && card.mission) {

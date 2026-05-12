@@ -2,6 +2,7 @@ import type {
   ActiveShipPart,
   CardBlueprint,
   CardIconKind,
+  CrewQuartersBlueprint,
   CrewSpecialization,
   DamageKind,
   DestinationFind,
@@ -231,6 +232,19 @@ export function createActiveShipPartBlueprint(shipPart: ActiveShipPart): CardBlu
     accent: '#7ab8ff',
     kind: 'active-ship-part',
     shipPart,
+  }
+}
+
+export function createCrewQuartersBlueprint(quarters: CrewQuartersBlueprint): CardBlueprint {
+  return {
+    title: quarters.label,
+    // Warm amber accent — different from the cool blue ship parts and the
+    // crew-card teals so Crew Quarters reads as a distinct dialog offer.
+    icon: 'person',
+    hue: 32,
+    accent: '#f5b061',
+    kind: 'crew-quarters',
+    crewQuarters: quarters,
   }
 }
 

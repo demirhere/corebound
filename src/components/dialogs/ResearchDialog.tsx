@@ -1,6 +1,14 @@
-import { createActiveShipPartBlueprint } from '../../game/blueprints/factories'
+import {
+  createActiveShipPartBlueprint,
+  createCrewQuartersBlueprint,
+} from '../../game/blueprints/factories'
 import { SHIP_PART_SLOT_CAP } from '../../game/shipPartEffects'
-import type { ActiveShipPart, Card, ShipPartBlueprint } from '../../game/types'
+import type {
+  ActiveShipPart,
+  Card,
+  CrewQuartersBlueprint,
+  ShipPartBlueprint,
+} from '../../game/types'
 import { CardShell } from '../BoardCard'
 import { GameIcon } from '../GameIcon'
 import type { BoardView } from './types'
@@ -10,6 +18,7 @@ export function ResearchDialog({
   isGameOver,
   canInteract,
   onPurchaseShipPart,
+  onPurchaseCrewQuarters,
   onRedrawResearchOffers,
   onCloseResearchDialog,
   onDiscardActiveShipPart,
@@ -18,6 +27,7 @@ export function ResearchDialog({
   isGameOver: boolean
   canInteract: boolean
   onPurchaseShipPart: (shipPartId: string) => void
+  onPurchaseCrewQuarters: (crewQuartersId: string) => void
   onRedrawResearchOffers: () => void
   onCloseResearchDialog: () => void
   onDiscardActiveShipPart: (instanceId: string) => void
@@ -29,7 +39,7 @@ export function ResearchDialog({
     board.pendingScoutChoice ||
     board.pendingShipPartChoice ||
     !research ||
-    research.offers.length === 0
+    (research.offers.length === 0 && research.crewQuartersOffers.length === 0)
   ) {
     return null
   }
@@ -40,10 +50,17 @@ export function ResearchDialog({
   const needsSlotsFreed = slotsRemaining === 0
   const offerIds = new Set(research.offers.map((offer) => offer.id))
   const ownedPartIds = new Set(board.activeShipParts.map((part) => part.id))
-  const redrawCost = Math.min(...research.offers.map((offer) => offer.cost))
-  const hasRedrawPool = board.shipPartShopPool.some(
+  const allOfferCosts = [
+    ...research.offers.map((offer) => offer.cost),
+    ...research.crewQuartersOffers.map((offer) => offer.cost),
+  ]
+  const redrawCost = allOfferCosts.length > 0 ? Math.min(...allOfferCosts) : 0
+  const hasShipPartRedrawPool = board.shipPartShopPool.some(
     (part) => !offerIds.has(part.id) && !ownedPartIds.has(part.id),
   )
+  // Crew Quarters never get exhausted (the catalog stays the same and
+  // duplicates are allowed) — re-draw is always meaningful if scraps allow.
+  const hasRedrawPool = hasShipPartRedrawPool || research.crewQuartersOffers.length > 0
   const canRedraw = canInteract && hasRedrawPool && board.scraps >= redrawCost
 
   return (
@@ -75,31 +92,61 @@ export function ResearchDialog({
             </p>
           </div>
         </div>
-        <div className="research-offer-cards">
-          {research.offers.map((offer) => {
-            const owned = board.activeShipParts.some((part) => part.id === offer.id)
-            const canAfford = board.scraps >= offer.cost
-            const hasSlot = slotsRemaining > 0
-            const disabled = !canInteract || owned || !canAfford || !hasSlot
-            const status = owned
-              ? 'Researched'
-              : !hasSlot
-                ? 'No slot available'
-                : !canAfford
-                  ? 'Not enough Scraps'
-                  : null
-            return (
-              <ResearchOfferCard
-                key={offer.id}
-                offer={offer}
-                disabled={disabled}
-                isResearched={owned}
-                onResearch={() => onPurchaseShipPart(offer.id)}
-                status={status}
-              />
-            )
-          })}
-        </div>
+        {research.offers.length > 0 ? (
+          <section className="research-offer-group" aria-label="Ship Part offers">
+            <p className="research-group-label">Ship Parts</p>
+            <div className="research-offer-cards">
+              {research.offers.map((offer) => {
+                const owned = board.activeShipParts.some((part) => part.id === offer.id)
+                const canAfford = board.scraps >= offer.cost
+                const hasSlot = slotsRemaining > 0
+                const disabled = !canInteract || owned || !canAfford || !hasSlot
+                const status = owned
+                  ? 'Researched'
+                  : !hasSlot
+                    ? 'No slot available'
+                    : !canAfford
+                      ? 'Not enough Scraps'
+                      : null
+                return (
+                  <ResearchOfferCard
+                    key={offer.id}
+                    offer={offer}
+                    disabled={disabled}
+                    isResearched={owned}
+                    onResearch={() => onPurchaseShipPart(offer.id)}
+                    status={status}
+                  />
+                )
+              })}
+            </div>
+          </section>
+        ) : null}
+        {research.crewQuartersOffers.length > 0 ? (
+          <section className="research-offer-group" aria-label="Crew Quarters offers">
+            <p className="research-group-label">Crew Quarters</p>
+            <div className="research-offer-cards">
+              {research.crewQuartersOffers.map((offer) => {
+                const ownedCount = board.activeCrewQuarters.filter(
+                  (entry) => entry.id === offer.id,
+                ).length
+                const canAfford = board.scraps >= offer.cost
+                const disabled = !canInteract || !canAfford
+                const status = !canAfford ? 'Not enough Scraps' : null
+                return (
+                  <CrewQuartersOfferCard
+                    key={offer.id}
+                    offer={offer}
+                    ownedCount={ownedCount}
+                    disabled={disabled}
+                    onResearch={() => onPurchaseCrewQuarters(offer.id)}
+                    status={status}
+                  />
+                )
+              })}
+            </div>
+          </section>
+        ) : null}
         {needsSlotsFreed && board.activeShipParts.length > 0 ? (
           <section className="research-active-section" aria-label="Active ship parts">
             <p className="research-active-label">
@@ -188,6 +235,60 @@ function ResearchOfferCard({
           }}
         />
         {isResearched ? <span className="research-offer-state">Researched</span> : null}
+      </div>
+    </article>
+  )
+}
+
+function CrewQuartersOfferCard({
+  offer,
+  ownedCount,
+  disabled,
+  onResearch,
+  status,
+}: {
+  offer: CrewQuartersBlueprint
+  ownedCount: number
+  disabled: boolean
+  onResearch: () => void
+  status: string | null
+}) {
+  const previewCard: Card = {
+    ...createCrewQuartersBlueprint(offer),
+    id: `preview-quarters-${offer.id}`,
+    faceUp: true,
+  }
+  const ariaSuffix = status
+    ? ` ${status}.`
+    : ` Researching it ${ownedCount > 0 ? 'again' : ''} stacks +${offer.fuelPerPlay} Fuel on every ${offer.label.replace(' Quarters', '')} mission.`
+  return (
+    <article
+      className="research-offer-card-wrap research-quarters-offer-wrap"
+      title={status ?? `Research for ${offer.cost} Scraps${ownedCount > 0 ? ` (owned ×${ownedCount})` : ''}`}
+    >
+      <ScrapCost amount={offer.cost} className="research-offer-price" />
+      <div className="research-card-frame">
+        <CardShell
+          card={previewCard}
+          className="research-offer-card research-quarters-offer-card"
+          canInteract={!disabled}
+          ariaLabel={`${offer.label}. Costs ${offer.cost} Scraps.${ariaSuffix}`}
+          onPointerDown={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            onResearch()
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              event.stopPropagation()
+              onResearch()
+            }
+          }}
+        />
+        {ownedCount > 0 ? (
+          <span className="research-offer-state research-quarters-state">×{ownedCount}</span>
+        ) : null}
       </div>
     </article>
   )

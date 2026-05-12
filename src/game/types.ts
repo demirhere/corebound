@@ -91,7 +91,7 @@ export type HazardDetails = {
   effectImplemented: boolean
 }
 
-export type CardKind = 'resource' | 'crew' | 'mission' | 'mother' | 'gate' | 'discovery' | 'drift' | 'hazard' | 'active-ship-part'
+export type CardKind = 'resource' | 'crew' | 'mission' | 'mother' | 'gate' | 'discovery' | 'drift' | 'hazard' | 'active-ship-part' | 'crew-quarters'
 
 export type GameLossReason = 'sector-stranded' | 'gate-failed' | 'fuel-depleted'
 
@@ -263,6 +263,26 @@ export type ActiveShipPart = ShipPartBlueprint & {
   acquiredSector: number
 }
 
+// === Crew Quarters (permanent crew composition upgrades) ========================
+// Crew Quarters are researched alongside Ship Parts in the post-gate dialog.
+// They target a specific crew composition (mission pattern) and add Fuel to
+// every play of that pattern run-wide. Unlike Ship Parts they are NOT placed
+// on the board and the same blueprint can be researched many times (stacking
+// bonuses), so players strategize which compositions to invest in.
+export type CrewQuartersBlueprint = {
+  id: string
+  label: string
+  description: string
+  cost: number
+  pattern: MissionPatternKind
+  fuelPerPlay: number
+}
+
+export type ActiveCrewQuarters = CrewQuartersBlueprint & {
+  instanceId: string
+  acquiredSector: number
+}
+
 export type GamePlayer = {
   id: string
   name: string
@@ -398,6 +418,10 @@ export type CardBlueprint = {
   // Joker Ship Part owned by the run, presented on the board as a card.
   // Refers to the catalog blueprint plus an instance id.
   shipPart?: ActiveShipPart
+  // Crew Quarters preview rendered in the research dialog. Crew Quarters
+  // are never placed on the board, so this only appears on preview cards
+  // generated for the dialog.
+  crewQuarters?: CrewQuartersBlueprint
   specimenIndex?: number
 }
 
@@ -484,11 +508,15 @@ export type BoardState = {
   routeSlots: (RouteSlot | null)[]
   shipPartSlots: ShipPartSlot[]
   // Joker-economy: active ship parts owned (max 5) and the pool of un-owned
-  // blueprints the research dialog can offer. Initialized from the 25-card
-  // catalog at setup; an entry is removed from the pool when bought, but
-  // never returned (stacking-discard refunds Scraps instead).
+  // blueprints the research dialog can offer. Initialized from the catalog
+  // at setup; an entry is removed from the pool when bought, but never
+  // returned (stacking-discard refunds Scraps instead).
   activeShipParts: ActiveShipPart[]
   shipPartShopPool: ShipPartBlueprint[]
+  // Crew Quarters owned by the run. Each entry is one researched copy —
+  // duplicates stack their fuel bonus on every matching pattern play. There
+  // is no slot cap and they are never placed on the board.
+  activeCrewQuarters: ActiveCrewQuarters[]
   archivedRouteCardIds: string[]
   handCardIds: string[]
   tiredCardIds: string[]
@@ -511,10 +539,12 @@ export type BoardState = {
     y: number
   } | null
   // Joker-economy research dialog: opens after each gate clear with up to 2
-  // un-owned Ship Part offers. Player may buy affordable offers, pay to
-  // re-draw, or continue to the next sector without Scrap consolation.
+  // un-owned Ship Part offers PLUS up to 2 Crew Quarters offers. The player
+  // may buy any affordable offer, pay to re-draw, or continue to the next
+  // sector without Scrap consolation.
   pendingResearchChoice: {
     offers: ShipPartBlueprint[]
+    crewQuartersOffers: CrewQuartersBlueprint[]
   } | null
   pendingDrift: {
     cardId: string

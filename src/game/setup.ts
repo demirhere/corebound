@@ -222,8 +222,8 @@ export function getSectorName(sector: number) {
   return `Sector ${sector}`
 }
 
-export function getSectorDeckTitle(sector: number) {
-  return `${getSectorName(sector)} Missions`
+export function getSectorDeckTitle() {
+  return 'FUEL MISSIONS'
 }
 
 export function getSectorDeckArt(sector: number) {
@@ -402,7 +402,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
       },
       {
         id: MISSION_DECK_ID,
-        title: getSectorDeckTitle(1),
+        title: getSectorDeckTitle(),
         icon: initialSectorDeckArt.icon,
         hue: initialSectorDeckArt.hue,
         accent: initialSectorDeckArt.accent,
@@ -493,6 +493,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
     shipPartSlots: [],
     activeShipParts: [],
     shipPartShopPool: [...shipPartCatalog],
+    activeCrewQuarters: [],
     archivedRouteCardIds: [],
     handCardIds: readyCrewCards.map((card) => card.id),
     tiredCardIds: [],

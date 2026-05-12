@@ -185,51 +185,28 @@ const JOKERS = [
     onMission: ({ usedCrew }) => ({ fuelDelta: usedCrew.some((c) => c.includes('S')) ? 1 : 0 }),
   },
 
-  // ---- Pattern boosters (6) --------------------------------------------------------
-  // DESIGN INTENT (Lean Manifest): replaces Cross-Brace Couplers (was dead —
-  // greedy never picks 1-fuel patterns). Rewards small-stack play (≤2 crew
-  // used) so Cross-Trained / Specialist / Common Ground / Department Heads
-  // all become viable picks.
+  // ---- Pattern boosters (2) --------------------------------------------------------
+  // DESIGN INTENT (Lean Manifest): rewards small-stack play (≤2 crew used)
+  // so Cross-Trained / Specialist / Common Ground / Department Heads all
+  // become viable picks.
   // EXPECTED: ≥30% of winning slots; lifts greedy avg fuel/sector by ~0.5–0.8.
   {
     id: 'lean-manifest', label: 'Lean Manifest', cost: 5, refund: 2,
     category: 'pattern',
     onMission: ({ usedCrew }) => ({ fuelDelta: usedCrew.length <= 2 ? 2 : 0 }),
   },
-  // DESIGN INTENT (Crew Synergy): replaces Crew Stim Packs (was dead). Pure
-  // Balatro-mult: each crew used adds +1 Fuel. Bridge Crew = +4, Common
-  // Cause = +4, Common Knowledge = +3, Department Heads = +2.
+  // DESIGN INTENT (Crew Synergy): pure Balatro-mult — each crew used adds
+  // +1 Fuel. Bridge Crew = +4, Common Cause = +4, Common Knowledge = +3,
+  // Department Heads = +2.
   // EXPECTED: ≥35% of winning slots; lifts fuel/sector by ~1.0–1.5.
   {
     id: 'crew-synergy', label: 'Crew Synergy', cost: 10, refund: 5,
     category: 'pattern',
-    // +1 fuel per crew used, capped at +4 (Bridge Crew/Common Cause hit
-    // the cap; Common Knowledge = +3; Department Heads = +2; Specialist =
-    // +1). The +1 cap bump is what makes the 4-crew patterns the most
-    // valuable late-game targets.
     onMission: ({ usedCrew }) => ({ fuelDelta: Math.min(4, usedCrew.length) }),
   },
-  {
-    id: 'specialist-gauntlets', label: 'Specialist Gauntlets', cost: 5, refund: 2,
-    category: 'pattern',
-    patternFuelDelta: (pattern) =>
-      pattern === 'specialist' || pattern === 'department-heads' ? 1 : 0,
-  },
-  {
-    id: 'cluster-dynamo', label: 'Cluster Dynamo', cost: 5, refund: 2,
-    category: 'pattern',
-    patternFuelDelta: (pattern) => (pattern === 'common-knowledge' ? 1 : 0),
-  },
-  {
-    id: 'common-cause-banner', label: 'Common Cause Banner', cost: 6, refund: 3,
-    category: 'pattern',
-    patternFuelDelta: (pattern) => (pattern === 'common-cause' ? 1 : 0),
-  },
-  {
-    id: 'bridge-uplink', label: 'Bridge Uplink', cost: 7, refund: 3,
-    category: 'pattern',
-    patternFuelDelta: (pattern) => (pattern === 'bridge-crew' ? 3 : 0),
-  },
+  // NOTE: Specialist Gauntlets, Cluster Dynamo, Common Cause Banner, and
+  // Bridge Uplink moved to the CREW_QUARTERS catalog so players can stack
+  // pattern bonuses via repeated research.
 
   // ---- First-mission triggers (2) --------------------------------------------------
   // DESIGN INTENT (Mission Streak): replaces Ration Optimizer (+1 first
@@ -253,24 +230,10 @@ const JOKERS = [
     onMission: ({ missionIndexInSector }) => ({ fuelDelta: missionIndexInSector === 0 ? 2 : 0 }),
   },
 
-  // ---- Last-mission triggers (2) ---------------------------------------------------
-  // DESIGN INTENT (Pattern Ladder): replaces Ablative Plating (+1 last
-  // mission was dominated by Final Burn). Boosts the patterns greedy actually
-  // picks (Common Knowledge, Department Heads, Common Cause, Bridge Crew) by
-  // +1. Doesn't compound with Lean Manifest / Crew Synergy on low-tier.
-  // EXPECTED: ≥40% of winning slots; lifts fuel/sector by ~1.0.
-  {
-    id: 'pattern-ladder', label: 'Pattern Ladder', cost: 7, refund: 3,
-    category: 'last-mission',
-    patternFuelDelta: (pattern) => (
-      pattern === 'common-knowledge' ||
-        pattern === 'department-heads' ||
-        pattern === 'common-cause' ||
-        pattern === 'bridge-crew'
-        ? 2
-        : 0
-    ),
-  },
+  // ---- Last-mission triggers (1) ---------------------------------------------------
+  // NOTE: Pattern Ladder moved to CREW_QUARTERS — it became four separate
+  // Crew Quarters (Common Knowledge / Department Heads / Common Cause /
+  // Bridge Crew) that players can stack independently.
   {
     id: 'final-burn', label: 'Final Burn', cost: 6, refund: 3,
     category: 'last-mission',
@@ -386,8 +349,8 @@ const JOKERS = [
   },
 ]
 
-if (JOKERS.length !== 25) {
-  console.error(`Expected 25 jokers, got ${JOKERS.length}`)
+if (JOKERS.length !== 20) {
+  console.error(`Expected 20 jokers, got ${JOKERS.length}`)
   process.exit(1)
 }
 // Verify refund = floor(cost/2)
@@ -396,6 +359,38 @@ for (const j of JOKERS) {
     console.error(`Refund mismatch on ${j.id}: cost=${j.cost} refund=${j.refund} expected=${Math.floor(j.cost / 2)}`)
     process.exit(1)
   }
+}
+
+// === Crew Quarters catalog (7 patterns; researchable repeatedly) =================
+// Crew Quarters target a specific crew composition (mission pattern) and
+// grant +fuelPerPlay every time that pattern is played, run-wide. Unlike
+// ship parts they DO NOT enter the slot pool — they're tracked as a flat
+// list of researched copies. Repeated research stacks the bonus on that
+// pattern (e.g. researching Common-Knowledge Quarters twice = +2 fuel
+// every Common-Knowledge mission).
+//
+// Mirrored in `src/game/crewQuartersCatalog.ts`. Update both in lockstep.
+const CREW_QUARTERS = [
+  { id: 'cross-training-quarters',  label: 'Cross-Training Quarters',  cost: 12, pattern: 'cross-trained',     fuelPerPlay: 1 },
+  { id: 'common-ground-quarters',   label: 'Common Ground Quarters',   cost: 12, pattern: 'common-ground',     fuelPerPlay: 1 },
+  { id: 'specialist-quarters',      label: 'Specialist Quarters',      cost: 12, pattern: 'specialist',        fuelPerPlay: 1 },
+  { id: 'common-knowledge-quarters', label: 'Common Knowledge Quarters', cost: 12, pattern: 'common-knowledge', fuelPerPlay: 1 },
+  { id: 'department-heads-quarters', label: 'Department Heads Quarters', cost: 14, pattern: 'department-heads', fuelPerPlay: 1 },
+  { id: 'common-cause-quarters',    label: 'Common Cause Quarters',    cost: 14, pattern: 'common-cause',      fuelPerPlay: 1 },
+  { id: 'bridge-crew-quarters',     label: 'Bridge Crew Quarters',     cost: 16, pattern: 'bridge-crew',       fuelPerPlay: 2 },
+]
+if (CREW_QUARTERS.length !== 7) {
+  console.error(`Expected 7 crew quarters, got ${CREW_QUARTERS.length}`)
+  process.exit(1)
+}
+
+function crewQuartersFuelBonus(quarters, pattern) {
+  if (!pattern) return 0
+  let bonus = 0
+  for (const entry of quarters) {
+    if (entry.pattern === pattern) bonus += entry.fuelPerPlay
+  }
+  return bonus
 }
 
 // === Helpers ========================================================================
@@ -574,7 +569,7 @@ function findPatternMatch(ready, pattern, slot) {
 // We need to factor in `onMission` flat fuel deltas that depend on context
 // (icon match, first-mission, last-mission, etc.) so the greedy choice is
 // informed by them.
-function pickGreedyAction(ready, slot, missionIndexInSector, isLastMission, scraps, runStats) {
+function pickGreedyAction(ready, slot, quarters, missionIndexInSector, isLastMission, scraps, runStats) {
   let best = null
   for (const pattern of PATTERN_ORDER) {
     const match = findPatternMatch(ready, pattern, slot)
@@ -583,6 +578,7 @@ function pickGreedyAction(ready, slot, missionIndexInSector, isLastMission, scra
     for (const j of slot) {
       if (j.patternFuelDelta) baseFuel += j.patternFuelDelta(pattern)
     }
+    baseFuel += crewQuartersFuelBonus(quarters, pattern)
     // Apply onMission deltas for this candidate (so greedy knows which
     // pattern actually scores highest with all jokers folded in). We
     // re-run the same loop in `computeFinalMissionFuel` for the commit;
@@ -691,16 +687,38 @@ function maybeBuyJokers({ scraps, slot, offers, availablePool }) {
   return { scraps, purchased }
 }
 
+// Crew Quarters buy heuristic: greedy buys any affordable offer cheapest-first.
+// Unlike ship parts there's no slot cap and no displacement (duplicates stack
+// fuel bonuses). A smarter player would prioritize the patterns they
+// actually play; the greedy buyer here just spends scraps whenever the
+// offer is affordable — matching the joker buyer's "if it fits, buy it"
+// behavior so the simulator stays comparable to the original baseline.
+function maybeBuyCrewQuarters({ scraps, quarters, offers }) {
+  const sorted = offers.slice().sort((a, b) => a.cost - b.cost)
+  const purchased = []
+  for (const offer of sorted) {
+    if (scraps >= offer.cost) {
+      scraps -= offer.cost
+      quarters.push(offer)
+      purchased.push(offer)
+    }
+  }
+  return { scraps, purchased }
+}
+
 function pickRunGates() {
   // GATE_COSTS is already in ascending order — sort defensively for safety.
   return GATE_COSTS.slice().sort((a, b) => a - b).map((cost) => ({ cost }))
 }
 
 function simulateRun() {
-  // Each run starts with the full 25-joker pool available.
+  // Each run starts with the full 20-joker pool available. Crew Quarters
+  // are drawn from the static catalog (CREW_QUARTERS) on every research
+  // and are never removed — duplicates stack.
   const availablePool = JOKERS.slice()
 
   const slot = []  // active joker slot (max 5)
+  const crewQuarters = []  // researched Crew Quarters (stackable, no cap)
 
   // Hand size could grow if Adrenal Implants is bought, but we initialize
   // at base 5 here and re-check after every purchase.
@@ -729,7 +747,9 @@ function simulateRun() {
   let totalFuelEarned = 0
   let totalScrapsEarned = 0
   let totalJokersBought = 0
+  let totalCrewQuartersBought = 0
   const jokerCategoryCounts = {}
+  const crewQuartersCounts = {}
   // Run-wide stats for stateful jokers (Compounding Drive, Mission Streak).
   // `lastPattern` and `streakCount` track consecutive same-pattern plays;
   // `missionsCompleted` is the number of missions resolved before the next
@@ -743,11 +763,11 @@ function simulateRun() {
   for (let s = 0; s < GATES_PER_RUN; s++) {
     for (let action = 0; action < ACTIONS_PER_SECTOR; action++) {
       const isLastMission = action === ACTIONS_PER_SECTOR - 1
-      const choice = pickGreedyAction(hand, slot, action, isLastMission, scraps, runStats)
+      const choice = pickGreedyAction(hand, slot, crewQuarters, action, isLastMission, scraps, runStats)
       if (!choice) break
 
       // Compute mission fuel + scrap deltas (canonical pass).
-      const m = computeFinalMissionFuel(choice, slot, action, isLastMission, scraps, runStats)
+      const m = computeFinalMissionFuel(choice, slot, crewQuarters, action, isLastMission, scraps, runStats)
       const missionFuel = Math.max(0, m.fuel)
       fuel += missionFuel
       totalFuelEarned += missionFuel
@@ -809,46 +829,58 @@ function simulateRun() {
         totalFuelEarned,
         totalScrapsEarned,
         totalJokersBought,
+        totalCrewQuartersBought,
         jokerCategoryCounts,
+        crewQuartersCounts,
         slot: slot.slice(),
+        crewQuarters: crewQuarters.slice(),
       }
     }
     fuel -= cost
 
-    // Research dialog: draw 2 from the run's *remaining* joker pool.
+    // Research dialog: draw up to 2 ship parts from the un-owned pool
+    // PLUS up to 2 random Crew Quarters from the static catalog (the
+    // Crew Quarters catalog never depletes — duplicates stack).
     if (!NO_JOKERS) {
-      // Draw up to 2 cards (the pool may have <2 if many bought).
       const drawCount = Math.min(2, availablePool.length)
-      if (drawCount === 0) {
-        // Pool exhausted; continue with no Scrap consolation.
+      const shipPartOffers = []
+      const poolCopy = availablePool.slice()
+      for (let k = 0; k < drawCount; k++) {
+        const idx = Math.floor(Math.random() * poolCopy.length)
+        shipPartOffers.push(poolCopy[idx])
+        poolCopy.splice(idx, 1)
+      }
+      const quartersOffers = []
+      const quartersCopy = CREW_QUARTERS.slice()
+      const quartersDrawCount = Math.min(2, quartersCopy.length)
+      for (let k = 0; k < quartersDrawCount; k++) {
+        const idx = Math.floor(Math.random() * quartersCopy.length)
+        quartersOffers.push(quartersCopy[idx])
+        quartersCopy.splice(idx, 1)
+      }
+      // Buy ship parts first (cheapest-first heuristic, as before).
+      const result = maybeBuyJokers({ scraps, slot, offers: shipPartOffers, availablePool })
+      scraps = result.scraps
+      totalJokersBought += result.purchased.length
+      for (const p of result.purchased) {
+        jokerCategoryCounts[p.category] = (jokerCategoryCounts[p.category] || 0) + 1
+      }
+      // Buy crew quarters cheapest-first while affordable.
+      const quartersBuy = maybeBuyCrewQuarters({ scraps, quarters: crewQuarters, offers: quartersOffers })
+      scraps = quartersBuy.scraps
+      totalCrewQuartersBought += quartersBuy.purchased.length
+      for (const p of quartersBuy.purchased) {
+        crewQuartersCounts[p.pattern] = (crewQuartersCounts[p.pattern] || 0) + 1
+      }
+      if (result.purchased.length === 0 && quartersBuy.purchased.length === 0) {
         scraps += SKIP_RESEARCH_CONSOLATION
         totalScrapsEarned += SKIP_RESEARCH_CONSOLATION
-      } else {
-        // Random draw without replacement (in-place — items popped go to offers).
-        const offers = []
-        const poolCopy = availablePool.slice()
-        for (let k = 0; k < drawCount; k++) {
-          const idx = Math.floor(Math.random() * poolCopy.length)
-          offers.push(poolCopy[idx])
-          poolCopy.splice(idx, 1)
-        }
-        const result = maybeBuyJokers({ scraps, slot, offers, availablePool })
-        scraps = result.scraps
-        totalJokersBought += result.purchased.length
-        for (const p of result.purchased) {
-          jokerCategoryCounts[p.category] = (jokerCategoryCounts[p.category] || 0) + 1
-        }
-        if (result.purchased.length === 0) {
-          // Next Sector now continues with no default Scrap consolation.
-          scraps += SKIP_RESEARCH_CONSOLATION
-          totalScrapsEarned += SKIP_RESEARCH_CONSOLATION
-        }
-        // Update hand-size cap if Adrenal Implants was just bought.
-        const newHandSize = getHandSizeLimit(slot)
-        if (newHandSize > handSize) {
-          handSize = newHandSize
-          drawToLimit()
-        }
+      }
+      // Update hand-size cap if Adrenal Implants was just bought.
+      const newHandSize = getHandSizeLimit(slot)
+      if (newHandSize > handSize) {
+        handSize = newHandSize
+        drawToLimit()
       }
     } else {
       scraps += SKIP_RESEARCH_CONSOLATION
@@ -864,8 +896,11 @@ function simulateRun() {
     totalFuelEarned,
     totalScrapsEarned,
     totalJokersBought,
+    totalCrewQuartersBought,
     jokerCategoryCounts,
+    crewQuartersCounts,
     slot: slot.slice(),
+    crewQuarters: crewQuarters.slice(),
   }
 }
 
@@ -875,10 +910,11 @@ function sumPatternBonuses(pattern, slot) {
   for (const j of slot) if (j.patternFuelDelta) s += j.patternFuelDelta(pattern)
   return s
 }
-function computeFinalMissionFuel(choice, slot, missionIndexInSector, isLastMission, scraps, runStats) {
+function computeFinalMissionFuel(choice, slot, quarters, missionIndexInSector, isLastMission, scraps, runStats) {
   // Recompute fuel from scratch (independent of greedy's estimate) so the
   // commit-side numbers don't depend on whatever `choice.fuel` was.
   let fuelTotal = PATTERN_FUEL[choice.pattern] + sumPatternBonuses(choice.pattern, slot)
+  fuelTotal += crewQuartersFuelBonus(quarters, choice.pattern)
   let scrapDelta = 0
   let scrapsLeft = scraps
   const ctx = {
@@ -953,6 +989,9 @@ let maxWon = -Infinity
 const winnerCategoryTotals = {}
 const winnerJokerIdTotals = {}
 const allRunCategoryTotals = {}
+let cumCrewQuartersBought = 0
+let cumCrewQuartersBoughtWon = 0
+const winnerCrewQuartersTotals = {}
 
 const t0 = Date.now()
 for (let i = 0; i < runs; i++) {
@@ -960,6 +999,7 @@ for (let i = 0; i < runs; i++) {
   passedCount[result.sectorsPassed] += 1
   cumScraps += result.totalScrapsEarned
   cumJokersBought += result.totalJokersBought
+  cumCrewQuartersBought += result.totalCrewQuartersBought
   for (const [cat, n] of Object.entries(result.jokerCategoryCounts)) {
     allRunCategoryTotals[cat] = (allRunCategoryTotals[cat] || 0) + n
   }
@@ -977,6 +1017,7 @@ for (let i = 0; i < runs; i++) {
     cumFinalFuelWon += result.finalFuel
     cumScrapsWon += result.totalScrapsEarned
     cumJokersBoughtWon += result.totalJokersBought
+    cumCrewQuartersBoughtWon += result.totalCrewQuartersBought
     if (result.finalFuel < minWon) minWon = result.finalFuel
     if (result.finalFuel > maxWon) maxWon = result.finalFuel
     for (const [cat, n] of Object.entries(result.jokerCategoryCounts)) {
@@ -984,6 +1025,9 @@ for (let i = 0; i < runs; i++) {
     }
     for (const j of result.slot) {
       winnerJokerIdTotals[j.id] = (winnerJokerIdTotals[j.id] || 0) + 1
+    }
+    for (const q of result.crewQuarters) {
+      winnerCrewQuartersTotals[q.id] = (winnerCrewQuartersTotals[q.id] || 0) + 1
     }
   }
 }
@@ -1031,9 +1075,11 @@ if (!quiet) {
   console.log('Economy:')
   console.log(`  Avg scraps earned/run     : ${(cumScraps / runs).toFixed(2)}`)
   console.log(`  Avg jokers bought/run     : ${(cumJokersBought / runs).toFixed(3)}`)
+  console.log(`  Avg quarters researched/run: ${(cumCrewQuartersBought / runs).toFixed(3)}`)
   if (won > 0) {
     console.log(`  Avg scraps earned/win     : ${(cumScrapsWon / won).toFixed(2)}`)
     console.log(`  Avg jokers bought/win     : ${(cumJokersBoughtWon / won).toFixed(3)}`)
+    console.log(`  Avg quarters researched/win: ${(cumCrewQuartersBoughtWon / won).toFixed(3)}`)
     console.log(`  Winners' final-fuel range : ${minWon} – ${maxWon}  (avg ${(cumFinalFuelWon / won).toFixed(2)})`)
   }
   console.log()
@@ -1055,6 +1101,19 @@ if (!quiet) {
     }
   } else {
     console.log('  (no winners)')
+  }
+  console.log()
+  console.log()
+  console.log('Crew Quarters researched by winners (total stacks held at end of winning runs):')
+  if (won > 0) {
+    const top = Object.entries(winnerCrewQuartersTotals).sort((a, b) => b[1] - a[1])
+    if (top.length === 0) {
+      console.log('  (none — try increasing scrap availability or lowering quarters costs)')
+    }
+    for (const [id, n] of top) {
+      const perWin = n / won
+      console.log(`  ${id.padEnd(28)} : ${String(n).padStart(8)}  (${perWin.toFixed(3)} per win)`)
+    }
   }
   console.log()
   console.log('Top jokers held by winners (count of winning runs that ended with this joker in slot):')

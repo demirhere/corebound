@@ -147,7 +147,9 @@ export function CardShell({
   const resourceClass = card.kind === 'resource' && card.resource ? `card-resource-${card.resource}` : ''
   const missionDetails = card.kind === 'mission' ? card.mission : undefined
   const isActiveShipPartCard = card.kind === 'active-ship-part'
+  const isCrewQuartersCard = card.kind === 'crew-quarters'
   const activeShipPart = isActiveShipPartCard ? card.shipPart : null
+  const crewQuarters = isCrewQuartersCard ? card.crewQuarters : null
   const isShipPartMission = missionDetails?.find.kind === 'ship_part'
   const missionFindClass = missionDetails
     ? isShipPartMission
@@ -157,25 +159,33 @@ export function CardShell({
         : 'card-find-visit-reward'
     : isActiveShipPartCard
       ? 'card-find-ship-part'
-      : ''
+      : isCrewQuartersCard
+        ? 'card-find-crew-quarters'
+        : ''
   const missionBadge = isShipPartMission
     ? 'Ship Part'
     : isActiveShipPartCard
       ? 'Ship Part'
-      : 'Mission'
+      : isCrewQuartersCard
+        ? 'Crew Quarters'
+        : 'Mission'
   const missionHeaderTitle = missionDetails?.find.itemName ?? ''
   const headerTitle = missionDetails
     ? missionHeaderTitle
     : isActiveShipPartCard
       ? activeShipPart?.label ?? card.title
-      : getDamageDisplayTitle(card)
+      : isCrewQuartersCard
+        ? crewQuarters?.label ?? card.title
+        : getDamageDisplayTitle(card)
   const sectorHeaderDetail = missionDetails
     ? isFuelMission ? null : renderSectorCardHeaderDetail(card)
     : isActiveShipPartCard
       ? activeShipPart ? renderShipPartDescription(activeShipPart.description) : null
-      : null
-  const showSectorHeader = Boolean(missionDetails) || isActiveShipPartCard
-  const showSectorBadge = showSectorHeader && !isFuelMission && !isShipPartMission && !isActiveShipPartCard
+      : isCrewQuartersCard
+        ? crewQuarters ? renderShipPartDescription(crewQuarters.description) : null
+        : null
+  const showSectorHeader = Boolean(missionDetails) || isActiveShipPartCard || isCrewQuartersCard
+  const showSectorBadge = showSectorHeader && !isFuelMission && !isShipPartMission && !isActiveShipPartCard && !isCrewQuartersCard
   const gateBackTitle = isGateCard ? `${card.title} Final Gate` : null
   const defaultBackContent = isGateCard ? (
     <span className="deck-title-lockup sector-gate-back-lockup">

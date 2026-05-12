@@ -1,10 +1,13 @@
 import type { ShipPartBlueprint } from './types'
 
-// 25 unique Ship Parts (jokers). No duplicates allowed in a run — each
+// 20 unique Ship Parts (jokers). No duplicates allowed in a run — each
 // blueprint is removed from the research pool when bought. Refund is
-// `floor(cost/2)`. Categories balance: icon (4), pattern (6),
-// first-mission (2), last-mission (2), scrap (2), interest (2),
-// converter (3), hand (1), wild (1), special (2).
+// `floor(cost/2)`. The 5 pattern-specific upgrades (Specialist Gauntlets,
+// Cluster Dynamo, Common Cause Banner, Bridge Uplink, Pattern Ladder)
+// were extracted into the Crew Quarters catalog so players can research
+// the same pattern repeatedly and stack fuel bonuses. Categories now:
+// icon (4), pattern (2), first-mission (2), last-mission (1),
+// scrap (4), converter (3), hand (1), wild (1), special (2). Total = 20.
 //
 // Mirrored in `scripts/simulate.mjs` (the JOKERS array). Update both in
 // lockstep when tuning.
@@ -82,42 +85,9 @@ export const shipPartCatalog: readonly ShipPartBlueprint[] = [
     category: 'pattern',
     effects: [{ kind: 'per-crew-used', fuelPerCrew: 1, maxFuel: 4 }],
   },
-  {
-    id: 'specialist-gauntlets',
-    label: 'Specialist Gauntlets',
-    description: 'Specialist & Department Heads: +1 Fuel.',
-    cost: 5,
-    refund: 2,
-    category: 'pattern',
-    effects: [{ kind: 'pattern', patterns: ['specialist', 'department-heads'], fuel: 1 }],
-  },
-  {
-    id: 'cluster-dynamo',
-    label: 'Cluster Dynamo',
-    description: 'Common Knowledge: +1 Fuel.',
-    cost: 5,
-    refund: 2,
-    category: 'pattern',
-    effects: [{ kind: 'pattern', patterns: ['common-knowledge'], fuel: 1 }],
-  },
-  {
-    id: 'common-cause-banner',
-    label: 'Common Cause Banner',
-    description: 'Common Cause: +1 Fuel.',
-    cost: 6,
-    refund: 3,
-    category: 'pattern',
-    effects: [{ kind: 'pattern', patterns: ['common-cause'], fuel: 1 }],
-  },
-  {
-    id: 'bridge-uplink',
-    label: 'Bridge Uplink',
-    description: 'Bridge Crew: +3 Fuel.',
-    cost: 7,
-    refund: 3,
-    category: 'pattern',
-    effects: [{ kind: 'pattern', patterns: ['bridge-crew'], fuel: 3 }],
-  },
+  // Note: Specialist Gauntlets, Cluster Dynamo, Common Cause Banner, and
+  // Bridge Uplink moved to the Crew Quarters catalog so players can
+  // research the same pattern repeatedly and stack fuel bonuses.
 
   // ---- First-mission triggers (2) --------------------------------------------------
   // DESIGN INTENT: Mission Streak replaces Ration Optimizer (First mission +1
@@ -148,27 +118,9 @@ export const shipPartCatalog: readonly ShipPartBlueprint[] = [
     effects: [{ kind: 'first-mission', fuel: 2 }],
   },
 
-  // ---- Last-mission triggers (2) ---------------------------------------------------
-  // DESIGN INTENT: Pattern Ladder replaces Ablative Plating (Last mission +1
-  // was dominated by Final Burn). Boosts the patterns greedy actually picks
-  // (Common Knowledge, Department Heads, Common Cause, Bridge Crew) by +2
-  // each (was +1). The +2 makes it a key mid-game pickup that pulls a
-  // greedy player through the S3=14 wall when bought after S1 or S2.
-  // EXPECTED: appears in ≥50% of winning slots; lifts avg fuel/sector by
-  // ~2.0 when held.
-  {
-    id: 'pattern-ladder',
-    label: 'Pattern Ladder',
-    description: 'Common Knowledge / Department Heads / Common Cause / Bridge Crew: +2 Fuel.',
-    cost: 7,
-    refund: 3,
-    category: 'last-mission',
-    effects: [{
-      kind: 'pattern-tier',
-      patterns: ['common-knowledge', 'department-heads', 'common-cause', 'bridge-crew'],
-      fuel: 2,
-    }],
-  },
+  // ---- Last-mission triggers (1) ---------------------------------------------------
+  // Pattern Ladder was extracted into the Crew Quarters catalog (now four
+  // separate Crew Quarters players can stack on the patterns they want).
   {
     id: 'final-burn',
     label: 'Final Burn',

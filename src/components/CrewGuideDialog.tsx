@@ -4,23 +4,31 @@ import {
   getMissionPatternFuel,
   getMissionPatternLabel,
 } from '../game/rules'
-import type { ActiveShipPart, CrewSpecialization, MissionPatternKind } from '../game/types'
+import type {
+  ActiveCrewQuarters,
+  ActiveShipPart,
+  CrewSpecialization,
+  MissionPatternKind,
+} from '../game/types'
 
 type CrewGuideDialogProps = {
   isOpen: boolean
   onClose: () => void
   patternUsageCounts: Partial<Record<MissionPatternKind, number>>
   activeShipParts: readonly ActiveShipPart[]
+  activeCrewQuarters: readonly ActiveCrewQuarters[]
 }
 
-// Sum the fuel a player's owned ship parts will *guaranteed* add to a given
-// pattern when it is played. Includes effects whose contribution is fully
-// determined by pattern + crew count (so the guide can show a real number),
-// and excludes timing/icon/run-state effects that can't be resolved here.
+// Sum the fuel a player's owned ship parts AND researched Crew Quarters
+// will *guaranteed* add to a given pattern when it is played. Includes
+// effects whose contribution is fully determined by pattern + crew count
+// (so the guide can show a real number), and excludes timing/icon/run-state
+// effects that can't be resolved here.
 function getPatternFuelBonus(
   pattern: MissionPatternKind,
   crewCount: number,
   parts: readonly ActiveShipPart[],
+  quarters: readonly ActiveCrewQuarters[],
 ): { bonus: number, sources: readonly string[] } {
   let bonus = 0
   const sources: string[] = []
@@ -41,6 +49,20 @@ function getPatternFuelBonus(
       bonus += partBonus
       sources.push(`+${partBonus} ${part.label}`)
     }
+  }
+  const quartersForPattern = quarters.filter((entry) => entry.pattern === pattern)
+  if (quartersForPattern.length > 0) {
+    const quartersBonus = quartersForPattern.reduce(
+      (sum, entry) => sum + entry.fuelPerPlay,
+      0,
+    )
+    bonus += quartersBonus
+    const firstLabel = quartersForPattern[0]?.label ?? 'Crew Quarters'
+    sources.push(
+      quartersForPattern.length > 1
+        ? `+${quartersBonus} ${firstLabel} ×${quartersForPattern.length}`
+        : `+${quartersBonus} ${firstLabel}`,
+    )
   }
   return { bonus, sources }
 }
@@ -92,7 +114,7 @@ function CrewIconRow({ crew, sharedIcon }: { crew: readonly CrewIconPair[], shar
   )
 }
 
-export function CrewGuideDialog({ isOpen, onClose, patternUsageCounts, activeShipParts }: CrewGuideDialogProps) {
+export function CrewGuideDialog({ isOpen, onClose, patternUsageCounts, activeShipParts, activeCrewQuarters }: CrewGuideDialogProps) {
   useEffect(() => {
     if (!isOpen) {
       return
@@ -137,7 +159,7 @@ export function CrewGuideDialog({ isOpen, onClose, patternUsageCounts, activeShi
         <ol className="crew-guide-table" aria-label="Crew patterns by reward">
           {GUIDE_ENTRIES.map((entry) => {
             const baseFuel = getMissionPatternFuel(entry.pattern)
-            const { bonus, sources } = getPatternFuelBonus(entry.pattern, entry.crew.length, activeShipParts)
+            const { bonus, sources } = getPatternFuelBonus(entry.pattern, entry.crew.length, activeShipParts, activeCrewQuarters)
             const totalFuel = baseFuel + bonus
             const used = patternUsageCounts[entry.pattern] ?? 0
             const isBoosted = bonus > 0

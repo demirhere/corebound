@@ -83,6 +83,7 @@ import {
   sectorRevealedEvent,
   shipPartBoughtEvent,
   shipPartDiscardedEvent,
+  crewQuartersBoughtEvent,
   sectorResetCrewReadiedEvent,
   medbayRehydratorReadiedEvent,
   shipPartAvailableEvent,
@@ -129,6 +130,7 @@ import {
   SHIP_PART_SLOT_CAP,
   applyShipPartMissionEffects,
   applyShipPartSectorEndEffects,
+  getCrewQuartersFuelBonus,
   getShipPartHandSizeLimit,
   hasShipPartWildSlot,
 } from '../game/shipPartEffects'
@@ -175,11 +177,13 @@ import {
   isGateClearConditionMet,
 } from '../game/blueprints/sectorGates'
 import type {
+  ActiveCrewQuarters,
   ActiveShipPart,
   BoardMetrics,
   BoardState,
   Card,
   CardBlueprint,
+  CrewQuartersBlueprint,
   Deck,
   DropTarget,
   GameLossReason,
@@ -188,6 +192,7 @@ import type {
   ShipPartKind,
   Stack,
 } from '../game/types'
+import { crewQuartersCatalog } from '../game/crewQuartersCatalog'
 import {
   canPutCardIdsInHand,
   canUseManualHandZone,
@@ -226,6 +231,26 @@ function drawResearchOffers(
   for (let i = 0; i < count && remaining.length > 0; i += 1) {
     const idx = Math.floor(Math.random() * remaining.length)
     const [picked] = remaining.splice(idx, 1)
+    if (picked) offers.push(picked)
+  }
+  return offers
+}
+
+// Crew Quarters offers: same shape as ship part offers but the pool is the
+// full catalog (Crew Quarters can be researched repeatedly, so nothing is
+// removed when bought). `excludedIds` keeps duplicates out of the same
+// offer set and (when re-rolling) avoids re-offering the same options.
+function drawCrewQuartersOffers(
+  count: number,
+  excludedIds: ReadonlySet<string> = new Set(),
+): CrewQuartersBlueprint[] {
+  if (count <= 0) return []
+  const remaining = crewQuartersCatalog.filter((blueprint) => !excludedIds.has(blueprint.id))
+  const offers: CrewQuartersBlueprint[] = []
+  const pool = remaining.slice()
+  for (let i = 0; i < count && pool.length > 0; i += 1) {
+    const idx = Math.floor(Math.random() * pool.length)
+    const [picked] = pool.splice(idx, 1)
     if (picked) offers.push(picked)
   }
   return offers
@@ -2075,7 +2100,14 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
     lastPatternPlayed: current.lastPatternPlayed,
     patternStreakBefore: current.patternStreakCount,
   })
-  const fuelRewardCount = Math.max(0, baseFuelRewardCount + shipPartMissionEffects.fuelDelta)
+  const crewQuartersFuelBonus = getCrewQuartersFuelBonus(
+    current.activeCrewQuarters,
+    missionPatternForEffects,
+  )
+  const fuelRewardCount = Math.max(
+    0,
+    baseFuelRewardCount + shipPartMissionEffects.fuelDelta + crewQuartersFuelBonus,
+  )
   const baseMissionScrapReward = getMissionScrapReward(fuelRewardCount)
   const totalMissionScrapDelta = baseMissionScrapReward + shipPartMissionEffects.scrapDelta
   const scrapsAfterMission = Math.max(0, current.scraps + totalMissionScrapDelta)
@@ -2736,11 +2768,12 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
   const nextStacks = damageCard
     ? placeDamageCard(nextStacksWithSectorEndFuel, nextCards, damageCard.id, nextZ)
     : nextStacksWithSectorEndFuel
-  // Research dialog: draw up to 2 random offers from the un-owned shop pool.
-  // Skip silently on the final gate (run completes) or when the pool is
-  // empty (player owns all 25). Pool is unaffected here — only `purchase`
-  // removes from it.
+  // Research dialog: draw up to 2 random Ship Part offers from the un-owned
+  // shop pool PLUS up to 2 Crew Quarters offers (the Crew Quarters pool is
+  // never depleted — they can be researched repeatedly). Skip silently on
+  // the final gate (run completes).
   const research = !isFinalGate ? drawResearchOffers(current.shipPartShopPool, 2) : null
+  const crewQuartersResearch = !isFinalGate ? drawCrewQuartersOffers(2) : null
   const nextBoard = {
     ...current,
     topZ: nextZ,
@@ -2785,7 +2818,7 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
       nextGateCard && deck.id === MISSION_DECK_ID
         ? {
             ...deck,
-            title: getSectorDeckTitle(nextSector),
+            title: getSectorDeckTitle(),
             icon: nextSectorDeckArt.icon,
             hue: nextSectorDeckArt.hue,
             accent: nextSectorDeckArt.accent,
@@ -2805,8 +2838,11 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
     pendingEffects: nextGateCard ? [] : consumeNextGateFuelDiscount(current.pendingEffects),
     pendingResearchChoice: isFinalGate
       ? null
-      : research && research.length > 0
-        ? { offers: research }
+      : research && (research.length > 0 || (crewQuartersResearch && crewQuartersResearch.length > 0))
+        ? {
+            offers: research,
+            crewQuartersOffers: crewQuartersResearch ?? [],
+          }
         : current.pendingResearchChoice,
   }
   const returnedMother = returnMotherCardsToDeck(
@@ -3950,7 +3986,10 @@ export function purchaseShipPartUpdate(shipPartId: string): BoardUpdater {
       scraps: scrapsAfter,
       activeShipParts: nextActive,
       shipPartShopPool: current.shipPartShopPool.filter((blueprint) => blueprint.id !== offer.id),
-      pendingResearchChoice: { offers },
+      pendingResearchChoice: {
+        offers,
+        crewQuartersOffers: current.pendingResearchChoice?.crewQuartersOffers ?? [],
+      },
       cards: { ...current.cards, [shipPartCardId]: shipPartCard },
       stacks: nextStacks,
     }
@@ -3962,31 +4001,74 @@ export function purchaseShipPartUpdate(shipPartId: string): BoardUpdater {
   }
 }
 
-export function redrawResearchOffersUpdate(current: BoardState): BoardUpdateResult {
-  const offers = current.pendingResearchChoice?.offers ?? []
-  if (offers.length === 0) return current
+export function purchaseCrewQuartersUpdate(crewQuartersId: string): BoardUpdater {
+  return (current) => {
+    const offers = current.pendingResearchChoice?.crewQuartersOffers ?? []
+    const offer = offers.find((entry) => entry.id === crewQuartersId)
+    if (!offer) return current
+    if (current.scraps < offer.cost) return current
 
-  const redrawCost = Math.min(...offers.map((offer) => offer.cost))
+    const scrapsBefore = current.scraps
+    const scrapsAfter = scrapsBefore - offer.cost
+    const newInstance: ActiveCrewQuarters = {
+      ...offer,
+      instanceId: `crew-quarters-${offer.id}-${current.currentSector}-${current.activeCrewQuarters.length}-${current.nextCardId}`,
+      acquiredSector: current.currentSector,
+    }
+    const boardAfterBuy: BoardState = {
+      ...current,
+      scraps: scrapsAfter,
+      activeCrewQuarters: [...current.activeCrewQuarters, newInstance],
+      pendingResearchChoice: {
+        offers: current.pendingResearchChoice?.offers ?? [],
+        crewQuartersOffers: offers,
+      },
+    }
+    const synced = syncScrapSupplyToCounter(boardAfterBuy, `buy-quarters-${offer.id}`)
+
+    return withPlaytestEvents(synced, [
+      crewQuartersBoughtEvent(offer.label, offer.cost, scrapsBefore, scrapsAfter),
+    ])
+  }
+}
+
+export function redrawResearchOffersUpdate(current: BoardState): BoardUpdateResult {
+  const shipOffers = current.pendingResearchChoice?.offers ?? []
+  const quarterOffers = current.pendingResearchChoice?.crewQuartersOffers ?? []
+  if (shipOffers.length === 0 && quarterOffers.length === 0) return current
+
+  // Re-draw is priced at the cheapest visible offer (across both card types)
+  // so the cost stays predictable as the dialog content evolves.
+  const allOfferCosts = [
+    ...shipOffers.map((offer) => offer.cost),
+    ...quarterOffers.map((offer) => offer.cost),
+  ]
+  const redrawCost = allOfferCosts.length > 0 ? Math.min(...allOfferCosts) : 0
   if (current.scraps < redrawCost) return current
 
-  const excludedIds = new Set([
-    ...offers.map((offer) => offer.id),
+  const excludedShipIds = new Set([
+    ...shipOffers.map((offer) => offer.id),
     ...current.activeShipParts.map((part) => part.id),
   ])
-  const newOffers = drawResearchOffers(current.shipPartShopPool, 2, excludedIds)
-  if (newOffers.length === 0) return current
+  const excludedQuarterIds = new Set(quarterOffers.map((offer) => offer.id))
+  const newShipOffers = drawResearchOffers(current.shipPartShopPool, 2, excludedShipIds)
+  const newQuarterOffers = drawCrewQuartersOffers(2, excludedQuarterIds)
+  if (newShipOffers.length === 0 && newQuarterOffers.length === 0) return current
 
   const scrapsBefore = current.scraps
   const scrapsAfter = scrapsBefore - redrawCost
   const boardAfterRedraw: BoardState = {
     ...current,
     scraps: scrapsAfter,
-    pendingResearchChoice: { offers: newOffers },
+    pendingResearchChoice: {
+      offers: newShipOffers,
+      crewQuartersOffers: newQuarterOffers,
+    },
   }
   const synced = syncScrapSupplyToCounter(boardAfterRedraw, `research-redraw-${current.currentSector}`)
 
   return withPlaytestEvents(synced, [
-    researchRedrawnEvent(redrawCost, scrapsBefore, scrapsAfter, newOffers),
+    researchRedrawnEvent(redrawCost, scrapsBefore, scrapsAfter, newShipOffers),
   ])
 }
 

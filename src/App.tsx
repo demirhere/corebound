@@ -207,6 +207,7 @@ function App() {
             onScoutChoiceConfirm={canMoveBoardFreely ? interactions.onScoutChoiceConfirm : noop}
             onShipPartChoice={canMoveBoardFreely ? interactions.onShipPartChoice : noop}
             onPurchaseShipPart={canMoveBoardFreely ? interactions.onPurchaseShipPart : noop}
+            onPurchaseCrewQuarters={canMoveBoardFreely ? interactions.onPurchaseCrewQuarters : noop}
             onRedrawResearchOffers={canMoveBoardFreely ? interactions.onRedrawResearchOffers : noop}
             onCloseResearchDialog={canMoveBoardFreely ? interactions.onCloseResearchDialog : noop}
             onDiscardActiveShipPart={canMoveBoardFreely ? interactions.onDiscardActiveShipPart : noop}
@@ -246,6 +247,7 @@ function App() {
             onClose={() => setIsCrewGuideOpen(false)}
             patternUsageCounts={board.patternUsageCounts}
             activeShipParts={board.activeShipParts}
+            activeCrewQuarters={board.activeCrewQuarters}
           />
         </>
       ) : (

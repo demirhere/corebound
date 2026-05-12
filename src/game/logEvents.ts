@@ -845,6 +845,19 @@ export function shipPartDiscardedEvent(label: string, refund: number, scrapsBefo
   }
 }
 
+export function crewQuartersBoughtEvent(
+  label: string,
+  cost: number,
+  scrapsBefore: number,
+  scrapsAfter: number,
+): PlaytestLogEvent {
+  return {
+    type: 'crew-quarters.bought',
+    message: `Crew Quarters researched: ${label} for ${cost} Scrap${cost === 1 ? '' : 's'} (${scrapsBefore} → ${scrapsAfter}).`,
+    details: { label, cost, scrapsBefore, scrapsAfter },
+  }
+}
+
 export function scrapsEarnedEvent(source: string, amount: number, from: number, to: number): PlaytestLogEvent {
   return {
     type: 'scraps.earned',
