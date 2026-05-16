@@ -64,16 +64,15 @@ export function getNearbyDrawPosition(deck: Deck, metrics: BoardMetrics): Positi
 }
 
 export function getDeckDrawPositions(deck: Deck, drawCount: number, metrics: BoardMetrics) {
-  if (deck.draw.placement === 'left-row') {
+  if (deck.draw.placement === 'left-row' || deck.draw.placement === 'right-row') {
     const cardWidthPercent = (metrics.cardWidth / metrics.width) * 100
     const gapPercent = (DRAW_ROW_GAP_PX / metrics.width) * 100
     const rowWidthPercent =
       drawCount * cardWidthPercent + Math.max(0, drawCount - 1) * gapPercent
-    const rowX = clamp(
-      deck.x - rowWidthPercent - gapPercent,
-      1,
-      Math.max(1, 100 - rowWidthPercent - 1),
-    )
+    const maxRowX = Math.max(1, 100 - rowWidthPercent - 1)
+    const rowX = deck.draw.placement === 'left-row'
+      ? clamp(deck.x - rowWidthPercent - gapPercent, 1, maxRowX)
+      : clamp(deck.x + cardWidthPercent + gapPercent, 1, maxRowX)
 
     return Array.from({ length: drawCount }, (_, index) =>
       clampStackPosition(

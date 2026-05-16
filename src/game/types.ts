@@ -263,24 +263,18 @@ export type ActiveShipPart = ShipPartBlueprint & {
   acquiredSector: number
 }
 
-// === Crew Quarters (permanent crew composition upgrades) ========================
-// Crew Quarters are researched alongside Ship Parts in the post-gate dialog.
-// They target a specific crew composition (mission pattern) and add Fuel to
-// every play of that pattern run-wide. Unlike Ship Parts they are NOT placed
-// on the board and the same blueprint can be researched many times (stacking
-// bonuses), so players strategize which compositions to invest in.
-export type CrewQuartersBlueprint = {
-  id: string
-  label: string
-  description: string
-  cost: number
-  pattern: MissionPatternKind
-  fuelPerPlay: number
-}
-
-export type ActiveCrewQuarters = CrewQuartersBlueprint & {
+// === Crew Quarter Upgrades (permanent crew composition upgrades) ================
+// Crew Quarter Upgrades are placed on the board as a generic 'crew-quarters'
+// card. The player stacks 1-4 crew on the card to choose which composition
+// to upgrade; completing the action consumes the card AND the crew, then
+// permanently boosts every future play of the chosen pattern. There is no
+// per-pattern catalog — every upgrade is the same cost (4 Scraps) and grants
+// the same +fuelPerPlay on whatever pattern the player satisfies.
+export type ActiveCrewQuarters = {
   instanceId: string
   acquiredSector: number
+  pattern: MissionPatternKind
+  fuelPerPlay: number
 }
 
 export type GamePlayer = {
@@ -418,10 +412,6 @@ export type CardBlueprint = {
   // Joker Ship Part owned by the run, presented on the board as a card.
   // Refers to the catalog blueprint plus an instance id.
   shipPart?: ActiveShipPart
-  // Crew Quarters preview rendered in the research dialog. Crew Quarters
-  // are never placed on the board, so this only appears on preview cards
-  // generated for the dialog.
-  crewQuarters?: CrewQuartersBlueprint
   specimenIndex?: number
 }
 
@@ -485,7 +475,7 @@ export type Deck = {
 export type DeckDrawRules = {
   canManuallyDraw: boolean
   count: number
-  placement: 'nearby' | 'left-row'
+  placement: 'nearby' | 'left-row' | 'right-row'
 }
 
 export type CompletedStarSummary = {
@@ -513,7 +503,7 @@ export type BoardState = {
   // returned (stacking-discard refunds Scraps instead).
   activeShipParts: ActiveShipPart[]
   shipPartShopPool: ShipPartBlueprint[]
-  // Crew Quarters owned by the run. Each entry is one researched copy —
+  // Crew Quarter Upgrades owned by the run. Each entry is one researched copy —
   // duplicates stack their fuel bonus on every matching pattern play. There
   // is no slot cap and they are never placed on the board.
   activeCrewQuarters: ActiveCrewQuarters[]
@@ -539,12 +529,13 @@ export type BoardState = {
     y: number
   } | null
   // Joker-economy research dialog: opens after each gate clear with up to 2
-  // un-owned Ship Part offers PLUS up to 2 Crew Quarters offers. The player
-  // may buy any affordable offer, pay to re-draw, or continue to the next
-  // sector without Scrap consolation.
+  // un-owned Ship Part offers PLUS an always-available "Place Crew Quarters
+  // Upgrade" button (4 Scraps). The button can be clicked any number of times
+  // while the dialog is open as long as the player has 4+ Scraps; each click
+  // deals a generic Crew Quarters Upgrade card onto the board. Re-draw and
+  // continue work the same as before.
   pendingResearchChoice: {
     offers: ShipPartBlueprint[]
-    crewQuartersOffers: CrewQuartersBlueprint[]
   } | null
   pendingDrift: {
     cardId: string

@@ -170,11 +170,7 @@ function migrateBoardState(board: BoardState): BoardState {
       : null,
     pendingShipPartChoice: legacyBoard.pendingShipPartChoice ?? null,
     pendingResearchChoice: legacyBoard.pendingResearchChoice
-      ? {
-          offers: legacyBoard.pendingResearchChoice.offers ?? [],
-          crewQuartersOffers:
-            legacyBoard.pendingResearchChoice.crewQuartersOffers ?? [],
-        }
+      ? { offers: legacyBoard.pendingResearchChoice.offers ?? [] }
       : null,
     pendingDrift: legacyBoard.pendingDrift ?? null,
     heldDriftCount: legacyBoard.heldDriftCount ?? 0,

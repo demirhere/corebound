@@ -1,4 +1,5 @@
 import {
+  CREW_QUARTERS_DECK_ID,
   CRYO_DECK_ID,
   DAMAGE_DECK_ID,
   DISCOVERY_DECK_ID,
@@ -35,7 +36,6 @@ import {
   createEmptyMapSlots,
   createEmptyRouteSlots,
   getMapStackId,
-  getMapStackPosition,
   getRouteCardIds,
   getRouteStackId,
   getRouteStackPosition,
@@ -83,7 +83,8 @@ import {
   sectorRevealedEvent,
   shipPartBoughtEvent,
   shipPartDiscardedEvent,
-  crewQuartersBoughtEvent,
+  crewQuartersCardPlacedEvent,
+  crewQuartersUpgradedEvent,
   sectorResetCrewReadiedEvent,
   medbayRehydratorReadiedEvent,
   shipPartAvailableEvent,
@@ -124,12 +125,17 @@ import {
 import {
   getStackActions,
 } from '../game/stackActions'
+import {
+  findBestOpenMissionPatternReward,
+  getCrewQuartersUpgradePreview,
+} from '../game/patternRewards'
 import { withPlaytestEvents, type BoardUpdateResult, type BoardUpdater } from '../game/state'
 import { getMissionScrapReward } from '../game/economyTuning'
 import {
   SHIP_PART_SLOT_CAP,
   applyShipPartMissionEffects,
   applyShipPartSectorEndEffects,
+  countCrewQuartersForPattern as countCrewQuartersForPatternUtil,
   getCrewQuartersFuelBonus,
   getShipPartHandSizeLimit,
   hasShipPartWildSlot,
@@ -151,6 +157,7 @@ import {
   MOTHER_SUPPLY_STACK_POSITION,
   SCRAP_SUPPLY_STACK_ID,
   SECTOR_GATE_STACK_POSITION,
+  STARTING_CREW_CARD_COUNT,
   getShipPartShelfPosition,
   createDriftDeckCards,
   createSectorMissionDeckCards,
@@ -183,7 +190,6 @@ import type {
   BoardState,
   Card,
   CardBlueprint,
-  CrewQuartersBlueprint,
   Deck,
   DropTarget,
   GameLossReason,
@@ -192,7 +198,10 @@ import type {
   ShipPartKind,
   Stack,
 } from '../game/types'
-import { crewQuartersCatalog } from '../game/crewQuartersCatalog'
+import {
+  CREW_QUARTERS_UPGRADE_COST,
+  CREW_QUARTERS_UPGRADE_FUEL_PER_PLAY,
+} from '../game/crewQuartersCatalog'
 import {
   canPutCardIdsInHand,
   canUseManualHandZone,
@@ -231,26 +240,6 @@ function drawResearchOffers(
   for (let i = 0; i < count && remaining.length > 0; i += 1) {
     const idx = Math.floor(Math.random() * remaining.length)
     const [picked] = remaining.splice(idx, 1)
-    if (picked) offers.push(picked)
-  }
-  return offers
-}
-
-// Crew Quarters offers: same shape as ship part offers but the pool is the
-// full catalog (Crew Quarters can be researched repeatedly, so nothing is
-// removed when bought). `excludedIds` keeps duplicates out of the same
-// offer set and (when re-rolling) avoids re-offering the same options.
-function drawCrewQuartersOffers(
-  count: number,
-  excludedIds: ReadonlySet<string> = new Set(),
-): CrewQuartersBlueprint[] {
-  if (count <= 0) return []
-  const remaining = crewQuartersCatalog.filter((blueprint) => !excludedIds.has(blueprint.id))
-  const offers: CrewQuartersBlueprint[] = []
-  const pool = remaining.slice()
-  for (let i = 0; i < count && pool.length > 0; i += 1) {
-    const idx = Math.floor(Math.random() * pool.length)
-    const [picked] = pool.splice(idx, 1)
     if (picked) offers.push(picked)
   }
   return offers
@@ -1455,30 +1444,134 @@ function isScrapResourceCard(card: Card | undefined) {
   return card?.kind === 'resource' && card.resource === 'scrap'
 }
 
-function appendScrapCardsToSupplyStack(stacks: readonly Stack[], scrapCards: readonly Card[], z: number) {
+// True for the canonical scrap supply stack plus any spillover scrap stacks
+// (auto-stacking creates new piles when the canonical one hits 4 cards). A
+// stack qualifies when every card on it is a Scrap resource card.
+function isScrapOnlyStack(stack: Stack, cards: Record<string, Card>) {
+  return stack.cardIds.length > 0 &&
+    stack.cardIds.every((cardId) => isScrapResourceCard(cards[cardId]))
+}
+
+// Number of Scrap cards in a stack (mirrors isScrapOnlyStack assumptions).
+function countScrapsInStack(stack: Stack, cards: Record<string, Card>) {
+  return stack.cardIds.reduce(
+    (count, cardId) => (isScrapResourceCard(cards[cardId]) ? count + 1 : count),
+    0,
+  )
+}
+
+// Stacking budget: a scrap pile reaches 4 cards and the next reward starts
+// a fresh pile. Keeps the 4-Scrap stack action visible at exactly 4 (and
+// hidden at 5+) without the player having to micro-manage piles.
+const SCRAP_STACK_TARGET = CREW_QUARTERS_UPGRADE_COST
+// Horizontal step when spawning a fresh spillover stack next to the supply
+// stack (board uses 0-100 percent coords, ~10 wide cards fit comfortably).
+const SCRAP_STACK_X_STEP = 3.6
+const SCRAP_STACK_Y_STEP = 1.4
+
+// Place newly-drawn Scrap cards onto board stacks. Auto-stacking rule:
+//   1. Append onto the scrap stack with the most cards that's still below
+//      SCRAP_STACK_TARGET. (Preserves the canonical SCRAP_SUPPLY_STACK_ID
+//      when present, since map() keeps id order.)
+//   2. When all existing scrap stacks are at SCRAP_STACK_TARGET, drop the
+//      remaining cards into a fresh stack near the supply position.
+// Cards are placed one-at-a-time so a single reward (e.g. +3 Scraps) can
+// split across stacks if the existing pile is about to hit 4.
+function placeScrapCardsOnBoard(
+  stacks: readonly Stack[],
+  cards: Record<string, Card>,
+  scrapCards: readonly Card[],
+  z: number,
+) {
   if (scrapCards.length === 0) return [...stacks]
-  let saw = false
-  const next = stacks.map((stack) => {
-    if (stack.id !== SCRAP_SUPPLY_STACK_ID) return stack
-    saw = true
-    return { ...stack, cardIds: [...stack.cardIds, ...scrapCards.map((card) => card.id)], z }
-  })
-  if (!saw) {
+  let next = stacks.map((stack) => ({ ...stack }))
+  // Track running counts per stack so we can place multiple cards without
+  // re-counting after every placement.
+  const counts = new Map<string, number>()
+  for (const stack of next) {
+    if (isScrapOnlyStack(stack, cards)) {
+      counts.set(stack.id, countScrapsInStack(stack, cards))
+    }
+  }
+  let spilloverIndex = 0
+
+  for (const scrapCard of scrapCards) {
+    // Find the scrap-only stack with the largest sub-target count.
+    let bestStackId: string | null = null
+    let bestCount = -1
+    for (const stack of next) {
+      const count = counts.get(stack.id)
+      if (count === undefined) continue
+      if (count >= SCRAP_STACK_TARGET) continue
+      if (count > bestCount) {
+        bestStackId = stack.id
+        bestCount = count
+      }
+    }
+
+    if (bestStackId) {
+      next = next.map((stack) =>
+        stack.id === bestStackId
+          ? { ...stack, cardIds: [...stack.cardIds, scrapCard.id], z }
+          : stack,
+      )
+      counts.set(bestStackId, (counts.get(bestStackId) ?? 0) + 1)
+      continue
+    }
+
+    // Need a fresh stack. Reuse SCRAP_SUPPLY_STACK_ID if it doesn't exist on
+    // the board yet (sector reset clears stacks), otherwise spawn a numbered
+    // spillover anchored near the supply position.
+    const supplyStack = next.find((stack) => stack.id === SCRAP_SUPPLY_STACK_ID)
+    if (!supplyStack) {
+      next.push({
+        id: SCRAP_SUPPLY_STACK_ID,
+        cardIds: [scrapCard.id],
+        x: 27,
+        y: 24,
+        z,
+      })
+      counts.set(SCRAP_SUPPLY_STACK_ID, 1)
+      continue
+    }
+
+    // Pick a spillover slot that isn't already taken.
+    let spilloverId = ''
+    while (true) {
+      spilloverId = `${SCRAP_SUPPLY_STACK_ID}-${spilloverIndex + 1}`
+      if (!next.some((stack) => stack.id === spilloverId)) break
+      spilloverIndex += 1
+    }
     next.push({
-      id: SCRAP_SUPPLY_STACK_ID,
-      cardIds: scrapCards.map((card) => card.id),
-      x: 27,
-      y: 24,
+      id: spilloverId,
+      cardIds: [scrapCard.id],
+      x: 27 + (spilloverIndex + 1) * SCRAP_STACK_X_STEP,
+      y: 24 + (spilloverIndex + 1) * SCRAP_STACK_Y_STEP,
       z,
     })
+    counts.set(spilloverId, 1)
+    spilloverIndex += 1
   }
+
   return next
 }
 
+// Returns every Scrap card id currently on the board, across the canonical
+// supply stack and any spillover scrap-only stacks. Ordered with cards from
+// the smallest piles first, so spending drains tiny piles before chewing
+// into large (near-4) piles the player is saving toward an upgrade.
 function getScrapSupplyCardIds(current: BoardState) {
-  const stack = current.stacks.find((s) => s.id === SCRAP_SUPPLY_STACK_ID)
-  if (!stack) return [] as string[]
-  return stack.cardIds.filter((cardId) => isScrapResourceCard(current.cards[cardId]))
+  const scrapStacks = current.stacks.filter((stack) => isScrapOnlyStack(stack, current.cards))
+  // Sort ascending by card count so spending drains incomplete stacks first.
+  // Tie-break by stack id for stable ordering.
+  const sorted = [...scrapStacks].sort((a, b) => {
+    const lenDiff = a.cardIds.length - b.cardIds.length
+    if (lenDiff !== 0) return lenDiff
+    return a.id.localeCompare(b.id)
+  })
+  return sorted.flatMap((stack) => (
+    stack.cardIds.filter((cardId) => isScrapResourceCard(current.cards[cardId]))
+  ))
 }
 
 function gainScrapsAsCards(current: BoardState, amount: number, idPrefix: string) {
@@ -1490,7 +1583,7 @@ function gainScrapsAsCards(current: BoardState, amount: number, idPrefix: string
   const nextCards = { ...current.cards }
   for (const card of draw.scrapCards) nextCards[card.id] = card
 
-  const nextStacks = appendScrapCardsToSupplyStack(current.stacks, draw.scrapCards, z)
+  const nextStacks = placeScrapCardsOnBoard(current.stacks, nextCards, draw.scrapCards, z)
 
   return {
     board: {
@@ -1515,11 +1608,14 @@ function spendScrapsFromCards(current: BoardState, amount: number) {
   const z = current.topZ + 1
   const spendIdSet = new Set(spendIds)
   const discardedBlueprints = cardsToDeckBlueprints(spendIds, current.cards)
-  const nextStacks = current.stacks.map((stack) =>
-    stack.id === SCRAP_SUPPLY_STACK_ID
-      ? { ...stack, cardIds: stack.cardIds.filter((cardId) => !spendIdSet.has(cardId)), z }
-      : stack,
-  )
+  const nextStacks = current.stacks.flatMap((stack) => {
+    if (!isScrapOnlyStack(stack, current.cards)) return [stack]
+    const remaining = stack.cardIds.filter((cardId) => !spendIdSet.has(cardId))
+    // Drop empty spillover piles; keep the canonical supply stack as a
+    // persistent anchor even when empty.
+    if (remaining.length === 0 && stack.id !== SCRAP_SUPPLY_STACK_ID) return []
+    return [{ ...stack, cardIds: remaining, z }]
+  })
   const nextCards = withoutCards(current.cards, spendIds)
   const nextDecks = current.decks.map((deck) =>
     deck.id === SCRAP_DISCARD_DECK_ID
@@ -1762,6 +1858,53 @@ function drawTurnStartCryoCrew(current: BoardState) {
   return refillHandFromCryo(current)
 }
 
+// Active crew on the board = hand + crew committed to any stack (mission,
+// gate, CQU, free piles, etc.) — but NOT cards in the Tired tray, since
+// Tired is the discard pile that recycles back into Cryo and shouldn't
+// block fresh crew from arriving. Used by the Crew Quarters Upgrade refill
+// so the player's effective board count stays at the starting target after
+// burning crew for the upgrade.
+function countActiveCrewOnBoard(current: BoardState) {
+  const tiredSet = new Set(current.tiredCardIds)
+  let count = 0
+  for (const id in current.cards) {
+    const card = current.cards[id]
+    if (card?.kind === 'crew' && !tiredSet.has(id)) count += 1
+  }
+  return count
+}
+
+// Crew Quarters Upgrade refill. Spec: "draw new crew cards to fill the total
+// crew cards on board to limit." Counts crew in hand + crew committed to
+// other stacks (e.g. partially-built missions) against `limit` so the
+// player doesn't get bonus hand size for crew that's still sitting on the
+// board. Tired is excluded — it's the discard pile, not "active". New
+// cards always land in hand.
+function refillCrewOnBoardToLimit(current: BoardState, limit: number) {
+  let board = current
+  const events: PlaytestLogEvent[] = []
+  let safety = 0
+  while (countActiveCrewOnBoard(board) < limit) {
+    if (safety > 64) break
+    safety += 1
+
+    const cryoDeck = board.decks.find((deck) => deck.id === CRYO_DECK_ID)
+    if (!cryoDeck || cryoDeck.cards.length === 0) {
+      const reshuffled = reshuffleTiredIntoCryo(board)
+      if (reshuffled.events.length === 0) break // cryo + tired both exhausted
+      board = reshuffled.board
+      events.push(...reshuffled.events)
+      continue
+    }
+
+    const drawn = drawOneCryoIntoHand(board)
+    if (drawn.board === board) break
+    board = drawn.board
+    events.push(...drawn.events)
+  }
+  return { board, events }
+}
+
 function advanceTurnAndCheckLoss(current: BoardState) {
   const advancedBoard = advanceTurn(current)
   const turnStartDraw = drawTurnStartCryoCrew(advancedBoard)
@@ -1803,7 +1946,7 @@ function getNextMapDrawSlotIndex(current: BoardState) {
   return current.mapSlots.findIndex((cardId) => cardId === null)
 }
 
-function drawNextMapChoice(current: BoardState) {
+function drawNextMapChoice(current: BoardState, metrics: BoardMetrics) {
   const missionDeck = current.decks.find((deck) => deck.id === MISSION_DECK_ID)
   const blueprint = missionDeck?.cards[0]
   const slotIndex = getNextMapDrawSlotIndex(current)
@@ -1816,7 +1959,8 @@ function drawNextMapChoice(current: BoardState) {
     blueprint,
     `map-${current.currentSector}-${slotIndex + 1}-${current.nextCardId}`,
   )
-  const position = getMapStackPosition(slotIndex)
+  const position = getDeckDrawPositions(missionDeck, MAP_SLOT_COUNT, metrics)[slotIndex] ??
+    getNearbyDrawPosition(missionDeck, metrics)
   const stackId = getDrawnMapStackId(current.stacks, slotIndex, drawnMapCard.id)
   const drawnStack = {
     id: stackId,
@@ -2030,17 +2174,40 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
   const nextZ = current.topZ + 1
   const find = missionCard.mission.find
   const missionLeadId = current.currentPlayerId
+  const spentCrewCardIds = getSpentCrewCardIds(sourceStack, current.cards)
+  const spentCrewCardIdSet = new Set(spentCrewCardIds)
+  const usedCrewCardsForEffects = spentCrewCardIds
+    .map((cardId) => current.cards[cardId])
+    .filter((card): card is Card => card?.kind === 'crew')
+  const missionsCompletedInSector = current.completedStarSummaries.filter(
+    (summary) => summary.sector === current.currentSector,
+  ).length
+  const bestOpenPatternReward = missionCard.mission.pattern === 'open'
+    ? findBestOpenMissionPatternReward({
+        crewCardIds: spentCrewCardIds,
+        cards: current.cards,
+        wildCardId,
+        activeShipParts: current.activeShipParts,
+        activeCrewQuarters: current.activeCrewQuarters,
+        usedCrewCards: usedCrewCardsForEffects,
+        missionIndexInSector: missionsCompletedInSector,
+        isLastMissionInSector: missionsCompletedInSector >= MAP_SLOT_COUNT - 1,
+        sectorIndex: current.currentSector - 1,
+        scrapsAvailable: current.scraps,
+        missionsCompletedBefore: current.missionsCompletedCount,
+        lastPatternPlayed: current.lastPatternPlayed,
+        patternStreakBefore: current.patternStreakCount,
+      })
+    : null
   const baseRewards = find.kind === 'visit_reward' ? find.rewards : find.rewards ?? []
   // Open-pattern missions compute their Fuel reward dynamically from the
   // best hand pattern the stacked crew satisfied.
   const rewards =
-    missionCard.mission.pattern === 'open' && completion.dynamicFuelReward !== undefined && completion.dynamicFuelReward > 0
-      ? [{ kind: 'resource' as const, resource: 'fuel' as const, count: completion.dynamicFuelReward }]
+    missionCard.mission.pattern === 'open' && bestOpenPatternReward
+      ? [{ kind: 'resource' as const, resource: 'fuel' as const, count: bestOpenPatternReward.baseFuel }]
       : baseRewards
   const shipPartFind = find.kind === 'ship_part' ? find : null
   const keepsCompletedCardOnRoute = shipPartFind !== null
-  const spentCrewCardIds = getSpentCrewCardIds(sourceStack, current.cards)
-  const spentCrewCardIdSet = new Set(spentCrewCardIds)
   const discoveryRecipientId = getMissionDiscoveryRecipientId(current, spentCrewCardIds, missionLeadId)
   const spentFuelCardIds = getFuelCardIds(sourceStack, current.cards)
   const spentFuelCount = spentFuelCardIds.length
@@ -2080,16 +2247,10 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
       ? count + reward.count
       : count
   ), 0)
-  const missionsCompletedInSector = current.completedStarSummaries.filter(
-    (summary) => summary.sector === current.currentSector,
-  ).length
   const missionPatternForEffects = missionCard.mission.pattern === 'open'
-    ? completion.dynamicPattern ?? null
+    ? bestOpenPatternReward?.pattern ?? completion.dynamicPattern ?? null
     : missionCard.mission.pattern ?? null
-  const usedCrewCardsForEffects = spentCrewCardIds
-    .map((cardId) => current.cards[cardId])
-    .filter((card): card is Card => card?.kind === 'crew')
-  const shipPartMissionEffects = applyShipPartMissionEffects(current.activeShipParts, {
+  const shipPartMissionEffects = bestOpenPatternReward?.shipPartMissionEffects ?? applyShipPartMissionEffects(current.activeShipParts, {
     usedCrewCards: usedCrewCardsForEffects,
     missionIndexInSector: missionsCompletedInSector,
     isLastMissionInSector: missionsCompletedInSector >= MAP_SLOT_COUNT - 1,
@@ -2100,11 +2261,11 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
     lastPatternPlayed: current.lastPatternPlayed,
     patternStreakBefore: current.patternStreakCount,
   })
-  const crewQuartersFuelBonus = getCrewQuartersFuelBonus(
+  const crewQuartersFuelBonus = bestOpenPatternReward?.crewQuartersFuelBonus ?? getCrewQuartersFuelBonus(
     current.activeCrewQuarters,
     missionPatternForEffects,
   )
-  const fuelRewardCount = Math.max(
+  const fuelRewardCount = bestOpenPatternReward?.fuelReward ?? Math.max(
     0,
     baseFuelRewardCount + shipPartMissionEffects.fuelDelta + crewQuartersFuelBonus,
   )
@@ -2324,7 +2485,7 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
   )
 
   const usedPattern = missionCard.mission.pattern === 'open'
-    ? completion.dynamicPattern
+    ? bestOpenPatternReward?.pattern ?? completion.dynamicPattern
     : missionCard.mission.pattern ?? findBestPatternForCrew(spentCrewCardIds, current.cards)?.pattern
   const nextPatternUsageCounts = usedPattern
     ? {
@@ -2476,8 +2637,8 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
     events: [
       ...motherCommittedEvents,
       missionCompletedEvent(missionCard, sourceStack, rewardCards, current.cards, {
-        dynamicPattern: completion.dynamicPattern,
-        dynamicFuelReward: completion.dynamicFuelReward,
+        dynamicPattern: bestOpenPatternReward?.pattern ?? completion.dynamicPattern,
+        dynamicFuelReward: completion.dynamicFuelReward === undefined ? undefined : fuelRewardCount,
       }),
       ...fuelRewardDraw.events,
       ...missionScrapEvents,
@@ -2726,9 +2887,9 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
       : []
   })
   const decksWithFuelDiscard = discardFuelCardsToPile(current.decks, current.cards, spentFuelCardIds, nextZ)
-  // Apply active ship-part sector-end effects (Quartermaster, Scrap Forge,
-  // Fuel Cell Distillery, Sector Engine, Veteran's Insignia, Reserve
-  // Capacitor). `readyCrewCount` is the count of crew cards still in hand
+  // Apply active ship-part sector-end effects (Scrap Forge, Fuel Cell
+  // Distillery, Sector Engine, Veteran's Insignia, Reserve Capacitor).
+  // `readyCrewCount` is the count of crew cards still in hand
   // when the gate is faced — used by Reserve Capacitor to award fuel for
   // unused Ready crew.
   const readyCrewCount = current.handCardIds.filter(
@@ -2769,11 +2930,11 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
     ? placeDamageCard(nextStacksWithSectorEndFuel, nextCards, damageCard.id, nextZ)
     : nextStacksWithSectorEndFuel
   // Research dialog: draw up to 2 random Ship Part offers from the un-owned
-  // shop pool PLUS up to 2 Crew Quarters offers (the Crew Quarters pool is
-  // never depleted — they can be researched repeatedly). Skip silently on
-  // the final gate (run completes).
+  // shop pool. A separate "Place Crew Quarters Upgrade" button (4 Scraps,
+  // deals one generic CQU card per click from the offscreen deck) is always
+  // rendered alongside while the dialog is open. Skip silently on the final
+  // gate (run completes).
   const research = !isFinalGate ? drawResearchOffers(current.shipPartShopPool, 2) : null
-  const crewQuartersResearch = !isFinalGate ? drawCrewQuartersOffers(2) : null
   const nextBoard = {
     ...current,
     topZ: nextZ,
@@ -2836,13 +2997,14 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
               : deck,
     ),
     pendingEffects: nextGateCard ? [] : consumeNextGateFuelDiscount(current.pendingEffects),
+    // Open the research dialog after every non-final gate so the player can
+    // spend Scraps on ship parts or Crew Quarters Upgrades. We open even when
+    // no ship-part offers are available — the CQU button always works as long
+    // as the player has 4+ Scraps and the offscreen deck has stock.
     pendingResearchChoice: isFinalGate
       ? null
-      : research && (research.length > 0 || (crewQuartersResearch && crewQuartersResearch.length > 0))
-        ? {
-            offers: research,
-            crewQuartersOffers: crewQuartersResearch ?? [],
-          }
+      : research
+        ? { offers: research }
         : current.pendingResearchChoice,
   }
   const returnedMother = returnMotherCardsToDeck(
@@ -3174,6 +3336,158 @@ function completeUseRationStackAction(
   ])
 }
 
+// Stack of exactly 4 Scrap cards → spend them and deal a Crew Quarters
+// Upgrade card from the offscreen deck onto the board. This is the in-sector
+// path; the same card is also dealt via the post-gate dialog button.
+function completeResearchCrewQuartersStackAction(
+  current: BoardState,
+  sourceStack: Stack,
+  actionLabel: string,
+): BoardUpdateResult {
+  if (sourceStack.cardIds.length !== CREW_QUARTERS_UPGRADE_COST) return current
+  const allScrap = sourceStack.cardIds.every((cardId) => isScrapResourceCard(current.cards[cardId]))
+  if (!allScrap) return current
+
+  const scrapsBefore = current.scraps
+  // Spend exactly the cards on this stack so the canonical counter stays in
+  // sync (sendable to discard like a normal scrap spend).
+  const cardIdSet = new Set(sourceStack.cardIds)
+  const discardedBlueprints = cardsToDeckBlueprints(sourceStack.cardIds, current.cards)
+  const nextZ = current.topZ + 1
+  const cardsAfterSpend = withoutCards(current.cards, sourceStack.cardIds)
+  const stacksAfterSpend = current.stacks.flatMap((stack) => {
+    if (stack.id !== sourceStack.id) return [stack]
+    const remaining = stack.cardIds.filter((cardId) => !cardIdSet.has(cardId))
+    if (remaining.length === 0 && stack.id !== SCRAP_SUPPLY_STACK_ID) return []
+    return [{ ...stack, cardIds: remaining, z: nextZ }]
+  })
+  const decksAfterSpend = current.decks.map((deck) =>
+    deck.id === SCRAP_DISCARD_DECK_ID
+      ? { ...deck, cards: [...deck.cards, ...discardedBlueprints], z: nextZ }
+      : deck,
+  )
+  const boardAfterSpend: BoardState = {
+    ...current,
+    topZ: nextZ,
+    scraps: Math.max(0, scrapsBefore - sourceStack.cardIds.length),
+    cards: cardsAfterSpend,
+    stacks: stacksAfterSpend,
+    decks: decksAfterSpend,
+  }
+
+  // Deal at (or near) the position the scrap stack just vacated so the new
+  // card replaces it visually.
+  const dealt = dealCrewQuartersUpgradeCard(boardAfterSpend, { x: sourceStack.x, y: sourceStack.y })
+  if (!dealt) return current
+
+  return withPlaytestEvents(dealt.board, [
+    stackActionCompletedEvent(actionLabel, sourceStack, current.cards),
+    cardsDiscardedEvent(sourceStack.cardIds, current.cards, 'Crew Quarters Upgrade research'),
+    crewQuartersCardPlacedEvent(
+      'scrap-stack',
+      CREW_QUARTERS_UPGRADE_COST,
+      scrapsBefore,
+      dealt.board.scraps,
+      dealt.cardId,
+    ),
+  ])
+}
+
+// Stack of 1 CQU card + 1-4 satisfying crew → consume them, push a new
+// ActiveCrewQuarters entry for the chosen pattern, then refill the player's
+// hand from cryo (up to the configured limit). Crew are permanently removed
+// from play.
+function completeUpgradeCrewQuartersStackAction(
+  current: BoardState,
+  sourceStack: Stack,
+  actionLabel: string,
+): BoardUpdateResult {
+  let cquCardId: string | null = null
+  const crewCardIds: string[] = []
+  for (const cardId of sourceStack.cardIds) {
+    const card = current.cards[cardId]
+    if (!card) return current
+    if (card.kind === 'crew-quarters') {
+      if (cquCardId) return current
+      cquCardId = card.id
+    } else if (card.kind === 'crew') {
+      crewCardIds.push(card.id)
+    } else {
+      return current
+    }
+  }
+  if (!cquCardId || crewCardIds.length === 0) return current
+
+  const preview = getCrewQuartersUpgradePreview({
+    crewCardIds,
+    cards: current.cards,
+    activeShipParts: current.activeShipParts,
+    activeCrewQuarters: current.activeCrewQuarters,
+  })
+  if (!preview) return current
+
+  const newInstance: ActiveCrewQuarters = {
+    instanceId: `crew-quarters-${preview.pattern}-${current.currentSector}-${current.activeCrewQuarters.length}-${current.nextCardId}`,
+    acquiredSector: current.currentSector,
+    pattern: preview.pattern,
+    fuelPerPlay: CREW_QUARTERS_UPGRADE_FUEL_PER_PLAY,
+  }
+
+  const removedIds = [cquCardId, ...crewCardIds]
+  const removedIdSet = new Set(removedIds)
+  const nextZ = current.topZ + 1
+  const nextStacks = current.stacks.flatMap((stack) => {
+    if (stack.id !== sourceStack.id) return [stack]
+    const remaining = stack.cardIds.filter((cardId) => !removedIdSet.has(cardId))
+    return remaining.length > 0 ? [{ ...stack, cardIds: remaining, z: nextZ }] : []
+  })
+  // Crew on the CQU stack might also be referenced in handCardIds (if the
+  // player just dragged them there from hand without finishing the action),
+  // tiredCardIds, or roundStartTiredCardIds — strip the consumed crew from
+  // each so nothing dangles after the cards are removed from board.cards.
+  const crewCardIdSet = new Set(crewCardIds)
+  const filteredHand = current.handCardIds.filter((cardId) => !crewCardIdSet.has(cardId))
+  const filteredTired = current.tiredCardIds.filter((cardId) => !crewCardIdSet.has(cardId))
+  const filteredRoundStart = current.roundStartTiredCardIds.filter((cardId) => !crewCardIdSet.has(cardId))
+  const filteredCrewOwners = { ...current.crewOwnerIds }
+  for (const cardId of crewCardIds) delete filteredCrewOwners[cardId]
+
+  const newLevel = countCrewQuartersForPatternUtil(current.activeCrewQuarters, preview.pattern) + 1
+
+  const consumedBoard: BoardState = {
+    ...current,
+    topZ: nextZ,
+    activeCrewQuarters: [...current.activeCrewQuarters, newInstance],
+    cards: withoutCards(current.cards, removedIds),
+    stacks: nextStacks,
+    handCardIds: filteredHand,
+    tiredCardIds: filteredTired,
+    roundStartTiredCardIds: filteredRoundStart,
+    crewOwnerIds: filteredCrewOwners,
+    dropTargetStackId: null,
+    dropTargetDeckId: null,
+    nextCardId: current.nextCardId + 1,
+  }
+
+  // Refill the on-board crew count back up to the starting target (5).
+  // Crew already committed to mission/gate stacks counts toward the limit,
+  // so the player isn't handed bonus hand size when they have crew parked
+  // elsewhere. New cards land in hand.
+  const refill = refillCrewOnBoardToLimit(consumedBoard, STARTING_CREW_CARD_COUNT)
+
+  return withPlaytestEvents(refill.board, [
+    stackActionCompletedEvent(actionLabel, sourceStack, current.cards),
+    crewQuartersUpgradedEvent(
+      preview.pattern,
+      newLevel,
+      CREW_QUARTERS_UPGRADE_FUEL_PER_PLAY,
+      crewCardIds,
+      current.cards,
+    ),
+    ...refill.events,
+  ])
+}
+
 function resolveStackActionResult(result: BoardUpdateResult) {
   return 'board' in result
     ? { board: result.board, events: [...(result.events ?? [])] }
@@ -3205,6 +3519,10 @@ export function completeStackActionUpdate(
       actionResult = completeUseRationStackAction(current, sourceStack, metrics, action.label)
     } else if (action.kind === 'draft-ship-part') {
       actionResult = completeDraftShipPartStackAction(current, sourceStack, action.label)
+    } else if (action.kind === 'research-crew-quarters') {
+      actionResult = completeResearchCrewQuartersStackAction(current, sourceStack, action.label)
+    } else if (action.kind === 'upgrade-crew-quarters') {
+      actionResult = completeUpgradeCrewQuartersStackAction(current, sourceStack, action.label)
     } else if (action.kind === 'travel') {
       actionResult = completeReadyMissionStack(current, stackId, metrics)
     } else if (action.kind === 'pass-gate') {
@@ -3216,7 +3534,12 @@ export function completeStackActionUpdate(
     // Auto-advance the turn after the action resolves. Skip if a pending
     // choice (ship-part draft, scout, wake, drift) opened — those modals
     // belong to the player who triggered the action and must resolve first.
+    // Crew Quarters Upgrade actions are side actions (paid in Scraps +
+    // crew, not a sector mission action) so they don't consume one of the
+    // sector's three mission turns.
     const resolved = resolveStackActionResult(actionResult)
+    const isCrewQuartersAction = action.kind === 'research-crew-quarters' ||
+      action.kind === 'upgrade-crew-quarters'
     const blocked =
       resolved.board === current ||
       resolved.board.pendingShipPartChoice ||
@@ -3226,7 +3549,8 @@ export function completeStackActionUpdate(
       resolved.board.pendingDrift ||
       resolved.board.lossReason !== null ||
       resolved.board.hasArrived ||
-      resolved.board.isRunEnding
+      resolved.board.isRunEnding ||
+      isCrewQuartersAction
 
     if (blocked) {
       return actionResult
@@ -3573,7 +3897,7 @@ export function drawFromDeckUpdate(deckId: string, metrics: BoardMetrics): Board
         return current
       }
 
-      const mapDraw = drawNextMapChoice({ ...current, sectorDrawnThisTurn: true })
+      const mapDraw = drawNextMapChoice({ ...current, sectorDrawnThisTurn: true }, metrics)
       const loss = resolveSectorStrandedLossIfNeeded(mapDraw.board)
 
       return withPlaytestEvents(loss.board, [...mapDraw.events, ...loss.events])
@@ -3986,10 +4310,7 @@ export function purchaseShipPartUpdate(shipPartId: string): BoardUpdater {
       scraps: scrapsAfter,
       activeShipParts: nextActive,
       shipPartShopPool: current.shipPartShopPool.filter((blueprint) => blueprint.id !== offer.id),
-      pendingResearchChoice: {
-        offers,
-        crewQuartersOffers: current.pendingResearchChoice?.crewQuartersOffers ?? [],
-      },
+      pendingResearchChoice: { offers },
       cards: { ...current.cards, [shipPartCardId]: shipPartCard },
       stacks: nextStacks,
     }
@@ -4001,69 +4322,117 @@ export function purchaseShipPartUpdate(shipPartId: string): BoardUpdater {
   }
 }
 
-export function purchaseCrewQuartersUpdate(crewQuartersId: string): BoardUpdater {
-  return (current) => {
-    const offers = current.pendingResearchChoice?.crewQuartersOffers ?? []
-    const offer = offers.find((entry) => entry.id === crewQuartersId)
-    if (!offer) return current
-    if (current.scraps < offer.cost) return current
+// Open Upgrade Crew Quarters — pay the full pack cost up front and reveal
+// the pre-rolled offers. There is no "back out" path; the player commits
+// to picking one Crew Quarter Upgrade via purchaseCrewQuartersUpdate.
+// Deal a Crew Quarters Upgrade card from the offscreen CREW_QUARTERS_DECK
+// onto the board near the supply column, returning the updated board plus
+// the new card id. Returns `null` if the deck is empty.
+function dealCrewQuartersUpgradeCard(
+  current: BoardState,
+  positionHint: { x: number; y: number },
+): { board: BoardState; cardId: string } | null {
+  const deck = current.decks.find((d) => d.id === CREW_QUARTERS_DECK_ID)
+  const blueprint = deck?.cards[0]
+  if (!deck || !blueprint) return null
 
-    const scrapsBefore = current.scraps
-    const scrapsAfter = scrapsBefore - offer.cost
-    const newInstance: ActiveCrewQuarters = {
-      ...offer,
-      instanceId: `crew-quarters-${offer.id}-${current.currentSector}-${current.activeCrewQuarters.length}-${current.nextCardId}`,
-      acquiredSector: current.currentSector,
+  const nextZ = current.topZ + 1
+  const cardId = `crew-quarters-${current.nextCardId}`
+  const card = createCardFromBlueprint(blueprint, cardId)
+  // Place the new stack near the requested hint but nudge it out of the way
+  // of the supply column if an existing stack already sits there. Simple
+  // collision: scan stacks for the same anchor and offset y until clear.
+  let x = positionHint.x
+  let y = positionHint.y
+  const occupiedKeys = new Set(
+    current.stacks.map((stack) => `${Math.round(stack.x)}:${Math.round(stack.y)}`),
+  )
+  while (occupiedKeys.has(`${Math.round(x)}:${Math.round(y)}`)) {
+    y += 10
+    if (y > 70) {
+      y = positionHint.y
+      x += 10
     }
-    const boardAfterBuy: BoardState = {
-      ...current,
-      scraps: scrapsAfter,
-      activeCrewQuarters: [...current.activeCrewQuarters, newInstance],
-      pendingResearchChoice: {
-        offers: current.pendingResearchChoice?.offers ?? [],
-        crewQuartersOffers: offers,
-      },
-    }
-    const synced = syncScrapSupplyToCounter(boardAfterBuy, `buy-quarters-${offer.id}`)
-
-    return withPlaytestEvents(synced, [
-      crewQuartersBoughtEvent(offer.label, offer.cost, scrapsBefore, scrapsAfter),
-    ])
+    if (x > 90) break
   }
+
+  return {
+    board: {
+      ...current,
+      topZ: nextZ,
+      nextCardId: current.nextCardId + 1,
+      cards: { ...current.cards, [cardId]: card },
+      stacks: [
+        ...current.stacks,
+        {
+          id: `stack-crew-quarters-${cardId}`,
+          cardIds: [cardId],
+          x,
+          y,
+          z: nextZ,
+        },
+      ],
+      decks: current.decks.map((d) =>
+        d.id === CREW_QUARTERS_DECK_ID
+          ? { ...d, cards: d.cards.slice(1), z: nextZ }
+          : d,
+      ),
+    },
+    cardId,
+  }
+}
+
+// Dialog-driven Crew Quarters Upgrade purchase. Spends 4 Scraps, deals a
+// generic CQU card from the deck onto the board near the scrap supply.
+// The dialog stays open — the player can keep clicking as long as they have
+// Scraps and the deck has stock.
+export function purchaseCrewQuartersUpgradeUpdate(current: BoardState): BoardUpdateResult {
+  const choice = current.pendingResearchChoice
+  if (!choice) return current
+  if (current.scraps < CREW_QUARTERS_UPGRADE_COST) return current
+
+  const scrapsBefore = current.scraps
+  const boardAfterSpend = spendScrapsFromCards(current, CREW_QUARTERS_UPGRADE_COST).board
+  if (boardAfterSpend.scraps !== scrapsBefore - CREW_QUARTERS_UPGRADE_COST) {
+    return current
+  }
+  const dealt = dealCrewQuartersUpgradeCard(boardAfterSpend, { x: 32, y: 40 })
+  if (!dealt) return current
+
+  return withPlaytestEvents(dealt.board, [
+    crewQuartersCardPlacedEvent(
+      'research-dialog',
+      CREW_QUARTERS_UPGRADE_COST,
+      scrapsBefore,
+      dealt.board.scraps,
+      dealt.cardId,
+    ),
+  ])
 }
 
 export function redrawResearchOffersUpdate(current: BoardState): BoardUpdateResult {
   const shipOffers = current.pendingResearchChoice?.offers ?? []
-  const quarterOffers = current.pendingResearchChoice?.crewQuartersOffers ?? []
-  if (shipOffers.length === 0 && quarterOffers.length === 0) return current
+  if (shipOffers.length === 0) return current
 
-  // Re-draw is priced at the cheapest visible offer (across both card types)
-  // so the cost stays predictable as the dialog content evolves.
-  const allOfferCosts = [
-    ...shipOffers.map((offer) => offer.cost),
-    ...quarterOffers.map((offer) => offer.cost),
-  ]
-  const redrawCost = allOfferCosts.length > 0 ? Math.min(...allOfferCosts) : 0
+  // Re-draw is priced at the cheapest visible ship-part offer (Crew Quarters
+  // Upgrade is bought independently and its cost doesn't participate).
+  const offerCosts = shipOffers.map((offer) => offer.cost)
+  const redrawCost = offerCosts.length > 0 ? Math.min(...offerCosts) : 0
   if (current.scraps < redrawCost) return current
 
   const excludedShipIds = new Set([
     ...shipOffers.map((offer) => offer.id),
     ...current.activeShipParts.map((part) => part.id),
   ])
-  const excludedQuarterIds = new Set(quarterOffers.map((offer) => offer.id))
   const newShipOffers = drawResearchOffers(current.shipPartShopPool, 2, excludedShipIds)
-  const newQuarterOffers = drawCrewQuartersOffers(2, excludedQuarterIds)
-  if (newShipOffers.length === 0 && newQuarterOffers.length === 0) return current
+  if (newShipOffers.length === 0) return current
 
   const scrapsBefore = current.scraps
   const scrapsAfter = scrapsBefore - redrawCost
   const boardAfterRedraw: BoardState = {
     ...current,
     scraps: scrapsAfter,
-    pendingResearchChoice: {
-      offers: newShipOffers,
-      crewQuartersOffers: newQuarterOffers,
-    },
+    pendingResearchChoice: { offers: newShipOffers },
   }
   const synced = syncScrapSupplyToCounter(boardAfterRedraw, `research-redraw-${current.currentSector}`)
 

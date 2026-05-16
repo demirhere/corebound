@@ -12,6 +12,7 @@ import { driftDeck } from './blueprints/driftDeck'
 import { missionDeck } from './blueprints/missionDeck'
 import { sectorGates } from './blueprints/sectorGates'
 import {
+  CREW_QUARTERS_DECK_ID,
   CRYO_DECK_ID,
   DAMAGE_DECK_ID,
   DRIFT_DECK_ID,
@@ -25,7 +26,12 @@ import {
   SHIP_PART_DECK_ID,
   automaticRewardDeckDraw,
   manualDeckDraw,
+  missionDeckDraw,
 } from './decks'
+import {
+  CREW_QUARTERS_DECK_SIZE,
+  createCrewQuartersUpgradeBlueprint,
+} from './crewQuartersCatalog'
 import {
   cardContent,
   cardRulesText,
@@ -43,7 +49,7 @@ const SCRAP_DECK_SIZE = 80
 // mission economy is being tuned. Set deck sizes to 0 to keep the wiring
 // intact but invisible to players.
 const MOTHER_DECK_SIZE = 0
-const STARTING_CREW_CARD_COUNT = 5
+export const STARTING_CREW_CARD_COUNT = 5
 export const TOTAL_SECTORS = 10
 export const SOLO_PLAYER_ID = 'solo'
 export const SOLO_PLAYER: GamePlayer = {
@@ -314,6 +320,10 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
   // const hullDeckCards = hullDeck.slice(4)
   const missionDeckCards = createSectorMissionDeckCards()
   const shipPartDeckCards = createShipPartDeckCards()
+  const crewQuartersDeckCards = Array.from(
+    { length: CREW_QUARTERS_DECK_SIZE },
+    () => createCrewQuartersUpgradeBlueprint(),
+  )
 
   const initialCards = [
     ...initialFuelCards,
@@ -409,7 +419,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
         x: MISSION_DECK_POSITION.x,
         y: MISSION_DECK_POSITION.y,
         z: 1014,
-        draw: manualDeckDraw,
+        draw: missionDeckDraw,
         cards: missionDeckCards,
       },
       {
@@ -423,6 +433,18 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
         z: 1015,
         draw: automaticRewardDeckDraw,
         cards: shipPartDeckCards,
+      },
+      {
+        id: CREW_QUARTERS_DECK_ID,
+        title: 'Crew Quarters Upgrades',
+        icon: 'person',
+        hue: 32,
+        accent: '#f5b061',
+        x: OFFSCREEN_DECK_POSITION.x,
+        y: OFFSCREEN_DECK_POSITION.y,
+        z: 1015,
+        draw: automaticRewardDeckDraw,
+        cards: crewQuartersDeckCards,
       },
       {
         id: MOTHER_DECK_ID,
@@ -552,6 +574,10 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
         return { ...deck, cards: shipPartDeckCards }
       }
 
+      if (deck.id === CREW_QUARTERS_DECK_ID) {
+        return { ...deck, cards: crewQuartersDeckCards }
+      }
+
       if (deck.id === CRYO_DECK_ID) {
         return { ...deck, cards: [...startingCrewDeal.startingCrewBlueprints, ...cryoDeckCards] }
       }
@@ -585,6 +611,7 @@ export function createInitialBoardSetup(players?: readonly GamePlayer[]): Initia
       // setupDeckCreatedEvent('hull-deck', 'Hull Deck', hullDeckCards),
       setupDeckCreatedEvent(MISSION_DECK_ID, 'Missions', missionDeckCards),
       setupDeckCreatedEvent(SHIP_PART_DECK_ID, 'Ship Parts', shipPartDeckCards),
+      setupDeckCreatedEvent(CREW_QUARTERS_DECK_ID, 'Crew Quarters Upgrades', crewQuartersDeckCards),
       setupDeckCreatedEvent(CRYO_DECK_ID, 'Cryo Deck', remainingCryoDeckCards),
       setupDeckCreatedEvent(DRIFT_DECK_ID, 'Drift Deck', driftDeckCards),
       setupDeckCreatedEvent(GATE_DECK_ID, 'Gate Deck', remainingGateDeckCards),

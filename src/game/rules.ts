@@ -179,12 +179,17 @@ export function findBestPatternForCrew(
   cards: Record<string, Card>,
   wildCardId: string | null = null,
 ): { pattern: MissionPatternKind, fuel: number } | null {
-  for (const { pattern, fuel } of PATTERN_FUEL_DESC) {
-    if (canCompleteHandPattern(crewCardIds, cards, pattern, wildCardId)) {
-      return { pattern, fuel }
-    }
-  }
-  return null
+  return findSatisfiedPatternRewardsForCrew(crewCardIds, cards, wildCardId)[0] ?? null
+}
+
+export function findSatisfiedPatternRewardsForCrew(
+  crewCardIds: readonly string[],
+  cards: Record<string, Card>,
+  wildCardId: string | null = null,
+): readonly { pattern: MissionPatternKind, fuel: number }[] {
+  return PATTERN_FUEL_DESC.filter(({ pattern }) => (
+    canCompleteHandPattern(crewCardIds, cards, pattern, wildCardId)
+  ))
 }
 
 export function canCompleteHandPattern(
@@ -802,6 +807,26 @@ function canStackAsBlueprintPrepPile(sourceStack: Stack, targetStack: Stack, car
   return blueprintCount === 1 && supportCount > 0
 }
 
+// A Crew Quarters Upgrade card on the board accepts 1-4 crew (the same range
+// as mission patterns). When a satisfying crew composition is stacked, the
+// upgrade-crew-quarters stack action becomes available; the pile is invalid
+// otherwise to keep the board tidy.
+function canStackAsCrewQuartersPile(sourceStack: Stack, targetStack: Stack, cards: Record<string, Card>) {
+  const stackedCards = [...targetStack.cardIds, ...sourceStack.cardIds].map((cardId) => cards[cardId])
+  let cquCount = 0
+  let crewCount = 0
+  for (const card of stackedCards) {
+    if (card?.kind === 'crew-quarters') {
+      cquCount += 1
+    } else if (card?.kind === 'crew') {
+      crewCount += 1
+    } else {
+      return false
+    }
+  }
+  return cquCount === 1 && crewCount >= 1 && crewCount <= MAX_CREW_PER_MISSION_PATTERN
+}
+
 export function canStackCards(
   sourceStack: Stack,
   targetStack: Stack,
@@ -824,6 +849,7 @@ export function canStackCards(
       canStackAsShipPartPile(sourceStack, targetStack, cards) ||
       canStackAsLoosePile(sourceStack, targetStack, cards) ||
       canStackAsBlueprintPrepPile(sourceStack, targetStack, cards) ||
+      canStackAsCrewQuartersPile(sourceStack, targetStack, cards) ||
       canUseAllCardsInCompletionStack(
         [...targetStack.cardIds, ...sourceStack.cardIds],
         cards,

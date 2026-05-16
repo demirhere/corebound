@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useState } from 'react'
 import { BeginDialog } from './components/BeginDialog'
 import { Board } from './components/Board'
+import { CardCatalogDialog } from './components/CardCatalogDialog'
 import { CrewGuideDialog } from './components/CrewGuideDialog'
 import { HowToPlayDialog } from './components/HowToPlayDialog'
 import { PlaytestLog } from './components/PlaytestLog'
@@ -34,6 +35,7 @@ function App() {
   const [game, dispatchGame] = useReducer(gameReducer, undefined, createInitialGameState)
   const [isGameStarted, setIsGameStarted] = useState(false)
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
+  const [isCardCatalogOpen, setIsCardCatalogOpen] = useState(false)
   const [isCrewGuideOpen, setIsCrewGuideOpen] = useState(false)
   const { board, pendingSetupDeal, playtestLog, previousPlaytestLogSessions } = game
   const resetConsoleLog = usePlaytestLogConsole(playtestLog)
@@ -146,6 +148,7 @@ function App() {
 
     interactions.resetInteractions()
     setIsHowToPlayOpen(false)
+    setIsCardCatalogOpen(false)
     setIsCrewGuideOpen(false)
     setIsGameStarted(false)
   }
@@ -207,7 +210,7 @@ function App() {
             onScoutChoiceConfirm={canMoveBoardFreely ? interactions.onScoutChoiceConfirm : noop}
             onShipPartChoice={canMoveBoardFreely ? interactions.onShipPartChoice : noop}
             onPurchaseShipPart={canMoveBoardFreely ? interactions.onPurchaseShipPart : noop}
-            onPurchaseCrewQuarters={canMoveBoardFreely ? interactions.onPurchaseCrewQuarters : noop}
+            onPurchaseCrewQuartersUpgrade={canMoveBoardFreely ? interactions.onPurchaseCrewQuartersUpgrade : noop}
             onRedrawResearchOffers={canMoveBoardFreely ? interactions.onRedrawResearchOffers : noop}
             onCloseResearchDialog={canMoveBoardFreely ? interactions.onCloseResearchDialog : noop}
             onDiscardActiveShipPart={canMoveBoardFreely ? interactions.onDiscardActiveShipPart : noop}
@@ -235,12 +238,21 @@ function App() {
                 setIsHowToPlayOpen(true)
               }
             }}
+            onShowCardCatalog={() => {
+              if (canApplyGameUpdates) {
+                setIsCardCatalogOpen(true)
+              }
+            }}
             onResetGame={resetGame}
           />
           <HowToPlayDialog
             isOpen={isHowToPlayOpen}
             onClose={canApplyGameUpdates ? () => setIsHowToPlayOpen(false) : noop}
             canClose={canApplyGameUpdates}
+          />
+          <CardCatalogDialog
+            isOpen={isCardCatalogOpen}
+            onClose={canApplyGameUpdates ? () => setIsCardCatalogOpen(false) : noop}
           />
           <CrewGuideDialog
             isOpen={isCrewGuideOpen}

@@ -845,16 +845,32 @@ export function shipPartDiscardedEvent(label: string, refund: number, scrapsBefo
   }
 }
 
-export function crewQuartersBoughtEvent(
-  label: string,
+export function crewQuartersCardPlacedEvent(
+  source: 'research-dialog' | 'scrap-stack',
   cost: number,
   scrapsBefore: number,
   scrapsAfter: number,
+  cardId: string,
 ): PlaytestLogEvent {
   return {
-    type: 'crew-quarters.bought',
-    message: `Crew Quarters researched: ${label} for ${cost} Scrap${cost === 1 ? '' : 's'} (${scrapsBefore} → ${scrapsAfter}).`,
-    details: { label, cost, scrapsBefore, scrapsAfter },
+    type: 'crew-quarters.card-placed',
+    message: `Crew Quarters Upgrade card dealt for ${cost} Scrap${cost === 1 ? '' : 's'} via ${source === 'scrap-stack' ? '4-Scrap stack action' : 'research dialog'} (${scrapsBefore} → ${scrapsAfter}).`,
+    details: { source, cost, scrapsBefore, scrapsAfter, cardId },
+  }
+}
+
+export function crewQuartersUpgradedEvent(
+  pattern: string,
+  newLevel: number,
+  fuelPerPlay: number,
+  crewCardIds: readonly string[],
+  cards: Record<string, { title: string }>,
+): PlaytestLogEvent {
+  const crewSummary = crewCardIds.map((id) => cards[id]?.title ?? id).join(', ')
+  return {
+    type: 'crew-quarters.upgraded',
+    message: `Crew Quarters upgraded: ${pattern} Lv ${newLevel} (+${fuelPerPlay} Fuel) — consumed crew: ${crewSummary}.`,
+    details: { pattern, newLevel, fuelPerPlay, crewCardIds, crewSummary },
   }
 }
 

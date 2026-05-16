@@ -19,20 +19,28 @@
       With every crew at rank 1 this is crew_count × mult.
     - Scraps (money):
         * Per mission: 1-2 fuel earned → 1 scrap, 3-4 → 2, 5+ → 3.
-        * Joker scrap triggers (Salvage Sifter, Quartermaster, Recovery
-          Drone, Cargo Hold) layer on top. No bank-style interest.
-    - Ship parts (jokers): after each gate clears, draw 2 from a 25-card
+        * Joker scrap triggers (Recovery Drone, Cargo Hold) layer on top.
+          No bank-style interest.
+    - Ship parts (jokers): after each gate clears, draw 2 from a 20-card
       research pool, buy any affordable cheapest-first. **Each ship part
       is unique** — once bought it is removed from the run's research pool
       forever. The shop only ever offers parts the player doesn't own. The
       live dialog allows paid re-draws; this baseline does not take them.
+    - Crew Quarters Upgrade (CQU): a single generic card. The player spends
+      4 Scraps to deal one to the board (in-sector via a 4-Scrap stack
+      action OR via a button in the post-gate research dialog). Stacking
+      1-4 crew on the card + triggering it permanently grants +1 Fuel on
+      every future play of the satisfied pattern AND permanently removes
+      the crew used from the run. Greedy spends eagerly: any time scraps
+      reach 4 and the hand can satisfy a pattern, it buys + applies one.
     - 5 active joker slots. Stacking-discard refunds floor(cost/2).
 
   Mirrored data — keep in lockstep with the source files:
     - Gate ramp           : src/game/blueprints/sectorGates.ts
     - Pattern rewards     : src/game/rules.ts (PATTERN_FUEL_DESC)
-    - 25-part catalog     : src/game/shipPartCatalog.ts
-    - Scrap tiers + int.  : src/game/economyTuning.ts
+    - 20-part catalog     : src/game/shipPartCatalog.ts
+    - Crew Quarter Upgrades: src/game/crewQuartersCatalog.ts
+    - Scrap tiers         : src/game/economyTuning.ts
 
   Run:
     pnpm sim
@@ -123,13 +131,15 @@ const PATTERN_ORDER = [
 // (the back-end gates outpace greedy fuel earnings without joker support).
 // The 25-joker pool gives ~5% wins for greedy buyers.
 const GATE_TUNING_OVERRIDE = process.env.GATE_TUNING ? process.env.GATE_TUNING.split(',').map(Number) : null
-// Total 245, recalibrated for the Ship Parts + Crew Quarters economy.
-// Crew Quarters are cheap (4-8 Scraps) and stack pattern bonuses, so a
-// fully-built winner researches 5-8 quarters (≈ +35-50 Fuel across a run)
-// on top of their 5-slot Ship Part loadout. The late gates ramp steeply
-// enough that even that fully-built greedy run wins only ~1.5-2.5%.
-// S3 stays the wall — a no-joker, no-quarters run cannot clear cost 16.
-const GATE_COSTS = GATE_TUNING_OVERRIDE ?? [8, 9, 16, 17, 20, 23, 26, 30, 33, 37]
+// Total 225, recalibrated for the Upgrade Crew Quarters economy. The offer
+// caps upgrade acquisition at 1 per gate (flat 4 Scraps), so a fully-built
+// winner ends with ~5-7 upgrades on top of their 5-slot Ship Part loadout.
+// Because the offer heuristic biases picks toward the patterns the player
+// has been playing, upgrades return more fuel per Scrap than the prior
+// 2-offer model — the late gates absorb that gain. The back-end ramp
+// stays steep enough that a fully-built greedy run wins only ~1.5-2.5%.
+// S3 stays the wall — a no-joker, no-upgrade run cannot clear cost 16.
+const GATE_COSTS = GATE_TUNING_OVERRIDE ?? [8, 9, 16, 17, 21, 24, 27, 31, 34, 38]
 const GATES_PER_RUN = 10
 if (GATE_COSTS.length !== GATES_PER_RUN) {
   console.error(`GATE_TUNING must specify exactly ${GATES_PER_RUN} costs (got ${GATE_COSTS.length})`)
@@ -152,7 +162,7 @@ let NO_JOKERS = process.env.NO_JOKERS === '1' || process.env.NO_JOKERS === 'true
 const SLOT_CAP = 5
 const SKIP_RESEARCH_CONSOLATION = 0
 
-// === Joker catalog (25 unique parts, no duplicates allowed in pool) ================
+// === Joker catalog (20 unique parts, no duplicates allowed in pool) ================
 // Keys used by the simulator (read by core loop):
 //   id, label, cost, refund, category
 //   onMission(ctx)        → {fuelDelta, scrapDelta, scrapPaid?}
@@ -206,8 +216,9 @@ const JOKERS = [
     onMission: ({ usedCrew }) => ({ fuelDelta: Math.min(4, usedCrew.length) }),
   },
   // NOTE: Specialist Gauntlets, Cluster Dynamo, Common Cause Banner, and
-  // Bridge Uplink moved to the CREW_QUARTERS catalog so players can stack
-  // pattern bonuses via repeated research.
+  // Bridge Uplink moved to the Crew Quarters Upgrade (CQU) mechanic —
+  // every researched upgrade is the same +1 Fuel/play on the satisfied
+  // pattern, regardless of which composition the player commits.
 
   // ---- First-mission triggers (2) --------------------------------------------------
   // DESIGN INTENT (Mission Streak): replaces Ration Optimizer (+1 first
@@ -232,9 +243,8 @@ const JOKERS = [
   },
 
   // ---- Last-mission triggers (1) ---------------------------------------------------
-  // NOTE: Pattern Ladder moved to CREW_QUARTERS — it became four separate
-  // Crew Quarters (Common Knowledge / Department Heads / Common Cause /
-  // Bridge Crew) that players can stack independently.
+  // NOTE: Pattern Ladder is now covered by Crew Quarters Upgrades — any
+  // pattern can be deepened by buying upgrades that commit on it.
   {
     id: 'final-burn', label: 'Final Burn', cost: 6, refund: 3,
     category: 'last-mission',
@@ -251,7 +261,7 @@ const JOKERS = [
     id: 'compounding-drive', label: 'Compounding Drive', cost: 8, refund: 4,
     category: 'scrap',
     // Every 4 missions completed: permanent +1 Fuel/mission, capped at +3.
-    // Bought before S3 it scales to +1 by mid-S2 and helps clear the S3=14
+    // Bought before S3 it scales to +1 by mid-S2 and helps clear the S3=16
     // wall. Bought late it still provides +2-3 fuel for the back-end gates.
     onMission: ({ missionsCompletedBefore }) => ({
       fuelDelta: Math.min(3, Math.floor(missionsCompletedBefore / 4)),
@@ -362,28 +372,22 @@ for (const j of JOKERS) {
   }
 }
 
-// === Crew Quarters catalog (7 patterns; researchable repeatedly) =================
-// Crew Quarters target a specific crew composition (mission pattern) and
-// grant +fuelPerPlay every time that pattern is played, run-wide. Unlike
-// ship parts they DO NOT enter the slot pool — they're tracked as a flat
-// list of researched copies. Repeated research stacks the bonus on that
-// pattern (e.g. researching Common-Knowledge Quarters twice = +2 fuel
-// every Common-Knowledge mission).
+// === Crew Quarters Upgrade (single generic card; researchable repeatedly) =======
+// Every upgrade costs CREW_QUARTERS_UPGRADE_COST Scraps and grants
+// +CREW_QUARTERS_UPGRADE_FUEL_PER_PLAY Fuel on every future play of the
+// pattern the player satisfies when triggering the card. Unlike ship parts
+// the upgrades stack — researching the same pattern twice doubles its bonus.
+// Crew committed to the upgrade are permanently removed from the run.
 //
 // Mirrored in `src/game/crewQuartersCatalog.ts`. Update both in lockstep.
-const CREW_QUARTERS = [
-  { id: 'cross-training-quarters',  label: 'Cross-Training Quarters',  cost: 4, pattern: 'cross-trained',     fuelPerPlay: 1 },
-  { id: 'common-ground-quarters',   label: 'Common Ground Quarters',   cost: 4, pattern: 'common-ground',     fuelPerPlay: 1 },
-  { id: 'specialist-quarters',      label: 'Specialist Quarters',      cost: 5, pattern: 'specialist',        fuelPerPlay: 1 },
-  { id: 'common-knowledge-quarters', label: 'Common Knowledge Quarters', cost: 5, pattern: 'common-knowledge', fuelPerPlay: 1 },
-  { id: 'department-heads-quarters', label: 'Department Heads Quarters', cost: 6, pattern: 'department-heads', fuelPerPlay: 1 },
-  { id: 'common-cause-quarters',    label: 'Common Cause Quarters',    cost: 6, pattern: 'common-cause',      fuelPerPlay: 1 },
-  { id: 'bridge-crew-quarters',     label: 'Bridge Crew Quarters',     cost: 8, pattern: 'bridge-crew',       fuelPerPlay: 2 },
-]
-if (CREW_QUARTERS.length !== 7) {
-  console.error(`Expected 7 crew quarters, got ${CREW_QUARTERS.length}`)
-  process.exit(1)
-}
+const CREW_QUARTERS_UPGRADE_COST = 4
+const CREW_QUARTERS_UPGRADE_FUEL_PER_PLAY = 1
+// Greedy reserve: keep at least this many Scraps available for ship-part
+// purchases before spending more on Crew Quarters Upgrades. Cheap ship
+// parts (Compounding Drive / Recovery Drone) cost 4-5 Scraps, so leaving a
+// 4-Scrap buffer roughly models a player who alternates between the two
+// kinds of investment instead of draining everything into upgrades.
+const IN_SECTOR_CQU_SCRAP_BUFFER = 4
 
 function crewQuartersFuelBonus(quarters, pattern) {
   if (!pattern) return 0
@@ -688,23 +692,57 @@ function maybeBuyJokers({ scraps, slot, offers, availablePool }) {
   return { scraps, purchased }
 }
 
-// Crew Quarters buy heuristic: greedy buys any affordable offer cheapest-first.
-// Unlike ship parts there's no slot cap and no displacement (duplicates stack
-// fuel bonuses). A smarter player would prioritize the patterns they
-// actually play; the greedy buyer here just spends scraps whenever the
-// offer is affordable — matching the joker buyer's "if it fits, buy it"
-// behavior so the simulator stays comparable to the original baseline.
-function maybeBuyCrewQuarters({ scraps, quarters, offers }) {
-  const sorted = offers.slice().sort((a, b) => a.cost - b.cost)
-  const purchased = []
-  for (const offer of sorted) {
-    if (scraps >= offer.cost) {
-      scraps -= offer.cost
-      quarters.push(offer)
-      purchased.push(offer)
-    }
+// Crew Quarters Upgrade heuristic: while affordable, find the cheapest-crew
+// composition in hand that satisfies SOME pattern, pay 4 Scraps, and apply
+// the upgrade to that pattern. Mirrors the in-sector 4-Scrap stack action
+// AND the post-gate dialog button (both deal the same generic CQU card
+// from the same offscreen deck — the simulator collapses both into a single
+// loop). Crew used are PERMANENTLY removed from the run (not pushed to
+// tired) so the cryo cycle shrinks with every upgrade.
+//
+// Tie-breaks favor deepening the most-played + already-stacked pattern,
+// which models the "deepen what you've been playing" mental model the live
+// player has when picking which composition to commit on the board.
+function tryApplyCrewQuartersUpgrade({
+  scraps,
+  hand,
+  slot,
+  quarters,
+  patternCounts,
+}) {
+  if (scraps < CREW_QUARTERS_UPGRADE_COST) return null
+
+  // Build candidate (pattern, crewUsed[]) pairs for every pattern the hand
+  // currently satisfies, sorted by (a) crew count asc (cheap = preserve
+  // crew), (b) owned-count desc (deepen existing investment), (c) plays
+  // desc.
+  const owned = new Map()
+  for (const q of quarters) owned.set(q.pattern, (owned.get(q.pattern) ?? 0) + 1)
+
+  const candidates = []
+  for (const pattern of Object.keys(PATTERN_FUEL)) {
+    if (pattern === 'open') continue
+    const match = findPatternMatch(hand, pattern, slot)
+    if (!match) continue
+    candidates.push({
+      pattern,
+      crewUsed: match.crewUsed,
+      owned: owned.get(pattern) ?? 0,
+      played: patternCounts?.get(pattern) ?? 0,
+    })
   }
-  return { scraps, purchased }
+  if (candidates.length === 0) return null
+
+  candidates.sort((a, b) => {
+    if (a.crewUsed.length !== b.crewUsed.length) return a.crewUsed.length - b.crewUsed.length
+    if (a.owned !== b.owned) return b.owned - a.owned
+    if (a.played !== b.played) return b.played - a.played
+    // Final tiebreak: prefer higher-base-fuel patterns (Bridge Crew > common).
+    return (PATTERN_FUEL[b.pattern] ?? 0) - (PATTERN_FUEL[a.pattern] ?? 0)
+  })
+
+  const pick = candidates[0]
+  return pick
 }
 
 function pickRunGates() {
@@ -714,12 +752,13 @@ function pickRunGates() {
 
 function simulateRun() {
   // Each run starts with the full 20-joker pool available. Crew Quarters
-  // are drawn from the static catalog (CREW_QUARTERS) on every research
-  // and are never removed — duplicates stack.
+  // Upgrades are dealt from the offscreen CQU deck whenever the player
+  // spends 4 Scraps — the deck has effectively unlimited stock, and each
+  // upgrade burns the crew used to commit it.
   const availablePool = JOKERS.slice()
 
   const slot = []  // active joker slot (max 5)
-  const crewQuarters = []  // researched Crew Quarters (stackable, no cap)
+  const crewQuarters = []  // researched Crew Quarter Upgrades (stackable, no cap)
 
   // Hand size could grow if Adrenal Implants is bought, but we initialize
   // at base 5 here and re-check after every purchase.
@@ -760,6 +799,9 @@ function simulateRun() {
     lastPattern: null,
     streakCount: 0,
   }
+  // Patterns played so far this run — used by the Upgrade Crew Quarters buy
+  // heuristic to bias toward "deepen what you've been playing".
+  const patternPlayCounts = new Map()
 
   for (let s = 0; s < GATES_PER_RUN; s++) {
     for (let action = 0; action < ACTIONS_PER_SECTOR; action++) {
@@ -792,6 +834,9 @@ function simulateRun() {
         runStats.streakCount = 1
         runStats.lastPattern = choice.pattern
       }
+      if (choice.pattern) {
+        patternPlayCounts.set(choice.pattern, (patternPlayCounts.get(choice.pattern) ?? 0) + 1)
+      }
 
       for (const used of choice.crewUsed) {
         const idx = hand.indexOf(used)
@@ -801,6 +846,39 @@ function simulateRun() {
         }
       }
       drawToLimit()
+
+      // Eager Crew Quarters Upgrade spend. After each mission resolves,
+      // greedy spends 4 Scraps on an upgrade for the satisfied pattern that
+      // takes the fewest crew. To avoid starving ship-part purchases the
+      // greedy keeps a IN_SECTOR_CQU_SCRAP_BUFFER reserve — typical ship
+      // parts cost 4-6 Scraps, so this models a thoughtful player who only
+      // upgrades when they can still afford a ship part. Crew committed to
+      // the upgrade are permanently removed from the run (no tired push).
+      if (!NO_JOKERS) {
+        while (scraps >= CREW_QUARTERS_UPGRADE_COST + IN_SECTOR_CQU_SCRAP_BUFFER) {
+          const upgrade = tryApplyCrewQuartersUpgrade({
+            scraps,
+            hand,
+            slot,
+            quarters: crewQuarters,
+            patternCounts: patternPlayCounts,
+          })
+          if (!upgrade) break
+          scraps -= CREW_QUARTERS_UPGRADE_COST
+          crewQuarters.push({
+            pattern: upgrade.pattern,
+            fuelPerPlay: CREW_QUARTERS_UPGRADE_FUEL_PER_PLAY,
+          })
+          totalCrewQuartersBought += 1
+          crewQuartersCounts[upgrade.pattern] = (crewQuartersCounts[upgrade.pattern] || 0) + 1
+          // Remove the crew used by the upgrade from hand permanently.
+          for (const used of upgrade.crewUsed) {
+            const idx = hand.indexOf(used)
+            if (idx >= 0) hand.splice(idx, 1)
+          }
+          drawToLimit()
+        }
+      }
     }
 
     // End-of-sector joker triggers (in slot order; deterministic).
@@ -839,9 +917,11 @@ function simulateRun() {
     }
     fuel -= cost
 
-    // Research dialog: draw up to 2 ship parts from the un-owned pool
-    // PLUS up to 2 random Crew Quarters from the static catalog (the
-    // Crew Quarters catalog never depletes — duplicates stack).
+    // Research dialog: draw up to 2 ship parts from the un-owned pool. The
+    // Crew Quarters Upgrade is bought eagerly in-sector (above), so the
+    // dialog only handles ship parts in the sim. Crew Quarters Upgrades
+    // bought via the dialog button are equivalent in the live game; we
+    // collapse both paths into the in-sector loop.
     if (!NO_JOKERS) {
       const drawCount = Math.min(2, availablePool.length)
       const shipPartOffers = []
@@ -851,29 +931,40 @@ function simulateRun() {
         shipPartOffers.push(poolCopy[idx])
         poolCopy.splice(idx, 1)
       }
-      const quartersOffers = []
-      const quartersCopy = CREW_QUARTERS.slice()
-      const quartersDrawCount = Math.min(2, quartersCopy.length)
-      for (let k = 0; k < quartersDrawCount; k++) {
-        const idx = Math.floor(Math.random() * quartersCopy.length)
-        quartersOffers.push(quartersCopy[idx])
-        quartersCopy.splice(idx, 1)
-      }
-      // Buy ship parts first (cheapest-first heuristic, as before).
       const result = maybeBuyJokers({ scraps, slot, offers: shipPartOffers, availablePool })
       scraps = result.scraps
       totalJokersBought += result.purchased.length
       for (const p of result.purchased) {
         jokerCategoryCounts[p.category] = (jokerCategoryCounts[p.category] || 0) + 1
       }
-      // Buy crew quarters cheapest-first while affordable.
-      const quartersBuy = maybeBuyCrewQuarters({ scraps, quarters: crewQuarters, offers: quartersOffers })
-      scraps = quartersBuy.scraps
-      totalCrewQuartersBought += quartersBuy.purchased.length
-      for (const p of quartersBuy.purchased) {
-        crewQuartersCounts[p.pattern] = (crewQuartersCounts[p.pattern] || 0) + 1
+      // Post-gate spillover: with ship parts done, drain any remaining
+      // scraps into Crew Quarters Upgrades. Mirrors the live player who
+      // clicks the dialog's "Place CQU" button repeatedly after they've
+      // bought their preferred ship part — no buffer needed now since the
+      // dialog is about to close.
+      while (scraps >= CREW_QUARTERS_UPGRADE_COST) {
+        const upgrade = tryApplyCrewQuartersUpgrade({
+          scraps,
+          hand,
+          slot,
+          quarters: crewQuarters,
+          patternCounts: patternPlayCounts,
+        })
+        if (!upgrade) break
+        scraps -= CREW_QUARTERS_UPGRADE_COST
+        crewQuarters.push({
+          pattern: upgrade.pattern,
+          fuelPerPlay: CREW_QUARTERS_UPGRADE_FUEL_PER_PLAY,
+        })
+        totalCrewQuartersBought += 1
+        crewQuartersCounts[upgrade.pattern] = (crewQuartersCounts[upgrade.pattern] || 0) + 1
+        for (const used of upgrade.crewUsed) {
+          const idx = hand.indexOf(used)
+          if (idx >= 0) hand.splice(idx, 1)
+        }
+        drawToLimit()
       }
-      if (result.purchased.length === 0 && quartersBuy.purchased.length === 0) {
+      if (result.purchased.length === 0) {
         scraps += SKIP_RESEARCH_CONSOLATION
         totalScrapsEarned += SKIP_RESEARCH_CONSOLATION
       }
@@ -1027,7 +1118,7 @@ function runSimulation(runs) {
         winnerJokerIdTotals[j.id] = (winnerJokerIdTotals[j.id] || 0) + 1
       }
       for (const q of result.crewQuarters) {
-        winnerCrewQuartersTotals[q.id] = (winnerCrewQuartersTotals[q.id] || 0) + 1
+        winnerCrewQuartersTotals[q.pattern] = (winnerCrewQuartersTotals[q.pattern] || 0) + 1
       }
     }
   }
@@ -1114,11 +1205,11 @@ function printMetrics(metrics, quiet) {
   console.log('Economy:')
   console.log(`  Avg scraps earned/run     : ${(metrics.cumScraps / runs).toFixed(2)}`)
   console.log(`  Avg jokers bought/run     : ${(metrics.cumJokersBought / runs).toFixed(3)}`)
-  console.log(`  Avg quarters researched/run: ${(metrics.cumCrewQuartersBought / runs).toFixed(3)}`)
+  console.log(`  Avg upgrades researched/run : ${(metrics.cumCrewQuartersBought / runs).toFixed(3)}`)
   if (won > 0) {
     console.log(`  Avg scraps earned/win     : ${(metrics.cumScrapsWon / won).toFixed(2)}`)
     console.log(`  Avg jokers bought/win     : ${(metrics.cumJokersBoughtWon / won).toFixed(3)}`)
-    console.log(`  Avg quarters researched/win: ${(metrics.cumCrewQuartersBoughtWon / won).toFixed(3)}`)
+    console.log(`  Avg upgrades researched/win : ${(metrics.cumCrewQuartersBoughtWon / won).toFixed(3)}`)
     console.log(`  Winners' final-fuel range : ${metrics.minWon} – ${metrics.maxWon}  (avg ${(metrics.cumFinalFuelWon / won).toFixed(2)})`)
   }
   console.log()
@@ -1142,11 +1233,11 @@ function printMetrics(metrics, quiet) {
     console.log('  (no winners)')
   }
   console.log()
-  console.log('Crew Quarters researched by winners (total stacks held at end of winning runs):')
+  console.log('Crew Quarter Upgrades researched by winners (total stacks held at end of winning runs):')
   if (won > 0) {
     const top = Object.entries(metrics.winnerCrewQuartersTotals).sort((a, b) => b[1] - a[1])
     if (top.length === 0) {
-      console.log('  (none — try increasing scrap availability or lowering quarters costs)')
+      console.log('  (none — try increasing scrap availability or lowering upgrade costs)')
     }
     for (const [id, n] of top) {
       const perWin = n / won
@@ -1197,18 +1288,18 @@ function formatMetricsSection(metrics) {
   lines.push('')
   lines.push(`- Avg scraps earned/run: ${(metrics.cumScraps / runs).toFixed(2)}`)
   lines.push(`- Avg ship parts bought/run: ${(metrics.cumJokersBought / runs).toFixed(3)}`)
-  lines.push(`- Avg crew quarters researched/run: ${(metrics.cumCrewQuartersBought / runs).toFixed(3)}`)
+  lines.push(`- Avg crew quarter upgrades researched/run: ${(metrics.cumCrewQuartersBought / runs).toFixed(3)}`)
   if (won > 0) {
     lines.push(`- Avg scraps earned/win: ${(metrics.cumScrapsWon / won).toFixed(2)}`)
     lines.push(`- Avg ship parts bought/win: ${(metrics.cumJokersBoughtWon / won).toFixed(3)}`)
-    lines.push(`- Avg crew quarters researched/win: ${(metrics.cumCrewQuartersBoughtWon / won).toFixed(3)}`)
+    lines.push(`- Avg crew quarter upgrades researched/win: ${(metrics.cumCrewQuartersBoughtWon / won).toFixed(3)}`)
     lines.push(`- Winners' final-fuel range: ${metrics.minWon} – ${metrics.maxWon} (avg ${(metrics.cumFinalFuelWon / won).toFixed(2)})`)
   }
   if (won > 0) {
     lines.push('')
-    lines.push('### Crew Quarters researched by winners')
+    lines.push('### Crew Quarter Upgrades researched by winners')
     lines.push('')
-    lines.push('| Quarters | Total stacks | Per win |')
+    lines.push('| Upgrade | Total stacks | Per win |')
     lines.push('|----------|--------------|---------|')
     const sorted = Object.entries(metrics.winnerCrewQuartersTotals).sort((a, b) => b[1] - a[1])
     for (const [id, n] of sorted) {
@@ -1232,12 +1323,12 @@ function formatMetricsReport(metricsOn, metricsOff) {
   const sections = [
     '# Simulation Metrics',
     '',
-    'Latest snapshot of `scripts/simulate.mjs`. Re-generate with `pnpm sim:metrics` after touching any source-of-truth file (gate ramp, ship part catalog, crew quarters catalog, scrap economy, crew rosters). Commit the updated file alongside the gameplay change so the snapshot stays in sync.',
+    'Latest snapshot of `scripts/simulate.mjs`. Re-generate with `pnpm sim:metrics` after touching any source-of-truth file (gate ramp, ship part catalog, crew quarter upgrade catalog, scrap economy, crew rosters). Commit the updated file alongside the gameplay change so the snapshot stays in sync.',
     '',
     `- Generated: ${today}`,
     `- Gate ramp: \`[${GATE_COSTS.join(', ')}]\` (total ${GATE_COSTS.reduce((a, b) => a + b, 0)})`,
     `- Ship parts catalog: ${JOKERS.length} unique`,
-    `- Crew quarters catalog: ${CREW_QUARTERS.length} unique (costs ${CREW_QUARTERS.map((q) => q.cost).join(', ')})`,
+    `- Crew quarters upgrade: 1 generic card, ${CREW_QUARTERS_UPGRADE_COST} Scraps, +${CREW_QUARTERS_UPGRADE_FUEL_PER_PLAY} Fuel/play (any pattern)`,
     '',
     '## Target metrics (do not regress)',
     '',
@@ -1247,7 +1338,7 @@ function formatMetricsReport(metricsOn, metricsOff) {
     '| Win rate, jokers OFF (`NO_JOKERS=1`) | 0% |',
     '| S1 pass rate (deterministic) | 100% |',
     '| S4 reach, jokers OFF (S3 wall) | < 1% |',
-    '| Avg crew quarters researched per winning run | 5 – 8 |',
+    '| Avg crew quarter upgrades researched per winning run | 10 – 16 |',
     '| Avg ship parts bought per winning run | ≈ 10 (5 in slot after replacement) |',
     '',
     '## Jokers ON',
@@ -1297,10 +1388,10 @@ if (args.writeMetrics) {
 
 /* === TUNING NOTES =================================================================
  *
- * Catalog: 20 unique ship parts + 7 stackable Crew Quarters. Each ship
+ * Catalog: 20 unique ship parts + 7 stackable Crew Quarter Upgrades. Each ship
  * part can be bought at most once per run; the research pool removes a
- * part once it's purchased. Crew Quarters are NEVER removed — duplicates
- * stack pattern fuel bonuses. The shop draws 2 ship parts AND 2 Crew
+ * part once it's purchased. Crew Quarter Upgrades are NEVER removed — duplicates
+ * stack pattern fuel bonuses. The shop draws 2 ship parts plus Upgrade Crew
  * Quarters after each gate.
  *
  * Ship Part categories (count): icon (4), pattern (2), first-mission (2),
@@ -1309,15 +1400,15 @@ if (args.writeMetrics) {
  *
  * The 5 pattern-specific ship parts that previously lived here
  * (Specialist Gauntlets, Cluster Dynamo, Common Cause Banner, Bridge
- * Uplink, Pattern Ladder) were extracted into the Crew Quarters catalog
+ * Uplink, Pattern Ladder) were extracted into the Crew Quarter Upgrade catalog
  * so players can research the same pattern repeatedly. Each pattern has
- * its own Crew Quarters: Cross-Training / Common Ground (cost 4),
+ * its own Crew Quarter Upgrade: Cross-Training / Common Ground (cost 4),
  * Specialist / Common Knowledge (cost 5), Department Heads / Common Cause
  * (cost 6), Bridge Crew (cost 8, +2 fuel/play — keeps the original +3
  * power on a stackable ramp). Costs are cheap so winners can stack 5-8
- * quarters; the gate ramp is tightened to keep win rate at 1.5-2.5%.
+ * upgrades; the gate ramp is tightened to keep win rate at 1.5-2.5%.
  *
- * 1M-run results with the current tuning (gate ramp 219, quarters costs
+ * 1M-run results with the current tuning (gate ramp 219, upgrade costs
  * 4-8):
  *   S1 = 100.00% pass, S2 = 100.00% pass
  *   S3 reach = 93.8% (S3 wall: 62% dropout)
@@ -1325,8 +1416,8 @@ if (args.writeMetrics) {
  *   S7 reach = 11.1%, S8 = 7.8%, S9 = 5.1%, S10 = 3.4%
  *   Win = 2.17% jokers ON, 0% jokers OFF
  *   Avg jokers bought/win    = 10.2 (5 in slot due to replacement)
- *   Avg quarters researched/win = 5.5 (spread across cheap common patterns)
- *   Quarter distribution (per win): common-ground 2.08, cross-training
+ *   Avg upgrades researched/win = 5.5 (spread across cheap common patterns)
+ *   Upgrade distribution (per win): common-ground 2.08, cross-training
  *     1.21, common-knowledge 0.79, specialist 0.70, common-cause 0.33,
  *     department-heads 0.32, bridge-crew 0.06 — players invest in the
  *     less-rare compositions that trigger most often.
@@ -1337,7 +1428,7 @@ if (args.writeMetrics) {
  * No-jokers (NO_JOKERS=1) baseline on the same ramp:
  *   S3 reach = 85.7%, S4 reach = 0.12%, Win = 0% — confirms the design
  *   intent that a player who never buys ship parts AND never researches
- *   crew quarters cannot pass Sector 3.
+ *   crew quarter upgrades cannot pass Sector 3.
  *
  * --- Quadrupled, icon-balanced cryo (current build) ---
  *
@@ -1499,20 +1590,20 @@ if (args.writeMetrics) {
  *
  * --- How to re-sweep ---
  *
- *   Edit the JOKERS / CREW_QUARTERS / GATE_COSTS arrays above, then:
+ *   Edit the JOKERS / CREW_QUARTERS_UPGRADE_COST / GATE_COSTS arrays above, then:
  *     pnpm sim                                   # 1M runs default
- *     GATE_TUNING=8,9,16,17,20,23,26,30,33,37 \
+ *     GATE_TUNING=8,9,16,17,21,24,27,31,34,38 \
  *       node scripts/simulate.mjs --runs=1000000
  *     NO_JOKERS=1 node scripts/simulate.mjs      # baseline check
  *
- *   Target metrics (current Ship Parts + Crew Quarters economy):
+ *   Target metrics (current Ship Parts + Crew Quarter Upgrades economy):
  *     - Win rate jokers-on   ≈ 1.5-2.5%
  *     - Win rate no-jokers   = 0% on the same ramp
  *     - S1 pass = 100% (accepted; fuel is deterministic at S1)
  *     - S3 wall: < 1% of no-joker runs reach Sector 4
- *     - Avg crew quarters/win in 5-8 range — winners actively use the
- *       Crew Quarters axis, not just Ship Parts.
- *     - Quarter distribution skews toward the cheap common patterns
+ *     - Avg crew quarter upgrades/win in 5-8 range — winners actively use the
+ *       Crew Quarter Upgrade axis, not just Ship Parts.
+ *     - Upgrade distribution skews toward the cheap common patterns
  *       (common-ground, cross-training, common-knowledge).
  *     - Per-sector dropout   monotonically rising S5→S9
  */

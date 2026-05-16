@@ -1,9 +1,22 @@
-import { FUEL_DECK_ID, FUEL_DISCARD_DECK_ID, SHIP_PART_DECK_ID } from './decks'
+import {
+  CREW_QUARTERS_DECK_ID,
+  FUEL_DECK_ID,
+  FUEL_DISCARD_DECK_ID,
+  SHIP_PART_DECK_ID,
+} from './decks'
 import { getMissionAnyIconSurcharge } from './damage'
+import { CREW_QUARTERS_UPGRADE_COST } from './crewQuartersCatalog'
 import { getMissionScrapReward } from './economyTuning'
 import { getNextGateFuelDiscount, getNextStopFuelDiscount } from './effects'
-import { applyShipPartMissionEffects, hasShipPartWildSlot } from './shipPartEffects'
+import {
+  hasShipPartWildSlot,
+} from './shipPartEffects'
+import {
+  findBestOpenMissionPatternReward,
+  getCrewQuartersUpgradePreview,
+} from './patternRewards'
 import { isGateClearConditionMet } from './blueprints/sectorGates'
+import { getMissionPatternLabel } from './rules'
 import { getShipPartResearchPayment, getWaterPairFuelAmount } from './shipParts'
 import {
   getGateStackCompletion,
@@ -26,6 +39,8 @@ export type StackActionKind =
   | 'pass-gate'
   | 'use-ration'
   | 'draft-ship-part'
+  | 'research-crew-quarters'
+  | 'upgrade-crew-quarters'
 
 export type StackActionResourceReward = {
   resource: Extract<ResourceKind, 'fuel' | 'scrap'>
@@ -37,6 +52,7 @@ export type StackAction = {
   kind: StackActionKind
   label: string
   resourceRewards?: StackActionResourceReward[]
+  resourceBonus?: StackActionResourceReward
   attentionKey: string
   stackId: string
 }
@@ -138,35 +154,38 @@ function getMissionResourceRewards(
     return []
   }
 
+  const missionsCompletedInSector = current.completedStarSummaries.filter(
+    (summary) => summary.sector === current.currentSector,
+  ).length
+  const usedCrewCards = getCrewCards(stack, current.cards)
+  const bestOpenPatternReward = missionCard.mission.pattern === 'open'
+    ? findBestOpenMissionPatternReward({
+      crewCardIds: usedCrewCards.map((card) => card.id),
+      cards: current.cards,
+      wildCardId: getShipPartWildCardId(current, stack),
+      activeShipParts: current.activeShipParts,
+      activeCrewQuarters: current.activeCrewQuarters,
+      usedCrewCards,
+      missionIndexInSector: missionsCompletedInSector,
+      isLastMissionInSector: missionsCompletedInSector >= current.mapSlots.length - 1,
+      sectorIndex: current.currentSector - 1,
+      scrapsAvailable: current.scraps,
+      missionsCompletedBefore: current.missionsCompletedCount,
+      lastPatternPlayed: current.lastPatternPlayed,
+      patternStreakBefore: current.patternStreakCount,
+    })
+    : null
   const baseRewards = find.kind === 'visit_reward' ? find.rewards : find.rewards ?? []
-  const rewards = missionCard.mission.pattern === 'open' &&
-    completion.dynamicFuelReward !== undefined &&
-    completion.dynamicFuelReward > 0
-    ? [{ kind: 'resource' as const, resource: 'fuel' as const, count: completion.dynamicFuelReward }]
+  const rewards = missionCard.mission.pattern === 'open' && bestOpenPatternReward
+    ? [{ kind: 'resource' as const, resource: 'fuel' as const, count: bestOpenPatternReward.baseFuel }]
     : baseRewards
   const baseFuelRewardCount = rewards.reduce((count, reward) => (
     reward.kind === 'resource' && reward.resource === 'fuel'
       ? count + reward.count
       : count
   ), 0)
-  const missionsCompletedInSector = current.completedStarSummaries.filter(
-    (summary) => summary.sector === current.currentSector,
-  ).length
-  const missionPatternForEffects = missionCard.mission.pattern === 'open'
-    ? completion.dynamicPattern ?? null
-    : missionCard.mission.pattern ?? null
-  const shipPartMissionEffects = applyShipPartMissionEffects(current.activeShipParts, {
-    usedCrewCards: getCrewCards(stack, current.cards),
-    missionIndexInSector: missionsCompletedInSector,
-    isLastMissionInSector: missionsCompletedInSector >= current.mapSlots.length - 1,
-    sectorIndex: current.currentSector - 1,
-    pattern: missionPatternForEffects,
-    scrapsAvailable: current.scraps,
-    missionsCompletedBefore: current.missionsCompletedCount,
-    lastPatternPlayed: current.lastPatternPlayed,
-    patternStreakBefore: current.patternStreakCount,
-  })
-  const fuelRewardCount = Math.max(0, baseFuelRewardCount + shipPartMissionEffects.fuelDelta)
+  const fuelRewardCount = bestOpenPatternReward?.fuelReward ?? baseFuelRewardCount
+  const shipPartMissionEffects = bestOpenPatternReward?.shipPartMissionEffects ?? { fuelDelta: 0, scrapDelta: 0 }
   const baseMissionScrapReward = getMissionScrapReward(fuelRewardCount)
   const totalMissionScrapDelta = baseMissionScrapReward + shipPartMissionEffects.scrapDelta
   const scrapsAfterMission = Math.max(0, current.scraps + totalMissionScrapDelta)
@@ -315,6 +334,67 @@ function getDraftShipPartAction(current: BoardState, stack: Stack): StackAction[
     : []
 }
 
+// Stack of exactly CREW_QUARTERS_UPGRADE_COST (=4) Scrap cards — pressing the
+// action discards them and deals a Crew Quarters Upgrade card from the
+// offscreen deck onto the board. Hidden at 5+ scraps so manual drag-stacked
+// piles can't auto-trigger; auto-stacking normally caps piles at 4.
+function getResearchCrewQuartersAction(current: BoardState, stack: Stack): StackAction[] {
+  if (stack.cardIds.length !== CREW_QUARTERS_UPGRADE_COST) return []
+  const allScrap = stack.cardIds.every((cardId) => {
+    const card = current.cards[cardId]
+    return card?.kind === 'resource' && card.resource === 'scrap'
+  })
+  if (!allScrap) return []
+  const cquDeck = current.decks.find((deck) => deck.id === CREW_QUARTERS_DECK_ID)
+  if (!cquDeck || cquDeck.cards.length === 0) return []
+  return [
+    createStackAction({
+      id: 'research-crew-quarters',
+      kind: 'research-crew-quarters',
+      label: 'Upgrade Crew Quarters',
+      stackId: stack.id,
+    }),
+  ]
+}
+
+// Stack of a single Crew Quarters Upgrade card + 1-4 crew that satisfy at
+// least one mission pattern. The action label previews the upgrade target.
+function getUpgradeCrewQuartersAction(current: BoardState, stack: Stack): StackAction[] {
+  if (stack.cardIds.length < 2 || stack.cardIds.length > 5) return []
+  let cquCardId: string | null = null
+  const crewCardIds: string[] = []
+  for (const cardId of stack.cardIds) {
+    const card = current.cards[cardId]
+    if (!card) return []
+    if (card.kind === 'crew-quarters') {
+      if (cquCardId) return []
+      cquCardId = card.id
+    } else if (card.kind === 'crew') {
+      crewCardIds.push(card.id)
+    } else {
+      return []
+    }
+  }
+  if (!cquCardId || crewCardIds.length === 0 || crewCardIds.length > 4) return []
+  const preview = getCrewQuartersUpgradePreview({
+    crewCardIds,
+    cards: current.cards,
+    activeShipParts: current.activeShipParts,
+    activeCrewQuarters: current.activeCrewQuarters,
+  })
+  if (!preview) return []
+  return [
+    createStackAction({
+      id: 'upgrade-crew-quarters',
+      kind: 'upgrade-crew-quarters',
+      label: `Upgrade ${getMissionPatternLabel(preview.pattern)}`,
+      resourceBonus: { resource: 'fuel', count: 1 },
+      stackId: stack.id,
+    }),
+  ]
+}
+
+
 export function getStackActions(current: BoardState, stack: Stack): StackAction[] {
   if (isBoardActionBlocked(current)) {
     return []
@@ -323,6 +403,8 @@ export function getStackActions(current: BoardState, stack: Stack): StackAction[
   return [
     ...getRationPackAction(current, stack),
     ...getDraftShipPartAction(current, stack),
+    ...getResearchCrewQuartersAction(current, stack),
+    ...getUpgradeCrewQuartersAction(current, stack),
     ...getDrawFuelAction(current, stack),
     ...getTravelAction(current, stack),
     ...getPassGateAction(current, stack),

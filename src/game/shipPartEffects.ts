@@ -11,9 +11,9 @@ import type {
 export const BASE_HAND_SIZE_LIMIT = 5
 export const SHIP_PART_SLOT_CAP = 5
 
-// === Crew Quarters ================================================================
+// === Crew Quarter Upgrades =======================================================
 
-// Sum fuel granted by all Crew Quarters whose pattern matches the one just
+// Sum fuel granted by all Crew Quarter Upgrades whose pattern matches the one just
 // played. Each researched copy contributes its own `fuelPerPlay`, so the
 // same blueprint researched twice doubles its bonus on that pattern.
 export function getCrewQuartersFuelBonus(

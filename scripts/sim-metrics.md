@@ -1,11 +1,11 @@
 # Simulation Metrics
 
-Latest snapshot of `scripts/simulate.mjs`. Re-generate with `pnpm sim:metrics` after touching any source-of-truth file (gate ramp, ship part catalog, crew quarters catalog, scrap economy, crew rosters). Commit the updated file alongside the gameplay change so the snapshot stays in sync.
+Latest snapshot of `scripts/simulate.mjs`. Re-generate with `pnpm sim:metrics` after touching any source-of-truth file (gate ramp, ship part catalog, crew quarter upgrade catalog, scrap economy, crew rosters). Commit the updated file alongside the gameplay change so the snapshot stays in sync.
 
-- Generated: 2026-05-12
-- Gate ramp: `[8, 9, 16, 17, 20, 23, 26, 30, 33, 37]` (total 219)
+- Generated: 2026-05-16
+- Gate ramp: `[8, 9, 16, 17, 21, 24, 27, 31, 34, 38]` (total 225)
 - Ship parts catalog: 20 unique
-- Crew quarters catalog: 7 unique (costs 4, 4, 5, 5, 6, 6, 8)
+- Crew quarters upgrade: 1 generic card, 4 Scraps, +1 Fuel/play (any pattern)
 
 ## Target metrics (do not regress)
 
@@ -15,13 +15,13 @@ Latest snapshot of `scripts/simulate.mjs`. Re-generate with `pnpm sim:metrics` a
 | Win rate, jokers OFF (`NO_JOKERS=1`) | 0% |
 | S1 pass rate (deterministic) | 100% |
 | S4 reach, jokers OFF (S3 wall) | < 1% |
-| Avg crew quarters researched per winning run | 5 – 8 |
+| Avg crew quarter upgrades researched per winning run | 10 – 16 |
 | Avg ship parts bought per winning run | ≈ 10 (5 in slot after replacement) |
 
 ## Jokers ON
 
-- Runs: 1,000,000 (38.78s)
-- **Win rate: 2.19%** (21,861 wins)
+- Runs: 1,000,000 (39.91s)
+- **Win rate: 1.52%** (15,192 wins)
 
 ### Sector reach (cumulative)
 
@@ -29,79 +29,76 @@ Latest snapshot of `scripts/simulate.mjs`. Re-generate with `pnpm sim:metrics` a
 |--------|---------|-----|
 | S1 | 1,000,000 | 100.00% |
 | S2 | 1,000,000 | 100.00% |
-| S3 | 937,501 | 93.75% |
-| S4 | 314,607 | 31.46% |
-| S5 | 196,894 | 19.69% |
-| S6 | 144,397 | 14.44% |
-| S7 | 110,708 | 11.07% |
-| S8 | 77,702 | 7.77% |
-| S9 | 50,425 | 5.04% |
-| S10 | 33,905 | 3.39% |
-| WIN | 21,861 | 2.19% |
+| S3 | 932,775 | 93.28% |
+| S4 | 275,915 | 27.59% |
+| S5 | 169,029 | 16.90% |
+| S6 | 111,115 | 11.11% |
+| S7 | 84,955 | 8.50% |
+| S8 | 64,506 | 6.45% |
+| S9 | 43,502 | 4.35% |
+| S10 | 27,961 | 2.80% |
+| WIN | 15,192 | 1.52% |
 
 ### Per-sector dropout
 
 | Sector | Failed | Pct |
 |--------|--------|-----|
 | S1 | 0 | 0.00% |
-| S2 | 62,499 | 6.25% |
-| S3 | 622,894 | 62.29% |
-| S4 | 117,713 | 11.77% |
-| S5 | 52,497 | 5.25% |
-| S6 | 33,689 | 3.37% |
-| S7 | 33,006 | 3.30% |
-| S8 | 27,277 | 2.73% |
-| S9 | 16,520 | 1.65% |
-| S10 | 12,044 | 1.20% |
+| S2 | 67,225 | 6.72% |
+| S3 | 656,860 | 65.69% |
+| S4 | 106,886 | 10.69% |
+| S5 | 57,914 | 5.79% |
+| S6 | 26,160 | 2.62% |
+| S7 | 20,449 | 2.04% |
+| S8 | 21,004 | 2.10% |
+| S9 | 15,541 | 1.55% |
+| S10 | 12,769 | 1.28% |
 
 ### Economy
 
-- Avg scraps earned/run: 25.39
-- Avg ship parts bought/run: 2.971
-- Avg crew quarters researched/run: 0.754
-- Avg scraps earned/win: 86.21
-- Avg ship parts bought/win: 10.215
-- Avg crew quarters researched/win: 5.464
-- Winners' final-fuel range: 0 – 97 (avg 13.42)
+- Avg scraps earned/run: 24.08
+- Avg ship parts bought/run: 2.195
+- Avg crew quarter upgrades researched/run: 2.387
+- Avg scraps earned/win: 87.77
+- Avg ship parts bought/win: 7.163
+- Avg crew quarter upgrades researched/win: 13.640
+- Winners' final-fuel range: 0 – 69 (avg 11.36)
 
-### Crew Quarters researched by winners
+### Crew Quarter Upgrades researched by winners
 
-| Quarters | Total stacks | Per win |
+| Upgrade | Total stacks | Per win |
 |----------|--------------|---------|
-| common-ground-quarters | 45,434 | 2.078 |
-| cross-training-quarters | 26,449 | 1.210 |
-| common-knowledge-quarters | 17,263 | 0.790 |
-| specialist-quarters | 15,211 | 0.696 |
-| common-cause-quarters | 6,915 | 0.316 |
-| department-heads-quarters | 6,903 | 0.316 |
-| bridge-crew-quarters | 1,283 | 0.059 |
+| cross-trained | 82,550 | 5.434 |
+| specialist | 67,449 | 4.440 |
+| common-ground | 57,217 | 3.766 |
 
 ### Top ship parts held by winners
 
 | Ship Part | Wins held | Pct of wins |
 |-----------|-----------|-------------|
-| compounding-drive | 19,943 | 91.23% |
-| veterans-insignia | 12,401 | 56.73% |
-| crew-synergy | 11,952 | 54.67% |
-| adrenal-implants | 11,518 | 52.69% |
-| fuel-cell-distillery | 11,036 | 50.48% |
-| reserve-capacitor | 9,186 | 42.02% |
-| tachyon-lens | 9,037 | 41.34% |
-| final-burn | 7,935 | 36.30% |
-| scrap-forge | 7,601 | 34.77% |
-| sector-engine | 6,901 | 31.57% |
-| emergency-reserves | 485 | 2.22% |
-| lean-manifest | 428 | 1.96% |
-| preflight-tune-up | 405 | 1.85% |
-| recovery-drone | 247 | 1.13% |
-| cargo-hold | 224 | 1.02% |
-| mission-streak | 4 | 0.02% |
-| reinforced-manifold | 1 | 0.00% |
-| stellar-cartographer | 1 | 0.00% |
+| lean-manifest | 11,359 | 74.77% |
+| reserve-capacitor | 8,306 | 54.67% |
+| preflight-tune-up | 7,452 | 49.05% |
+| recovery-drone | 6,255 | 41.17% |
+| cargo-hold | 6,129 | 40.34% |
+| emergency-reserves | 5,840 | 38.44% |
+| final-burn | 5,174 | 34.06% |
+| scrap-forge | 4,880 | 32.12% |
+| sector-engine | 4,225 | 27.81% |
+| mission-streak | 2,633 | 17.33% |
+| veterans-insignia | 2,227 | 14.66% |
+| reinforced-manifold | 2,099 | 13.82% |
+| hydroponics-bay | 2,090 | 13.76% |
+| lab-centrifuge | 2,076 | 13.67% |
+| stellar-cartographer | 2,032 | 13.38% |
+| compounding-drive | 1,893 | 12.46% |
+| adrenal-implants | 791 | 5.21% |
+| fuel-cell-distillery | 175 | 1.15% |
+| tachyon-lens | 156 | 1.03% |
 
 ## Jokers OFF (`NO_JOKERS=1`)
 
-- Runs: 1,000,000 (19.16s)
+- Runs: 1,000,000 (18.54s)
 - **Win rate: 0.00%** (0 wins)
 
 ### Sector reach (cumulative)
@@ -110,8 +107,8 @@ Latest snapshot of `scripts/simulate.mjs`. Re-generate with `pnpm sim:metrics` a
 |--------|---------|-----|
 | S1 | 1,000,000 | 100.00% |
 | S2 | 1,000,000 | 100.00% |
-| S3 | 855,340 | 85.53% |
-| S4 | 1,133 | 0.11% |
+| S3 | 854,698 | 85.47% |
+| S4 | 1,152 | 0.12% |
 | S5 | 0 | 0.00% |
 | S6 | 0 | 0.00% |
 | S7 | 0 | 0.00% |
@@ -125,9 +122,9 @@ Latest snapshot of `scripts/simulate.mjs`. Re-generate with `pnpm sim:metrics` a
 | Sector | Failed | Pct |
 |--------|--------|-----|
 | S1 | 0 | 0.00% |
-| S2 | 144,660 | 14.47% |
-| S3 | 854,207 | 85.42% |
-| S4 | 1,133 | 0.11% |
+| S2 | 145,302 | 14.53% |
+| S3 | 853,546 | 85.35% |
+| S4 | 1,152 | 0.12% |
 | S5 | 0 | 0.00% |
 | S6 | 0 | 0.00% |
 | S7 | 0 | 0.00% |
@@ -139,4 +136,4 @@ Latest snapshot of `scripts/simulate.mjs`. Re-generate with `pnpm sim:metrics` a
 
 - Avg scraps earned/run: 14.35
 - Avg ship parts bought/run: 0.000
-- Avg crew quarters researched/run: 0.000
+- Avg crew quarter upgrades researched/run: 0.000

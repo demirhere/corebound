@@ -13,6 +13,7 @@ type PlaytestLogProps = {
   canControl: boolean
   networkControl?: ReactNode
   onShowHowToPlay: () => void
+  onShowCardCatalog: () => void
   onResetGame: () => void
 }
 
@@ -36,6 +37,7 @@ export function PlaytestLog({
   canControl,
   networkControl,
   onShowHowToPlay,
+  onShowCardCatalog,
   onResetGame,
 }: PlaytestLogProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -102,6 +104,15 @@ export function PlaytestLog({
           onClick={onShowHowToPlay}
         >
           How to Play
+        </button>
+        <button
+          type="button"
+          className="playtest-log-toggle card-catalog-toggle"
+          aria-haspopup="dialog"
+          disabled={!canControl}
+          onClick={onShowCardCatalog}
+        >
+          Card Catalog
         </button>
         <button
           type="button"

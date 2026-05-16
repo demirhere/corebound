@@ -4,7 +4,7 @@ import type { ShipPartBlueprint } from './types'
 // blueprint is removed from the research pool when bought. Refund is
 // `floor(cost/2)`. The 5 pattern-specific upgrades (Specialist Gauntlets,
 // Cluster Dynamo, Common Cause Banner, Bridge Uplink, Pattern Ladder)
-// were extracted into the Crew Quarters catalog so players can research
+// were extracted into the Crew Quarter Upgrade catalog so players can research
 // the same pattern repeatedly and stack fuel bonuses. Categories now:
 // icon (4), pattern (2), first-mission (2), last-mission (1),
 // scrap (4), converter (3), hand (1), wild (1), special (2). Total = 20.
@@ -86,7 +86,7 @@ export const shipPartCatalog: readonly ShipPartBlueprint[] = [
     effects: [{ kind: 'per-crew-used', fuelPerCrew: 1, maxFuel: 4 }],
   },
   // Note: Specialist Gauntlets, Cluster Dynamo, Common Cause Banner, and
-  // Bridge Uplink moved to the Crew Quarters catalog so players can
+  // Bridge Uplink moved to the Crew Quarter Upgrade catalog so players can
   // research the same pattern repeatedly and stack fuel bonuses.
 
   // ---- First-mission triggers (2) --------------------------------------------------
@@ -119,8 +119,8 @@ export const shipPartCatalog: readonly ShipPartBlueprint[] = [
   },
 
   // ---- Last-mission triggers (1) ---------------------------------------------------
-  // Pattern Ladder was extracted into the Crew Quarters catalog (now four
-  // separate Crew Quarters players can stack on the patterns they want).
+  // Pattern Ladder was extracted into the Crew Quarter Upgrade catalog (now four
+  // separate Crew Quarter Upgrades players can stack on the patterns they want).
   {
     id: 'final-burn',
     label: 'Final Burn',
@@ -136,7 +136,7 @@ export const shipPartCatalog: readonly ShipPartBlueprint[] = [
   // got displaced by greedy slot replacement and was 0% in winning slots).
   // Late-game scaling joker — gain a permanent +1 Fuel/mission for every
   // 4 missions completed run-wide, capped at +3. Bought before S3 it
-  // scales to +1 by mid-S2 and helps clear the S3=14 wall. Bought late
+  // scales to +1 by mid-S2 and helps clear the S3=16 wall. Bought late
   // it still provides +2-3 fuel for the back-end gates. Inspired by
   // Balatro's Hiker / Constellation.
   // EXPECTED: appears in ≥90% of winning slots; lifts late-game

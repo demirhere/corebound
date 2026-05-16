@@ -37,6 +37,19 @@ type CardStackProps = {
 }
 
 function renderStackActionContent(action: StackAction) {
+  if (action.resourceBonus) {
+    return (
+      <>
+        <span>{action.label}</span>
+        <span className="stack-action-resource-group">
+          <span className="stack-action-resource-plus">+</span>
+          <span className="stack-action-resource-count">{action.resourceBonus.count}</span>
+          <GameIcon kind={action.resourceBonus.resource} />
+        </span>
+      </>
+    )
+  }
+
   if (!action.resourceRewards?.length) {
     return action.label
   }

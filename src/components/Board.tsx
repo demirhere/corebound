@@ -89,7 +89,7 @@ type BoardProps = {
   onScoutChoiceConfirm: () => void
   onShipPartChoice: (cardId: string) => void
   onPurchaseShipPart: (shipPartId: string) => void
-  onPurchaseCrewQuarters: (crewQuartersId: string) => void
+  onPurchaseCrewQuartersUpgrade: () => void
   onRedrawResearchOffers: () => void
   onCloseResearchDialog: () => void
   onDiscardActiveShipPart: (instanceId: string) => void
@@ -131,7 +131,7 @@ export function Board({
   onScoutChoiceConfirm,
   onShipPartChoice,
   onPurchaseShipPart,
-  onPurchaseCrewQuarters,
+  onPurchaseCrewQuartersUpgrade,
   onRedrawResearchOffers,
   onCloseResearchDialog,
   onDiscardActiveShipPart,
@@ -329,7 +329,7 @@ export function Board({
         isGameOver={isGameOver}
         canInteract={canMoveBoardFreely}
         onPurchaseShipPart={onPurchaseShipPart}
-        onPurchaseCrewQuarters={onPurchaseCrewQuarters}
+        onPurchaseCrewQuartersUpgrade={onPurchaseCrewQuartersUpgrade}
         onRedrawResearchOffers={onRedrawResearchOffers}
         onCloseResearchDialog={onCloseResearchDialog}
         onDiscardActiveShipPart={onDiscardActiveShipPart}

@@ -149,7 +149,6 @@ export function CardShell({
   const isActiveShipPartCard = card.kind === 'active-ship-part'
   const isCrewQuartersCard = card.kind === 'crew-quarters'
   const activeShipPart = isActiveShipPartCard ? card.shipPart : null
-  const crewQuarters = isCrewQuartersCard ? card.crewQuarters : null
   const isShipPartMission = missionDetails?.find.kind === 'ship_part'
   const missionFindClass = missionDetails
     ? isShipPartMission
@@ -167,7 +166,7 @@ export function CardShell({
     : isActiveShipPartCard
       ? 'Ship Part'
       : isCrewQuartersCard
-        ? 'Crew Quarters'
+        ? 'Crew Quarter Upgrade'
         : 'Mission'
   const missionHeaderTitle = missionDetails?.find.itemName ?? ''
   const headerTitle = missionDetails
@@ -175,14 +174,14 @@ export function CardShell({
     : isActiveShipPartCard
       ? activeShipPart?.label ?? card.title
       : isCrewQuartersCard
-        ? crewQuarters?.label ?? card.title
+        ? card.title
         : getDamageDisplayTitle(card)
   const sectorHeaderDetail = missionDetails
     ? isFuelMission ? null : renderSectorCardHeaderDetail(card)
     : isActiveShipPartCard
       ? activeShipPart ? renderShipPartDescription(activeShipPart.description) : null
       : isCrewQuartersCard
-        ? crewQuarters ? renderShipPartDescription(crewQuarters.description) : null
+        ? null
         : null
   const showSectorHeader = Boolean(missionDetails) || isActiveShipPartCard || isCrewQuartersCard
   const showSectorBadge = showSectorHeader && !isFuelMission && !isShipPartMission && !isActiveShipPartCard && !isCrewQuartersCard

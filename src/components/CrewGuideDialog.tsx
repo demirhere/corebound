@@ -19,7 +19,7 @@ type CrewGuideDialogProps = {
   activeCrewQuarters: readonly ActiveCrewQuarters[]
 }
 
-// Sum the fuel a player's owned ship parts AND researched Crew Quarters
+// Sum the fuel a player's owned ship parts AND researched Crew Quarter Upgrades
 // will *guaranteed* add to a given pattern when it is played. Includes
 // effects whose contribution is fully determined by pattern + crew count
 // (so the guide can show a real number), and excludes timing/icon/run-state
@@ -57,11 +57,10 @@ function getPatternFuelBonus(
       0,
     )
     bonus += quartersBonus
-    const firstLabel = quartersForPattern[0]?.label ?? 'Crew Quarters'
     sources.push(
       quartersForPattern.length > 1
-        ? `+${quartersBonus} ${firstLabel} ×${quartersForPattern.length}`
-        : `+${quartersBonus} ${firstLabel}`,
+        ? `+${quartersBonus} Crew Quarters Upgrade ×${quartersForPattern.length}`
+        : `+${quartersBonus} Crew Quarters Upgrade`,
     )
   }
   return { bonus, sources }
@@ -69,7 +68,7 @@ function getPatternFuelBonus(
 
 type CrewIconPair = readonly [CrewSpecialization, CrewSpecialization]
 
-type GuideEntry = {
+type CrewGuideEntry = {
   pattern: MissionPatternKind
   blurb: string
   crew: readonly CrewIconPair[]
@@ -79,7 +78,7 @@ type GuideEntry = {
 // Patterns ordered from max to least Fuel reward. Ties broken so the
 // fewer-crew option ranks higher (Department Heads needs 2 crew vs Common
 // Cause's 4 for the same Fuel; Specialist needs 1 crew vs Common Ground's 2).
-const GUIDE_ENTRIES: readonly GuideEntry[] = [
+const GUIDE_ENTRIES: readonly CrewGuideEntry[] = [
   { pattern: 'bridge-crew',       blurb: 'One matched specialist of every icon.',              crew: [['life', 'life'], ['star', 'star'], ['engine', 'engine'], ['signal', 'signal']] },
   { pattern: 'department-heads',  blurb: 'Two matched specialists of different icons.',        crew: [['life', 'life'], ['engine', 'engine']] },
   { pattern: 'common-cause',      blurb: 'Four crew all carry the same icon.',                 crew: [['life', 'life'], ['life', 'star'], ['life', 'engine'], ['life', 'signal']], sharedIcon: 'life' },
@@ -112,6 +111,15 @@ function CrewIconRow({ crew, sharedIcon }: { crew: readonly CrewIconPair[], shar
       ))}
     </span>
   )
+}
+
+export function CrewPatternIconRow({ pattern }: { pattern: MissionPatternKind }) {
+  const entry = GUIDE_ENTRIES.find((candidate) => candidate.pattern === pattern)
+  if (!entry) {
+    return null
+  }
+
+  return <CrewIconRow crew={entry.crew} sharedIcon={entry.sharedIcon} />
 }
 
 export function CrewGuideDialog({ isOpen, onClose, patternUsageCounts, activeShipParts, activeCrewQuarters }: CrewGuideDialogProps) {
