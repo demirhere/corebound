@@ -123,6 +123,7 @@ import {
   type MotherCoveredIcon,
 } from '../game/rules'
 import {
+  CANCEL_MISSION_SCRAP_REWARD,
   getStackActions,
 } from '../game/stackActions'
 import {
@@ -2654,6 +2655,48 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
   }
 }
 
+function completeCancelMissionStackAction(
+  current: BoardState,
+  sourceStack: Stack,
+  actionLabel: string,
+): BoardUpdateResult {
+  if (sourceStack.cardIds.length !== 1) {
+    return { board: current, events: [] }
+  }
+  const missionCardId = sourceStack.cardIds[0]
+  const missionCard = missionCardId ? current.cards[missionCardId] : null
+  if (
+    !missionCard ||
+    missionCard.kind !== 'mission' ||
+    missionCard.mission?.pattern !== 'open' ||
+    !current.mapSlots.includes(missionCard.id) ||
+    current.forcedDestinationCardId === missionCard.id
+  ) {
+    return { board: current, events: [] }
+  }
+
+  const scrapsBefore = current.scraps
+  const scrapsAfter = scrapsBefore + CANCEL_MISSION_SCRAP_REWARD
+  const board: BoardState = {
+    ...current,
+    scraps: scrapsAfter,
+    mapSlots: current.mapSlots.map((cardId) => (cardId === missionCard.id ? null : cardId)),
+    cards: withoutCards(current.cards, [missionCard.id]),
+    stacks: removeCardIdsFromStacks(current.stacks, [missionCard.id]),
+  }
+  const synced = syncScrapSupplyToCounter(board, `cancel-mission-${missionCard.id}`)
+  const stranded = resolveSectorStrandedLossIfNeeded(synced)
+
+  return {
+    board: stranded.board,
+    events: [
+      cardsDiscardedEvent([missionCard.id], current.cards, actionLabel),
+      scrapsEarnedEvent('Cancelled Fuel Mission', CANCEL_MISSION_SCRAP_REWARD, scrapsBefore, scrapsAfter),
+      ...stranded.events,
+    ],
+  }
+}
+
 function isGateClearedCleanly(
   current: BoardState,
   sourceStack: Stack,
@@ -3523,6 +3566,8 @@ export function completeStackActionUpdate(
       actionResult = completeResearchCrewQuartersStackAction(current, sourceStack, action.label)
     } else if (action.kind === 'upgrade-crew-quarters') {
       actionResult = completeUpgradeCrewQuartersStackAction(current, sourceStack, action.label)
+    } else if (action.kind === 'cancel-mission') {
+      actionResult = completeCancelMissionStackAction(current, sourceStack, action.label)
     } else if (action.kind === 'travel') {
       actionResult = completeReadyMissionStack(current, stackId, metrics)
     } else if (action.kind === 'pass-gate') {
@@ -3534,12 +3579,13 @@ export function completeStackActionUpdate(
     // Auto-advance the turn after the action resolves. Skip if a pending
     // choice (ship-part draft, scout, wake, drift) opened — those modals
     // belong to the player who triggered the action and must resolve first.
-    // Crew Quarters Upgrade actions are side actions (paid in Scraps +
-    // crew, not a sector mission action) so they don't consume one of the
-    // sector's three mission turns.
+    // Crew Quarters Upgrade actions and mission cancellations are side
+    // actions (free salvage / paid-in-Scraps research) so they don't
+    // consume one of the sector's three mission turns.
     const resolved = resolveStackActionResult(actionResult)
-    const isCrewQuartersAction = action.kind === 'research-crew-quarters' ||
-      action.kind === 'upgrade-crew-quarters'
+    const isSideAction = action.kind === 'research-crew-quarters' ||
+      action.kind === 'upgrade-crew-quarters' ||
+      action.kind === 'cancel-mission'
     const blocked =
       resolved.board === current ||
       resolved.board.pendingShipPartChoice ||
@@ -3550,7 +3596,7 @@ export function completeStackActionUpdate(
       resolved.board.lossReason !== null ||
       resolved.board.hasArrived ||
       resolved.board.isRunEnding ||
-      isCrewQuartersAction
+      isSideAction
 
     if (blocked) {
       return actionResult
@@ -3883,15 +3929,11 @@ export function drawFromDeckUpdate(deckId: string, metrics: BoardMetrics): Board
     }
 
     if (deck.id === MISSION_DECK_ID) {
-      const visibleMissionCardIds = getVisibleMissionCardIds(current)
-      const onlyForcedDestinationVisible = visibleMissionCardIds.length === 1 &&
-        visibleMissionCardIds[0] === current.forcedDestinationCardId
-
       if (
         current.sectorDrawnThisTurn ||
         current.traveledThisTurn ||
         deck.cards.length === 0 ||
-        (visibleMissionCardIds.length > 0 && !onlyForcedDestinationVisible) ||
+        getNextMapDrawSlotIndex(current) === -1 ||
         isSectorMissionFinished(current)
       ) {
         return current

@@ -56,7 +56,7 @@ function renderStackActionContent(action: StackAction) {
 
   return (
     <>
-      <span>Recover</span>
+      <span>{action.actionVerb ?? 'Recover'}</span>
       {action.resourceRewards.map((reward, index) => (
         <span key={reward.resource} className="stack-action-resource-group">
           {index > 0 ? <span className="stack-action-resource-plus">+</span> : null}

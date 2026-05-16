@@ -41,6 +41,7 @@ export type StackActionKind =
   | 'draft-ship-part'
   | 'research-crew-quarters'
   | 'upgrade-crew-quarters'
+  | 'cancel-mission'
 
 export type StackActionResourceReward = {
   resource: Extract<ResourceKind, 'fuel' | 'scrap'>
@@ -53,9 +54,12 @@ export type StackAction = {
   label: string
   resourceRewards?: StackActionResourceReward[]
   resourceBonus?: StackActionResourceReward
+  actionVerb?: string
   attentionKey: string
   stackId: string
 }
+
+export const CANCEL_MISSION_SCRAP_REWARD = 3
 
 function createStackAction(action: Omit<StackAction, 'attentionKey'>): StackAction {
   return {
@@ -395,6 +399,30 @@ function getUpgradeCrewQuartersAction(current: BoardState, stack: Stack): StackA
 }
 
 
+// Solo fuel-mission card on the map can be salvaged for 3 Scraps. Useful
+// when the player drew a mission the current hand can't reasonably clear.
+// Hidden once any crew is stacked onto it — that stack is a travel attempt.
+// The forced-destination mission cannot be cancelled.
+function getCancelMissionAction(current: BoardState, stack: Stack): StackAction[] {
+  if (stack.cardIds.length !== 1) return []
+  const cardId = stack.cardIds[0]
+  if (!cardId) return []
+  const card = current.cards[cardId]
+  if (card?.kind !== 'mission' || card.mission?.pattern !== 'open') return []
+  if (!current.mapSlots.includes(card.id)) return []
+  if (current.forcedDestinationCardId === card.id) return []
+  return [
+    createStackAction({
+      id: 'cancel-mission',
+      kind: 'cancel-mission',
+      label: `Cancel ${CANCEL_MISSION_SCRAP_REWARD} Scrap`,
+      actionVerb: 'Cancel',
+      resourceRewards: [{ resource: 'scrap', count: CANCEL_MISSION_SCRAP_REWARD }],
+      stackId: stack.id,
+    }),
+  ]
+}
+
 export function getStackActions(current: BoardState, stack: Stack): StackAction[] {
   if (isBoardActionBlocked(current)) {
     return []
@@ -405,6 +433,7 @@ export function getStackActions(current: BoardState, stack: Stack): StackAction[
     ...getDraftShipPartAction(current, stack),
     ...getResearchCrewQuartersAction(current, stack),
     ...getUpgradeCrewQuartersAction(current, stack),
+    ...getCancelMissionAction(current, stack),
     ...getDrawFuelAction(current, stack),
     ...getTravelAction(current, stack),
     ...getPassGateAction(current, stack),
