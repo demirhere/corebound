@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react'
-import { CRYO_DECK_ID, DAMAGE_DECK_ID, DRIFT_DECK_ID, GATE_DECK_ID, MISSION_DECK_ID } from '../game/decks'
+import { CREW_DECK_ID, DAMAGE_DECK_ID, DRIFT_DECK_ID, GATE_DECK_ID, MISSION_DECK_ID } from '../game/decks'
 import type { BoardState, Card, CardBlueprint, Deck, HandZone } from '../game/types'
 
 const CARD_MOVE_DURATION_MS = 170
@@ -119,7 +119,7 @@ function getRemovedTopCardsByDeck(previousBoard: BoardState, currentBoard: Board
 
 function getKnownSourceDeckId(card: Card) {
   if (card.id.startsWith('wake-')) {
-    return CRYO_DECK_ID
+    return CREW_DECK_ID
   }
 
   if (card.id.startsWith('scout-')) {
@@ -144,7 +144,7 @@ function getKnownSourceDeckId(card: Card) {
     }
 
     if (card.kind === 'crew') {
-      return CRYO_DECK_ID
+      return CREW_DECK_ID
     }
   }
 

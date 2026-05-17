@@ -47,7 +47,7 @@ import {
 } from './Hand'
 import { TiredCrewDeck } from './TiredCrewDeck'
 import type { SharedDragPreview } from '../realtime/types'
-import { CRYO_DECK_ID, DRIFT_DECK_ID } from '../game/decks'
+import { CREW_DECK_ID, DRIFT_DECK_ID } from '../game/decks'
 
 type BoardView = BoardState
 
@@ -212,14 +212,14 @@ export function Board({
         </div>
       ) : null}
       {board.decks
-        .filter((deck) => deck.cards.length > 0 || deck.id === DRIFT_DECK_ID)
+        .filter((deck) => deck.cards.length > 0 || deck.id === CREW_DECK_ID || deck.id === DRIFT_DECK_ID)
         .map((deck) => (
           <DeckCard
             key={deck.id}
             deck={deck}
             isActive={activeDeckIds.includes(deck.id)}
             isDropTarget={board.dropTargetDeckId === deck.id}
-            canInteract={canMoveBoardFreely && deck.id !== CRYO_DECK_ID}
+            canInteract={canMoveBoardFreely}
             sharedPosition={
               sharedDrag?.kind === 'deck' && sharedDrag.deckId === deck.id
                 ? { x: sharedDrag.x, y: sharedDrag.y }

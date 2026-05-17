@@ -4,7 +4,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import type { Deck } from '../game/types'
-import { CRYO_DECK_ID, canManuallyDrawDeck } from '../game/decks'
+import { CREW_DECK_ID, canManuallyDrawDeck } from '../game/decks'
 import { DeckIcon } from './DeckIcon'
 
 export type DeckCardView = Deck
@@ -44,31 +44,29 @@ export function DeckCard({
   onKeyDown,
 }: DeckCardProps) {
   const canDraw = canManuallyDrawDeck(deck)
+  const opensCrewManifest = deck.id === CREW_DECK_ID
+  const isClickableDeck = canDraw || opensCrewManifest
   const isSharedActive = sharedPosition !== null
   const displayX = sharedPosition?.x ?? deck.x
   const displayY = sharedPosition?.y ?? deck.y
   const displayTitle = getDeckDisplayTitle(deck.title)
-  const usesAnchoredPosition = deck.id === CRYO_DECK_ID
-  const positionStyle: CSSProperties = usesAnchoredPosition
-    ? {}
-    : {
-        left: `${displayX}%`,
-        top: `${displayY}%`,
-      }
   const style: DeckCardStyle = {
     '--card-hue': String(deck.hue),
     '--card-accent': deck.accent,
-    ...positionStyle,
+    left: `${displayX}%`,
+    top: `${displayY}%`,
     zIndex: isActive || isSharedActive ? 'var(--drag-z-index)' : deck.z,
   }
-  const actionLabel = canDraw
-    ? 'Click to draw or drag to move.'
-    : 'Reward-only draw; drag to move.'
+  const actionLabel = opensCrewManifest
+    ? 'Click to view crew manifest or drag to move.'
+    : canDraw
+      ? 'Click to draw or drag to move.'
+      : 'Reward-only draw; drag to move.'
 
   return (
     <button
       type="button"
-      className={`deck-card ${canDraw ? 'is-manual-draw' : 'is-automatic-reward'} ${
+      className={`deck-card ${isClickableDeck ? 'is-manual-draw' : 'is-automatic-reward'} ${
         isActive || isSharedActive ? 'is-being-dragged' : ''
       } ${
         isDropTarget ? 'is-drop-target' : ''

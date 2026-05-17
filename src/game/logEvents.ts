@@ -276,7 +276,7 @@ export function crewReclaimedToHandEvent(
 ): PlaytestLogEvent {
   return {
     type: 'crew.reclaimed_to_hand',
-    message: `${describeCards(cardIds, cards)} returned to hand from the board before refilling from Cryo.`,
+    message: `${describeCards(cardIds, cards)} returned to hand from the board before refilling from the Crew deck.`,
     details: {
       cardIds,
       cardTitles: cardTitles(cardIds, cards),
@@ -905,10 +905,10 @@ export function fuelDeckReshuffledEvent(deck: Deck, discardCount: number): Playt
   }
 }
 
-export function cryoDeckReshuffledEvent(tiredCount: number): PlaytestLogEvent {
+export function crewDeckReshuffledEvent(tiredCount: number): PlaytestLogEvent {
   return {
-    type: 'cryo.deck.reshuffled',
-    message: `Cryo Deck was empty — ${tiredCount} Tired crew shuffled back into Cryo.`,
+    type: 'crew.deck.reshuffled',
+    message: `Crew Deck was empty — ${tiredCount} Tired crew shuffled back into the Crew deck.`,
     details: { tiredCount },
   }
 }
@@ -1009,6 +1009,30 @@ export function sectorResetCrewReadiedEvent(
       readiedCrewTitles,
       readiedCrewSummaries: cardSummaries(readiedCrewCardIds, cards),
       readiedCrewContents: cardContents(readiedCrewCardIds, cards),
+    },
+  }
+}
+
+export function sectorEndCrewReshuffledEvent(
+  sector: number,
+  reshuffledCount: number,
+  dealtCrewCardIds: readonly string[],
+  cards: Record<string, Card>,
+): PlaytestLogEvent {
+  const dealtCrewTitles = cardTitles(dealtCrewCardIds, cards)
+  const dealtCrewText = dealtCrewTitles.length > 0 ? dealtCrewTitles.join(', ') : 'no crew'
+
+  return {
+    type: 'sector_end.crew_reshuffled',
+    message: `Sector ${sector} end: shuffled all ${reshuffledCount} remaining crew (hand + tired + Crew deck) and dealt ${dealtCrewCardIds.length} fresh to hand (${dealtCrewText}).`,
+    details: {
+      sector,
+      reshuffledCount,
+      dealtCount: dealtCrewCardIds.length,
+      dealtCrewCardIds,
+      dealtCrewTitles,
+      dealtCrewSummaries: cardSummaries(dealtCrewCardIds, cards),
+      dealtCrewContents: cardContents(dealtCrewCardIds, cards),
     },
   }
 }

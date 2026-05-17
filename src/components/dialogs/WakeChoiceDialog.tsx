@@ -34,7 +34,7 @@ export function WakeChoiceDialog({ board, isGameOver, canInteract, onWakeCrewCho
         aria-modal="true"
         aria-labelledby="wake-choice-title"
       >
-        <h2 id="wake-choice-title">Choose Cryo Crew</h2>
+        <h2 id="wake-choice-title">Choose Crew</h2>
         <p>Choose {remainingText}. Each joins Tired, then readies 1 crew that was already Tired.</p>
         <div className="wake-choice-cards">
           {wakeChoiceCards.map((card) => (

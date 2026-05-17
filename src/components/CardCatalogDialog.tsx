@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { createActiveShipPartBlueprint } from '../game/blueprints/factories'
 import {
+  CREW_QUARTERS_MAX_UPGRADES_PER_PATTERN,
   CREW_QUARTERS_UPGRADE_COST,
   createCrewQuartersUpgradeBlueprint,
 } from '../game/crewQuartersCatalog'
@@ -60,7 +61,7 @@ function CatalogCrewQuartersUpgradeCard() {
           card={previewCard}
           className="card-catalog-card"
           canInteract={false}
-          ariaLabel="Crew Quarters Upgrade. Stack 1-4 crew + use to permanently grant +1 Fuel on that composition."
+          ariaLabel="Crew Quarters Upgrade. Stack an exact 1-4 crew composition to permanently grant +1 Fuel on its pattern."
           onPointerDown={() => {}}
           onKeyDown={() => {}}
         />
@@ -115,7 +116,7 @@ export function CardCatalogDialog({ isOpen, onClose }: CardCatalogDialogProps) {
           <section className="card-catalog-section" aria-labelledby="card-catalog-crew-title">
             <header className="card-catalog-section-header">
               <h3 id="card-catalog-crew-title">Crew Quarters Upgrade</h3>
-              <p>Stack 1-4 crew on this card to lock in any pattern, permanently +1 Fuel.</p>
+              <p>Stack an exact 1-4 crew composition on this card to lock in its pattern, permanently +1 Fuel. Each composition caps at {CREW_QUARTERS_MAX_UPGRADES_PER_PATTERN} stacks.</p>
             </header>
             <div className="card-catalog-grid">
               <CatalogCrewQuartersUpgradeCard />
@@ -135,7 +136,7 @@ export function CardCatalogDialog({ isOpen, onClose }: CardCatalogDialogProps) {
           </section>
         </div>
 
-        <button type="button" autoFocus onClick={onClose}>
+        <button type="button" onClick={onClose}>
           Close Catalog
         </button>
       </section>

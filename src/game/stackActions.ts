@@ -14,6 +14,7 @@ import {
 import {
   findBestOpenMissionPatternReward,
   getCrewQuartersUpgradePreview,
+  isCrewQuartersUpgradeAtLimit,
 } from './patternRewards'
 import { isGateClearConditionMet } from './blueprints/sectorGates'
 import { getMissionPatternLabel } from './rules'
@@ -55,6 +56,8 @@ export type StackAction = {
   resourceRewards?: StackActionResourceReward[]
   resourceBonus?: StackActionResourceReward
   actionVerb?: string
+  disabled?: boolean
+  variant?: 'crew-limit'
   attentionKey: string
   stackId: string
 }
@@ -300,7 +303,7 @@ function getPassGateAction(current: BoardState, stack: Stack): StackAction[] {
     createStackAction({
       id: 'pass-gate',
       kind: 'pass-gate',
-      label: clearsCleanly ? 'Complete sector' : 'Complete sector with damage',
+      label: clearsCleanly ? 'Complete sector & reshuffle crew' : 'Complete sector with damage',
       stackId: stack.id,
     }),
   ]
@@ -361,8 +364,8 @@ function getResearchCrewQuartersAction(current: BoardState, stack: Stack): Stack
   ]
 }
 
-// Stack of a single Crew Quarters Upgrade card + 1-4 crew that satisfy at
-// least one mission pattern. The action label previews the upgrade target.
+// Stack of a single Crew Quarters Upgrade card + 1-4 crew that satisfy an
+// exact-count mission pattern. The action label previews the upgrade target.
 function getUpgradeCrewQuartersAction(current: BoardState, stack: Stack): StackAction[] {
   if (stack.cardIds.length < 2 || stack.cardIds.length > 5) return []
   let cquCardId: string | null = null
@@ -386,7 +389,28 @@ function getUpgradeCrewQuartersAction(current: BoardState, stack: Stack): StackA
     activeShipParts: current.activeShipParts,
     activeCrewQuarters: current.activeCrewQuarters,
   })
-  if (!preview) return []
+  if (!preview) {
+    if (!isCrewQuartersUpgradeAtLimit({
+      crewCardIds,
+      cards: current.cards,
+      activeShipParts: current.activeShipParts,
+      activeCrewQuarters: current.activeCrewQuarters,
+    })) {
+      return []
+    }
+
+    return [
+      createStackAction({
+        id: 'upgrade-crew-quarters-limit',
+        kind: 'upgrade-crew-quarters',
+        label: 'This crew at limit',
+        disabled: true,
+        variant: 'crew-limit',
+        stackId: stack.id,
+      }),
+    ]
+  }
+
   return [
     createStackAction({
       id: 'upgrade-crew-quarters',

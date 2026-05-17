@@ -7,7 +7,7 @@ import {
 import { getDamageDisplayTitle } from '../game/damage'
 import type { Card } from '../game/types'
 import { DeckIcon } from './DeckIcon'
-import { FuelMissionCard } from './FuelMissionCard'
+import { CrewCountCardLayout, FuelMissionCard } from './FuelMissionCard'
 import { GameIcon } from './GameIcon'
 import { renderGameplayCardContent, renderSectorCardHeaderDetail, renderShipPartDescription } from './GameplayCardContent'
 import { pickCardIcons, pickCardNote } from './gameIcons'
@@ -125,11 +125,11 @@ export function CardShell({
   const isCrewCard = card.kind === 'crew'
   const isGateCard = card.kind === 'gate'
   const isFuelMission = card.kind === 'mission' && card.mission?.pattern === 'open'
-  const usesIntegratedHeader = isCrewCard || card.kind === 'drift' || card.kind === 'hazard'
+  const usesIntegratedHeader = isCrewCard || card.kind === 'drift' || card.kind === 'hazard' || card.kind === 'crew-quarters'
   const gateBackgroundStyle = isGateCard ? getGateBackgroundStyle(card.gate?.backgroundIndex ?? 0) : undefined
   const sampledIcons = pickCardIcons(`${card.id}:${card.title}`)
   const noteLines = pickCardNote(`${card.id}:${card.title}`)
-  const gameplayContent = isFuelMission
+  const gameplayContent = isFuelMission || card.kind === 'crew-quarters'
     ? null
     : renderGameplayCardContent(
         card,
@@ -231,6 +231,12 @@ export function CardShell({
         <article className="card-face card-front">
           {isFuelMission ? (
             <FuelMissionCard />
+          ) : isCrewQuartersCard ? (
+            <CrewCountCardLayout
+              title={card.title}
+              className="crew-quarters-upgrade-card"
+              crewCountAriaLabel="Stack 1 to 4 crew"
+            />
           ) : (
             <>
               {!usesIntegratedHeader && (

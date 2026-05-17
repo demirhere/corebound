@@ -773,14 +773,35 @@
     rgba(139, 54, 255, 0.16);
 }
 
+.crew-guide-row-at-capacity {
+  background:
+    repeating-linear-gradient(135deg, transparent 0 6px, rgba(179, 69, 35, 0.1) 6px 7px),
+    rgba(179, 69, 35, 0.16);
+  box-shadow: inset 0 0 0 1.6px rgba(179, 69, 35, 0.52);
+}
+
+.crew-guide-row-at-capacity:nth-child(odd) {
+  background:
+    repeating-linear-gradient(135deg, transparent 0 6px, rgba(179, 69, 35, 0.12) 6px 7px),
+    rgba(179, 69, 35, 0.2);
+}
+
 .crew-guide-reward-boosted {
   color: #8b36ff;
   text-shadow: 0 1px 0 rgba(255, 248, 232, 0.78);
 }
 
+.crew-guide-reward-at-capacity {
+  color: #b34523;
+}
+
 .crew-guide-boost-source {
   color: #6322bd;
   font-weight: 900;
+}
+
+.crew-guide-row-at-capacity .crew-guide-boost-source {
+  color: #8b311b;
 }
 
 .crew-guide-name {
@@ -1025,6 +1046,15 @@
 
 .card-catalog-card[aria-disabled='true'] {
   opacity: 1;
+}
+
+.crew-deck-panel {
+  width: min(1180px, calc(100vw - 32px));
+}
+
+.crew-deck-card.is-used[aria-disabled='true'] {
+  opacity: 0.32;
+  filter: grayscale(0.85) saturate(0.45);
 }
 
 .failure-overlay {
@@ -2164,7 +2194,7 @@
 }
 
 .hand {
-  --hand-card-scale: 0.62;
+  --hand-card-scale: 1;
   --hand-card-width: calc(var(--card-width) * var(--hand-card-scale));
   --hand-card-height: calc(var(--card-height) * var(--hand-card-scale));
 
@@ -2943,6 +2973,34 @@
     }
   }
 
+  &:disabled,
+  &.is-disabled {
+    cursor: default;
+    opacity: 1;
+    transform: rotate(-1.4deg);
+  }
+
+  &.stack-action-button--crew-limit {
+    color: #7398f5;
+    text-shadow:
+      0 0 1px color-mix(in srgb, #7398f5 55%, #fff),
+      0 0 7px rgba(115, 152, 245, 0.36),
+      0 2px 3px rgba(5, 7, 19, 0.72);
+  }
+
+  &.stack-action-button--crew-limit::before {
+    border-color: currentColor;
+    background: color-mix(in srgb, #7398f5 14%, transparent);
+    box-shadow:
+      0 0 0 1px rgba(115, 152, 245, 0.16),
+      0 0 8px rgba(115, 152, 245, 0.34);
+    transform: rotate(-2deg);
+  }
+
+  &.stack-action-button--crew-limit::after {
+    opacity: 0;
+  }
+
   .stack-action-resource-group {
     display: inline-flex;
     align-items: center;
@@ -3442,7 +3500,8 @@
 }
 
 .card-shell.card-kind-crew .crew-name,
-.card-shell.card-find-open-mission .crew-name {
+.card-shell.card-find-open-mission .crew-name,
+.card-shell.card-kind-crew-quarters .crew-name {
   max-width: 100%;
   overflow: hidden;
   color: #0B1418;
@@ -3464,7 +3523,8 @@
   transform: none;
 }
 
-.card-shell.card-find-open-mission .crew-name {
+.card-shell.card-find-open-mission .crew-name,
+.card-shell.card-kind-crew-quarters .crew-name {
   position: relative;
   display: block;
   overflow: visible;
@@ -4421,76 +4481,6 @@
   }
 }
 
-.card-kind-crew-quarters {
-  .card-face.card-front {
-    background:
-      linear-gradient(90deg, color-mix(in srgb, var(--card-accent) 70%, #11131a) 0 7px, transparent 7px),
-      radial-gradient(circle at 75% 72%, color-mix(in srgb, var(--card-accent) 34%, transparent), transparent 34%),
-      repeating-linear-gradient(180deg, transparent 0 17px, rgba(17, 19, 26, 0.055) 17px 18px, transparent 18px 24px),
-      linear-gradient(150deg, #fff3d7, #ffeac2 62%, color-mix(in srgb, var(--card-accent) 44%, #fff8e8));
-  }
-
-  .card-art {
-    justify-content: center;
-    padding: 6px 14px 14px 18px;
-  }
-}
-
-.crew-quarters-pattern-preview {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  gap: 10px;
-  place-items: center;
-  width: 100%;
-  min-height: clamp(52px, 7.2vw, 92px);
-}
-
-.crew-quarters-pattern-preview .crew-guide-icon-strip {
-  justify-content: center;
-  gap: 5px;
-}
-
-.crew-quarters-pattern-preview .crew-guide-crew-chip {
-  padding: 3px 5px;
-  border-color: rgba(17, 19, 26, 0.38);
-  background: rgba(255, 248, 232, 0.82);
-}
-
-.crew-quarters-pattern-preview .crew-guide-crew-chip .game-icon {
-  width: clamp(14px, calc(var(--card-width) * 0.12), 20px);
-}
-
-.crew-quarters-reward-delta {
-  display: inline-flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-  color: #11131a;
-  font-family: var(--card-title-font-family);
-  font-size: clamp(12px, calc(var(--card-width) * 0.088), 16px);
-  font-style: italic;
-  font-weight: 950;
-  letter-spacing: -0.035em;
-  line-height: 1;
-}
-
-.crew-quarters-reward-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  transform: rotate(-1deg);
-}
-
-.crew-quarters-reward-chip:nth-child(2n) {
-  transform: rotate(1deg);
-}
-
-.crew-quarters-reward-chip .game-icon {
-  width: 1.12em;
-  margin: 0;
-}
-
 .card-shell.card-resource-fuel {
   --cut-card-shape: polygon(12% 0, 88% 0, 100% 8%, 100% 100%, 0 100%, 0 8%);
   --cut-card-radius: 0 0 15px 15px;
@@ -4952,6 +4942,21 @@
   --blueprint-shadow: rgba(4, 17, 31, 0.26);
 }
 
+.card-find-crew-quarters {
+  --blueprint-text: #f4ead4;
+  --blueprint-paper: var(--blueprint-text);
+  --blueprint-ink: var(--blueprint-text);
+  --blueprint-grid: rgba(235, 239, 244, 0.1);
+  --blueprint-grid-strong: rgba(245, 247, 250, 0.16);
+  --blueprint-gradient: linear-gradient(145deg, #707783, #565d67 56%, #3f4650);
+  --blueprint-edge-glow: rgba(247, 249, 252, 0.42);
+  --blueprint-shadow: rgba(15, 18, 24, 0.3);
+}
+
+.card-shell.card-kind-crew-quarters .crew-name {
+  color: var(--blueprint-text);
+}
+
 .card-find-open-mission {
   --fuel-mission-text-outline-color: #B8E2D3;
   --fuel-mission-text-outline-width: 12px;
@@ -4993,7 +4998,8 @@
   }
 }
 
-.card-find-ship-part {
+.card-find-ship-part,
+.card-find-crew-quarters {
   .card-face {
     border-color: transparent;
     border-radius: 14px;
@@ -5060,6 +5066,8 @@
   .card-kicker,
   .card-rule-row > span,
   .card-rule-text,
+  .crew-name,
+  .fuel-mission-crew-count,
   .need-icon-count,
   .card-wake-reward {
     color: var(--blueprint-text);
@@ -6084,7 +6092,8 @@
   }
 }
 
-.deck-card[data-deck-id='sector-deck'] {
+.deck-card[data-deck-id='sector-deck'],
+.deck-card[data-deck-id='crew-deck'] {
   --deck-letter: #CEDCC2;
   --deck-edge: rgba(255, 255, 255, 0.38);
   --deck-ink: #081f22;
@@ -6113,12 +6122,10 @@
   }
 }
 
-.deck-card[data-deck-id='cryo-deck'] {
-  left: clamp(12px, 2vw, 26px);
-  top: auto;
-  bottom: clamp(10px, 2vh, 22px);
-  scale: 0.58;
+.deck-card[data-deck-id='crew-deck'] {
   transform-origin: left bottom;
+  background-color: #391A27;
+  background-image: url('/assets/crew-back.jpeg');
 }
 
 .deck-card[data-deck-id='drift-deck'] {
@@ -6261,7 +6268,8 @@
   text-transform: uppercase;
 }
 
-.deck-card[data-deck-id='sector-deck'] .deck-title {
+.deck-card[data-deck-id='sector-deck'] .deck-title,
+.deck-card[data-deck-id='crew-deck'] .deck-title {
   color: #CEDCC2;
   font-family: var(--card-title-font-family);
   font-size: 17px;
@@ -6466,7 +6474,7 @@
   }
 
   .hand {
-    --hand-card-scale: 0.56;
+    --hand-card-scale: 1;
 
     right: 8px;
     bottom: 8px;
@@ -6480,12 +6488,6 @@
     --tired-card-scale: 0.52;
 
     top: calc((var(--tired-card-height) + 16px) * -1);
-  }
-
-  .deck-card[data-deck-id='cryo-deck'] {
-    left: 8px;
-    bottom: 8px;
-    scale: 0.52;
   }
 
   .hand-zone {

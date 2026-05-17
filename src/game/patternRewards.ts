@@ -1,9 +1,11 @@
+import { CREW_QUARTERS_MAX_UPGRADES_PER_PATTERN } from './crewQuartersCatalog'
 import {
   findSatisfiedPatternRewardsForCrew,
   getMissionPatternFuel,
 } from './rules'
 import {
   applyShipPartMissionEffects,
+  countCrewQuartersForPattern,
   getCrewQuartersFuelBonus,
   type MissionEffectResult,
 } from './shipPartEffects'
@@ -13,6 +15,16 @@ import type {
   Card,
   MissionPatternKind,
 } from './types'
+
+const CREW_QUARTERS_EXACT_CREW_COUNTS: Partial<Record<MissionPatternKind, number>> = {
+  'cross-trained': 1,
+  specialist: 1,
+  'common-ground': 2,
+  'department-heads': 2,
+  'common-knowledge': 3,
+  'common-cause': 4,
+  'bridge-crew': 4,
+}
 
 type BestOpenMissionPatternRewardArgs = {
   crewCardIds: readonly string[]
@@ -39,11 +51,12 @@ export type OpenMissionPatternReward = {
 }
 
 // Crew Quarters Upgrade preview: given the crew currently stacked on a CQU
-// card, pick the best satisfied pattern and report the Fuel reward AFTER the
-// upgrade is applied. Mirrors the "totalFuel" math in CrewGuideDialog (base
-// pattern Fuel + ship-part deterministic bonus for this pattern + Crew
-// Quarters bonus including the new +1 stack), so the stack-action label and
-// the guide stay consistent. Returns null when no pattern is satisfied.
+// card, pick the best satisfied pattern for that exact crew count and report
+// the Fuel reward AFTER the upgrade is applied. Mirrors the "totalFuel" math
+// in CrewGuideDialog (base pattern Fuel + ship-part deterministic bonus for
+// this pattern + Crew Quarters bonus including the new +1 stack), so the
+// stack-action label and the guide stay consistent. Returns null when no
+// exact pattern is satisfied or every exact pattern is already capped.
 type CrewQuartersUpgradePreviewArgs = {
   crewCardIds: readonly string[]
   cards: Record<string, Card>
@@ -58,17 +71,28 @@ export type CrewQuartersUpgradePreview = {
   upgradedFuel: number
 }
 
-export function getCrewQuartersUpgradePreview(
-  args: CrewQuartersUpgradePreviewArgs,
-): CrewQuartersUpgradePreview | null {
-  const satisfied = findSatisfiedPatternRewardsForCrew(
+function findExactCrewQuartersPatternRewards(args: CrewQuartersUpgradePreviewArgs) {
+  const crewCount = args.crewCardIds.length
+
+  return findSatisfiedPatternRewardsForCrew(
     args.crewCardIds,
     args.cards,
     args.wildCardId ?? null,
-  )
+  ).filter((candidate) => CREW_QUARTERS_EXACT_CREW_COUNTS[candidate.pattern] === crewCount)
+}
+
+export function getCrewQuartersUpgradePreview(
+  args: CrewQuartersUpgradePreviewArgs,
+): CrewQuartersUpgradePreview | null {
+  const satisfied = findExactCrewQuartersPatternRewards(args)
   let best: CrewQuartersUpgradePreview | null = null
 
   for (const candidate of satisfied) {
+    // Pattern hard cap: once a pattern has CREW_QUARTERS_MAX_UPGRADES_PER_PATTERN
+    // stacked upgrades, additional upgrades on that exact crew composition are
+    // disallowed.
+    const existingLevel = countCrewQuartersForPattern(args.activeCrewQuarters, candidate.pattern)
+    if (existingLevel >= CREW_QUARTERS_MAX_UPGRADES_PER_PATTERN) continue
     const baseFuel = getMissionPatternFuel(candidate.pattern)
     // Deterministic ship-part bonus for this pattern + crew count (same set
     // used by CrewGuideDialog so the preview matches the guide).
@@ -96,6 +120,14 @@ export function getCrewQuartersUpgradePreview(
   }
 
   return best
+}
+
+export function isCrewQuartersUpgradeAtLimit(args: CrewQuartersUpgradePreviewArgs): boolean {
+  const satisfied = findExactCrewQuartersPatternRewards(args)
+
+  return satisfied.length > 0 && satisfied.every((candidate) => (
+    countCrewQuartersForPattern(args.activeCrewQuarters, candidate.pattern) >= CREW_QUARTERS_MAX_UPGRADES_PER_PATTERN
+  ))
 }
 
 export function findBestOpenMissionPatternReward(

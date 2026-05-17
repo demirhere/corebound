@@ -47,8 +47,8 @@ Tight, no jackpot. Formula: `fuel = sum(crew_ranks) × pattern_mult`. With rank=
 
 - Hand size cap: **5** (will become a stat affected by jokers).
 - Played crew → tired pile.
-- Hand refills from cryo deck after each action.
-- Cryo empty → tired reshuffles into cryo, draws continue.
+- Hand refills from the Crew deck after each action.
+- Crew deck empty → tired reshuffles into the Crew deck, draws continue.
 - **No sector-end auto-reset** of tired (the cycle is continuous).
 
 ### Scraps (currency)

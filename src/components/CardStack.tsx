@@ -129,10 +129,15 @@ export function CardStack({
             <button
               key={action.attentionKey}
               type="button"
-              className="stack-action-button"
+              className={`stack-action-button ${action.disabled ? 'is-disabled' : ''} ${
+                action.variant ? `stack-action-button--${action.variant}` : ''
+              }`}
               aria-label={action.label}
+              disabled={action.disabled}
               onPointerDown={(event) => event.stopPropagation()}
-              onClick={() => onStackAction(stack.id, action.id)}
+              onClick={() => {
+                if (!action.disabled) onStackAction(stack.id, action.id)
+              }}
             >
               {renderStackActionContent(action)}
             </button>

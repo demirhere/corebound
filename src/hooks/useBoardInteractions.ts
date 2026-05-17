@@ -96,6 +96,7 @@ type UseBoardInteractionsArgs = {
   canMoveBoardFreely: boolean
   canUseOwnCrew: boolean
   canEndTurn: boolean
+  onDeckClick?: (deckId: string) => boolean
   onSharedDragChange?: (drag: SharedDragPreview | null) => void
 }
 
@@ -106,6 +107,7 @@ export function useBoardInteractions({
   canMoveBoardFreely,
   canUseOwnCrew,
   canEndTurn,
+  onDeckClick,
   onSharedDragChange,
 }: UseBoardInteractionsArgs) {
   const boardRef = useRef<HTMLDivElement>(null)
@@ -974,6 +976,10 @@ export function useBoardInteractions({
     setBoard(drawFromDeckUpdate(deckId, readBoardMetrics()))
   }
 
+  function clickDeck(deckId: string) {
+    return onDeckClick?.(deckId) ?? false
+  }
+
   function shouldPromptEndTurnForSectorDraw(deckId: string) {
     const current = boardStateRef.current
     const deck = current.decks.find((candidate) => candidate.id === deckId)
@@ -1736,7 +1742,9 @@ export function useBoardInteractions({
     }
 
     if (preparation === 'idle') {
-      drawFromDeck(drag.deckId)
+      if (!clickDeck(drag.deckId)) {
+        drawFromDeck(drag.deckId)
+      }
       return
     }
 
@@ -1846,7 +1854,9 @@ export function useBoardInteractions({
     }
 
     if (canMoveBoardFreely) {
-      drawFromDeck(deckId)
+      if (!clickDeck(deckId)) {
+        drawFromDeck(deckId)
+      }
     }
   }
 

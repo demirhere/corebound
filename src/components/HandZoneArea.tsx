@@ -58,7 +58,7 @@ function getHandCards(cardIds: readonly string[], cards: Record<string, CardView
 
 function getFanStyle(slotIndex: number, totalSlots: number, isActive = false) {
   const fanOffset = slotIndex - (totalSlots - 1) / 2
-  const fanSpacing = totalSlots > 6 ? 90 : totalSlots > 4 ? 115 : 140
+  const fanSpacing = totalSlots > 6 ? 72 : totalSlots > 4 ? 92 : 112
   const fanXPercent = fanOffset * fanSpacing
   const fanY = Math.abs(fanOffset) * 2
   const fanRotation = fanOffset * 2.25

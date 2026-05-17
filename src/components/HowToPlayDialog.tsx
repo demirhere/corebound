@@ -135,10 +135,10 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
             <ol>
               <li>Read the face-up Gate, then click the Mission deck to draw Map Destinations.</li>
               <li>Travel to only 1 Destination per turn. Stack its crew-icon payment, then click Travel.</li>
-              <li>Used crew move to Tired. Rewards recover Fuel, ready Tired crew, or wake Cryo crew for the Mission Lead.</li>
+              <li>Used crew move to Tired. Rewards recover Fuel, ready Tired crew, or wake Crew deck crew for the Mission Lead.</li>
               <li>Each Gate costs 3-6 Fuel to pass, with extra Fuel to clear cleanly.</li>
               <li>After a non-final Gate succeeds, the next sector starts with a fresh Mission deck and empty Map.</li>
-              <li>Each new turn starts by drawing 1 Cryo crew into Ready, if Cryo remains.</li>
+              <li>Each new turn starts by drawing 1 Crew deck crew into Ready, if the Crew deck has cards.</li>
               <li>Unchosen Map Destinations clear. End turn before drawing again unless that was the 3rd Destination.</li>
             </ol>
           </section>
@@ -159,7 +159,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
             <ul>
               <li>Mission finds recover 1-4 Fuel for the shared supply.</li>
               <li>Ready Missions ready Tired crew.</li>
-              <li>Wake Missions recruit 1-2 Cryo crew for the Mission Lead; new crew joins Tired.</li>
+              <li>Wake Missions recruit 1-2 Crew deck crew for the Mission Lead; new crew joins Tired.</li>
               <li>Ship Parts are drafted through Research, not found in Missions.</li>
             </ul>
           </section>
@@ -204,7 +204,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
             <h3>Multiplayer</h3>
             <p>
               The Mission Lead takes the turn. Other players may add or remove only their own crew.
-              Drafted Blueprints and woken Cryo crew go to the Mission Lead, but Fuel rewards and Ship Parts help everyone.
+              Drafted Blueprints and woken Crew deck crew go to the Mission Lead, but Fuel rewards and Ship Parts help everyone.
             </p>
           </section>
 
@@ -219,7 +219,7 @@ export function HowToPlayDialog({ isOpen, onClose, canClose }: HowToPlayDialogPr
           </section>
         </div>
 
-        <button type="button" autoFocus onClick={onClose} disabled={!canClose}>
+        <button type="button" onClick={onClose} disabled={!canClose}>
           Close Manual
         </button>
       </section>

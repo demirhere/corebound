@@ -5,7 +5,7 @@ This manual describes the current ten-sector Corebound board prototype. It suppo
 Player-facing teach:
 
 ```text
-Each sector deals a 3-card Mission deck. Click the deck to draw a Mission onto the Map when you need one, then stack Ready crew on that Mission to recover Fuel — the action shows the Fuel reward based on the best hand pattern your crew forms. Confirming the action consumes that Mission, sends the used crew to Tired, and draws 1 Cryo crew. After 3 Missions, pay the Sector Gate's Fuel cost to proceed.
+Each sector deals a 3-card Mission deck. Click the deck to draw Missions onto the Map when you need them, up to the 3 Map slots, then stack Ready crew on a Mission to recover Fuel — the action shows the Fuel reward based on the best hand pattern your crew forms. Confirming the action consumes that Mission, sends the used crew to Tired, and draws 1 crew from the Crew deck. After 3 Missions, pay the Sector Gate's Fuel cost to proceed.
 ```
 
 ## Objective
@@ -26,7 +26,7 @@ You lose if the current Gate cannot be paid with available Fuel and crew-made Fu
 
 ## Starting Setup
 
-The prototype uses 10 sectors, an on-screen 3-card Mission deck, an off-screen Cryo deck, an on-screen Gate deck, an off-screen Fuel deck + Discard, an off-screen Drift deck, a 3-slot Map, one face-up Gate, and a Hand area for each player. **MOTHER, Stress, Damage, and Discovery systems are temporarily disabled** while the open-mission economy is being tuned.
+The prototype uses 10 sectors, an on-screen 3-card Mission deck, an on-screen Crew deck, an on-screen Gate deck, an off-screen Fuel deck + Discard, an off-screen Drift deck, a 3-slot Map, one face-up Gate, and a Hand area for each player. **MOTHER, Stress, Damage, and Discovery systems are temporarily disabled** while the open-mission economy is being tuned.
 
 On load or restart, setup is staged as an animated deal. After the animation, the Map is empty and the current sector's Mission deck is ready to click.
 
@@ -35,14 +35,14 @@ On load or restart, setup is staged as an animated deal. After the animation, th
 | Fuel Supply | 0 Fuel Cell cards | Starts empty. The first sector Gate forces players to earn Fuel from Missions before passing. |
 | Fuel Deck | 50 Fuel Cell cards | Off-screen. Fuel rewards draw from here. If empty when Fuel would be drawn, shuffle the Fuel Discard back in first. |
 | Fuel Discard | 0 Fuel Cell cards | Off-screen. Spent Fuel goes here, then can be reshuffled. |
-| Starting Crew | 5 crew in solo, even hands in multiplayer | Deal 5 starting crew Ready. Multiplayer pads from the Cryo deck if 5 doesn't divide evenly. |
-| Tired Crew | 0 crew | Starts empty. Crew used on Missions or the Gate go here. **Tired carries across sectors — there is no auto-reset.** When the Cryo Deck empties, the entire Tired pile reshuffles back into Cryo. |
-| Missions | 3 Open Mission placeholders | On-screen sector deck. Click it to draw 1 Mission card onto the Map. Each new sector creates a fresh 3-card Mission deck. |
+| Starting Crew | 5 crew in solo, even hands in multiplayer | Deal 5 starting crew Ready. Multiplayer pads from the Crew deck if 5 doesn't divide evenly. |
+| Tired Crew | 0 crew | Starts empty. Crew used on Missions or the Gate go here. **Tired carries across sectors — there is no auto-reset.** When the Crew Deck empties, the entire Tired pile reshuffles back into the Crew deck. |
+| Missions | 3 Open Mission placeholders | On-screen sector deck. Click it to draw Mission cards onto the Map until the deck or the 3 Map slots run out. Each new sector creates a fresh 3-card Mission deck. |
 | Map | Empty | The Map starts each sector empty. Drawn Missions occupy one of the 3 Map slots and are consumed by exactly one stack action. After all 3 are consumed, only the Gate is reachable. |
 | Ship Parts (Research Pool) | 20 unique blueprints | The joker-economy research pool. After each Gate clears, 2 random un-owned parts are offered for purchase with Scraps. Bought parts are removed from the pool for the rest of the run. You may pay the cheapest visible offer's cost to re-draw 2 new offers plus Upgrade Crew Quarters. |
 | Active Ship Parts | 0 (max 5) | Passive bonuses owned by the run. Click *Discard* to refund `floor(cost/2)` Scraps and free the slot. |
-| Upgrade Crew Quarters | 1 offer after each non-final Gate | Costs 4 Scraps to open. Reveals 3 random Crew Quarter Upgrades, then you pick 1 to research. Crew Quarter Upgrades are not removed from the catalog and duplicates stack. |
-| Active Crew Quarter Upgrades | 0 | Stackable pattern bonuses owned by the run. Each researched upgrade grants +1 Fuel to its matching mission pattern, except Bridge Bunks grants +2 Fuel to Bridge Crew. |
+| Upgrade Crew Quarters | 1 option after each non-final Gate | Costs 4 Scraps to place a generic Crew Quarters Upgrade card on the board. Crew Quarters Upgrade cards also come from the 4-Scrap stack action during a sector. |
+| Active Crew Quarter Upgrades | 0 | Stackable pattern bonuses owned by the run. Each researched upgrade grants +1 Fuel to its matching mission pattern, up to 3 stacks per composition. |
 | Scraps | 0 | The run's currency. Earned per mission (1–2 Fuel → 1, 3–4 → 2, 5+ → 3) plus any Ship Part scrap triggers (Recovery Drone, Cargo Hold). |
 | Gate | 1 Gate card | The 10 Gates are dealt in fixed ascending order. The cheapest sits face up below the Map; the rest stack in the visible Gate Deck. |
 | Gate Deck | 9 remaining Gates | Visible deck, ordered easiest → hardest. Each Gate clear draws the next. |
@@ -51,7 +51,7 @@ On load or restart, setup is staged as an animated deal. After the animation, th
 | Drift Deck | 10 Drift cards | Shuffle 7 Burn + 3 Fatigue. Currently inert: no Gate carries an extra-Drift effect in this build. |
 | Damage Deck | Disabled (0 cards) | Temporarily empty. Gates always clear cleanly; no Damage drawn. |
 | Stress | Always 0 | Disabled. No source of Stress increment in this build. |
-| Cryo Deck | 40 Cryo crew | Off-screen. 10 unique crew blueprints with varied copy counts (Juno/Priya ×5, Oren/Malik ×3, the rest ×4) so the 45-card roster lands on exactly 16 of each icon. After every action, the hand refills to its size cap (5, plus +1 with Adrenal Implants). Refill first reclaims any crew you parked on the board in stacks that aren't yet attached to a destination, gate, or hazard, then draws from Cryo for the rest. When Cryo runs out, the entire Tired pile reshuffles back into Cryo and refilling continues. |
+| Crew Deck | 40 crew | On-screen. 10 unique crew blueprints with varied copy counts (Juno/Priya ×5, Oren/Malik ×3, the rest ×4) so the 45-card roster lands on exactly 16 of each icon. After every action, the hand refills to its size cap (5, plus +1 with Adrenal Implants). Refill first reclaims any crew you parked on the board in stacks that aren't yet attached to a destination, gate, or hazard, then draws from the Crew deck for the rest. When the Crew deck runs out, the entire Tired pile reshuffles back into the Crew deck and refilling continues. |
 
 ## Crew Icons
 
@@ -61,7 +61,7 @@ Crew cards have **1 or 2** specialization icons. Icons are Engine, Life, Nav (fo
 - 2 different icons → **Generalist** (Mechanic, Scientist, Helmsman, Doctor, Recon, Pilot).
 - 1 icon → **Single-icon crew**. Cannot satisfy Specialist, Cross-Trained, Department Heads, or Bridge Crew. They only contribute to shared-icon patterns (Common Ground, Common Knowledge, Common Cause).
 
-Single-icon crew make up the majority of the Cryo deck (26 of 40), so the hand cycles toward shared-icon patterns once the starter doubles tire. The 4 matched specialists (Mara, Sana, Oren, Malik) are split across the starter + cryo decks so Bridge Crew remains reachable — though Mara and Sana are each 1 of 45 cards, so the high-tier specialist patterns are harder to assemble after sector 1.
+Single-icon crew make up the majority of the Crew deck (26 of 40), so the hand cycles toward shared-icon patterns once the starter doubles tire. The 4 matched specialists (Mara, Sana, Oren, Malik) are split across the starter + Crew deck so Bridge Crew remains reachable — though Mara and Sana are each 1 of 45 cards, so the high-tier specialist patterns are harder to assemble after sector 1.
 
 The overall 45-card roster is exactly icon-balanced: 16 Engine, 16 Life, 16 Nav, 16 Science.
 
@@ -75,7 +75,7 @@ A Scientist + Mechanic stack still makes 1 Fuel (or 2 with Fuel Synthesizer draf
 | Sana Iqbal | Life, Life | Medic |
 | Nia Okonkwo | Science, Nav | Recon |
 
-| Cryo Crew | Icons | Role | Copies |
+| Crew Deck Cards | Icons | Role | Copies |
 | --- | --- | --- | --- |
 | Juno Pike | Engine | Engineer | 5 |
 | Priya Shah | Life | Medic | 5 |
@@ -109,7 +109,7 @@ When you stack crew on a Mission, the action button above the stack reads `Recov
 **Per-action effects:**
 1. The Mission card is consumed (removed from the Map).
 2. All crew on the stack become Tired.
-3. The active player draws 1 crew from the Cryo deck (if any remain).
+3. The active player draws 1 crew from the Crew deck (if any remain).
 4. The fuel reward draws N Fuel Cells from the Fuel Deck into the Fuel Supply. Active Ship Parts (jokers) can add bonus Fuel — see the Ship Parts section below. Automatic Fuel placement fills fuel-only stacks up to 9 cards, then uses the next largest fuel-only stack or starts a new stack; manual stacking can exceed 9 cards.
 5. The mission also pays Scraps — the run's currency for buying Ship Parts and opening Upgrade Crew Quarters. Scrap reward tier: 1–2 Fuel earned → 1 Scrap, 3–4 → 2, 5+ → 3. Zero Fuel earns no Scraps.
 
@@ -129,11 +129,11 @@ Greedy strategy is to maximize Fuel per crew used, because crew tire on use:
 | Common Knowledge | 3 | 3 | 1.0 |
 | Cross-Trained | 1 | 1 | 1.0 |
 
-Sim shows greedy max-fuel-pattern play earns ~6.5 Fuel/sector (without joker bonuses) — single-icon crew dilute the hand once starters tire, and with cryo at 40 cards Mara/Sana are each 1 of 45, so high-tier specialist patterns appear less often. Without Ship Parts and Crew Quarter Upgrades the back-end gates 21/24/27/31/34/38 are unreachable; even with a greedy joker buyer, only ~2% of runs win.
+Sim shows greedy max-fuel-pattern play earns ~6.5 Fuel/sector (without joker bonuses) — single-icon crew dilute the hand once starters tire, and with the Crew deck at 40 cards Mara/Sana are each 1 of 45, so high-tier specialist patterns appear less often. Without Ship Parts and Crew Quarter Upgrades the back-end gates 21/24/27/31/34/38 are unreachable; even with a greedy joker buyer, only ~2% of runs win.
 
 ## Sector Loop
 
-At sector start the Map is empty, the 3-card Mission deck is clickable, and the Gate sits face up below the Map. Click the Mission deck to draw a Mission when you need one. On each turn:
+At sector start the Map is empty, the 3-card Mission deck is clickable, and the Gate sits face up below the Map. Click the Mission deck to draw one or more Missions when you need them. On each turn:
 
 1. Stack Ready crew (and optionally Fuel Cells) onto a target — a Mission, a Ship Part Research stack, or the Gate.
 2. The stack shows an action button when it satisfies a known pattern. Common labels:
@@ -141,7 +141,7 @@ At sector start the Map is empty, the 3-card Mission deck is clickable, and the 
    - **Make 1 Fuel / Make 2 Fuel** — Scientist + Mechanic pair.
    - **Draft ship part** — 2 Engine icons + 2 Fuel Cells.
    - **Complete sector** — Gate stack satisfies the Fuel cost.
-3. Click the action to resolve. Used crew become Tired and the hand immediately refills back to its size cap (5, +1 with Adrenal Implants). Refill first reclaims any crew you parked on the board in stacks that aren't yet attached to a destination, gate, or hazard, then draws from Cryo for the rest. When Cryo is empty, the entire Tired pile reshuffles back into Cryo before refilling continues.
+3. Click the action to resolve. Used crew become Tired and the hand immediately refills back to its size cap (5, +1 with Adrenal Implants). Refill first reclaims any crew you parked on the board in stacks that aren't yet attached to a destination, gate, or hazard, then draws from the Crew deck for the rest. When the Crew deck is empty, the entire Tired pile reshuffles back into the Crew deck before refilling continues.
 
 The sector ends when the Gate clears. **There is no Tired-to-Ready auto-reset** — the Balatro-style cycle keeps running across sectors. The next sector creates a fresh 3-card Mission deck and opens the Research Dialog.
 
@@ -204,19 +204,13 @@ Ship Parts are passive bonuses bought with Scraps from the Research Dialog after
 
 ## Crew Quarter Upgrades
 
-Crew Quarter Upgrades are stackable pattern bonuses bought through Upgrade Crew Quarters in the Research Dialog after each non-final Gate. Opening Upgrade Crew Quarters costs **4 Scraps**, reveals **3 random Crew Quarter Upgrades**, and forces you to pick 1. Picking consumes the offer; there is no refund or back-out after opening. Re-draw replaces both Ship Part offers and the unopened or opened upgrade contents.
+Crew Quarter Upgrades are stackable pattern bonuses bought by placing a generic Crew Quarters Upgrade card on the board. The Research Dialog can place one for **4 Scraps** after each non-final Gate, and a stack of exactly 4 Scrap cards can place one during a sector.
 
-Unlike Ship Parts, Crew Quarter Upgrades have no slot cap and are not removed from the catalog. Researching the same upgrade again stacks its bonus on every future mission that resolves as that pattern.
+Stack an exact 1-4 crew composition on the Crew Quarters Upgrade card. The action only appears for a satisfied pattern that uses that exact crew count: 1 crew for Cross-Trained or Specialist, 2 for Common Ground or Department Heads, 3 for Common Knowledge, and 4 for Common Cause or Bridge Crew.
 
-| Name | Pack Cost | Pattern | Effect |
-| --- | ---: | --- | --- |
-| Training Bay | 4 | Cross-Trained | +1 Fuel each Cross-Trained mission |
-| Shared Berths | 4 | Common Ground | +1 Fuel each Common Ground mission |
-| Specialist Pod | 4 | Specialist | +1 Fuel each Specialist mission |
-| Study Module | 4 | Common Knowledge | +1 Fuel each Common Knowledge mission |
-| Command Suite | 4 | Department Heads | +1 Fuel each Department Heads mission |
-| Unity Dorm | 4 | Common Cause | +1 Fuel each Common Cause mission |
-| Bridge Bunks | 4 | Bridge Crew | +2 Fuel each Bridge Crew mission |
+Completing the action consumes the Crew Quarters Upgrade card and the stacked crew, then grants +1 Fuel to every future mission that resolves as the chosen pattern. Each composition caps at 3 stacks. If the exact stacked crew can only make capped compositions, the disabled stack action says **This crew at limit**.
+
+Unlike Ship Parts, Crew Quarter Upgrades have no slot cap and are not removed from the catalog.
 
 ## Disabled Systems
 
@@ -256,13 +250,15 @@ After the 10th Gate clears, the arrival screen opens automatically.
 
 ## Prototype Controls
 
-The Mission deck is on-screen and clickable. Click it to draw 1 Mission card onto the next Map slot; drag it only if you want to move the deck.
+The Mission deck is on-screen and clickable. Click it to draw Mission cards onto the next Map slots until the deck or Map is full; drag it only if you want to move the deck.
+
+The Crew deck is on-screen and clickable. Click it to open the Crew Manifest; drag it to move the deck.
 
 Drag Ready crew from the Hand area onto a Mission, the Gate, or empty space to start a stack. Drop another card on a stack to grow it. Click Ready crew to add it to the top valid stack that already contains crew, or to start a new stack if no crew is on the board. Click the action button above a ready stack to confirm.
 
 Drag visible drafted Ship Part cards onto each other to organize space. Ship Part cards cannot be discarded.
 
-Use the **End turn** button to advance turns and let multiplayer rotate. The next turn player immediately draws 1 Cryo crew into Ready if any remain. After the final Gate succeeds, the arrival screen opens automatically.
+Use the **End turn** button to advance turns and let multiplayer rotate. The next turn player immediately draws 1 crew from the Crew deck into Ready if any remain. After the final Gate succeeds, the arrival screen opens automatically.
 
 Drag a stack to the discard zone to discard it. Gates, active Map Missions, and visible drafted Ship Parts cannot be discarded.
 
@@ -317,7 +313,7 @@ Sector start: 3-card Mission deck and empty Map. Gate sits face up.
 2. Click the action.
    - Mission card consumed.
    - Used crew → Tired.
-   - Draw 1 Cryo crew into Ready.
+   - Draw 1 crew from the Crew deck into Ready.
 3. Repeat up to 3 Missions.
 4. Stack Fuel on the Gate to cover its cost.
 5. Click "Complete sector". Next sector creates a fresh 3-card Mission deck and opens Research.
@@ -341,8 +337,8 @@ RESEARCH
 
 After each non-final Gate: 2 Ship Part offers plus Upgrade Crew Quarters.
 Ship Parts: 20-card pool, max 5 active, bought parts leave the pool.
-Upgrade Crew Quarters: pay 4 Scraps, reveal 3 Crew Quarter Upgrades, pick 1. Duplicates stack.
-Re-draw costs the cheapest visible offer and refreshes both Ship Parts and Upgrade Crew Quarters.
+Upgrade Crew Quarters: pay 4 Scraps to place a generic Crew Quarters Upgrade card, then stack exact crew on it to choose the pattern.
+Re-draw costs the cheapest visible offer and refreshes the Ship Part offers plus the Upgrade Crew Quarters option.
 
 DISABLED THIS BUILD
 
@@ -353,7 +349,7 @@ MULTIPLAYER
 Mission Lead takes the full turn.
 Other players add or remove their own crew with click or drag.
 Fuel rewards help the shared ship.
-Cryo draws go to the active player.
+Crew deck draws go to the active player.
 Blueprints help everyone, score for the Mission Lead who drafted them.
 Any Gate failure means everyone loses.
 ```

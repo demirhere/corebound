@@ -1,6 +1,6 @@
 import {
   CREW_QUARTERS_DECK_ID,
-  CRYO_DECK_ID,
+  CREW_DECK_ID,
   DAMAGE_DECK_ID,
   DISCOVERY_DECK_ID,
   DRIFT_DECK_ID,
@@ -76,7 +76,7 @@ import {
   researchOfferedEvent,
   researchRedrawnEvent,
   researchSkippedEvent,
-  cryoDeckReshuffledEvent,
+  crewDeckReshuffledEvent,
   routeArchivedEvent,
   scoutUsedEvent,
   scrapsEarnedEvent,
@@ -85,8 +85,7 @@ import {
   shipPartDiscardedEvent,
   crewQuartersCardPlacedEvent,
   crewQuartersUpgradedEvent,
-  sectorResetCrewReadiedEvent,
-  medbayRehydratorReadiedEvent,
+  sectorEndCrewReshuffledEvent,
   shipPartAvailableEvent,
   shipPartDraftedEvent,
   shipPartSpentEvent,
@@ -158,6 +157,7 @@ import {
   MOTHER_SUPPLY_STACK_POSITION,
   SCRAP_SUPPLY_STACK_ID,
   SECTOR_GATE_STACK_POSITION,
+  SOLO_PLAYER_ID,
   STARTING_CREW_CARD_COUNT,
   getShipPartShelfPosition,
   createDriftDeckCards,
@@ -500,8 +500,8 @@ function drawWakeChoiceCards(
   deckZ: number,
   playerId: string | null,
 ) {
-  const cryoDeck = decks.find((deck) => deck.id === CRYO_DECK_ID)
-  const choiceBlueprints = cryoDeck?.cards.slice(0, Math.min(2, cryoDeck.cards.length)) ?? []
+  const crewDeck = decks.find((deck) => deck.id === CREW_DECK_ID)
+  const choiceBlueprints = crewDeck?.cards.slice(0, Math.min(2, crewDeck.cards.length)) ?? []
 
   if (remaining <= 0 || choiceBlueprints.length === 0) {
     return {
@@ -531,7 +531,7 @@ function drawWakeChoiceCards(
   return {
     cards: nextCards,
     decks: decks.map((deck) =>
-      deck.id === CRYO_DECK_ID
+      deck.id === CREW_DECK_ID
         ? { ...deck, cards: deck.cards.slice(choiceBlueprints.length), z: deckZ }
         : deck,
     ),
@@ -874,7 +874,15 @@ function resolveLoss(current: BoardState, reason: GameLossReason) {
 }
 
 function isSectorMissionFinished(current: BoardState) {
-  return isRouteFilled(current.routeSlots)
+  // Sector mission phase ends when there's nothing left to act on: deck
+  // empty AND no fuel mission visible on the map. Completing a mission
+  // fills a route slot; cancelling just discards. Either way the card is
+  // resolved, so the route doesn't have to be fully filled — a player who
+  // cancels every mission for Scraps still clears the mission phase.
+  return (
+    isRouteFilled(current.routeSlots) ||
+    (getDeckCardCount(current, MISSION_DECK_ID) === 0 && getVisibleMissionCardIds(current).length === 0)
+  )
 }
 
 function resolveGateLossIfNeeded(current: BoardState) {
@@ -1686,9 +1694,9 @@ function advanceTurn(current: BoardState) {
   }
 }
 
-// Reshuffles tired crew back into the cryo deck (Balatro-style discard
+// Reshuffles tired crew back into the Crew deck (Balatro-style discard
 // recycle). Returns the board and an event when work was done.
-function reshuffleTiredIntoCryo(current: BoardState) {
+function reshuffleTiredIntoCrewDeck(current: BoardState) {
   if (current.tiredCardIds.length === 0) {
     return { board: current, events: [] as PlaytestLogEvent[] }
   }
@@ -1701,22 +1709,22 @@ function reshuffleTiredIntoCryo(current: BoardState) {
     roundStartTiredCardIds: removeRoundStartTiredCardIds(current, tiredCardIds),
     cards: withoutCards(current.cards, tiredCardIds),
     decks: current.decks.map((deck) =>
-      deck.id === CRYO_DECK_ID
+      deck.id === CREW_DECK_ID
         ? { ...deck, cards: [...deck.cards, ...shuffledBlueprints] }
         : deck,
     ),
   }
-  return { board, events: [cryoDeckReshuffledEvent(tiredBlueprints.length)] }
+  return { board, events: [crewDeckReshuffledEvent(tiredBlueprints.length)] }
 }
 
-// Draws a single crew card from the cryo deck into the active player's hand.
+// Draws a single crew card from the Crew deck into the active player's hand.
 // Returns the unchanged board if the deck is empty (caller is responsible
 // for triggering reshuffle first).
-function drawOneCryoIntoHand(current: BoardState) {
-  const cryoDeck = current.decks.find((deck) => deck.id === CRYO_DECK_ID)
-  const crewBlueprint = cryoDeck?.cards[0]
+function drawOneCrewIntoHand(current: BoardState) {
+  const crewDeck = current.decks.find((deck) => deck.id === CREW_DECK_ID)
+  const crewBlueprint = crewDeck?.cards[0]
 
-  if (!cryoDeck || !crewBlueprint) {
+  if (!crewDeck || !crewBlueprint) {
     return { board: current, events: [] as PlaytestLogEvent[] }
   }
 
@@ -1737,7 +1745,7 @@ function drawOneCryoIntoHand(current: BoardState) {
         }
       : current.crewOwnerIds,
     decks: current.decks.map((deck) =>
-      deck.id === CRYO_DECK_ID
+      deck.id === CREW_DECK_ID
         ? { ...deck, cards: deck.cards.slice(1) }
         : deck,
     ),
@@ -1745,14 +1753,14 @@ function drawOneCryoIntoHand(current: BoardState) {
 
   return {
     board,
-    events: [turnStartCrewDrawnEvent(crewCard, cryoDeck, currentPlayer?.name ?? null)],
+    events: [turnStartCrewDrawnEvent(crewCard, crewDeck, currentPlayer?.name ?? null)],
   }
 }
 
 // A "limbo" crew stack is one the player parked on the board (e.g. a partial
 // pattern) that isn't yet attached to any destination/gate/hazard/ship-part.
-// Crew sitting in such stacks should come back to hand before Cryo fills the
-// remaining slots — otherwise the Cryo top-up would orphan them on the board.
+// Crew sitting in such stacks should come back to hand before the Crew deck fills the
+// remaining slots — otherwise the Crew deck top-up would orphan them on the board.
 function isCommittedBoardStack(stack: Stack, board: BoardState) {
   if (stackContainsRouteCard(stack, board.routeSlots, board.shipPartSlots)) return true
   for (const cardId of stack.cardIds) {
@@ -1818,9 +1826,9 @@ function reclaimLimboCrewToHand(current: BoardState, capacity: number) {
 
 // Locked Balatro-style cycle: refill the hand to its current size cap. First
 // reclaim any crew the player parked on uncommitted board stacks, then top up
-// from the cryo deck. When cryo runs out, reshuffle the tired pile into cryo
+// from the Crew deck. When the Crew deck runs out, reshuffle the tired pile into it
 // and keep drawing. Hand size cap = 5 + Adrenal Implants.
-function refillHandFromCryo(current: BoardState) {
+function refillHandFromCrewDeck(current: BoardState) {
   const handLimit = getShipPartHandSizeLimit(current.activeShipParts)
   let board = current
   const events: PlaytestLogEvent[] = []
@@ -1837,16 +1845,16 @@ function refillHandFromCryo(current: BoardState) {
     if (safety > 64) break // belt-and-suspenders against pathological loops
     safety += 1
 
-    const cryoDeck = board.decks.find((deck) => deck.id === CRYO_DECK_ID)
-    if (!cryoDeck || cryoDeck.cards.length === 0) {
-      const reshuffled = reshuffleTiredIntoCryo(board)
-      if (reshuffled.events.length === 0) break // both cryo and tired empty
+    const crewDeck = board.decks.find((deck) => deck.id === CREW_DECK_ID)
+    if (!crewDeck || crewDeck.cards.length === 0) {
+      const reshuffled = reshuffleTiredIntoCrewDeck(board)
+      if (reshuffled.events.length === 0) break // both Crew deck and tired empty
       board = reshuffled.board
       events.push(...reshuffled.events)
       continue
     }
 
-    const drawn = drawOneCryoIntoHand(board)
+    const drawn = drawOneCrewIntoHand(board)
     if (drawn.board === board) break
     board = drawn.board
     events.push(...drawn.events)
@@ -1855,13 +1863,13 @@ function refillHandFromCryo(current: BoardState) {
   return { board, events }
 }
 
-function drawTurnStartCryoCrew(current: BoardState) {
-  return refillHandFromCryo(current)
+function drawTurnStartCrew(current: BoardState) {
+  return refillHandFromCrewDeck(current)
 }
 
 // Active crew on the board = hand + crew committed to any stack (mission,
 // gate, CQU, free piles, etc.) — but NOT cards in the Tired tray, since
-// Tired is the discard pile that recycles back into Cryo and shouldn't
+// Tired is the discard pile that recycles back into the Crew deck and shouldn't
 // block fresh crew from arriving. Used by the Crew Quarters Upgrade refill
 // so the player's effective board count stays at the starting target after
 // burning crew for the upgrade.
@@ -1889,16 +1897,16 @@ function refillCrewOnBoardToLimit(current: BoardState, limit: number) {
     if (safety > 64) break
     safety += 1
 
-    const cryoDeck = board.decks.find((deck) => deck.id === CRYO_DECK_ID)
-    if (!cryoDeck || cryoDeck.cards.length === 0) {
-      const reshuffled = reshuffleTiredIntoCryo(board)
-      if (reshuffled.events.length === 0) break // cryo + tired both exhausted
+    const crewDeck = board.decks.find((deck) => deck.id === CREW_DECK_ID)
+    if (!crewDeck || crewDeck.cards.length === 0) {
+      const reshuffled = reshuffleTiredIntoCrewDeck(board)
+      if (reshuffled.events.length === 0) break // Crew deck + tired both exhausted
       board = reshuffled.board
       events.push(...reshuffled.events)
       continue
     }
 
-    const drawn = drawOneCryoIntoHand(board)
+    const drawn = drawOneCrewIntoHand(board)
     if (drawn.board === board) break
     board = drawn.board
     events.push(...drawn.events)
@@ -1908,7 +1916,7 @@ function refillCrewOnBoardToLimit(current: BoardState, limit: number) {
 
 function advanceTurnAndCheckLoss(current: BoardState) {
   const advancedBoard = advanceTurn(current)
-  const turnStartDraw = drawTurnStartCryoCrew(advancedBoard)
+  const turnStartDraw = drawTurnStartCrew(advancedBoard)
   const loss = resolveTurnLossIfNeeded(turnStartDraw.board)
 
   return {
@@ -2287,7 +2295,7 @@ function completeReadyMissionStack(current: BoardState, stackId: string, metrics
           : count
       }
       if (reward.kind === 'crew' && reward.label !== 'Wake') {
-        return deck.id === CRYO_DECK_ID ? count + reward.count : count
+        return deck.id === CREW_DECK_ID ? count + reward.count : count
       }
       return count
     }, 0)
@@ -2872,16 +2880,61 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
     ...current.tiredCardIds.filter((cardId) => !spentCrewCardIdSet.has(cardId)),
     ...spentCrewCardIds,
   ]
-  // Joker-economy hand cycle: no sector-end auto-reset. Tired stays tired
-  // and is recycled into Cryo (via reshuffle) only when Cryo runs out
-  // during the per-action refill. Hand is refilled from Cryo to its size
-  // cap by `advanceTurnAndCheckLoss` after the action resolves.
-  const readyCrewResult = readyTiredCrew(
-    handCardIdsWithoutSpentCrew,
-    tiredCardIdsWithSpentCrew,
-    0,
+  // Sector-end full reshuffle. Pool everything still in the run (hand crew +
+  // tired + Crew deck) into one bag, shuffle, deal a fresh hand. Any non-crew
+  // cards lingering in hand are kept in place. Crew burned by Crew Quarters
+  // Upgrades are already absent from all three piles (the CQU action deletes
+  // them from `cards`), so they correctly stay gone. Skip the deal on the
+  // final gate — the run is over and there's nothing to play.
+  const handCrewIdsToReshuffle = handCardIdsWithoutSpentCrew.filter(
+    (cardId) => nextCards[cardId]?.kind === 'crew',
   )
-  const medbayCards: Card[] = []
+  const handNonCrewIds = handCardIdsWithoutSpentCrew.filter(
+    (cardId) => nextCards[cardId]?.kind !== 'crew',
+  )
+  const tiredCrewIdsToReshuffle = tiredCardIdsWithSpentCrew.filter(
+    (cardId) => nextCards[cardId]?.kind === 'crew',
+  )
+  const allCrewIdsToReshuffle = [...handCrewIdsToReshuffle, ...tiredCrewIdsToReshuffle]
+  const crewDeckBlueprintsBefore =
+    current.decks.find((deck) => deck.id === CREW_DECK_ID)?.cards ?? []
+  const reshuffledCrewPool = shuffleCards([
+    ...crewDeckBlueprintsBefore,
+    ...cardsToDeckBlueprints([...allCrewIdsToReshuffle], nextCards),
+  ])
+  const sectorEndDealCount = isFinalGate
+    ? 0
+    : Math.min(STARTING_CREW_CARD_COUNT, reshuffledCrewPool.length)
+  const sectorEndDealtBlueprints = reshuffledCrewPool.slice(0, sectorEndDealCount)
+  const sectorEndCrewDeckBlueprints = reshuffledCrewPool.slice(sectorEndDealCount)
+  for (const cardId of allCrewIdsToReshuffle) {
+    delete nextCards[cardId]
+  }
+  const sectorEndDealtCrewCards: Card[] = sectorEndDealtBlueprints.map((blueprint) => ({
+    ...blueprint,
+    id: `sector-${nextSector}-crew-${nextCardIdCursor++}`,
+    faceUp: true,
+  }))
+  for (const card of sectorEndDealtCrewCards) {
+    nextCards[card.id] = card
+  }
+  const sectorEndCrewOwnerIds = { ...current.crewOwnerIds }
+  for (const cardId of allCrewIdsToReshuffle) {
+    delete sectorEndCrewOwnerIds[cardId]
+  }
+  sectorEndDealtCrewCards.forEach((card, index) => {
+    const owner = current.players.length > 0
+      ? current.players[index % current.players.length]
+      : null
+    sectorEndCrewOwnerIds[card.id] = owner?.id ?? SOLO_PLAYER_ID
+  })
+  const sectorEndDealtCrewCardIds = sectorEndDealtCrewCards.map((card) => card.id)
+  const sectorEndHandCardIds = [...handNonCrewIds, ...sectorEndDealtCrewCardIds]
+  const sectorEndTiredCardIds: string[] = []
+  const sectorEndRoundStartTiredCardIds = removeRoundStartTiredCardIds(
+    current,
+    allCrewIdsToReshuffle,
+  )
 
   const nextStacksBeforeDamage = current.stacks.flatMap((stack) => {
     if (nextGateCard && stack.cardIds.some((cardId) => archivedRouteCardIdSet.has(cardId))) {
@@ -2998,9 +3051,10 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
     archivedRouteCardIds: isFinalGate
       ? current.archivedRouteCardIds
       : [...current.archivedRouteCardIds, ...routeCardIds],
-    handCardIds: readyCrewResult.handCardIds,
-    tiredCardIds: readyCrewResult.tiredCardIds,
-    roundStartTiredCardIds: removeRoundStartTiredCardIds(current, readyCrewResult.readiedCrewCardIds),
+    handCardIds: sectorEndHandCardIds,
+    tiredCardIds: sectorEndTiredCardIds,
+    roundStartTiredCardIds: sectorEndRoundStartTiredCardIds,
+    crewOwnerIds: sectorEndCrewOwnerIds,
     stressCount: nextStressCount,
     scraps: scrapsAfterShipPartEffects,
     cards: nextCards,
@@ -3037,7 +3091,9 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
             ? { ...deck, cards: deck.cards.slice(1), z: nextZ }
             : damageCard && deck.id === DAMAGE_DECK_ID
               ? { ...deck, cards: deck.cards.slice(1), z: nextZ }
-              : deck,
+              : deck.id === CREW_DECK_ID
+                ? { ...deck, cards: sectorEndCrewDeckBlueprints }
+                : deck,
     ),
     pendingEffects: nextGateCard ? [] : consumeNextGateFuelDiscount(current.pendingEffects),
     // Open the research dialog after every non-final gate so the player can
@@ -3104,19 +3160,18 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
     : damageCard
       ? [damageDrawnEvent(gateCard, damageCard)]
       : []
-  // Sector reset readies ALL Tired crew. Medbay event still fires for the
-  // ship-part credit; the broader sector-reset event captures the full pool
-  // so reconstruction tools see the actual ready/tired transition.
-  const sectorEndMedbayEvents = readyCrewResult.readiedCrewCardIds.length > 0
+  // Sector-end full reshuffle: pool hand crew + tired + Crew deck into one bag,
+  // shuffle, deal a fresh hand. The event captures the resulting hand so
+  // reconstruction tools see the new state. Skip on the final gate (the
+  // dealt count is 0 anyway, and there's no new sector to play).
+  const sectorEndReshuffleEvents = !isFinalGate
     ? [
-        sectorResetCrewReadiedEvent(
+        sectorEndCrewReshuffledEvent(
           current.currentSector,
-          readyCrewResult.readiedCrewCardIds,
-          current.cards,
+          allCrewIdsToReshuffle.length + crewDeckBlueprintsBefore.length,
+          sectorEndDealtCrewCardIds,
+          nextCards,
         ),
-        ...(medbayCards.length > 0
-          ? [medbayRehydratorReadiedEvent(medbayCards, readyCrewResult.readiedCrewCardIds, current.cards)]
-          : []),
       ]
     : []
   const sectorEndShipPartFuelEvents = sectorEndShipPartEffects.fuelDelta > 0
@@ -3163,7 +3218,7 @@ function completeReadyGateStack(initial: BoardState, stackId: string, metrics: B
         ? [cardsDiscardedEvent(mapCardIds, current.cards, 'unchosen Map Destinations')]
         : []),
       ...gateDamageEvents,
-      ...sectorEndMedbayEvents,
+      ...sectorEndReshuffleEvents,
       ...sectorEndShipPartScrapEvents,
       ...sectorEndShipPartFuelEvents,
       ...(research && research.length > 0 ? [researchOfferedEvent(research)] : []),
@@ -3438,7 +3493,7 @@ function completeResearchCrewQuartersStackAction(
 
 // Stack of 1 CQU card + 1-4 satisfying crew → consume them, push a new
 // ActiveCrewQuarters entry for the chosen pattern, then refill the player's
-// hand from cryo (up to the configured limit). Crew are permanently removed
+// hand from the Crew deck (up to the configured limit). Crew are permanently removed
 // from play.
 function completeUpgradeCrewQuartersStackAction(
   current: BoardState,
@@ -3552,6 +3607,10 @@ export function completeStackActionUpdate(
     const action = getStackActions(current, sourceStack).find((candidate) => candidate.id === actionId)
 
     if (!action) {
+      return current
+    }
+
+    if (action.disabled) {
       return current
     }
 
@@ -3930,7 +3989,6 @@ export function drawFromDeckUpdate(deckId: string, metrics: BoardMetrics): Board
 
     if (deck.id === MISSION_DECK_ID) {
       if (
-        current.sectorDrawnThisTurn ||
         current.traveledThisTurn ||
         deck.cards.length === 0 ||
         getNextMapDrawSlotIndex(current) === -1 ||
@@ -4069,11 +4127,11 @@ export function chooseWakeCrewUpdate(cardId: string): BoardUpdater {
     }
 
     const unchosenCardIds = pendingWakeChoice.choiceCardIds.filter((choiceCardId) => choiceCardId !== cardId)
-    const returnedCryoCards = cardsToDeckBlueprints(unchosenCardIds, current.cards)
+    const returnedCrewDeckCards = cardsToDeckBlueprints(unchosenCardIds, current.cards)
     let nextCards = { ...current.cards }
     let nextDecks = current.decks.map((deck) =>
-      deck.id === CRYO_DECK_ID
-        ? { ...deck, cards: [...deck.cards, ...returnedCryoCards] }
+      deck.id === CREW_DECK_ID
+        ? { ...deck, cards: [...deck.cards, ...returnedCrewDeckCards] }
         : deck,
     )
     let nextCardId = current.nextCardId

@@ -2,12 +2,14 @@ import { useEffect, useReducer, useState } from 'react'
 import { BeginDialog } from './components/BeginDialog'
 import { Board } from './components/Board'
 import { CardCatalogDialog } from './components/CardCatalogDialog'
+import { CrewDeckDialog } from './components/CrewDeckDialog'
 import { CrewGuideDialog } from './components/CrewGuideDialog'
 import { HowToPlayDialog } from './components/HowToPlayDialog'
 import { PlaytestLog } from './components/PlaytestLog'
 import { RealtimePanel } from './components/RealtimePanel'
 import { resolvePendingDriftUpdate, sortHandCrewUpdate } from './board/boardUpdaters'
 import type { HandCrewSortKind } from './board/handState'
+import { CREW_DECK_ID } from './game/decks'
 import {
   createInitialGameState,
   gameReducer,
@@ -36,6 +38,7 @@ function App() {
   const [isGameStarted, setIsGameStarted] = useState(false)
   const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false)
   const [isCardCatalogOpen, setIsCardCatalogOpen] = useState(false)
+  const [isCrewDeckOpen, setIsCrewDeckOpen] = useState(false)
   const [isCrewGuideOpen, setIsCrewGuideOpen] = useState(false)
   const { board, pendingSetupDeal, playtestLog, previousPlaytestLogSessions } = game
   const resetConsoleLog = usePlaytestLogConsole(playtestLog)
@@ -94,6 +97,14 @@ function App() {
     canMoveBoardFreely,
     canUseOwnCrew,
     canEndTurn: canUseTurnControls,
+    onDeckClick: (deckId) => {
+      if (deckId !== CREW_DECK_ID) {
+        return false
+      }
+
+      setIsCrewDeckOpen(true)
+      return true
+    },
     onSharedDragChange: canApplyGameUpdates ? realtime.sendSharedDrag : undefined,
   })
 
@@ -149,6 +160,7 @@ function App() {
     interactions.resetInteractions()
     setIsHowToPlayOpen(false)
     setIsCardCatalogOpen(false)
+    setIsCrewDeckOpen(false)
     setIsCrewGuideOpen(false)
     setIsGameStarted(false)
   }
@@ -253,6 +265,11 @@ function App() {
           <CardCatalogDialog
             isOpen={isCardCatalogOpen}
             onClose={canApplyGameUpdates ? () => setIsCardCatalogOpen(false) : noop}
+          />
+          <CrewDeckDialog
+            isOpen={isCrewDeckOpen}
+            board={board}
+            onClose={canApplyGameUpdates ? () => setIsCrewDeckOpen(false) : noop}
           />
           <CrewGuideDialog
             isOpen={isCrewGuideOpen}

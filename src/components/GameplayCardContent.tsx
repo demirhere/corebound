@@ -10,7 +10,6 @@ import type {
   ShipPartKind,
   VisitReward,
 } from '../game/types'
-import { CREW_QUARTERS_UPGRADE_COST } from '../game/crewQuartersCatalog'
 import { getMissionPatternLabel } from '../game/rules'
 import { getShipPartUseText } from '../game/shipParts'
 import { renderCrewCardContent } from './CrewCard'
@@ -652,39 +651,7 @@ function renderActiveShipPartContent(card: Card) {
   const part = card.shipPart
   if (!part) return null
 
-  const blueprintIndex = hashString(`${card.id}:blueprint`) % (BLUEPRINT_ART_GRID_SIZE * BLUEPRINT_ART_GRID_SIZE)
-  const routeIndex = hashString(`${card.id}:route`) % (ROUTE_ART_GRID_SIZE * ROUTE_ART_GRID_SIZE)
-
-  return (
-    <div className="ship-part-effect-art">
-      <SectorCardArt variant="blueprint" index={blueprintIndex} gridSize={BLUEPRINT_ART_GRID_SIZE} />
-      <SectorCardArt variant="route" index={routeIndex} gridSize={ROUTE_ART_GRID_SIZE} />
-    </div>
-  )
-}
-
-function renderCrewQuartersContent(_card: Card) {
-  void _card
-  // Generic Crew Quarters Upgrade card: no embedded pattern. The reward is
-  // determined by whatever crew composition the player stacks on top.
-  return (
-    <div
-      className="crew-quarters-pattern-preview"
-      aria-label="Crew Quarters Upgrade card. Stack 1-4 crew to lock in a pattern."
-    >
-      <p className="card-rule-text">
-        Stack 1-4 crew + use to permanently grant +1 Fuel on that composition.
-      </p>
-      <span className="crew-quarters-reward-delta">
-        <span className="crew-quarters-reward-chip">
-          +1 <GameIcon kind="fuel" />
-        </span>
-        <span className="crew-quarters-reward-chip">
-          {CREW_QUARTERS_UPGRADE_COST} <GameIcon kind="scrap" />
-        </span>
-      </span>
-    </div>
-  )
+  return <></>
 }
 
 export function renderGameplayCardContent(
@@ -756,10 +723,6 @@ export function renderGameplayCardContent(
 
   if (card.kind === 'active-ship-part' && card.shipPart) {
     return renderActiveShipPartContent(card)
-  }
-
-  if (card.kind === 'crew-quarters') {
-    return renderCrewQuartersContent(card)
   }
 
   if (card.kind === 'mission' && card.mission) {

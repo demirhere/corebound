@@ -3,16 +3,21 @@
   Corebound simulation — canonical balance check for the joker economy.
 
   Models the live game's joker-economy design:
-    - Crew & hand cycle: 45 crew (5 starters + 40 cryo, where the cryo
-      is 10 unique blueprints with copy counts tuned for exact icon
-      balance: Juno/Priya ×5, Oren/Malik ×3, everything else ×4). Hand
-      size cap = 5 (+1 with Adrenal Implants). Used crew → tired. Hand
-      refills from cryo. Cryo empty → tired reshuffles into cryo. No
-      sector-end auto-reset.
+    - Crew & hand cycle: 45 crew (5 named starters + 40 Crew deck cards across 10
+      unique blueprints with copy counts tuned for exact icon balance:
+      Juno/Priya ×5, Oren/Malik ×3, everything else ×4). The full 45-card
+      deck is shuffled at run start and the opening hand of 5 is drawn at
+      random — starters no longer have a privileged opener slot. Hand
+      size cap = 5 (+1 with Adrenal Implants). During a sector: used crew
+      → tired; hand refills from the Crew deck; Crew deck empty → tired reshuffles into
+      the Crew deck. At sector end (after clearing the gate): hand + tired + Crew deck
+      are pooled, shuffled, and a fresh hand of 5 is dealt — so every
+      sector begins with a freshly randomized opener. Crew burned by
+      Crew Quarters Upgrades are permanently removed and stay gone.
     - Crew icons: a card has 1 or 2 specializations. Doubles (e.g. ['E','E'])
       can fill Specialist / Cross-Trained / Department Heads / Bridge Crew.
       Singles (e.g. ['E']) only contribute to shared-icon patterns
-      (Common Ground / Common Knowledge / Common Cause). 26 of 40 cryo
+      (Common Ground / Common Knowledge / Common Cause). 26 of 40 Crew deck
       cards are singles in the current roster.
     - 10 sectors, 3 mission actions per sector, then a Gate.
     - Per action: stack crew, score Fuel = sum(crew_ranks) × pattern_mult.
@@ -52,7 +57,8 @@
     - Patterns return integer fuel (Bridge Crew is 6, the spec value).
     - Several jokers from the spec require approximations:
         * "Hand size +1" is modeled by raising HAND_SIZE_LIMIT for the run.
-        * "Wild crew" picks a deterministic starter slot to be marked.
+        * "Wild crew" marks one specific physical card (Lei) wherever it
+          lands in the shuffled deck — may be in opening hand or the Crew deck.
         * Once-per-sector converters fire automatically when affordable,
           since greedy never declines free fuel.
         * Optional paid research re-draws are not taken by the baseline
@@ -64,12 +70,12 @@
 // patterns but NOT Specialist / Cross-Trained / Department Heads / Bridge
 // Crew (those branches in the rules require length === 2 entries).
 //
-// Cryo is 40 cards across 10 unique blueprints with per-template copies
+// The Crew deck is 40 cards across 10 unique blueprints with per-template copies
 // chosen so the entire 45-card roster is exactly icon-balanced at 16 each
 // (E=L=N=S=16). Juno/Priya are at 5×, Oren/Malik at 3×, everything else
 // at 4× — those nudges cancel the starter's E/L surplus (3,3 vs 2,2) and
 // the natural N/S surplus from quadrupling Oren (S,S) and Malik (N,N).
-// Singles still outnumber doubles in cryo (26 of 40).
+// Singles still outnumber doubles in the Crew deck (26 of 40).
 const startingCrew = [
   ['L', 'N'], // Lei
   ['E', 'E'], // Mara (specialist)
@@ -77,7 +83,7 @@ const startingCrew = [
   ['L', 'L'], // Sana (specialist)
   ['S', 'N'], // Nia
 ]
-const cryoCrewTemplateCopies = [
+const crewDeckTemplateCopies = [
   { spec: ['E'],      copies: 5 }, // Juno
   { spec: ['L'],      copies: 5 }, // Priya
   { spec: ['N'],      copies: 4 }, // Ilya
@@ -92,34 +98,64 @@ const cryoCrewTemplateCopies = [
 // Each copy is a fresh array so the WILD_CREW_REFERENCE === check (used
 // by Tachyon Lens to mark a single physical card as wild) doesn't end up
 // marking every copy of a template at once.
-const cryoCrew = cryoCrewTemplateCopies.flatMap(
+const crewDeckCards = crewDeckTemplateCopies.flatMap(
   ({ spec, copies }) => Array.from({ length: copies }, () => spec.slice()),
 )
 
-// === Patterns — tight rewards = crew_count × pattern_mult ===========================
-// Per the spec, all crew rank = 1, so reward depends purely on the pattern
-// the picked crew satisfies and the # of crew used.
-const PATTERN_FUEL = {
-  'cross-trained':     1, // 1 mixed crew × 1
-  'common-ground':     2, // 2 sharing icon × 1
-  'specialist':        2, // 1 matched × 2
-  'common-knowledge':  3, // 3 sharing × 1
-  'department-heads':  4, // 2 specialists distinct × 2
-  'common-cause':      4, // 4 sharing × 1
-  'bridge-crew':       6, // 4 unique specialists × 1.5
+// === Patterns =======================================================================
+// Reward is fuel-per-trigger. Trigger rates (measured 1M random 5-hand draws,
+// see scripts/pattern-probabilities.mjs):
+//   common_ground_current      100.00%   (any 2 share 1 icon — DOMINANT)
+//   cross_trained_current       77.25%   (any 1 mixed crew)
+//   specialist                  64.35%
+//   common_knowledge            58.62%
+//   cross_trained_strict        35.52%   (≥2 mixed crew — proposed)
+//   common_ground_multi2        26.34%   (any pair, multiset intersection ≥ 2)
+//   department_heads            17.16%
+//   common_cause                10.70%
+//   bridge_crew                  0.03%   (roster-limited, basically dead)
+//
+// Per the user's design pivot: Common Ground tightened to "multiset 2-match"
+// rule and re-rewarded by rarity, Cross-Trained tightened to "≥2 mixed crew"
+// and re-rewarded.
+// Fuel rewards. Mirrored from `src/game/rules.ts` (PATTERN_FUEL_DESC).
+// Optional env PATTERN_FUEL_OVERRIDE="cg=1,ct=1,sp=2" overrides any subset
+// for tuning probes.
+const PATTERN_FUEL_OVERRIDE = process.env.PATTERN_FUEL_OVERRIDE
+const PATTERN_FUEL_DEFAULTS = {
+  'cross-trained':     1, // 1 mixed crew
+  'common-ground':     2, // 2 sharing icon
+  'specialist':        2, // 1 matched
+  'common-knowledge':  3, // 3 sharing
+  'department-heads':  4, // 2 specialists distinct
+  'common-cause':      4, // 4 sharing
+  'bridge-crew':       6, // 4 unique specialists
 }
+const PATTERN_FUEL = { ...PATTERN_FUEL_DEFAULTS }
+if (PATTERN_FUEL_OVERRIDE) {
+  const aliases = { cg: 'common-ground', ct: 'cross-trained', sp: 'specialist', ck: 'common-knowledge', dh: 'department-heads', cc: 'common-cause', bc: 'bridge-crew' }
+  for (const part of PATTERN_FUEL_OVERRIDE.split(',')) {
+    const [k, v] = part.split('=').map((s) => s && s.trim())
+    if (!k || v === undefined) continue
+    const pattern = aliases[k] ?? k
+    const num = Number(v)
+    if (Number.isFinite(num) && PATTERN_FUEL[pattern] !== undefined) PATTERN_FUEL[pattern] = num
+  }
+}
+// Order biased toward "smallest crew, highest fuel" for the greedy tiebreak:
+// matches the live PATTERN_FUEL_DESC ordering in rules.ts.
 const PATTERN_ORDER = [
-  'bridge-crew',       // 6, 4 specialists distinct
-  'department-heads',  // 4, 2 specialists distinct
-  'common-cause',      // 4, 4 sharing
-  'common-knowledge',  // 3, 3 sharing
-  'specialist',        // 2, 1 matched
-  'common-ground',     // 2, 2 sharing
-  'cross-trained',     // 1, 1 mixed
+  'bridge-crew',
+  'department-heads',
+  'common-cause',
+  'common-knowledge',
+  'specialist',
+  'common-ground',
+  'cross-trained',
 ]
 
 // === Gate ramp ======================================================================
-// With the expanded 45-card crew roster (4× cryo), greedy fuel/sector
+// With the expanded 45-card crew roster (4× Crew deck), greedy fuel/sector
 // averages ~6.5 fuel/sector. Singles can't fill specialist-based patterns,
 // and Mara/Sana (only E/L specialists) are now 1 of 45 cards each, so
 // Bridge Crew / Department Heads land less often after the first sector.
@@ -161,6 +197,56 @@ const HAND_SIZE_LIMIT_BASE = 5
 let NO_JOKERS = process.env.NO_JOKERS === '1' || process.env.NO_JOKERS === 'true'
 const SLOT_CAP = 5
 const SKIP_RESEARCH_CONSOLATION = 0
+
+// Strategy probes used to verify no single playstyle dominates the win rate.
+//
+// Env: STRATEGY=mixed-greedy
+//                | mono-X            (only plays pattern X each action; falls
+//                                     back to mixed-greedy if X is impossible)
+//                | upgrade-only-X    (mixed-greedy for mission play but only
+//                                     spends Crew Quarter Upgrades on pattern X
+//                                     — this matches what the user did in the
+//                                     playtest log: mix-play + funnel every
+//                                     CQU into Common Ground)
+//                | broad-cheap       (only Common Ground / Cross-Trained /
+//                                     Specialist for both play AND upgrades)
+//                | high-tier         (only deepens Bridge Crew / Department
+//                                     Heads / Common Cause — costly bet on
+//                                     hard-to-satisfy patterns)
+// X ∈ common-ground | cross-trained | specialist | common-knowledge |
+//     department-heads | common-cause | bridge-crew
+const STRATEGY = process.env.STRATEGY || 'mixed-greedy'
+// Optional level cap applied to ALL strategies — refuse to deepen any one
+// pattern past this level. The default mirrors the live game's
+// CREW_QUARTERS_MAX_UPGRADES_PER_PATTERN constant (set further down because
+// it lives in the Crew Quarters Upgrade section); we use a literal here to
+// avoid a TDZ. Update both in lockstep when changing.
+const PATTERN_LEVEL_CAP = process.env.PATTERN_LEVEL_CAP
+  ? Math.max(0, Number(process.env.PATTERN_LEVEL_CAP))
+  : 3
+// Optional escalating cost: 4 + ESCALATING_COST_STEP * currentLevel.
+// 0 disables escalation (cost stays at CREW_QUARTERS_UPGRADE_COST).
+const ESCALATING_COST_STEP = process.env.ESCALATING_COST_STEP
+  ? Math.max(0, Number(process.env.ESCALATING_COST_STEP))
+  : 0
+const MONO_PLAY_PREFIX = 'mono-'
+const UPGRADE_ONLY_PREFIX = 'upgrade-only-'
+const STRATEGY_MONO_PLAY_PATTERN = STRATEGY.startsWith(MONO_PLAY_PREFIX)
+  ? STRATEGY.slice(MONO_PLAY_PREFIX.length)
+  : null
+const STRATEGY_UPGRADE_ONLY_PATTERN = STRATEGY.startsWith(UPGRADE_ONLY_PREFIX)
+  ? STRATEGY.slice(UPGRADE_ONLY_PREFIX.length)
+  : null
+const STRATEGY_BROAD_CHEAP_POOL = ['common-ground', 'cross-trained', 'specialist']
+const STRATEGY_HIGH_TIER_POOL = ['bridge-crew', 'department-heads', 'common-cause']
+function allowedUpgradePatterns() {
+  if (STRATEGY_UPGRADE_ONLY_PATTERN) return new Set([STRATEGY_UPGRADE_ONLY_PATTERN])
+  if (STRATEGY_MONO_PLAY_PATTERN) return new Set([STRATEGY_MONO_PLAY_PATTERN])
+  if (STRATEGY === 'broad-cheap') return new Set(STRATEGY_BROAD_CHEAP_POOL)
+  if (STRATEGY === 'high-tier') return new Set(STRATEGY_HIGH_TIER_POOL)
+  return null // null = no restriction (mixed-greedy)
+}
+const ALLOWED_UPGRADE_PATTERNS = allowedUpgradePatterns()
 
 // === Joker catalog (20 unique parts, no duplicates allowed in pool) ================
 // Keys used by the simulator (read by core loop):
@@ -380,8 +466,17 @@ for (const j of JOKERS) {
 // Crew committed to the upgrade are permanently removed from the run.
 //
 // Mirrored in `src/game/crewQuartersCatalog.ts`. Update both in lockstep.
-const CREW_QUARTERS_UPGRADE_COST = 4
+const CREW_QUARTERS_UPGRADE_COST = Number(process.env.CQU_COST || 4)
 const CREW_QUARTERS_UPGRADE_FUEL_PER_PLAY = 1
+// Per-pattern hard cap on Crew Quarters Upgrades. After this many upgrades
+// on a pattern, additional upgrades on the same pattern are disallowed —
+// the player must pivot to another pattern. Mirrored from
+// `src/game/crewQuartersCatalog.ts`: CREW_QUARTERS_MAX_UPGRADES_PER_PATTERN.
+// Default 3 chosen by sim sweep: keeps mono-CG win-rate at ~13% (down from
+// 35% uncapped) while letting mixed-greedy stay near the 1.5-2.5% target.
+const CREW_QUARTERS_MAX_UPGRADES_PER_PATTERN = Number(
+  process.env.CQU_MAX_PER_PATTERN || 3,
+)
 // Greedy reserve: keep at least this many Scraps available for ship-part
 // purchases before spending more on Crew Quarters Upgrades. Cheap ship
 // parts (Compounding Drive / Recovery Drone) cost 4-5 Scraps, so leaving a
@@ -389,20 +484,117 @@ const CREW_QUARTERS_UPGRADE_FUEL_PER_PLAY = 1
 // kinds of investment instead of draining everything into upgrades.
 const IN_SECTOR_CQU_SCRAP_BUFFER = 4
 
+// Diminishing-returns table for stacked CQU bonus. Env DIM_RETURNS="2,1,1,0"
+// means the 1st upgrade on a pattern grants +2 fuel/play, the 2nd grants +1
+// more (cum +3), the 3rd +1 (cum +4), the 4th and beyond +0 — so each
+// pattern caps at +4 fuel/play after 3 upgrades. Default "" disables diminishing
+// (every upgrade grants entry.fuelPerPlay = 1 like today).
+const DIM_RETURNS = process.env.DIM_RETURNS
+  ? process.env.DIM_RETURNS.split(',').map(Number).filter((n) => Number.isFinite(n))
+  : []
+
+// Per-pattern bonus override. Env: PATTERN_BONUS="cg=2,1,0,ck=3,2,1,0"
+// — sets the per-level diminishing schedule for the named pattern. Falls
+// back to DIM_RETURNS for any pattern not listed. Use to make some patterns
+// uncappable (PATTERN_BONUS="bc=3,3,3,3,3,3") or capped at 0 (PATTERN_BONUS="cg=0").
+function parsePatternBonus(env) {
+  if (!env) return null
+  const aliases = {
+    cg: 'common-ground', ct: 'cross-trained', sp: 'specialist',
+    ck: 'common-knowledge', dh: 'department-heads', cc: 'common-cause',
+    bc: 'bridge-crew',
+  }
+  const out = {}
+  // PATTERN_BONUS uses ';' between patterns and ',' for the per-level schedule.
+  // e.g. PATTERN_BONUS="cg=0;ck=2,1,0;bc=3,3,3,3,3"
+  for (const part of env.split(';')) {
+    const [k, vRaw] = part.split('=').map((s) => (s ? s.trim() : s))
+    if (!k || vRaw === undefined) continue
+    const pattern = aliases[k] ?? k
+    const arr = vRaw.split(',').map(Number).filter((n) => Number.isFinite(n))
+    if (arr.length > 0) out[pattern] = arr
+  }
+  return out
+}
+const PATTERN_BONUS = parsePatternBonus(process.env.PATTERN_BONUS)
+function patternBonusSchedule(pattern) {
+  if (PATTERN_BONUS && PATTERN_BONUS[pattern]) return PATTERN_BONUS[pattern]
+  if (DIM_RETURNS.length > 0) return DIM_RETURNS
+  return null // no schedule — use entry.fuelPerPlay
+}
+
 function crewQuartersFuelBonus(quarters, pattern) {
   if (!pattern) return 0
+  const schedule = patternBonusSchedule(pattern)
+  let levelsUsed = 0
   let bonus = 0
+  if (schedule) {
+    for (const entry of quarters) {
+      if (entry.pattern !== pattern) continue
+      bonus += schedule[Math.min(levelsUsed, schedule.length - 1)] ?? 0
+      levelsUsed += 1
+    }
+    return bonus
+  }
   for (const entry of quarters) {
     if (entry.pattern === pattern) bonus += entry.fuelPerPlay
   }
   return bonus
 }
 
+function currentPatternLevel(quarters, pattern) {
+  let n = 0
+  for (const entry of quarters) if (entry.pattern === pattern) n += 1
+  return n
+}
+
+// Per-pattern escalation steps. Easy-to-trigger patterns (Common Ground,
+// Cross-Trained) escalate faster than hard-to-trigger ones (Bridge Crew,
+// Common Cause) so concentrating investment on the easy pattern naturally
+// becomes more expensive than spreading or pivoting upward.
+// Env: PATTERN_STEPS="cg=4,ct=4,sp=3,ck=2,dh=2,cc=1,bc=1" overrides per-pattern.
+// If unset, falls back to ESCALATING_COST_STEP (uniform per-pattern step).
+function parsePatternSteps(env) {
+  if (!env) return null
+  const map = {}
+  const aliases = {
+    cg: 'common-ground', ct: 'cross-trained', sp: 'specialist',
+    ck: 'common-knowledge', dh: 'department-heads', cc: 'common-cause',
+    bc: 'bridge-crew',
+  }
+  for (const entry of env.split(',')) {
+    const [k, v] = entry.split('=').map((s) => s.trim())
+    if (!k || v === undefined) continue
+    const pattern = aliases[k] ?? k
+    const num = Number(v)
+    if (Number.isFinite(num)) map[pattern] = num
+  }
+  return map
+}
+const PATTERN_STEPS = parsePatternSteps(process.env.PATTERN_STEPS)
+function stepForPattern(pattern) {
+  if (PATTERN_STEPS && PATTERN_STEPS[pattern] !== undefined) return PATTERN_STEPS[pattern]
+  return ESCALATING_COST_STEP
+}
+
+// Returns the Scrap cost to take the NEXT upgrade level on this pattern.
+// Default model: flat CREW_QUARTERS_UPGRADE_COST. With escalation enabled
+// (uniform via ESCALATING_COST_STEP or per-pattern via PATTERN_STEPS), the
+// cost climbs by `step` per existing level on the chosen pattern, so
+// Lv 0→1 costs 4, Lv 1→2 costs 4+step, Lv 2→3 costs 4+2*step, etc.
+function upgradeCostForPattern(quarters, pattern) {
+  const step = stepForPattern(pattern)
+  if (step <= 0) return CREW_QUARTERS_UPGRADE_COST
+  return CREW_QUARTERS_UPGRADE_COST + step * currentPatternLevel(quarters, pattern)
+}
+
 // === Helpers ========================================================================
 const ICONS = ['E', 'L', 'N', 'S']
 
 // Identity for crew used through the run is by reference. We mark a specific
-// starter crew member (Lei, slot 0 of startingCrew) as the wild slot.
+// physical card (Lei, slot 0 of startingCrew) as the wild crew. Since the
+// full deck is now shuffled at run start, Lei may sit in the Crew deck for a while
+// before the wild slot becomes active in hand.
 const WILD_CREW_REFERENCE = startingCrew[0]
 
 function buildIsMatched(slot) {
@@ -553,15 +745,43 @@ function findPatternMatch(ready, pattern, slot) {
     return c ? { crewUsed: [c] } : null
   }
   if (pattern === 'cross-trained') {
-    const c = ready.find(isMixed)
-    return c ? { crewUsed: [c] } : null
+    // Live rule (default): 1 mixed crew. Alternative CT_RULE='two-mixed'
+    // requires two mixed crew — experimental, didn't ship.
+    const rule = process.env.CT_RULE || 'current'
+    if (rule === 'current') {
+      const c = ready.find(isMixed)
+      return c ? { crewUsed: [c] } : null
+    }
+    const mixed = ready.filter(isMixed)
+    if (mixed.length < 2) return null
+    return { crewUsed: [mixed[0], mixed[1]] }
   }
   if (pattern === 'common-ground') {
+    // Live rule (default): any pair shares ≥1 icon. Alternative CG_RULE values
+    // are experiments only (didn't ship): 'multiset-2' restricts pairs to
+    // those sharing two specs via multiset intersection — see TUNING NOTES
+    // for why we kept the original rule.
+    const rule = process.env.CG_RULE || 'current'
     for (let i = 0; i < ready.length; i++) {
       for (let j = i + 1; j < ready.length; j++) {
-        if (sharesIcon(ready[i], ready[j])) {
-          return { crewUsed: [ready[i], ready[j]] }
+        const a = ready[i], b = ready[j]
+        if (rule === 'current') {
+          if (sharesIcon(a, b)) return { crewUsed: [a, b] }
+          continue
         }
+        // multiset-2 (default): both crew have ≥2 specs AND multiset
+        // intersection size ≥ 2.
+        if (a.length < 2 || b.length < 2) continue
+        const bCounts = {}
+        for (const icon of b) bCounts[icon] = (bCounts[icon] || 0) + 1
+        let overlap = 0
+        for (const icon of a) {
+          if (bCounts[icon] > 0) {
+            overlap += 1
+            bCounts[icon] -= 1
+          }
+        }
+        if (overlap >= 2) return { crewUsed: [a, b] }
       }
     }
     return null
@@ -575,6 +795,20 @@ function findPatternMatch(ready, pattern, slot) {
 // (icon match, first-mission, last-mission, etc.) so the greedy choice is
 // informed by them.
 function pickGreedyAction(ready, slot, quarters, missionIndexInSector, isLastMission, scraps, runStats) {
+  // STRATEGY: mono-X — refuse to score any pattern other than X if X is
+  // satisfiable. Falls back to mixed-greedy otherwise so the run doesn't
+  // stall on hands that can't form the favored pattern.
+  if (STRATEGY_MONO_PLAY_PATTERN) {
+    const monoMatch = findPatternMatch(ready, STRATEGY_MONO_PLAY_PATTERN, slot)
+    if (monoMatch) {
+      let baseFuel = PATTERN_FUEL[STRATEGY_MONO_PLAY_PATTERN]
+      for (const j of slot) {
+        if (j.patternFuelDelta) baseFuel += j.patternFuelDelta(STRATEGY_MONO_PLAY_PATTERN)
+      }
+      baseFuel += crewQuartersFuelBonus(quarters, STRATEGY_MONO_PLAY_PATTERN)
+      return { pattern: STRATEGY_MONO_PLAY_PATTERN, fuel: baseFuel, crewUsed: monoMatch.crewUsed }
+    }
+  }
   let best = null
   for (const pattern of PATTERN_ORDER) {
     const match = findPatternMatch(ready, pattern, slot)
@@ -631,15 +865,18 @@ function pickGreedyAction(ready, slot, quarters, missionIndexInSector, isLastMis
   return best
 }
 
+// Mission Scrap reward tiers. Env: SCRAP_TIERS="t1,t2,c1,c2" → bands defined
+// as f<=t1 → c0=1 (default), t1<f<=t2 → 2, f>t2 → 3. Pass arbitrary tiers to
+// experiment (e.g. SCRAP_TIERS="3,5" makes 1-3 fuel = 1 Scrap, 4-5 = 2, 6+ = 3).
+// SCRAP_REWARDS="c0,c1,c2,c3" overrides the per-tier reward — e.g. "0,1,2"
+// strips Scraps from low-fuel plays entirely.
+const SCRAP_TIERS = (process.env.SCRAP_TIERS || '2,4').split(',').map(Number)
+const SCRAP_REWARDS = (process.env.SCRAP_REWARDS || '0,1,2,3').split(',').map(Number)
 function computeMissionScraps(fuel) {
-  // Loosened tiers (1-2/3-4/5+ instead of 1-3/4-5/6+) so greedy gets
-  // enough Scraps to buy 4-6 ship parts. Common Knowledge (3 Fuel,
-  // greedy's most common mid-tier pick) now yields 2 Scraps; Bridge
-  // Crew (6) and pattern-boosted plays land in the 3-Scrap tier.
-  if (fuel <= 0) return 0
-  if (fuel <= 2) return 1
-  if (fuel <= 4) return 2
-  return 3
+  if (fuel <= 0) return SCRAP_REWARDS[0] ?? 0
+  if (fuel <= SCRAP_TIERS[0]) return SCRAP_REWARDS[1] ?? 1
+  if (fuel <= SCRAP_TIERS[1]) return SCRAP_REWARDS[2] ?? 2
+  return SCRAP_REWARDS[3] ?? 3
 }
 
 function getHandSizeLimit(slot) {
@@ -692,13 +929,13 @@ function maybeBuyJokers({ scraps, slot, offers, availablePool }) {
   return { scraps, purchased }
 }
 
-// Crew Quarters Upgrade heuristic: while affordable, find the cheapest-crew
-// composition in hand that satisfies SOME pattern, pay 4 Scraps, and apply
-// the upgrade to that pattern. Mirrors the in-sector 4-Scrap stack action
+// Crew Quarters Upgrade heuristic: while affordable, find the cheapest exact
+// crew-count composition in hand that satisfies SOME pattern, pay 4 Scraps,
+// and apply the upgrade to that pattern. Mirrors the in-sector 4-Scrap stack action
 // AND the post-gate dialog button (both deal the same generic CQU card
 // from the same offscreen deck — the simulator collapses both into a single
 // loop). Crew used are PERMANENTLY removed from the run (not pushed to
-// tired) so the cryo cycle shrinks with every upgrade.
+// tired) so the Crew deck cycle shrinks with every upgrade.
 //
 // Tie-breaks favor deepening the most-played + already-stacked pattern,
 // which models the "deepen what you've been playing" mental model the live
@@ -709,35 +946,52 @@ function tryApplyCrewQuartersUpgrade({
   slot,
   quarters,
   patternCounts,
+  reserve = 0,
 }) {
-  if (scraps < CREW_QUARTERS_UPGRADE_COST) return null
-
-  // Build candidate (pattern, crewUsed[]) pairs for every pattern the hand
-  // currently satisfies, sorted by (a) crew count asc (cheap = preserve
-  // crew), (b) owned-count desc (deepen existing investment), (c) plays
-  // desc.
+  // Build candidate (pattern, crewUsed[], cost) pairs for every exact-count
+  // pattern the hand currently satisfies and that the active strategy allows.
   const owned = new Map()
   for (const q of quarters) owned.set(q.pattern, (owned.get(q.pattern) ?? 0) + 1)
 
   const candidates = []
   for (const pattern of Object.keys(PATTERN_FUEL)) {
     if (pattern === 'open') continue
+    // Strategy gating.
+    if (ALLOWED_UPGRADE_PATTERNS && !ALLOWED_UPGRADE_PATTERNS.has(pattern)) continue
+    const level = owned.get(pattern) ?? 0
+    if (level >= PATTERN_LEVEL_CAP) continue
+    // Skip diminished-to-zero upgrades — the player should pivot once a
+    // pattern stops returning fuel per level.
+    const schedule = patternBonusSchedule(pattern)
+    if (schedule) {
+      const nextStep = schedule[Math.min(level, schedule.length - 1)] ?? 0
+      if (nextStep <= 0) continue
+    }
     const match = findPatternMatch(hand, pattern, slot)
     if (!match) continue
+    const cost = upgradeCostForPattern(quarters, pattern)
+    if (scraps - reserve < cost) continue
     candidates.push({
       pattern,
       crewUsed: match.crewUsed,
-      owned: owned.get(pattern) ?? 0,
+      owned: level,
       played: patternCounts?.get(pattern) ?? 0,
+      cost,
     })
   }
   if (candidates.length === 0) return null
 
   candidates.sort((a, b) => {
+    // 1. Cheapest cost wins (escalating model: switch patterns when current
+    //    one gets expensive).
+    if (a.cost !== b.cost) return a.cost - b.cost
+    // 2. Fewer crew committed = less Crew deck bleed.
     if (a.crewUsed.length !== b.crewUsed.length) return a.crewUsed.length - b.crewUsed.length
+    // 3. Deepen existing investment.
     if (a.owned !== b.owned) return b.owned - a.owned
+    // 4. Plays so far (use what you've been using).
     if (a.played !== b.played) return b.played - a.played
-    // Final tiebreak: prefer higher-base-fuel patterns (Bridge Crew > common).
+    // 5. Final tiebreak: higher base fuel.
     return (PATTERN_FUEL[b.pattern] ?? 0) - (PATTERN_FUEL[a.pattern] ?? 0)
   })
 
@@ -763,9 +1017,11 @@ function simulateRun() {
   // Hand size could grow if Adrenal Implants is bought, but we initialize
   // at base 5 here and re-check after every purchase.
   let handSize = HAND_SIZE_LIMIT_BASE
-  let hand = startingCrew.slice(0, handSize)
-  const remainingStarters = startingCrew.slice(handSize)
-  let cryo = shuffle([...remainingStarters, ...cryoCrew])
+  // Live behavior: shuffle the full 45-card crew deck and draw the opening
+  // hand at random. Starters no longer have a privileged opener slot.
+  const shuffledFullCrew = shuffle([...startingCrew, ...crewDeckCards])
+  let hand = shuffledFullCrew.slice(0, handSize)
+  let crewDeck = shuffledFullCrew.slice(handSize)
   let tired = []
   const gates = pickRunGates()
   let fuel = STARTING_FUEL
@@ -773,12 +1029,12 @@ function simulateRun() {
 
   function drawToLimit() {
     while (hand.length < handSize) {
-      if (cryo.length === 0) {
+      if (crewDeck.length === 0) {
         if (tired.length === 0) return
-        cryo = shuffle(tired)
+        crewDeck = shuffle(tired)
         tired = []
       }
-      const drawn = cryo.shift()
+      const drawn = crewDeck.shift()
       if (drawn) hand.push(drawn)
     }
   }
@@ -855,16 +1111,17 @@ function simulateRun() {
       // upgrades when they can still afford a ship part. Crew committed to
       // the upgrade are permanently removed from the run (no tired push).
       if (!NO_JOKERS) {
-        while (scraps >= CREW_QUARTERS_UPGRADE_COST + IN_SECTOR_CQU_SCRAP_BUFFER) {
+        while (true) {
           const upgrade = tryApplyCrewQuartersUpgrade({
             scraps,
             hand,
             slot,
             quarters: crewQuarters,
             patternCounts: patternPlayCounts,
+            reserve: IN_SECTOR_CQU_SCRAP_BUFFER,
           })
           if (!upgrade) break
-          scraps -= CREW_QUARTERS_UPGRADE_COST
+          scraps -= upgrade.cost
           crewQuarters.push({
             pattern: upgrade.pattern,
             fuelPerPlay: CREW_QUARTERS_UPGRADE_FUEL_PER_PLAY,
@@ -913,9 +1170,23 @@ function simulateRun() {
         crewQuartersCounts,
         slot: slot.slice(),
         crewQuarters: crewQuarters.slice(),
+        patternPlayCounts: Object.fromEntries(patternPlayCounts),
       }
     }
     fuel -= cost
+
+    // Sector-end full reshuffle (live-parity): pool hand + tired + Crew deck into
+    // one bag, shuffle, deal a fresh hand. Crew burned by Crew Quarters
+    // Upgrades are already absent from all three piles (the CQU loop above
+    // splice-removes them from `hand` and never pushes them to tired), so
+    // they correctly stay gone. Skip on the final gate (run is over).
+    if (s < GATES_PER_RUN - 1) {
+      const sectorEndPool = shuffle([...hand, ...tired, ...crewDeck])
+      const sectorEndDeal = Math.min(handSize, sectorEndPool.length)
+      hand = sectorEndPool.slice(0, sectorEndDeal)
+      crewDeck = sectorEndPool.slice(sectorEndDeal)
+      tired = []
+    }
 
     // Research dialog: draw up to 2 ship parts from the un-owned pool. The
     // Crew Quarters Upgrade is bought eagerly in-sector (above), so the
@@ -942,7 +1213,7 @@ function simulateRun() {
       // clicks the dialog's "Place CQU" button repeatedly after they've
       // bought their preferred ship part — no buffer needed now since the
       // dialog is about to close.
-      while (scraps >= CREW_QUARTERS_UPGRADE_COST) {
+      while (true) {
         const upgrade = tryApplyCrewQuartersUpgrade({
           scraps,
           hand,
@@ -951,7 +1222,7 @@ function simulateRun() {
           patternCounts: patternPlayCounts,
         })
         if (!upgrade) break
-        scraps -= CREW_QUARTERS_UPGRADE_COST
+        scraps -= upgrade.cost
         crewQuarters.push({
           pattern: upgrade.pattern,
           fuelPerPlay: CREW_QUARTERS_UPGRADE_FUEL_PER_PLAY,
@@ -993,6 +1264,7 @@ function simulateRun() {
     crewQuartersCounts,
     slot: slot.slice(),
     crewQuarters: crewQuarters.slice(),
+    patternPlayCounts: Object.fromEntries(patternPlayCounts),
   }
 }
 
@@ -1083,6 +1355,7 @@ function runSimulation(runs) {
   let cumCrewQuartersBought = 0
   let cumCrewQuartersBoughtWon = 0
   const winnerCrewQuartersTotals = {}
+  const patternPlayTotals = {}
 
   const t0 = Date.now()
   for (let i = 0; i < runs; i++) {
@@ -1093,6 +1366,11 @@ function runSimulation(runs) {
     cumCrewQuartersBought += result.totalCrewQuartersBought
     for (const [cat, n] of Object.entries(result.jokerCategoryCounts)) {
       allRunCategoryTotals[cat] = (allRunCategoryTotals[cat] || 0) + n
+    }
+    if (result.patternPlayCounts) {
+      for (const [p, n] of Object.entries(result.patternPlayCounts)) {
+        patternPlayTotals[p] = (patternPlayTotals[p] || 0) + n
+      }
     }
     if (result.totalJokersBought > 0) {
       runsWithAnyJoker++
@@ -1158,6 +1436,7 @@ function runSimulation(runs) {
     winnerCategoryTotals,
     winnerJokerIdTotals,
     winnerCrewQuartersTotals,
+    patternPlayTotals,
   }
 }
 
@@ -1171,8 +1450,13 @@ function printMetrics(metrics, quiet) {
 
   if (quiet) {
     const winRatio = won / runs
-    const s1Ratio = reach[1] / runs
-    console.log(`gates=[${GATE_COSTS.join(',')}] total=${GATE_COSTS.reduce((a,b)=>a+b,0)} S1=${(s1Ratio*100).toFixed(2)}% win=${(winRatio*100).toFixed(2)}% scraps=${(metrics.cumScraps/runs).toFixed(2)} jokers=${(metrics.cumJokersBought/runs).toFixed(3)} jokers=${NO_JOKERS?'OFF':'ON'}`)
+    // reach[n] = ran reached sector n; first meaningful gate pass is "reach[2]"
+    // (= passed S1 gate). reach[1] is always 100% since every run starts in S1.
+    const pass = (n) => ((reach[n + 1] ?? 0) / runs * 100).toFixed(1)
+    const patternSummary = metrics.patternPlayTotals
+      ? Object.entries(metrics.patternPlayTotals).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([p,n])=>`${p}=${(n/runs).toFixed(1)}`).join(',')
+      : ''
+    console.log(`win=${(winRatio*100).toFixed(2)}% S1pass=${pass(1)}% S3pass=${pass(3)}% S5pass=${pass(5)}% S8pass=${pass(8)}% scraps=${(metrics.cumScraps/runs).toFixed(1)} jk=${(metrics.cumJokersBought/runs).toFixed(2)} cqu=${(metrics.cumCrewQuartersBought/runs).toFixed(2)} plays=[${patternSummary}] strat=${STRATEGY}`)
     return
   }
 
@@ -1181,7 +1465,7 @@ function printMetrics(metrics, quiet) {
   console.log(`  pool     : ${JOKERS.length} unique parts (no duplicates)`)
   console.log(`  runs     : ${runs.toLocaleString()}  (${elapsed}s)`)
   console.log(`  gates    : [${GATE_COSTS.join(',')}]  total=${GATE_COSTS.reduce((a,b)=>a+b,0)}`)
-  console.log(`  start    : ${STARTING_FUEL} fuel, ${STARTING_SCRAPS} scraps, ${startingCrew.length} starting crew, ${cryoCrew.length}-card cryo`)
+  console.log(`  start    : ${STARTING_FUEL} fuel, ${STARTING_SCRAPS} scraps, ${startingCrew.length} starting crew, ${crewDeckCards.length}-card Crew deck`)
   console.log(`  per sec  : ${ACTIONS_PER_SECTOR} actions, hand cap ${HAND_SIZE_LIMIT_BASE} (+1 with Adrenal Implants)`)
   console.log()
   console.log('Reached sector N (cumulative):')
@@ -1336,7 +1620,7 @@ function formatMetricsReport(metricsOn, metricsOff) {
     '|--------|--------|',
     '| Win rate, jokers ON | 1.5 – 2.5% |',
     '| Win rate, jokers OFF (`NO_JOKERS=1`) | 0% |',
-    '| S1 pass rate (deterministic) | 100% |',
+    '| S1 pass rate (random 5-of-45 opener) | ~70% |',
     '| S4 reach, jokers OFF (S3 wall) | < 1% |',
     '| Avg crew quarter upgrades researched per winning run | 10 – 16 |',
     '| Avg ship parts bought per winning run | ≈ 10 (5 in slot after replacement) |',
@@ -1430,12 +1714,12 @@ if (args.writeMetrics) {
  *   intent that a player who never buys ship parts AND never researches
  *   crew quarter upgrades cannot pass Sector 3.
  *
- * --- Quadrupled, icon-balanced cryo (current build) ---
+ * --- Quadrupled, icon-balanced Crew deck (current build) ---
  *
- * The cryo deck has 40 cards across 10 unique blueprints with copy
+ * The Crew deck has 40 cards across 10 unique blueprints with copy
  * counts tuned for exact icon balance: Juno/Priya ×5, Oren/Malik ×3,
  * the rest ×4. The 45-card roster is exactly E=L=N=S=16. Singles still
- * outnumber doubles (26:14 in cryo, 26:19 overall) and cannot satisfy
+ * outnumber doubles (26:14 in the Crew deck, 26:19 overall) and cannot satisfy
  * Specialist / Cross-Trained / Department Heads / Bridge Crew. Mara/Sana
  * (the only E/L matched specialists) are still 1 of 45 cards each, so
  * high-tier specialist patterns land less often than the 15-card roster.

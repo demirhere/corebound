@@ -4,6 +4,8 @@ import {
   getMissionPatternFuel,
   getMissionPatternLabel,
 } from '../game/rules'
+import { CREW_QUARTERS_MAX_UPGRADES_PER_PATTERN } from '../game/crewQuartersCatalog'
+import { countCrewQuartersForPattern } from '../game/shipPartEffects'
 import type {
   ActiveCrewQuarters,
   ActiveShipPart,
@@ -171,13 +173,24 @@ export function CrewGuideDialog({ isOpen, onClose, patternUsageCounts, activeShi
             const totalFuel = baseFuel + bonus
             const used = patternUsageCounts[entry.pattern] ?? 0
             const isBoosted = bonus > 0
+            const isAtUpgradeCapacity = countCrewQuartersForPattern(activeCrewQuarters, entry.pattern) >= CREW_QUARTERS_MAX_UPGRADES_PER_PATTERN
+            const rowClassName = [
+              'crew-guide-row',
+              isBoosted ? 'crew-guide-row-boosted' : null,
+              isAtUpgradeCapacity ? 'crew-guide-row-at-capacity' : null,
+            ].filter(Boolean).join(' ')
+            const rewardClassName = [
+              'crew-guide-reward-amount',
+              isBoosted ? 'crew-guide-reward-boosted' : null,
+              isAtUpgradeCapacity ? 'crew-guide-reward-at-capacity' : null,
+            ].filter(Boolean).join(' ')
             return (
-              <li key={entry.pattern} className={`crew-guide-row${isBoosted ? ' crew-guide-row-boosted' : ''}`}>
+              <li key={entry.pattern} className={rowClassName}>
                 <span className="crew-guide-name">{getMissionPatternLabel(entry.pattern)}</span>
                 <span className="crew-guide-icons"><CrewIconRow crew={entry.crew} sharedIcon={entry.sharedIcon} /></span>
                 <span className="crew-guide-reward">
                   <span
-                    className={`crew-guide-reward-amount${isBoosted ? ' crew-guide-reward-boosted' : ''}`}
+                    className={rewardClassName}
                     aria-label={isBoosted ? `${totalFuel}x (boosted from ${baseFuel}x)` : undefined}
                   >
                     {totalFuel}x
@@ -196,7 +209,7 @@ export function CrewGuideDialog({ isOpen, onClose, patternUsageCounts, activeShi
           })}
         </ol>
 
-        <button type="button" autoFocus onClick={onClose}>
+        <button type="button" onClick={onClose}>
           Close Guide
         </button>
       </section>

@@ -156,7 +156,7 @@ export const shipPartCatalog: readonly ShipPartBlueprint[] = [
   // insight: at sector end, +1 Fuel per Ready (unused) crew (capped at 5).
   // Pairs with Lean Manifest (use ≤2 crew/mission → save 3+ Ready) and
   // Adrenal Implants (crew capacity +1 → more potential Ready crew). Rewards
-  // efficient missions that don't burn through the cryo deck.
+  // efficient missions that don't burn through the Crew deck.
   // EXPECTED: appears in ≥24% of winning slots; fires for +2-4 fuel/sector
   // typically. Future test: Reserve Capacitor owners average ≥3 Ready crew
   // at gate time vs ≤2 for non-owners.

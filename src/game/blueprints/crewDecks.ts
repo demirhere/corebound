@@ -8,21 +8,21 @@ export const startingCrewCards = [
   createCrewCard('Nia Okonkwo', ['signal', 'star'], 10),
 ]
 
-// Cryo deck — 40 cards across 10 unique blueprints with per-template
-// copy counts chosen so the entire 45-card roster (5 starters + 40 cryo)
+// Crew deck — 40 cards across 10 unique blueprints with per-template
+// copy counts chosen so the entire 45-card roster (5 starters + 40 deck cards)
 // is exactly icon-balanced at 16 each (E=16, L=16, N/star=16, S/signal=16).
 //
 // Most templates ship 4 copies; Juno/Priya are bumped to 5× and
 // Oren/Malik dropped to 3× to neutralize the starter's E/L bias against
-// the matched-specialist N/S over-weighting from a uniform 4× cryo.
+// the matched-specialist N/S over-weighting from a uniform 4× crew deck.
 //
-// Singles still outnumber doubles in cryo (26 vs 14). Singles cannot
+// Singles still outnumber doubles in the Crew deck (26 vs 14). Singles cannot
 // satisfy Specialist / Cross-Trained / Department Heads / Bridge Crew
 // (those patterns require length-2 specializations) — they only
 // contribute to shared-icon patterns (Common Ground / Knowledge /
 // Cause). The 4 matched specialists (Mara, Sana from starters + Oren,
-// Malik from cryo) keep Bridge Crew reachable.
-const cryoCrewTemplateCopies: { blueprint: ReturnType<typeof createCrewCard>, copies: number }[] = [
+// Malik from the Crew deck) keep Bridge Crew reachable.
+const crewDeckTemplateCopies: { blueprint: ReturnType<typeof createCrewCard>, copies: number }[] = [
   { blueprint: createCrewCard('Juno Pike',     ['engine'],          4), copies: 5 },
   { blueprint: createCrewCard('Priya Shah',    ['life'],           12), copies: 5 },
   { blueprint: createCrewCard('Ilya Rao',      ['star'],            6), copies: 4 },
@@ -35,6 +35,6 @@ const cryoCrewTemplateCopies: { blueprint: ReturnType<typeof createCrewCard>, co
   { blueprint: createCrewCard('Malik Ortega',  ['star', 'star'],   15), copies: 3 },
 ]
 
-export const cryoCrewDeck = cryoCrewTemplateCopies.flatMap(
+export const crewDeckBlueprints = crewDeckTemplateCopies.flatMap(
   ({ blueprint, copies }) => Array.from({ length: copies }, () => blueprint),
 )
